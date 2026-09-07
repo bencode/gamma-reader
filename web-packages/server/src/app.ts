@@ -8,7 +8,11 @@ export const createApp = (webRoot?: string) => {
   app.all('/api', c => c.json({ error: 'Not found' }, 404))
   app.all('/api/*', c => c.json({ error: 'Not found' }, 404))
 
-  if (webRoot) app.use('*', serveStatic({ root: webRoot }))
+  if (webRoot) {
+    app.get('/files', serveStatic({ root: webRoot, path: 'index.html' }))
+    app.get('/files/:documentId', serveStatic({ root: webRoot, path: 'index.html' }))
+    app.use('*', serveStatic({ root: webRoot }))
+  }
 
   app.onError((error, c) => {
     console.error('Request failed', error)

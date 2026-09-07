@@ -6,10 +6,15 @@ The current iteration provides a three-panel reading workspace and a Node servic
 with a health endpoint. Open the application to read three built-in Markdown
 examples, switch between document tabs, and collect excerpts beside a question.
 
-The materials and assistant panels can be resized or hidden. At narrower widths,
-materials open in an overlay; below 800px, the assistant also opens in an overlay.
+The Files and assistant panels can be resized or hidden. At narrower widths,
+Files opens in an overlay; below 800px, the assistant also opens in an overlay.
 Tab reading positions, question drafts, and excerpts survive panel changes within
-the current page. Reloading resets this preview: there is no persistence yet.
+the current page. Reloading clears those temporary values. Open tabs and their
+order are stored in this browser; the current document is selected by its
+`/files/:documentId` route. Opening `/` resumes the last active document, or the
+empty workspace at `/files` when no document was active. Panel width preferences are
+stored in this browser and restored after reloading; window resizing does not
+overwrite those preferences.
 
 Local file and folder access, PDF/HTML/image readers, Word context, AI responses,
 notes editing, and saving are not connected yet. Their relevant controls are
@@ -79,8 +84,10 @@ browser directory access; configure TLS at the hosting layer.
 { "status": "ok", "service": "gamma-reader" }
 ```
 
-Unknown API routes return JSON 404 responses. Unknown pages and missing assets
-return 404; there is no client-side routing or HTML fallback.
+Unknown API routes return JSON 404 responses. The server returns the application
+entry page for `/files` and `/files/:documentId`, so document routes support direct
+access and reloading. Other unknown pages and missing assets return 404. Routes
+identify documents available in this browser; they do not share local files.
 
 ## Repository
 

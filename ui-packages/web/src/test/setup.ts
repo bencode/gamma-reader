@@ -40,4 +40,5 @@ afterEach(() => {
   cleanup()
   window.getSelection()?.removeAllRanges()
   vi.restoreAllMocks()
+  localStorage.clear()
 })

@@ -20,9 +20,9 @@ This is your reading space. There is no folder to organize before you begin.
 
 ## Start with what interests you
 
-The examples on the left are ready to explore. Open **The art of noticing** for a short article, or **Reading notes** for a different way to organize your thoughts.
+The files on the left are ready to explore. Open **The art of noticing** for a short article, or **Reading notes** for a different way to organize your thoughts.
 
-Each document opens in its own tab. Move between them without losing your place. Closing a tab leaves the document in your materials, ready to open again.
+Each document opens in its own tab. Move between them without losing your place. Closing a tab leaves the document in Files, ready to open again.
 
 > You do not need to know where a reading session will lead before you start it.
 
@@ -38,30 +38,30 @@ In this preview, you can prepare questions and collect excerpts. **AI replies ar
 
 Drag the divider beside a panel to make it wider or narrower. You can also focus a divider and use the arrow keys.
 
-Hide the materials panel when you want to concentrate. Close the reading assistant when you just want to read. Your open tabs, excerpts, and question stay here when you bring the panels back.
+Hide the Files panel when you want to concentrate. Close the reading assistant when you just want to read. Your open tabs, excerpts, and question stay here when you bring the panels back.
 
 ## Bring your own material, later
 
 Eventually, **Add files** will let you begin with a single document. **Add folder** will make a whole collection available. Both will ask for read access only.
 
-For now, these actions are unavailable. The built-in examples let you explore the reading experience without granting access to your files.
+For now, these actions are unavailable. You can already read the documents in Files without granting access to your device.
 
 | What you can try now | What comes later |
 | --- | --- |
-| Read and switch between examples | Add local files and folders |
+| Read and switch between files | Add local files and folders |
 | Keep several document tabs open | Read PDF, HTML, and images |
 | Collect excerpts and draft a question | Receive AI explanations |
 | Resize and hide panels | Save reading records |
 
 ## A note about saving
 
-This preview keeps your reading state in the current page only. **Reloading resets it.** The label at the bottom of Materials says “Session only” so there is no confusion about what has been saved.
+Your open tabs and their order are remembered in this browser. The address points to the document you are reading. Your question, excerpts, and scroll positions stay in the current page only. **Reloading clears them.** Your panel widths are also remembered, including when you hide a panel and bring it back.
 
 Browser drafts and explicit saving to a local folder will arrive in a later iteration. Original documents will remain unchanged.
 
 ## Try a small experiment
 
-1. Open **The art of noticing** from Materials.
+1. Open **The art of noticing** from Files.
 2. Select a passage that catches your attention.
 3. Choose **Ask AI**, then write down a question.
 4. Return to this tab. Your question and excerpt are still in the assistant.
@@ -131,7 +131,7 @@ Keep the two excerpts together. The relationship between them may be more intere
 
 ---
 
-*An original sample essay for Gamma Reader.*
+*Written for Gamma Reader.*
 `,
   },
   {
@@ -188,7 +188,7 @@ When you quote a sentence, keep its document name beside it. That small habit le
 
 Gamma Reader's excerpt list follows the same principle. An excerpt stays attached to its source even if you close that document's reading tab.
 
-This sample is read-only. You can select its text and draft a question in the assistant, but editing notes and saving them will come later.
+This document is read-only. You can select its text and draft a question in the assistant, but editing notes and saving them will come later.
 `,
   },
 ]

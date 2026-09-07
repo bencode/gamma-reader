@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUp, MessageSquare, Quote as QuoteIcon, X } from 'lucide-react'
+import { ArrowUp, MessageSquare, Quote as QuoteIcon, X } from 'lucide-react'
 import type { RefObject } from 'react'
 import type { Workspace } from '../../shell/use-workspace'
 
@@ -8,16 +8,11 @@ type ConversationPanelProps = {
   onClose: () => void
 }
 
-const suggestions = [
-  'Explain the main idea in simpler terms.',
-  'What questions should I ask about this document?',
-]
-
 export const ConversationPanel = ({ workspace, inputRef, onClose }: ConversationPanelProps) => (
   <aside className="conversation-panel panel-surface" aria-label="Reading assistant">
     <header className="panel-header">
       <h2>
-        <MessageSquare size={16} /> Reading assistant
+        <MessageSquare size={16} /> <span>Reading assistant</span>
       </h2>
       <button
         type="button"
@@ -29,30 +24,7 @@ export const ConversationPanel = ({ workspace, inputRef, onClose }: Conversation
         <X size={17} />
       </button>
     </header>
-    <div className="conversation-scroll">
-      <div className="assistant-intro">
-        <span className="assistant-mark">
-          <MessageSquare size={23} strokeWidth={1.5} />
-        </span>
-        <h3>Follow your curiosity.</h3>
-        <p>Select a passage to keep it beside your question, or start with an idea of your own.</p>
-        <div className="suggestions">
-          {suggestions.map(suggestion => (
-            <button
-              type="button"
-              key={suggestion}
-              onClick={() => {
-                workspace.setDraft(suggestion)
-                inputRef.current?.focus()
-              }}
-            >
-              <span>{suggestion}</span>
-              <ArrowRight size={15} />
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+    <div className="conversation-scroll" />
     <div className="composer-area">
       {workspace.quotes.length > 0 && (
         <section className="quote-list" aria-label="Selected excerpts">
@@ -82,14 +54,12 @@ export const ConversationPanel = ({ workspace, inputRef, onClose }: Conversation
         <textarea
           ref={inputRef}
           aria-label="Your question"
-          aria-describedby="ai-status"
           placeholder="What would you like to understand?"
           value={workspace.draft}
           onChange={event => workspace.setDraft(event.target.value)}
           rows={3}
         />
         <div className="composer-bottom">
-          <span>Draft a question</span>
           <button
             type="button"
             className="send-button"
@@ -101,9 +71,6 @@ export const ConversationPanel = ({ workspace, inputRef, onClose }: Conversation
           </button>
         </div>
       </div>
-      <p id="ai-status" className="ai-status">
-        AI is not connected yet. Nothing is sent.
-      </p>
     </div>
   </aside>
 )

@@ -1,5 +1,5 @@
 import { MessageSquarePlus } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { SampleDocument } from '../../core/samples'
@@ -26,13 +26,10 @@ export const MarkdownReader = ({
   const [selection, setSelection] = useState<SelectedText | null>(null)
 
   useLayoutEffect(() => {
+    setSelection(null)
     if (active && scrollRef.current)
       scrollRef.current.scrollTop = scrollPositions.current.get(source.id) ?? 0
   }, [active, source.id, scrollPositions])
-
-  useEffect(() => {
-    if (!active) setSelection(null)
-  }, [active])
 
   const captureSelection = () => {
     const selected = window.getSelection()
@@ -73,7 +70,6 @@ export const MarkdownReader = ({
           onKeyUp={captureSelection}
         >
           <div className="document-meta">
-            <span>EXAMPLE DOCUMENT</span>
             <span>Read-only</span>
           </div>
           <ReactMarkdown

@@ -1,9 +1,10 @@
-import { BookOpen, PanelLeftOpen, Plus, Save } from 'lucide-react'
+import { BookOpen, PanelLeft, Plus, Save } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { ConversationPanel } from '../features/conversation/conversation-panel'
 import { DocumentTabs } from '../features/reader/document-tabs'
 import { ResourcePanel } from '../features/resources/resource-panel'
+import { usePanelWidths } from './use-panel-widths'
 import { useWorkspace } from './use-workspace'
 
 const queries = ['(min-width: 1100px)', '(min-width: 800px)'] as const
@@ -26,21 +27,23 @@ const subscribeMode = (notify: () => void) => {
 
 export const Workbench = () => {
   const workspace = useWorkspace()
+  const { widths, saveWidths } = usePanelWidths()
+  const groupElementRef = useRef<HTMLDivElement>(null)
   const mode = useSyncExternalStore(subscribeMode, getMode)
-  const [materialsOpen, setMaterialsOpen] = useState(true)
+  const [filesOpen, setFilesOpen] = useState(true)
   const [assistantOpen, setAssistantOpen] = useState(true)
   const [overlayRequest, setOverlayRequest] = useState<{
-    kind: 'materials' | 'assistant'
+    kind: 'files' | 'assistant'
     mode: string
   } | null>(null)
   const overlay = overlayRequest?.mode === mode ? overlayRequest.kind : null
-  const setOverlay = (kind: 'materials' | 'assistant' | null) =>
+  const setOverlay = (kind: 'files' | 'assistant' | null) =>
     setOverlayRequest(kind ? { kind, mode } : null)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
   const railRef = useRef<HTMLButtonElement>(null)
-  const inlineMaterials = mode === 'wide' && materialsOpen
+  const inlineFiles = mode === 'wide' && filesOpen
   const inlineAssistant = mode !== 'narrow' && assistantOpen
 
   useEffect(() => {
@@ -59,11 +62,11 @@ export const Workbench = () => {
     }
   }, [overlay])
 
-  const openMaterials = (trigger: HTMLElement) => {
-    if (mode === 'wide') setMaterialsOpen(true)
+  const openFiles = (trigger: HTMLElement) => {
+    if (mode === 'wide') setFilesOpen(true)
     else {
       triggerRef.current = trigger
-      setOverlay('materials')
+      setOverlay('files')
     }
   }
   const openAssistant = (trigger?: HTMLElement) => {
@@ -79,10 +82,10 @@ export const Workbench = () => {
     openAssistant()
     requestAnimationFrame(() => inputRef.current?.focus())
   }
-  const closeMaterials = () => {
-    if (overlay === 'materials') setOverlay(null)
+  const closeFiles = () => {
+    if (overlay === 'files') setOverlay(null)
     else {
-      setMaterialsOpen(false)
+      setFilesOpen(false)
       requestAnimationFrame(() => railRef.current?.focus())
     }
   }
@@ -95,13 +98,13 @@ export const Workbench = () => {
       )
     }
   }
-  const materials = (
+  const files = (
     <ResourcePanel
       activeId={workspace.activeId}
-      onClose={closeMaterials}
+      onClose={closeFiles}
       onOpen={id => {
         workspace.openDocument(id)
-        if (overlay === 'materials') setOverlay(null)
+        if (overlay === 'files') setOverlay(null)
       }}
     />
   )
@@ -111,25 +114,25 @@ export const Workbench = () => {
 
   return (
     <div className="workbench">
-      {!inlineMaterials && (
-        <nav className="materials-rail" aria-label="Workspace controls">
-          <BookOpen size={20} aria-label="Gamma Reader" />
+      {!inlineFiles && (
+        <nav className="files-rail" aria-label="Workspace controls">
           <button
             type="button"
-            className="icon-button"
+            className="icon-button rail-brand"
             ref={railRef}
-            aria-label="Open materials"
-            title="Open materials"
-            onClick={event => openMaterials(event.currentTarget)}
+            aria-label="Open files"
+            title="Open files"
+            onClick={event => openFiles(event.currentTarget)}
           >
-            <PanelLeftOpen size={18} />
+            <BookOpen className="rail-logo" size={19} aria-hidden="true" />
+            <PanelLeft className="rail-expand" size={18} aria-hidden="true" />
           </button>
           <button
             type="button"
             className="icon-button"
-            aria-label="Show material actions"
-            title="Show material actions"
-            onClick={event => openMaterials(event.currentTarget)}
+            aria-label="Show file actions"
+            title="Show file actions"
+            onClick={event => openFiles(event.currentTarget)}
           >
             <Plus size={18} />
           </button>
@@ -137,7 +140,7 @@ export const Workbench = () => {
             type="button"
             className="icon-button rail-save"
             aria-label="Save to folder"
-            title="Saving is not available yet"
+            title="Saving is not available yet. Reloading clears reading drafts and excerpts."
             disabled
           >
             <Save size={17} />
@@ -145,20 +148,39 @@ export const Workbench = () => {
         </nav>
       )}
       <Group
-        key={`${mode}-${inlineMaterials}-${inlineAssistant}`}
+        key={`${mode}-${inlineFiles}-${inlineAssistant}`}
         className="workspace-panels"
+        elementRef={groupElementRef}
         orientation="horizontal"
         resizeTargetMinimumSize={{ fine: 8, coarse: 24 }}
+        onLayoutChanged={(layout, meta) => {
+          const group = groupElementRef.current
+          if (!meta.isUserInteraction || !group) return
+          const availableWidth = Array.from(group.children)
+            .filter(child => child.hasAttribute('data-panel'))
+            .reduce((total, panel) => total + panel.getBoundingClientRect().width, 0)
+          saveWidths({
+            ...(layout.files !== undefined ? { files: (availableWidth * layout.files) / 100 } : {}),
+            ...(layout.assistant !== undefined
+              ? { assistant: (availableWidth * layout.assistant) / 100 }
+              : {}),
+          })
+        }}
       >
-        {inlineMaterials && (
+        {inlineFiles && (
           <>
-            <Panel id="materials" defaultSize="240px" minSize="180px" maxSize="360px">
-              {materials}
+            <Panel
+              id="files"
+              defaultSize={widths.files}
+              minSize="140px"
+              groupResizeBehavior="preserve-pixel-size"
+            >
+              {files}
             </Panel>
-            <Separator className="panel-separator" aria-label="Resize materials" />
+            <Separator className="panel-separator" aria-label="Resize files" />
           </>
         )}
-        <Panel id="reader" minSize={mode === 'narrow' ? '0px' : '400px'}>
+        <Panel id="reader" minSize={mode === 'narrow' ? '0px' : '240px'}>
           <DocumentTabs
             workspace={workspace}
             assistantVisible={inlineAssistant}
@@ -169,7 +191,12 @@ export const Workbench = () => {
         {inlineAssistant && (
           <>
             <Separator className="panel-separator" aria-label="Resize reading assistant" />
-            <Panel id="assistant" defaultSize="360px" minSize="320px">
+            <Panel
+              id="assistant"
+              defaultSize={widths.assistant}
+              minSize="220px"
+              groupResizeBehavior="preserve-pixel-size"
+            >
               {assistant}
             </Panel>
           </>
@@ -178,13 +205,13 @@ export const Workbench = () => {
       <dialog
         className={`panel-dialog ${overlay ?? ''}`}
         ref={dialogRef}
-        aria-label={overlay === 'materials' ? 'Materials panel' : 'Reading assistant panel'}
+        aria-label={overlay === 'files' ? 'Files panel' : 'Reading assistant panel'}
         onCancel={event => {
           event.preventDefault()
           setOverlay(null)
         }}
       >
-        {overlay === 'materials' ? materials : overlay === 'assistant' ? assistant : null}
+        {overlay === 'files' ? files : overlay === 'assistant' ? assistant : null}
       </dialog>
     </div>
   )

@@ -1,6 +1,6 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { BookOpen, MessageSquare, X } from 'lucide-react'
-import { useLayoutEffect, useRef } from 'react'
+import { Activity, useLayoutEffect, useRef } from 'react'
 import { samples } from '../../core/samples'
 import type { Workspace } from '../../shell/use-workspace'
 import { MarkdownReader } from './markdown-reader'
@@ -19,11 +19,12 @@ export const DocumentTabs = ({
   onQuote,
 }: DocumentTabsProps) => {
   const focusTargetRef = useRef<HTMLButtonElement>(null)
-  const restoreFocusRef = useRef(false)
+  const closingTabRef = useRef<string | null>(null)
 
   useLayoutEffect(() => {
-    if (!restoreFocusRef.current) return
-    restoreFocusRef.current = false
+    const closing = closingTabRef.current
+    if (!closing || workspace.tabs.includes(closing) || workspace.activeId === closing) return
+    closingTabRef.current = null
     focusTargetRef.current?.focus()
   })
 
@@ -31,7 +32,7 @@ export const DocumentTabs = ({
     <Tabs.Root
       className="reading-panel"
       value={workspace.activeId ?? ''}
-      onValueChange={workspace.setActiveId}
+      onValueChange={workspace.openDocument}
     >
       <div className="tabs-header">
         <Tabs.List className="document-tabs" aria-label="Open documents">
@@ -55,7 +56,7 @@ export const DocumentTabs = ({
                   className="tab-close icon-button"
                   aria-label={`Close ${source.title}`}
                   onClick={() => {
-                    restoreFocusRef.current = true
+                    closingTabRef.current = id
                     workspace.closeDocument(id)
                   }}
                 >
@@ -78,11 +79,11 @@ export const DocumentTabs = ({
         )}
       </div>
       <main className="reading-body" aria-label="Document reader">
-        {workspace.tabs.length === 0 ? (
+        {workspace.activeId === null && (
           <div className="empty-reader">
             <BookOpen size={30} strokeWidth={1.4} />
             <h1>A place for your next question</h1>
-            <p>Choose a document from Materials to start reading.</p>
+            <p>Choose a document from Files to start reading.</p>
             <button
               type="button"
               className="text-button"
@@ -92,17 +93,12 @@ export const DocumentTabs = ({
               Open Getting started
             </button>
           </div>
-        ) : (
-          workspace.tabs.map(id => {
-            const source = samples.find(document => document.id === id)
-            return source ? (
-              <Tabs.Content
-                key={id}
-                value={id}
-                className="document-pane"
-                forceMount
-                hidden={workspace.activeId !== id}
-              >
+        )}
+        {workspace.tabs.map(id => {
+          const source = samples.find(document => document.id === id)
+          return source ? (
+            <Activity key={id} mode={workspace.activeId === id ? 'visible' : 'hidden'}>
+              <Tabs.Content value={id} className="document-pane" forceMount>
                 <MarkdownReader
                   document={source}
                   active={workspace.activeId === id}
@@ -110,9 +106,9 @@ export const DocumentTabs = ({
                   onQuote={onQuote}
                 />
               </Tabs.Content>
-            ) : null
-          })
-        )}
+            </Activity>
+          ) : null
+        })}
       </main>
     </Tabs.Root>
   )
