@@ -1,9 +1,8 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { BookOpen, MessageSquare, X } from 'lucide-react'
 import { Activity, useLayoutEffect, useRef } from 'react'
-import { samples } from '../../core/samples'
 import type { Workspace } from '../../shell/use-workspace'
-import { MarkdownReader } from './markdown-reader'
+import { FilePreview } from './file-preview'
 
 type DocumentTabsProps = {
   workspace: Workspace
@@ -37,7 +36,7 @@ export const DocumentTabs = ({
       <div className="tabs-header">
         <Tabs.List className="document-tabs" aria-label="Open documents">
           {workspace.tabs.map(id => {
-            const source = samples.find(document => document.id === id)
+            const source = workspace.files.find(document => document.id === id)
             if (!source) return null
             return (
               <div
@@ -49,12 +48,12 @@ export const DocumentTabs = ({
                   title={source.name}
                   ref={workspace.activeId === id ? focusTargetRef : undefined}
                 >
-                  {source.title}
+                  {source.name}
                 </Tabs.Trigger>
                 <button
                   type="button"
                   className="tab-close icon-button"
-                  aria-label={`Close ${source.title}`}
+                  aria-label={`Close ${source.name}`}
                   onClick={() => {
                     closingTabRef.current = id
                     workspace.closeDocument(id)
@@ -79,27 +78,33 @@ export const DocumentTabs = ({
         )}
       </div>
       <main className="reading-body" aria-label="Document reader">
-        {workspace.activeId === null && (
+        {workspace.filesLoading ? (
+          <div className="preview-state" role="status">
+            Opening Files…
+          </div>
+        ) : workspace.activeId === null ? (
           <div className="empty-reader">
             <BookOpen size={30} strokeWidth={1.4} />
             <h1>A place for your next question</h1>
             <p>Choose a document from Files to start reading.</p>
-            <button
-              type="button"
-              className="text-button"
-              ref={focusTargetRef}
-              onClick={() => workspace.openDocument('getting-started')}
-            >
-              Open Getting started
-            </button>
+            {workspace.files[0] && (
+              <button
+                type="button"
+                className="text-button"
+                ref={focusTargetRef}
+                onClick={() => workspace.openDocument(workspace.files[0]?.id ?? '')}
+              >
+                Open {workspace.files[0].name}
+              </button>
+            )}
           </div>
-        )}
+        ) : null}
         {workspace.tabs.map(id => {
-          const source = samples.find(document => document.id === id)
+          const source = workspace.files.find(document => document.id === id)
           return source ? (
             <Activity key={id} mode={workspace.activeId === id ? 'visible' : 'hidden'}>
               <Tabs.Content value={id} className="document-pane" forceMount>
-                <MarkdownReader
+                <FilePreview
                   document={source}
                   active={workspace.activeId === id}
                   scrollPositions={workspace.scrollPositions}

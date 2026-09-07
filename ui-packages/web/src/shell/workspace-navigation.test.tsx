@@ -10,6 +10,7 @@ const file = (name: string) =>
   within(screen.getByRole('list', { name: 'Files' })).getByRole('button', { name })
 const tabNames = () => screen.queryAllByRole('tab').map(tab => tab.textContent)
 const savedWorkspace = () => JSON.parse(localStorage.getItem(storageKey) ?? 'null')
+const waitForWorkspace = () => screen.findByRole('tab', { name: 'Getting started.md' })
 
 const Navigation = () => {
   const location = useLocation()
@@ -41,9 +42,12 @@ describe('local workspace navigation', () => {
   it('restores tab order and the last active document without saving drafts or excerpts', async () => {
     const user = userEvent.setup()
     const page = openReader()
-    expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/getting-started')
-    await user.click(file('Reading notes'))
-    await user.click(file('The art of noticing'))
+    await waitForWorkspace()
+    await waitFor(() =>
+      expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/getting-started'),
+    )
+    await user.click(file('Reading notes.md'))
+    await user.click(file('The art of noticing.md'))
     await user.type(screen.getByRole('textbox'), 'An unsaved question')
     expect(savedWorkspace()).toEqual({
       tabs: ['getting-started', 'reading-notes', 'art-of-noticing'],
@@ -51,19 +55,23 @@ describe('local workspace navigation', () => {
     })
     page.unmount()
     openReader()
-    expect(tabNames()).toEqual(['Getting started', 'Reading notes', 'The art of noticing'])
-    expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/art-of-noticing')
+    await waitForWorkspace()
+    expect(tabNames()).toEqual(['Getting started.md', 'Reading notes.md', 'The art of noticing.md'])
+    await waitFor(() =>
+      expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/art-of-noticing'),
+    )
     expect(screen.getByRole('textbox')).toHaveValue('')
   })
 
-  it('lets a document route override the saved selection and append a missing tab', () => {
+  it('lets a document route override the saved selection and append a missing tab', async () => {
     localStorage.setItem(
       storageKey,
       JSON.stringify({ tabs: ['reading-notes'], lastActiveId: 'reading-notes' }),
     )
     openReader('/files/art-of-noticing')
-    expect(tabNames()).toEqual(['Reading notes', 'The art of noticing'])
-    expect(screen.getByRole('tab', { name: 'The art of noticing' })).toHaveAttribute(
+    await screen.findByRole('tab', { name: 'The art of noticing.md' })
+    expect(tabNames()).toEqual(['Reading notes.md', 'The art of noticing.md'])
+    expect(screen.getByRole('tab', { name: 'The art of noticing.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
@@ -73,21 +81,22 @@ describe('local workspace navigation', () => {
   it('navigates history without undoing the local tab list or adding duplicate active entries', async () => {
     const user = userEvent.setup()
     openReader()
-    await user.click(file('The art of noticing'))
-    await user.click(file('Reading notes'))
-    await user.click(screen.getByRole('tab', { name: 'Reading notes' }))
+    await waitForWorkspace()
+    await user.click(file('The art of noticing.md'))
+    await user.click(file('Reading notes.md'))
+    await user.click(screen.getByRole('tab', { name: 'Reading notes.md' }))
     await user.click(screen.getByRole('button', { name: 'Back' }))
     expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/art-of-noticing')
-    expect(tabNames()).toEqual(['Getting started', 'The art of noticing', 'Reading notes'])
+    expect(tabNames()).toEqual(['Getting started.md', 'The art of noticing.md', 'Reading notes.md'])
     await user.click(screen.getByRole('button', { name: 'Forward' }))
     expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/reading-notes')
-    await user.click(screen.getByRole('tab', { name: 'The art of noticing' }))
+    await user.click(screen.getByRole('tab', { name: 'The art of noticing.md' }))
     await user.click(screen.getByRole('button', { name: 'Back' }))
     expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/reading-notes')
-    await user.click(screen.getByRole('button', { name: 'Close The art of noticing' }))
+    await user.click(screen.getByRole('button', { name: 'Close The art of noticing.md' }))
     await user.click(screen.getByRole('button', { name: 'Back' }))
-    expect(tabNames()).toEqual(['Getting started', 'Reading notes', 'The art of noticing'])
-    expect(screen.getByRole('tab', { name: 'The art of noticing' })).toHaveAttribute(
+    expect(tabNames()).toEqual(['Getting started.md', 'Reading notes.md', 'The art of noticing.md'])
+    expect(screen.getByRole('tab', { name: 'The art of noticing.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
@@ -96,28 +105,33 @@ describe('local workspace navigation', () => {
   it('restores an intentionally empty workspace after closing its last tab', async () => {
     const user = userEvent.setup()
     const page = openReader()
-    await user.click(screen.getByRole('button', { name: 'Close Getting started' }))
+    await waitForWorkspace()
+    await user.click(screen.getByRole('button', { name: 'Close Getting started.md' }))
     expect(screen.getByLabelText('Current route')).toHaveTextContent('/files')
     expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null })
     page.unmount()
     openReader()
+    await screen.findByRole('button', { name: 'Open Getting started.md' })
     expect(tabNames()).toEqual([])
-    expect(screen.getByRole('button', { name: 'Open Getting started' })).toBeVisible()
   })
 
-  it('does not open an unknown route as a file or discard existing tabs', () => {
+  it('does not open an unknown route as a file or discard existing tabs', async () => {
     openReader('/files/not-in-this-browser')
-    expect(screen.getByLabelText('Current route')).toHaveTextContent(/^\/files$/)
-    expect(tabNames()).toEqual(['Getting started'])
+    await waitForWorkspace()
+    await waitFor(() =>
+      expect(screen.getByLabelText('Current route')).toHaveTextContent(/^\/files$/),
+    )
+    expect(tabNames()).toEqual(['Getting started.md'])
     expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument()
     expect(savedWorkspace()).toEqual({ tabs: ['getting-started'], lastActiveId: null })
   })
 
-  it('restores defaults and reports damaged storage', () => {
+  it('restores defaults and reports damaged storage', async () => {
     localStorage.setItem(storageKey, '{')
     const report = vi.spyOn(console, 'error').mockImplementation(() => {})
     openReader()
-    expect(screen.getByRole('tab', { name: 'Getting started' })).toHaveAttribute(
+    await waitForWorkspace()
+    expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
@@ -135,10 +149,11 @@ describe('local workspace navigation', () => {
     })
     const report = vi.spyOn(console, 'error').mockImplementation(() => {})
     openReader()
-    await user.click(file('Reading notes'))
-    await user.click(screen.getByRole('button', { name: 'Close Getting started' }))
-    expect(tabNames()).toEqual(['Reading notes'])
-    expect(screen.getByRole('tab', { name: 'Reading notes' })).toHaveAttribute(
+    await waitForWorkspace()
+    await user.click(file('Reading notes.md'))
+    await user.click(screen.getByRole('button', { name: 'Close Getting started.md' }))
+    expect(tabNames()).toEqual(['Reading notes.md'])
+    expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
@@ -148,6 +163,8 @@ describe('local workspace navigation', () => {
   it('restores an Activity document position without resurrecting its selection toolbar', async () => {
     const user = userEvent.setup()
     openReader()
+    await waitForWorkspace()
+    await screen.findByRole('heading', { name: 'A little room to read' })
     const pane = screen.getByRole('tabpanel')
     const scroll = pane.querySelector('.document-scroll')
     if (!scroll) throw new Error('Document scroll container is missing')
@@ -160,10 +177,10 @@ describe('local workspace navigation', () => {
     window.getSelection()?.addRange(range)
     fireEvent.pointerUp(text)
     expect(screen.getByRole('button', { name: 'Ask AI' })).toBeVisible()
-    await user.click(file('Reading notes'))
+    await user.click(file('Reading notes.md'))
     expect(pane).not.toBeVisible()
     expect(screen.queryByRole('button', { name: 'Ask AI' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('tab', { name: 'Getting started' }))
+    await user.click(screen.getByRole('tab', { name: 'Getting started.md' }))
     await waitFor(() => expect(pane).toBeVisible())
     expect(scroll.scrollTop).toBe(180)
     expect(screen.queryByRole('button', { name: 'Ask AI' })).not.toBeInTheDocument()

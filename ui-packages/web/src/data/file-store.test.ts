@@ -1,0 +1,106 @@
+import { describe, expect, it, vi } from 'vitest'
+import { maximumFileBytes } from '../core/files'
+import {
+  closeFileStore,
+  getStoredFileContent,
+  importStoredFiles,
+  listStoredFiles,
+  removeStoredFile,
+} from './file-store'
+
+const textFile = (name: string, content: string) =>
+  new File([content], name, { type: 'text/markdown', lastModified: 1 })
+
+const onlyAddedId = (result: Awaited<ReturnType<typeof importStoredFiles>>) => {
+  const id = result.addedIds[0]
+  if (!id) throw new Error('Expected one added file')
+  return id
+}
+
+const fileWithReportedSize = (name: string, size: number) => {
+  const file = new File(['content'], name, { type: 'application/octet-stream' })
+  Object.defineProperty(file, 'size', { configurable: true, value: size })
+  return file
+}
+
+describe('local file store', () => {
+  it('can retry after opening IndexedDB fails', async () => {
+    vi.spyOn(indexedDB, 'open').mockImplementationOnce(() => {
+      throw new DOMException('Temporarily unavailable', 'UnknownError')
+    })
+
+    await expect(listStoredFiles()).rejects.toThrow('Temporarily unavailable')
+    await expect(listStoredFiles()).resolves.toHaveLength(3)
+  })
+
+  it('seeds samples once and keeps a deleted sample removed after reopening', async () => {
+    const initial = await listStoredFiles()
+    expect(initial.map(file => file.id)).toContain('getting-started')
+
+    await removeStoredFile('getting-started')
+    await closeFileStore()
+
+    expect((await listStoredFiles()).map(file => file.id)).not.toContain('getting-started')
+    expect(await getStoredFileContent('getting-started')).toBeNull()
+  })
+
+  it('replaces a duplicate in place or keeps it under a numbered name', async () => {
+    const added = await importStoredFiles([textFile('Draft.md', 'first')], 'keep')
+    expect(added.addedIds).toHaveLength(1)
+    const id = onlyAddedId(added)
+
+    const replaced = await importStoredFiles([textFile('Draft.md', 'second')], 'replace')
+    expect(replaced).toMatchObject({ addedIds: [], replacedIds: [id], rejected: [] })
+    expect(await getStoredFileContent(id)).not.toBeNull()
+    expect(await (await getStoredFileContent(id))?.text()).toBe('second')
+
+    const kept = await importStoredFiles([textFile('Draft.md', 'third')], 'keep')
+    expect(kept.addedIds).toHaveLength(1)
+    const keptId = onlyAddedId(kept)
+    const files = await listStoredFiles()
+    expect(files.find(file => file.id === id)).toMatchObject({ name: 'Draft.md', revision: 2 })
+    expect(files.find(file => file.id === keptId)?.name).toBe('Draft (2).md')
+  })
+
+  it('stores only the last copy when a selected batch repeats a new name', async () => {
+    const result = await importStoredFiles(
+      [textFile('Repeated.md', 'first'), textFile('Repeated.md', 'last')],
+      'replace',
+    )
+
+    expect(result.addedIds).toHaveLength(1)
+    expect(result.replacedIds).toEqual([])
+    expect((await listStoredFiles()).filter(file => file.name === 'Repeated.md')).toHaveLength(1)
+    expect(await (await getStoredFileContent(onlyAddedId(result)))?.text()).toBe('last')
+  })
+
+  it('recognizes common UTF-8 document formats with application MIME types as text', async () => {
+    await importStoredFiles(
+      [new File(['{"local":true}'], 'Context.json', { type: 'application/json' })],
+      'keep',
+    )
+
+    expect((await listStoredFiles()).find(file => file.name === 'Context.json')?.previewKind).toBe(
+      'text',
+    )
+  })
+
+  it('rejects files over 50 MB and additions beyond the 500 MB library limit', async () => {
+    const tooLarge = await importStoredFiles(
+      [fileWithReportedSize('too-large.bin', maximumFileBytes + 1)],
+      'keep',
+    )
+    expect(tooLarge.rejected).toEqual([{ name: 'too-large.bin', reason: 'file-too-large' }])
+
+    const firstBatch = Array.from({ length: 9 }, (_, index) =>
+      fileWithReportedSize(`large-${index}.bin`, maximumFileBytes),
+    )
+    expect((await importStoredFiles(firstBatch, 'keep')).addedIds).toHaveLength(9)
+
+    const libraryFull = await importStoredFiles(
+      [fileWithReportedSize('one-more.bin', maximumFileBytes)],
+      'keep',
+    )
+    expect(libraryFull.rejected).toEqual([{ name: 'one-more.bin', reason: 'library-full' }])
+  })
+})

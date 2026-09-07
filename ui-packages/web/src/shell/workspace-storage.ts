@@ -1,11 +1,9 @@
-import { samples } from '../core/samples'
-
 type SavedWorkspace = { tabs: string[]; lastActiveId: string | null }
 
 const storageKey = 'gamma-reader.workspace'
 const defaults: SavedWorkspace = { tabs: ['getting-started'], lastActiveId: 'getting-started' }
 const isDocumentId = (value: unknown): value is string =>
-  samples.some(document => document.id === value)
+  typeof value === 'string' && value.length > 0
 
 export const readWorkspace = (): SavedWorkspace => {
   try {

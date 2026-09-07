@@ -4,6 +4,7 @@ import { Group, Panel, Separator } from 'react-resizable-panels'
 import { ConversationPanel } from '../features/conversation/conversation-panel'
 import { DocumentTabs } from '../features/reader/document-tabs'
 import { ResourcePanel } from '../features/resources/resource-panel'
+import { useFileLibrary } from '../features/resources/use-file-library'
 import { usePanelWidths } from './use-panel-widths'
 import { useWorkspace } from './use-workspace'
 
@@ -26,7 +27,8 @@ const subscribeMode = (notify: () => void) => {
 }
 
 export const Workbench = () => {
-  const workspace = useWorkspace()
+  const library = useFileLibrary()
+  const workspace = useWorkspace(library.files, library.loading)
   const { widths, saveWidths } = usePanelWidths()
   const groupElementRef = useRef<HTMLDivElement>(null)
   const mode = useSyncExternalStore(subscribeMode, getMode)
@@ -101,11 +103,13 @@ export const Workbench = () => {
   const files = (
     <ResourcePanel
       activeId={workspace.activeId}
+      library={library}
       onClose={closeFiles}
       onOpen={id => {
         workspace.openDocument(id)
         if (overlay === 'files') setOverlay(null)
       }}
+      onRemoved={workspace.closeDocument}
     />
   )
   const assistant = (

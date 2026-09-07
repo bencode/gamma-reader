@@ -7,6 +7,7 @@ import { Workbench } from './workbench'
 
 const material = (name: string) =>
   within(screen.getByRole('list', { name: 'Files' })).getByRole('button', { name })
+const waitForWorkspace = () => screen.findByRole('tab', { name: 'Getting started.md' })
 
 describe('reading workspace', () => {
   it('opens unique tabs, chooses the right neighbor on close, and reopens from empty', async () => {
@@ -17,22 +18,23 @@ describe('reading workspace', () => {
         <Workbench />
       </MemoryRouter>,
     )
-    await user.click(material('The art of noticing'))
-    await user.click(material('Reading notes'))
-    await user.click(material('The art of noticing'))
+    await waitForWorkspace()
+    await user.click(material('The art of noticing.md'))
+    await user.click(material('Reading notes.md'))
+    await user.click(material('The art of noticing.md'))
     expect(screen.getAllByRole('tab')).toHaveLength(3)
-    await user.click(screen.getByRole('button', { name: 'Close The art of noticing' }))
-    expect(screen.getByRole('tab', { name: 'Reading notes' })).toHaveAttribute(
+    await user.click(screen.getByRole('button', { name: 'Close The art of noticing.md' }))
+    expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    await user.click(screen.getByRole('button', { name: 'Close Getting started' }))
-    expect(screen.getByRole('tab', { name: 'Reading notes' })).toHaveAttribute(
+    await user.click(screen.getByRole('button', { name: 'Close Getting started.md' }))
+    expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    await user.click(screen.getByRole('button', { name: 'Close Reading notes' }))
-    await user.click(screen.getByRole('button', { name: 'Open Getting started' }))
+    await user.click(screen.getByRole('button', { name: 'Close Reading notes.md' }))
+    await user.click(screen.getByRole('button', { name: 'Open Getting started.md' }))
     expect(screen.getByRole('heading', { name: 'A little room to read' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Save to folder' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Send question' })).toBeDisabled()
@@ -50,16 +52,18 @@ describe('reading workspace', () => {
         <Workbench />
       </MemoryRouter>,
     )
+    await waitForWorkspace()
+    await screen.findByRole('heading', { name: 'A little room to read' })
     const pane = screen.getByRole('tabpanel')
     const scroll = pane.querySelector('.document-scroll')
     if (!scroll) throw new Error('Document scroll container is missing')
     fireEvent.scroll(scroll, { target: { scrollTop: 260 } })
-    await user.click(material('Reading notes'))
-    await user.click(screen.getByRole('tab', { name: 'Getting started' }))
+    await user.click(material('Reading notes.md'))
+    await user.click(screen.getByRole('tab', { name: 'Getting started.md' }))
     expect(scroll.scrollTop).toBe(260)
     await user.keyboard('{ArrowRight}')
     await waitFor(() =>
-      expect(screen.getByRole('tab', { name: 'Reading notes' })).toHaveAttribute(
+      expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
         'aria-selected',
         'true',
       ),
@@ -73,22 +77,23 @@ describe('reading workspace', () => {
         <Workbench />
       </MemoryRouter>,
     )
-    await user.click(material('The art of noticing'))
-    await user.click(material('Reading notes'))
-    await user.click(screen.getByRole('tab', { name: 'The art of noticing' }))
+    await waitForWorkspace()
+    await user.click(material('The art of noticing.md'))
+    await user.click(material('Reading notes.md'))
+    await user.click(screen.getByRole('tab', { name: 'The art of noticing.md' }))
     await user.tab()
-    expect(screen.getByRole('button', { name: 'Close The art of noticing' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Close The art of noticing.md' })).toHaveFocus()
     await user.keyboard('{Enter}')
-    expect(screen.getByRole('tab', { name: 'Reading notes' })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveFocus()
     await user.keyboard('{ArrowLeft}')
-    expect(screen.getByRole('tab', { name: 'Getting started' })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveFocus()
     await user.keyboard('{ArrowRight}')
     await user.tab()
     await user.keyboard('{Enter}')
-    expect(screen.getByRole('tab', { name: 'Getting started' })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveFocus()
     await user.tab()
     await user.keyboard('{Enter}')
-    expect(screen.getByRole('button', { name: 'Open Getting started' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Open Getting started.md' })).toHaveFocus()
   })
 
   it('preserves a selected excerpt and question across document and panel changes', async () => {
@@ -98,7 +103,8 @@ describe('reading workspace', () => {
         <Workbench />
       </MemoryRouter>,
     )
-    const text = screen.getByText(
+    await waitForWorkspace()
+    const text = await screen.findByText(
       'This is your reading space. There is no folder to organize before you begin.',
     )
     const range = document.createRange()
@@ -107,8 +113,8 @@ describe('reading workspace', () => {
     fireEvent.pointerUp(text)
     await user.click(screen.getByRole('button', { name: 'Ask AI' }))
     await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'What does this mean?')
-    await user.click(material('Reading notes'))
-    await user.click(screen.getByRole('button', { name: 'Close Getting started' }))
+    await user.click(material('Reading notes.md'))
+    await user.click(screen.getByRole('button', { name: 'Close Getting started.md' }))
     await user.click(screen.getByRole('button', { name: 'Close reading assistant' }))
     await user.click(screen.getByRole('button', { name: 'Hide files' }))
     await user.click(screen.getByRole('button', { name: 'Open reading assistant' }))
@@ -142,6 +148,7 @@ describe('reading workspace', () => {
         <Workbench />
       </MemoryRouter>,
     )
+    await waitForWorkspace()
     await user.type(screen.getByRole('textbox'), 'Explain the main idea in simpler terms.')
     act(() => {
       wide = false
@@ -157,9 +164,9 @@ describe('reading workspace', () => {
     expect(trigger).toHaveFocus()
     await user.click(screen.getByRole('button', { name: 'Open files' }))
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    await user.click(material('Reading notes'))
+    await user.click(material('Reading notes.md'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Reading notes' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
@@ -218,6 +225,7 @@ describe('panel width preferences', () => {
         <Workbench />
       </MemoryRouter>,
     )
+    await waitForWorkspace()
     expect(localStorage.getItem(storageKey)).toBeNull()
     fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize files' }), {
       key: 'ArrowRight',
@@ -234,6 +242,7 @@ describe('panel width preferences', () => {
         <Workbench />
       </MemoryRouter>,
     )
+    await waitForWorkspace()
     expect(localStorage.getItem(storageKey)).toBe(stored)
     expect(screen.getByRole('separator', { name: 'Resize files' })).toHaveAttribute(
       'aria-valuenow',

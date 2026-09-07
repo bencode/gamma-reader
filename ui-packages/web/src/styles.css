@@ -640,3 +640,255 @@ svg {
     display: block;
   }
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.resource-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: 5px;
+}
+.resource-row .resource-item {
+  flex: 1;
+  min-width: 0;
+}
+.resource-remove {
+  width: 24px;
+  height: 24px;
+  margin-right: 3px;
+  opacity: 0;
+}
+.resource-row:hover .resource-remove,
+.resource-row:focus-within .resource-remove {
+  opacity: 1;
+}
+.resource-state {
+  margin: 20px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.resource-state .text-button {
+  padding-left: 0;
+}
+.empty-files {
+  margin-top: 32px;
+}
+.file-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 4px 6px;
+  padding: 7px 7px 7px 9px;
+  border-radius: 5px;
+  background: oklch(0.96 0.02 25);
+  color: oklch(0.38 0.1 25);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.file-status span {
+  flex: 1;
+  min-width: 0;
+}
+.file-status .icon-button {
+  width: 20px;
+  height: 20px;
+}
+.confirmation-dialog {
+  width: min(420px, calc(100vw - 32px));
+  margin: auto;
+  padding: 22px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface);
+  color: inherit;
+  box-shadow: 0 8px 20px oklch(0 0 0 / 0.18);
+}
+.confirmation-dialog::backdrop {
+  background: oklch(0 0 0 / 0.3);
+}
+.confirmation-dialog h2 {
+  margin: 0 0 10px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.confirmation-dialog p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+}
+.primary-button,
+.secondary-button,
+.danger-button,
+.toolbar-button,
+.toolbar-value {
+  min-height: 30px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 11px;
+  font-size: 12px;
+}
+.primary-button {
+  background: var(--accent);
+  color: var(--surface);
+}
+.secondary-button,
+.toolbar-button,
+.toolbar-value {
+  background: oklch(0.94 0 0);
+  color: inherit;
+}
+.danger-button {
+  background: oklch(0.5 0.16 25);
+  color: var(--surface);
+}
+.plain-text-body pre {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+.preview-state {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
+}
+.preview-state h1 {
+  margin: 0;
+  color: inherit;
+  font-size: 18px;
+  font-weight: 600;
+}
+.preview-state p {
+  max-width: 48ch;
+  margin: 0;
+  line-height: 1.6;
+}
+.unavailable-preview > span {
+  font-size: 11px;
+}
+.error-state {
+  color: oklch(0.42 0.11 25);
+}
+.media-reader {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.preview-toolbar {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.preview-toolbar .icon-button {
+  width: 26px;
+  height: 26px;
+}
+.toolbar-value {
+  min-width: 50px;
+  padding: 0 7px;
+  background: transparent;
+  color: var(--muted);
+}
+.toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+.toolbar-button.active {
+  background: var(--selected);
+  color: var(--accent);
+}
+.toolbar-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 5px;
+  background: var(--line);
+}
+.page-count {
+  min-width: 52px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+}
+.media-scroll,
+.pdf-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px;
+  background: oklch(0.95 0 0);
+}
+.media-scroll {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.preview-image {
+  display: block;
+  flex: none;
+  height: auto;
+}
+.preview-image.fit {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.pdf-scroll .react-pdf__Document {
+  width: max-content;
+  min-width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.pdf-scroll .react-pdf__Page {
+  box-shadow: 0 2px 8px oklch(0 0 0 / 0.14);
+}
+.html-preview {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--surface);
+}
+@media (pointer: coarse) {
+  .resource-remove {
+    opacity: 1;
+  }
+}

@@ -1,17 +1,17 @@
 import { startTransition, useEffect, useRef, useState } from 'react'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
-import { samples } from '../core/samples'
+import type { StoredFileMetadata } from '../core/files'
 import { readWorkspace, writeWorkspace } from './workspace-storage'
 
 export type Quote = { id: string; documentId: string; source: string; text: string }
 
 const documentPath = (id: string | null) => (id ? `/files/${encodeURIComponent(id)}` : '/files')
 
-export const useWorkspace = () => {
+export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean) => {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const routeId = useMatch('/files/:documentId')?.params.documentId
-  const activeId = samples.find(document => document.id === routeId)?.id ?? null
+  const activeId = files.find(document => document.id === routeId)?.id ?? null
   const [initialWorkspace] = useState(readWorkspace)
   const [tabs, setTabs] = useState(initialWorkspace.tabs)
   const [draft, setDraft] = useState('')
@@ -20,6 +20,7 @@ export const useWorkspace = () => {
   const navigationTargetRef = useRef(activeId)
 
   useEffect(() => {
+    if (filesLoading) return
     navigationTargetRef.current = activeId
     if (pathname === '/') {
       void navigate(documentPath(initialWorkspace.lastActiveId), { replace: true })
@@ -29,17 +30,20 @@ export const useWorkspace = () => {
       void navigate('/files', { replace: true })
       return
     }
-    if (activeId)
-      setTabs(current => (current.includes(activeId) ? current : [...current, activeId]))
-  }, [pathname, activeId, initialWorkspace.lastActiveId, navigate])
+    setTabs(current => {
+      const available = current.filter(id => files.some(file => file.id === id))
+      return activeId && !available.includes(activeId) ? [...available, activeId] : available
+    })
+  }, [pathname, activeId, initialWorkspace.lastActiveId, navigate, files, filesLoading])
 
   useEffect(() => {
-    if (pathname !== '/files' && (activeId === null || !tabs.includes(activeId))) return
+    if (filesLoading || (pathname !== '/files' && (activeId === null || !tabs.includes(activeId))))
+      return
     writeWorkspace({ tabs, lastActiveId: activeId })
-  }, [tabs, activeId, pathname])
+  }, [tabs, activeId, pathname, filesLoading])
 
   const openDocument = (id: string) => {
-    if (id === navigationTargetRef.current || !samples.some(document => document.id === id)) return
+    if (id === navigationTargetRef.current || !files.some(document => document.id === id)) return
     navigationTargetRef.current = id
     void navigate(documentPath(id))
   }
@@ -56,7 +60,7 @@ export const useWorkspace = () => {
   }
 
   const addQuote = (documentId: string, text: string) => {
-    const document = samples.find(sample => sample.id === documentId)
+    const document = files.find(file => file.id === documentId)
     if (!document || !text.trim()) return
     setQuotes(current => [
       ...current,
@@ -66,6 +70,8 @@ export const useWorkspace = () => {
 
   return {
     tabs,
+    files,
+    filesLoading,
     activeId,
     draft,
     quotes,

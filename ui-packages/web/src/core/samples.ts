@@ -1,8 +1,6 @@
 export type SampleDocument = {
   id: string
   name: string
-  title: string
-  description: string
   content: string
 }
 
@@ -10,8 +8,6 @@ export const samples: SampleDocument[] = [
   {
     id: 'getting-started',
     name: 'Getting started.md',
-    title: 'Getting started',
-    description: 'A short introduction to your reading space',
     content: `# A little room to read
 
 Welcome to Gamma Reader. Start with a document, follow a question, and bring in more material as you go.
@@ -40,22 +36,22 @@ Drag the divider beside a panel to make it wider or narrower. You can also focus
 
 Hide the Files panel when you want to concentrate. Close the reading assistant when you just want to read. Your open tabs, excerpts, and question stay here when you bring the panels back.
 
-## Bring your own material, later
+## Bring your own material
 
-Eventually, **Add files** will let you begin with a single document. **Add folder** will make a whole collection available. Both will ask for read access only.
+Choose **Add files** in the Files panel and select one or several documents. Gamma Reader copies them into storage owned by this browser, so you can close the original files and return later.
 
-For now, these actions are unavailable. You can already read the documents in Files without granting access to your device.
+Files are not uploaded to the Gamma Reader server. Removing a file from this list deletes the browser copy and leaves the original file on your computer unchanged.
 
 | What you can try now | What comes later |
 | --- | --- |
-| Read and switch between files | Add local files and folders |
-| Keep several document tabs open | Read PDF, HTML, and images |
-| Collect excerpts and draft a question | Receive AI explanations |
+| Add local files as you need them | Receive AI explanations |
+| Read Markdown, text, PDF, HTML, and images | Use Word documents as AI context |
+| Collect excerpts and draft a question | Edit and connect reading notes |
 | Resize and hide panels | Save reading records |
 
 ## A note about saving
 
-Your open tabs and their order are remembered in this browser. The address points to the document you are reading. Your question, excerpts, and scroll positions stay in the current page only. **Reloading clears them.** Your panel widths are also remembered, including when you hide a panel and bring it back.
+Your files, open tabs, and tab order are remembered in this browser. The address points to the document you are reading. Your question, excerpts, and scroll positions stay in the current page only. **Reloading clears those temporary values.** Your panel widths are also remembered, including when you hide a panel and bring it back.
 
 Browser drafts and explicit saving to a local folder will arrive in a later iteration. Original documents will remain unchanged.
 
@@ -72,8 +68,6 @@ There is no required order. Begin wherever your curiosity takes you.
   {
     id: 'art-of-noticing',
     name: 'The art of noticing.md',
-    title: 'The art of noticing',
-    description: 'A short essay for a slower reading session',
     content: `# The art of noticing
 
 A familiar walk can feel entirely different when you decide to notice just one thing: the light on the windows, the sounds between passing cars, or the plants growing through cracks in the pavement.
@@ -137,8 +131,6 @@ Keep the two excerpts together. The relationship between them may be more intere
   {
     id: 'reading-notes',
     name: 'Reading notes.md',
-    title: 'Reading notes',
-    description: 'A simple structure for ideas and questions',
     content: `# Notes that help you think
 
 A short note you return to is more useful than a long summary you never open again.

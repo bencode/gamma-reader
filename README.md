@@ -2,9 +2,16 @@
 
 An open-source AI reading companion for local documents.
 
-The current iteration provides a three-panel reading workspace and a Node service
-with a health endpoint. Open the application to read three built-in Markdown
-examples, switch between document tabs, and collect excerpts beside a question.
+The current iteration provides a local file library, a three-panel reading workspace,
+and a Node service with a health endpoint. Open the application to read the built-in
+examples or add several files from your computer. Gamma Reader copies selected files
+into this browser's IndexedDB storage; document contents are not uploaded to the
+server.
+
+Markdown, UTF-8 plain text, PDF, HTML, and common image formats have in-app previews.
+HTML previews run in a sandboxed frame. Other formats, including Word documents, stay
+available in Files for later use as reading context but do not have an in-app preview.
+Each file may use up to 50 MB, and the library may use up to 500 MB.
 
 The Files and assistant panels can be resized or hidden. At narrower widths,
 Files opens in an overlay; below 800px, the assistant also opens in an overlay.
@@ -16,10 +23,10 @@ empty workspace at `/files` when no document was active. Panel width preferences
 stored in this browser and restored after reloading; window resizing does not
 overwrite those preferences.
 
-Local file and folder access, PDF/HTML/image readers, Word context, AI responses,
-notes editing, and saving are not connected yet. Their relevant controls are
-disabled rather than reporting simulated success. No document or question is sent
-to a model in this iteration.
+Removing an item deletes only its browser copy and does not change the original file.
+Folder access, Word preview, AI responses, notes editing, and saving are not connected
+yet. Their relevant controls are disabled rather than reporting simulated success.
+No document or question is sent to a model in this iteration.
 
 ## Development
 
@@ -73,8 +80,7 @@ another working directory:
 NODE_ENV=production node /path/to/gamma-reader/web-packages/server/dist/main.js
 ```
 
-Local development uses HTTP. The eventual hosted reader requires HTTPS for
-browser directory access; configure TLS at the hosting layer.
+Local development uses HTTP. Configure TLS at the hosting layer for a hosted reader.
 
 ## API
 

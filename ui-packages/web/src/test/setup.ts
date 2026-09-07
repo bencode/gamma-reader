@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom/vitest'
+import 'fake-indexeddb/auto'
+import { Blob as NodeBlob, File as NodeFile } from 'node:buffer'
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
+import { deleteFileStore } from '../data/file-store'
 
 vi.stubGlobal('matchMedia', (query: string) => ({
   matches: true,
@@ -12,6 +15,10 @@ vi.stubGlobal('matchMedia', (query: string) => ({
   removeListener: vi.fn(),
   dispatchEvent: vi.fn(),
 }))
+
+// fake-indexeddb delegates cloning to Node, which only preserves Node's Blob implementation.
+vi.stubGlobal('Blob', NodeBlob)
+vi.stubGlobal('File', NodeFile)
 
 vi.stubGlobal(
   'ResizeObserver',
@@ -35,10 +42,13 @@ HTMLDialogElement.prototype.showModal = function () {
 HTMLDialogElement.prototype.close = function () {
   this.open = false
 }
+URL.createObjectURL = vi.fn(() => 'blob:gamma-reader-preview')
+URL.revokeObjectURL = vi.fn()
 
-afterEach(() => {
+afterEach(async () => {
   cleanup()
   window.getSelection()?.removeAllRanges()
   vi.restoreAllMocks()
   localStorage.clear()
+  await deleteFileStore()
 })
