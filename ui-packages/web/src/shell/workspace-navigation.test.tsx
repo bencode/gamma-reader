@@ -39,7 +39,7 @@ const openReader = (path = '/') =>
   )
 
 describe('local workspace navigation', () => {
-  it('restores tab order and the last active document without saving drafts or excerpts', async () => {
+  it('restores tab order and the last active document without saving the conversation draft', async () => {
     const user = userEvent.setup()
     const page = openReader()
     await waitForWorkspace()
@@ -131,9 +131,11 @@ describe('local workspace navigation', () => {
     const report = vi.spyOn(console, 'error').mockImplementation(() => {})
     openReader()
     await waitForWorkspace()
-    expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveAttribute(
-      'aria-selected',
-      'true',
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
     )
     expect(report).toHaveBeenCalledWith('Unable to restore workspace', expect.any(Error))
   })
@@ -160,7 +162,7 @@ describe('local workspace navigation', () => {
     expect(report).toHaveBeenCalledWith('Unable to save workspace', blocked)
   })
 
-  it('restores an Activity document position without resurrecting its selection toolbar', async () => {
+  it('restores an Activity document position without adding a selection toolbar', async () => {
     const user = userEvent.setup()
     openReader()
     await waitForWorkspace()
@@ -176,7 +178,7 @@ describe('local workspace navigation', () => {
     range.selectNodeContents(text)
     window.getSelection()?.addRange(range)
     fireEvent.pointerUp(text)
-    expect(screen.getByRole('button', { name: 'Ask AI' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Ask AI' })).not.toBeInTheDocument()
     await user.click(file('Reading notes.md'))
     expect(pane).not.toBeVisible()
     expect(screen.queryByRole('button', { name: 'Ask AI' })).not.toBeInTheDocument()

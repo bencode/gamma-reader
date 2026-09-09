@@ -8,14 +8,12 @@ type DocumentTabsProps = {
   workspace: Workspace
   assistantVisible: boolean
   onOpenAssistant: (trigger: HTMLElement) => void
-  onQuote: (documentId: string, text: string) => void
 }
 
 export const DocumentTabs = ({
   workspace,
   assistantVisible,
   onOpenAssistant,
-  onQuote,
 }: DocumentTabsProps) => {
   const focusTargetRef = useRef<HTMLButtonElement>(null)
   const closingTabRef = useRef<string | null>(null)
@@ -108,7 +106,6 @@ export const DocumentTabs = ({
                   document={source}
                   active={workspace.activeId === id}
                   scrollPositions={workspace.scrollPositions}
-                  onQuote={onQuote}
                 />
               </Tabs.Content>
             </Activity>

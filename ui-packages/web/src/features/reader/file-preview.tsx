@@ -12,7 +12,6 @@ type FilePreviewProps = {
   document: StoredFileMetadata
   active: boolean
   scrollPositions: Workspace['scrollPositions']
-  onQuote: (documentId: string, text: string) => void
 }
 
 type ContentState =
@@ -20,7 +19,7 @@ type ContentState =
   | { status: 'ready'; id: string; revision: number; blob: Blob }
   | { status: 'error'; id: string; revision: number }
 
-export const FilePreview = ({ document, active, scrollPositions, onQuote }: FilePreviewProps) => {
+export const FilePreview = ({ document, active, scrollPositions }: FilePreviewProps) => {
   const [state, setState] = useState<ContentState>({ status: 'idle' })
 
   useEffect(() => {
@@ -77,7 +76,6 @@ export const FilePreview = ({ document, active, scrollPositions, onQuote }: File
           document={document}
           blob={state.blob}
           active={active}
-          onQuote={onQuote}
         />
       </Suspense>
     )
@@ -87,7 +85,6 @@ export const FilePreview = ({ document, active, scrollPositions, onQuote }: File
       blob={state.blob}
       active={active}
       scrollPositions={scrollPositions}
-      onQuote={onQuote}
     />
   )
 }

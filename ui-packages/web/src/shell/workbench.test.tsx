@@ -35,14 +35,14 @@ describe('reading workspace', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Close Reading notes.md' }))
     await user.click(screen.getByRole('button', { name: 'Open Getting started.md' }))
-    expect(screen.getByRole('heading', { name: 'A little room to read' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'A little room to read' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Save to folder' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Send question' })).toBeDisabled()
     expect(screen.queryByRole('heading', { name: 'Your files' })).not.toBeInTheDocument()
     expect(screen.queryByText('EXAMPLE DOCUMENT')).not.toBeInTheDocument()
     expect(screen.queryByText('Follow your curiosity.')).not.toBeInTheDocument()
     expect(screen.queryByText('Draft a question')).not.toBeInTheDocument()
-    expect(network).not.toHaveBeenCalled()
+    expect(network.mock.calls.every(([url]) => url === '/api/agent/config')).toBe(true)
   })
 
   it('keeps each tab scroll position and supports keyboard tab switching', async () => {
@@ -96,7 +96,7 @@ describe('reading workspace', () => {
     expect(screen.getByRole('button', { name: 'Open Getting started.md' })).toHaveFocus()
   })
 
-  it('preserves a selected excerpt and question across document and panel changes', async () => {
+  it('preserves a question across document and panel changes', async () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter>
@@ -104,14 +104,6 @@ describe('reading workspace', () => {
       </MemoryRouter>,
     )
     await waitForWorkspace()
-    const text = await screen.findByText(
-      'This is your reading space. There is no folder to organize before you begin.',
-    )
-    const range = document.createRange()
-    range.selectNodeContents(text)
-    window.getSelection()?.addRange(range)
-    fireEvent.pointerUp(text)
-    await user.click(screen.getByRole('button', { name: 'Ask AI' }))
     await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'What does this mean?')
     await user.click(material('Reading notes.md'))
     await user.click(screen.getByRole('button', { name: 'Close Getting started.md' }))
@@ -119,10 +111,6 @@ describe('reading workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Hide files' }))
     await user.click(screen.getByRole('button', { name: 'Open reading assistant' }))
     expect(screen.getByRole('textbox')).toHaveValue('What does this mean?')
-    expect(screen.getByText('Getting started.md')).toBeVisible()
-    expect(screen.getByText(text.textContent ?? '')).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Remove excerpt from Getting started.md' }))
-    expect(screen.queryByText('Getting started.md')).not.toBeInTheDocument()
   })
 
   it('keeps drafts when resizing into an overlay and restores focus when it closes', async () => {

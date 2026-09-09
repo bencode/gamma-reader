@@ -77,6 +77,19 @@ export const getStoredFileContent = async (id: string) => {
   return (await database.get('contents', id))?.blob ?? null
 }
 
+export const getStoredFile = async (id: string) => {
+  const database = await openFileDatabase()
+  const transaction = database.transaction(['files', 'contents'], 'readonly')
+  const [metadata, content] = await Promise.all([
+    transaction.objectStore('files').get(id),
+    transaction.objectStore('contents').get(id),
+    transaction.done,
+  ])
+  if (!metadata) return null
+  if (!content) throw new Error(`Stored file content is missing: ${metadata.name}`)
+  return { metadata, blob: content.blob }
+}
+
 const nextName = (requested: string, occupied: Set<string>) => {
   const dot = requested.lastIndexOf('.')
   const hasExtension = dot > 0

@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest'
 import 'fake-indexeddb/auto'
 import { Blob as NodeBlob, File as NodeFile } from 'node:buffer'
 import { cleanup } from '@testing-library/react'
-import { afterEach, vi } from 'vitest'
+import { afterEach, beforeEach, vi } from 'vitest'
 import { deleteFileStore } from '../data/file-store'
 
 vi.stubGlobal('matchMedia', (query: string) => ({
@@ -51,4 +51,11 @@ afterEach(async () => {
   vi.restoreAllMocks()
   localStorage.clear()
   await deleteFileStore()
+})
+
+beforeEach(() => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+    if (String(input) === '/api/agent/config') return Response.json({ enabled: false })
+    throw new Error(`Unexpected network request in test: ${String(input)}`)
+  })
 })

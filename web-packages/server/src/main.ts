@@ -1,6 +1,7 @@
 import { access } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { serve } from '@hono/node-server'
+import { readAgentConfig } from './agent/config.js'
 import { createApp } from './app.js'
 
 const port = Number(process.env.PORT ?? 3302)
@@ -24,6 +25,6 @@ if (webRoot) {
 }
 
 const hostname = process.env.HOST ?? '127.0.0.1'
-serve({ fetch: createApp(webRoot).fetch, port, hostname }, info => {
+serve({ fetch: createApp(webRoot, readAgentConfig(process.env)).fetch, port, hostname }, info => {
   console.info(`Gamma Reader: http://${hostname}:${info.port}`)
 })

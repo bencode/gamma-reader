@@ -24,43 +24,43 @@ Each document opens in its own tab. Move between them without losing your place.
 
 ## Follow a question
 
-Select a sentence in this document, then choose **Ask AI**. The excerpt appears beside your question in the reading assistant, with its source attached.
+Write a question in the reading assistant. Try asking for an example, comparing two ideas, or explaining a difficult passage.
 
-You can collect passages from different documents before writing a question. Try comparing two ideas, asking for an example, or explaining a difficult passage in your own words.
+The assistant can check which document you are reading, search your files, and read the passages it needs. Text reading currently supports Markdown, plain text, and PDFs with extractable text.
 
-In this preview, you can prepare questions and collect excerpts. **AI replies are not connected yet.** Nothing is sent to a model.
+When you send a question, your messages and any file content the assistant reads are sent through the Gamma Reader server to the model provider. Importing or opening a file alone does not send its contents to the model.
 
 ## Make space for the page
 
 Drag the divider beside a panel to make it wider or narrower. You can also focus a divider and use the arrow keys.
 
-Hide the Files panel when you want to concentrate. Close the reading assistant when you just want to read. Your open tabs, excerpts, and question stay here when you bring the panels back.
+Hide the Files panel when you want to concentrate. Close the reading assistant when you just want to read. Your open tabs, conversation, and draft question stay here when you bring the panels back.
 
 ## Bring your own material
 
 Choose **Add files** in the Files panel and select one or several documents. Gamma Reader copies them into storage owned by this browser, so you can close the original files and return later.
 
-Files are not uploaded to the Gamma Reader server. Removing a file from this list deletes the browser copy and leaves the original file on your computer unchanged.
+Importing files stores them locally in this browser. Removing a file from this list deletes the browser copy and leaves the original file on your computer unchanged.
 
 | What you can try now | What comes later |
 | --- | --- |
-| Add local files as you need them | Receive AI explanations |
+| Add local files as you need them | Save reading records |
 | Read Markdown, text, PDF, HTML, and images | Use Word documents as AI context |
-| Collect excerpts and draft a question | Edit and connect reading notes |
-| Resize and hide panels | Save reading records |
+| Ask questions about your reading | Edit and connect reading notes |
+| Resize and hide panels | Save conversations across reloads |
 
 ## A note about saving
 
-Your files, open tabs, and tab order are remembered in this browser. The address points to the document you are reading. Your question, excerpts, and scroll positions stay in the current page only. **Reloading clears those temporary values.** Your panel widths are also remembered, including when you hide a panel and bring it back.
+Your files, open tabs, and tab order are remembered in this browser. The address points to the document you are reading. Your conversation, draft question, and scroll positions stay in the current page only. **Reloading clears those temporary values.** Your panel widths are also remembered, including when you hide a panel and bring it back.
 
 Browser drafts and explicit saving to a local folder will arrive in a later iteration. Original documents will remain unchanged.
 
 ## Try a small experiment
 
 1. Open **The art of noticing** from Files.
-2. Select a passage that catches your attention.
-3. Choose **Ask AI**, then write down a question.
-4. Return to this tab. Your question and excerpt are still in the assistant.
+2. Ask the assistant to explain the main idea of the current document.
+3. Follow up with a question about a passage that catches your attention.
+4. Return to this tab. Your conversation is still in the assistant.
 
 There is no required order. Begin wherever your curiosity takes you.
 `,
@@ -178,9 +178,9 @@ What I am unsure about:
 
 When you quote a sentence, keep its document name beside it. That small habit lets you check the surrounding context later.
 
-Gamma Reader's excerpt list follows the same principle. An excerpt stays attached to its source even if you close that document's reading tab.
+You can name a document in your question to help the reading assistant find the passage you mean, even if its reading tab is closed.
 
-This document is read-only. You can select its text and draft a question in the assistant, but editing notes and saving them will come later.
+You can discuss this document with the assistant. Editing notes and saving them will come later.
 `,
   },
 ]

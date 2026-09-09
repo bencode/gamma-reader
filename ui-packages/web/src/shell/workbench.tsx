@@ -1,12 +1,14 @@
 import { BookOpen, PanelLeft, Plus, Save } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
+import { ConversationProvider } from '../features/conversation/conversation-context'
 import { ConversationPanel } from '../features/conversation/conversation-panel'
 import { DocumentTabs } from '../features/reader/document-tabs'
 import { ResourcePanel } from '../features/resources/resource-panel'
 import { useFileLibrary } from '../features/resources/use-file-library'
 import { usePanelWidths } from './use-panel-widths'
 import { useWorkspace } from './use-workspace'
+import { WorkspaceProvider } from './workspace-context'
 
 const queries = ['(min-width: 1100px)', '(min-width: 800px)'] as const
 const getMode = () =>
@@ -27,6 +29,7 @@ const subscribeMode = (notify: () => void) => {
 }
 
 export const Workbench = () => {
+  const rootRef = useRef<HTMLDivElement>(null)
   const library = useFileLibrary()
   const workspace = useWorkspace(library.files, library.loading)
   const { widths, saveWidths } = usePanelWidths()
@@ -79,11 +82,6 @@ export const Workbench = () => {
       setOverlay('assistant')
     }
   }
-  const quoteSelection = (id: string, text: string) => {
-    workspace.addQuote(id, text)
-    openAssistant()
-    requestAnimationFrame(() => inputRef.current?.focus())
-  }
   const closeFiles = () => {
     if (overlay === 'files') setOverlay(null)
     else {
@@ -112,111 +110,114 @@ export const Workbench = () => {
       onRemoved={workspace.closeDocument}
     />
   )
-  const assistant = (
-    <ConversationPanel workspace={workspace} inputRef={inputRef} onClose={closeAssistant} />
-  )
+  const assistant = <ConversationPanel inputRef={inputRef} onClose={closeAssistant} />
 
   return (
-    <div className="workbench">
-      {!inlineFiles && (
-        <nav className="files-rail" aria-label="Workspace controls">
-          <button
-            type="button"
-            className="icon-button rail-brand"
-            ref={railRef}
-            aria-label="Open files"
-            title="Open files"
-            onClick={event => openFiles(event.currentTarget)}
+    <WorkspaceProvider workspace={workspace} rootRef={rootRef}>
+      <ConversationProvider>
+        <div className="workbench" ref={rootRef}>
+          {!inlineFiles && (
+            <nav className="files-rail" aria-label="Workspace controls">
+              <button
+                type="button"
+                className="icon-button rail-brand"
+                ref={railRef}
+                aria-label="Open files"
+                title="Open files"
+                onClick={event => openFiles(event.currentTarget)}
+              >
+                <BookOpen className="rail-logo" size={19} aria-hidden="true" />
+                <PanelLeft className="rail-expand" size={18} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Show file actions"
+                title="Show file actions"
+                onClick={event => openFiles(event.currentTarget)}
+              >
+                <Plus size={18} />
+              </button>
+              <button
+                type="button"
+                className="icon-button rail-save"
+                aria-label="Save to folder"
+                title="Saving is not available yet. Reloading clears the conversation and draft."
+                disabled
+              >
+                <Save size={17} />
+              </button>
+            </nav>
+          )}
+          <Group
+            key={`${mode}-${inlineFiles}-${inlineAssistant}`}
+            className="workspace-panels"
+            elementRef={groupElementRef}
+            orientation="horizontal"
+            resizeTargetMinimumSize={{ fine: 8, coarse: 24 }}
+            onLayoutChanged={(layout, meta) => {
+              const group = groupElementRef.current
+              if (!meta.isUserInteraction || !group) return
+              const availableWidth = Array.from(group.children)
+                .filter(child => child.hasAttribute('data-panel'))
+                .reduce((total, panel) => total + panel.getBoundingClientRect().width, 0)
+              saveWidths({
+                ...(layout.files !== undefined
+                  ? { files: (availableWidth * layout.files) / 100 }
+                  : {}),
+                ...(layout.assistant !== undefined
+                  ? { assistant: (availableWidth * layout.assistant) / 100 }
+                  : {}),
+              })
+            }}
           >
-            <BookOpen className="rail-logo" size={19} aria-hidden="true" />
-            <PanelLeft className="rail-expand" size={18} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Show file actions"
-            title="Show file actions"
-            onClick={event => openFiles(event.currentTarget)}
-          >
-            <Plus size={18} />
-          </button>
-          <button
-            type="button"
-            className="icon-button rail-save"
-            aria-label="Save to folder"
-            title="Saving is not available yet. Reloading clears reading drafts and excerpts."
-            disabled
-          >
-            <Save size={17} />
-          </button>
-        </nav>
-      )}
-      <Group
-        key={`${mode}-${inlineFiles}-${inlineAssistant}`}
-        className="workspace-panels"
-        elementRef={groupElementRef}
-        orientation="horizontal"
-        resizeTargetMinimumSize={{ fine: 8, coarse: 24 }}
-        onLayoutChanged={(layout, meta) => {
-          const group = groupElementRef.current
-          if (!meta.isUserInteraction || !group) return
-          const availableWidth = Array.from(group.children)
-            .filter(child => child.hasAttribute('data-panel'))
-            .reduce((total, panel) => total + panel.getBoundingClientRect().width, 0)
-          saveWidths({
-            ...(layout.files !== undefined ? { files: (availableWidth * layout.files) / 100 } : {}),
-            ...(layout.assistant !== undefined
-              ? { assistant: (availableWidth * layout.assistant) / 100 }
-              : {}),
-          })
-        }}
-      >
-        {inlineFiles && (
-          <>
-            <Panel
-              id="files"
-              defaultSize={widths.files}
-              minSize="140px"
-              groupResizeBehavior="preserve-pixel-size"
-            >
-              {files}
+            {inlineFiles && (
+              <>
+                <Panel
+                  id="files"
+                  defaultSize={widths.files}
+                  minSize="140px"
+                  groupResizeBehavior="preserve-pixel-size"
+                >
+                  {files}
+                </Panel>
+                <Separator className="panel-separator" aria-label="Resize files" />
+              </>
+            )}
+            <Panel id="reader" minSize={mode === 'narrow' ? '0px' : '240px'}>
+              <DocumentTabs
+                workspace={workspace}
+                assistantVisible={inlineAssistant}
+                onOpenAssistant={openAssistant}
+              />
             </Panel>
-            <Separator className="panel-separator" aria-label="Resize files" />
-          </>
-        )}
-        <Panel id="reader" minSize={mode === 'narrow' ? '0px' : '240px'}>
-          <DocumentTabs
-            workspace={workspace}
-            assistantVisible={inlineAssistant}
-            onOpenAssistant={openAssistant}
-            onQuote={quoteSelection}
-          />
-        </Panel>
-        {inlineAssistant && (
-          <>
-            <Separator className="panel-separator" aria-label="Resize reading assistant" />
-            <Panel
-              id="assistant"
-              defaultSize={widths.assistant}
-              minSize="220px"
-              groupResizeBehavior="preserve-pixel-size"
-            >
-              {assistant}
-            </Panel>
-          </>
-        )}
-      </Group>
-      <dialog
-        className={`panel-dialog ${overlay ?? ''}`}
-        ref={dialogRef}
-        aria-label={overlay === 'files' ? 'Files panel' : 'Reading assistant panel'}
-        onCancel={event => {
-          event.preventDefault()
-          setOverlay(null)
-        }}
-      >
-        {overlay === 'files' ? files : overlay === 'assistant' ? assistant : null}
-      </dialog>
-    </div>
+            {inlineAssistant && (
+              <>
+                <Separator className="panel-separator" aria-label="Resize reading assistant" />
+                <Panel
+                  id="assistant"
+                  defaultSize={widths.assistant}
+                  minSize="220px"
+                  groupResizeBehavior="preserve-pixel-size"
+                >
+                  {assistant}
+                </Panel>
+              </>
+            )}
+          </Group>
+          <dialog
+            className={`panel-dialog ${overlay ?? ''}`}
+            ref={dialogRef}
+            aria-label={overlay === 'files' ? 'Files panel' : 'Reading assistant panel'}
+            onCancel={event => {
+              event.preventDefault()
+              setOverlay(null)
+            }}
+          >
+            {overlay === 'files' ? files : overlay === 'assistant' ? assistant : null}
+          </dialog>
+        </div>
+      </ConversationProvider>
+    </WorkspaceProvider>
   )
 }

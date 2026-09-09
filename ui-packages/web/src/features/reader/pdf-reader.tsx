@@ -1,37 +1,41 @@
 import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { useEffect, useRef, useState } from 'react'
-import { Document, Page, pdfjs } from 'react-pdf'
+import { Document, Page } from 'react-pdf'
+import '../../core/pdf-source'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import type { StoredFileMetadata } from '../../core/files'
-import { ReaderSelectionAction, useReaderSelection } from './reader-selection'
-
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
+import { useReaderBinding } from '../../shell/workspace-context'
+import { readViewport } from './reader-viewport'
 
 export const PdfReader = ({
   document,
   blob,
   active,
-  onQuote,
 }: {
   document: StoredFileMetadata
   blob: Blob
   active: boolean
-  onQuote: (documentId: string, text: string) => void
 }) => {
   const rootRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [pageNumber, setPageNumber] = useState(1)
+  const [textReadyPage, setTextReadyPage] = useState<number | null>(null)
   const [pageCount, setPageCount] = useState(0)
   const [zoom, setZoom] = useState(1)
   const [width, setWidth] = useState(720)
-  const { selection, setSelection, captureSelection } = useReaderSelection({
+  useReaderBinding(
+    {
+      fileId: document.id,
+      getPageNumber: () => (pageCount > 0 ? pageNumber : undefined),
+      getViewport: () =>
+        textReadyPage === pageNumber
+          ? readViewport(pageRef.current?.querySelector('.textLayer') ?? null, scrollRef.current)
+          : null,
+    },
     active,
-    rootRef,
-    boundaryRef: pageRef,
-    resetKey: `${document.id}:${document.revision}:${pageNumber}`,
-  })
+  )
 
   useEffect(() => {
     const root = rootRef.current
@@ -93,10 +97,9 @@ export const PdfReader = ({
       </div>
       <div
         className="pdf-scroll"
+        ref={scrollRef}
         role="document"
         aria-label={`${document.name} page ${pageNumber}`}
-        onPointerUp={captureSelection}
-        onKeyUp={captureSelection}
       >
         <Document
           file={blob}
@@ -116,6 +119,7 @@ export const PdfReader = ({
           <div ref={pageRef}>
             <Page
               pageNumber={pageNumber}
+              onRenderTextLayerSuccess={() => setTextReadyPage(pageNumber)}
               width={Math.max(240, width - 48) * zoom}
               loading={<div className="preview-state">Rendering page…</div>}
               error={
@@ -126,16 +130,6 @@ export const PdfReader = ({
           </div>
         </Document>
       </div>
-      {selection && active && (
-        <ReaderSelectionAction
-          selection={selection}
-          onAsk={text => {
-            onQuote(document.id, text)
-            window.getSelection()?.removeAllRanges()
-            setSelection(null)
-          }}
-        />
-      )}
     </div>
   )
 }
