@@ -67,27 +67,31 @@ export const createAgentRoutes = (config: AgentServerConfig) => {
     c.header('Cache-Control', 'no-store')
     return c.json(publicAgentConfig(config))
   })
-  app.post(
-    '/chat/completions',
-    bodyLimit({
-      maxSize: 2 * 1024 * 1024,
-      onError: () => fail(413, 'The conversation exceeds the 2 MiB request limit.'),
-    }),
-    async c => {
-      if (!config.apiKey) return fail(503, 'Chat is currently unavailable.')
-      if (c.req.header('content-type')?.split(';')[0]?.trim() !== 'application/json')
-        return fail(400, 'Use application/json.')
-      let body: unknown
-      try {
-        body = await c.req.json()
-      } catch (cause) {
-        if (!(cause instanceof SyntaxError)) throw cause
-        return fail(400, 'The request is not valid JSON.')
-      }
-      if (!validBody(body, config.modelId))
-        return fail(400, 'Use the configured model, messages and stream: true.')
-      return forward(body, config, c.req.raw.signal)
-    },
-  )
+  const register = (path: string, modelId: string, maximumBytes: number, label: string) => {
+    app.post(
+      path,
+      bodyLimit({
+        maxSize: maximumBytes,
+        onError: () => fail(413, `The ${label} exceeds the request limit.`),
+      }),
+      async c => {
+        if (!config.apiKey) return fail(503, 'Chat is currently unavailable.')
+        if (c.req.header('content-type')?.split(';')[0]?.trim() !== 'application/json')
+          return fail(400, 'Use application/json.')
+        let body: unknown
+        try {
+          body = await c.req.json()
+        } catch (cause) {
+          if (!(cause instanceof SyntaxError)) throw cause
+          return fail(400, 'The request is not valid JSON.')
+        }
+        if (!validBody(body, modelId))
+          return fail(400, 'Use the configured model, messages and stream: true.')
+        return forward(body, config, c.req.raw.signal)
+      },
+    )
+  }
+  register('/chat/completions', config.modelId, 2 * 1024 * 1024, 'conversation')
+  register('/vision/chat/completions', config.visionModelId, 12 * 1024 * 1024, 'image analysis')
   return app
 }

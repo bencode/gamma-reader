@@ -4,6 +4,8 @@ export type ReadRange = { unit: 'line' | 'page'; start: number; end: number }
 export type ListInput = { name?: string; cursor?: string }
 export type SearchInput = { query: string; fileId?: string; cursor?: string }
 export type ReadInput = { fileId: string; range?: ReadRange; cursor?: string }
+export type AnalyzeImageInput = { fileId: string; question?: string }
+export type AnalyzeImageResult = { fileId: string; name: string; analysis: string }
 export type FileRef = { id: string; name: string }
 export type ReaderState = {
   openFiles: FileRef[]

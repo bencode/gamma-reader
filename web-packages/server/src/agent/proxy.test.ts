@@ -7,8 +7,8 @@ import { readAgentConfig } from './config.js'
 const config = readAgentConfig({ GLM_API_KEY: 'server-secret' })
 const app = createApp(undefined, config)
 const body = { model: config.modelId, messages: [{ role: 'user', content: 'Hello' }], stream: true }
-const post = (input: unknown = body) =>
-  app.request('/api/agent/chat/completions', {
+const post = (input: unknown = body, path = '/api/agent/chat/completions') =>
+  app.request(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer browser-placeholder' },
     body: JSON.stringify(input),
@@ -22,6 +22,7 @@ describe('model proxy', () => {
       enabled: true,
       provider: 'zai-coding-cn',
       modelId: 'glm-5.3',
+      visionModelId: 'glm-5.3-flash',
     })
     expect(publicConfig.headers.get('cache-control')).toBe('no-store')
     const fetchModel = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -39,6 +40,19 @@ describe('model proxy', () => {
       ...body,
       thinking: { type: 'enabled' },
     })
+  })
+
+  it('isolates the main and vision models on endpoints with separate limits', async () => {
+    const fetchModel = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response('data: done\n\n', { headers: { 'Content-Type': 'text/event-stream' } }),
+      )
+    const visionBody = { ...body, model: config.visionModelId }
+    expect((await post(visionBody)).status).toBe(400)
+    expect((await post(body, '/api/agent/vision/chat/completions')).status).toBe(400)
+    expect((await post(visionBody, '/api/agent/vision/chat/completions')).status).toBe(200)
+    expect(fetchModel).toHaveBeenCalledTimes(1)
   })
 
   it('rejects unavailable, oversized and invalid requests without contacting the provider', async () => {

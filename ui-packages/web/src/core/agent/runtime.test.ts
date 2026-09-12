@@ -4,7 +4,12 @@ import type { ReaderState } from '../local-tool-types'
 import { createLocalTools } from '../local-tools'
 import { createReaderAgent } from './runtime'
 
-const config = { enabled: true, provider: 'zai-coding-cn', modelId: 'glm-5.3' } as const
+const config = {
+  enabled: true,
+  provider: 'zai-coding-cn',
+  modelId: 'glm-5.3',
+  visionModelId: 'glm-5.3-flash',
+} as const
 const event = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'reply', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
 const reply = (text: string) =>
@@ -96,6 +101,78 @@ describe('reader agent', () => {
       isError: true,
     })
     expect(fetchModel).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses a one-shot vision model and returns only its text to the main agent', async () => {
+    const imported = await importStoredFiles(
+      [new File(['private-image-bytes'], 'screen.png', { type: 'image/png' })],
+      'keep',
+    )
+    const fileId = imported.addedIds[0]
+    if (!fileId) throw new Error('Missing image fixture')
+    const close = vi.fn()
+    const previous = globalThis.createImageBitmap
+    globalThis.createImageBitmap = vi.fn(
+      async () => ({ width: 2, height: 2, close }) as ImageBitmap,
+    )
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = []
+    const fetchModel = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      const request = { url: String(url), body: JSON.parse(String(init?.body)) }
+      requests.push(request)
+      if (request.url.includes('/vision/')) return reply('The image shows a reading interface.')
+      if (requests.filter(item => !item.url.includes('/vision/')).length === 1)
+        return call('analyze_image', { fileId, question: 'What is shown?' })
+      return reply('It shows a reading interface.')
+    })
+    try {
+      const agent = createReaderAgent(config, createLocalTools(emptyState))
+      await agent.prompt('Describe the image')
+      const vision = requests.find(request => request.url.includes('/vision/'))
+      expect(vision?.body.model).toBe('glm-5.3-flash')
+      expect(JSON.stringify(vision?.body)).toContain('data:image/png;base64,')
+      const finalMain = requests.filter(request => !request.url.includes('/vision/')).at(-1)
+      expect(JSON.stringify(finalMain?.body)).toContain('The image shows a reading interface.')
+      expect(JSON.stringify(finalMain?.body)).not.toContain('cHJpdmF0ZS1pbWFnZS1ieXRlcw==')
+      expect(agent.state.messages.findLast(message => message.role === 'toolResult')).toMatchObject(
+        {
+          content: [
+            {
+              type: 'text',
+              text: expect.stringContaining('The image shows a reading interface.'),
+            },
+          ],
+        },
+      )
+      expect(close).toHaveBeenCalled()
+      expect(fetchModel).toHaveBeenCalledTimes(3)
+    } finally {
+      globalThis.createImageBitmap = previous
+    }
+  })
+
+  it('rejects missing and non-image files before contacting the vision model', async () => {
+    const imported = await importStoredFiles(
+      [new File(['Readable text'], 'note.txt', { type: 'text/plain' })],
+      'keep',
+    )
+    const fileId = imported.addedIds[0]
+    if (!fileId) throw new Error('Missing text fixture')
+    const requests: string[] = []
+    const fetchModel = vi.spyOn(globalThis, 'fetch').mockImplementation(async url => {
+      requests.push(String(url))
+      const count = requests.filter(request => !request.includes('/vision/')).length
+      if (count === 1) return call('analyze_image', { fileId: 'missing' })
+      if (count === 3) return call('analyze_image', { fileId })
+      return reply('That file cannot be analyzed as an image.')
+    })
+    const agent = createReaderAgent(config, createLocalTools(emptyState))
+    await agent.prompt('Analyze the missing image')
+    await agent.prompt('Analyze the text file as an image')
+    expect(requests.some(request => request.includes('/vision/'))).toBe(false)
+    expect(
+      agent.state.messages.filter(message => message.role === 'toolResult' && message.isError),
+    ).toHaveLength(2)
+    expect(fetchModel).toHaveBeenCalledTimes(4)
   })
 
   it('aborts generation and skips later queued tools', async () => {
