@@ -3,10 +3,12 @@ export const maximumLibraryBytes = 500 * 1024 * 1024
 export const maximumTextPreviewBytes = 5 * 1024 * 1024
 
 export type PreviewKind = 'markdown' | 'text' | 'pdf' | 'html' | 'image' | 'unsupported'
+export type FileCollection = 'files' | 'attachments'
 
 export type StoredFileMetadata = {
   id: string
   name: string
+  collection?: FileCollection
   mediaType: string
   previewKind: PreviewKind
   size: number
@@ -19,10 +21,17 @@ export type StoredFileContent = { id: string; blob: Blob }
 
 export type ImportRejectionReason = 'file-too-large' | 'library-full' | 'storage-unavailable'
 
+export type ImportedFile = {
+  sourceIndex: number
+  metadata: StoredFileMetadata
+  action: 'added' | 'replaced'
+}
+
 export type ImportResult = {
   addedIds: string[]
   replacedIds: string[]
-  rejected: Array<{ name: string; reason: ImportRejectionReason }>
+  imported: ImportedFile[]
+  rejected: Array<{ sourceIndex: number; name: string; reason: ImportRejectionReason }>
 }
 
 const extensionOf = (name: string) => name.toLowerCase().match(/\.([^.]+)$/)?.[1] ?? ''

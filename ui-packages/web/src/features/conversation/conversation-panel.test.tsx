@@ -120,7 +120,7 @@ describe('conversation', () => {
     await user.click(send())
     await waitFor(() => expect(calls).toBe(2))
     const activity = screen.getByRole('list', { name: 'Tool activity' })
-    expect(within(activity).getByText('get_reader_state')).toBeVisible()
+    expect(within(activity).getByText('Checking reading context')).toBeVisible()
     expect(within(activity).getByText('Completed')).toBeVisible()
     expect(screen.queryByText('openFiles')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Stop generation' }))
@@ -138,5 +138,56 @@ describe('conversation', () => {
     await userEvent.type(question(), 'Keep this question')
     expect(send()).toBeDisabled()
     expect(question()).toHaveValue('Keep this question')
+  })
+
+  it('stores attached files in the workspace and sends only stable attachment metadata', async () => {
+    const user = userEvent.setup()
+    const requests: RequestInit[] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      if (init) requests.push(init)
+      return complete('I read the attachment.')
+    })
+    open()
+    await screen.findByRole('tab', { name: 'Getting started.md' })
+
+    const attachment = new File(['private attachment content'], 'Chat notes.md', {
+      type: 'text/markdown',
+    })
+    await user.upload(screen.getByLabelText('Choose chat attachments'), attachment)
+    const tray = await screen.findByRole('list', { name: 'Attachments to send' })
+    await waitFor(() => expect(within(tray).getByText('Chat notes.md')).toBeVisible())
+    const workspaceAttachments = await screen.findByRole('list', { name: 'Attachments' })
+    expect(within(workspaceAttachments).getByText('Chat notes.md')).toBeVisible()
+
+    await waitFor(() => expect(send()).toBeEnabled())
+    await user.click(send())
+    await screen.findByText('I read the attachment.')
+
+    const body = JSON.parse(String(requests[0]?.body)) as {
+      messages: Array<{ role: string; content: Array<{ type: string; text: string }> }>
+    }
+    const sent = body.messages.find(message => message.role === 'user')
+    expect(sent?.content[0]?.text).toBe('Review the attached workspace files.')
+    expect(sent?.content[1]?.text).toContain('"name":"Chat notes.md"')
+    expect(sent?.content[1]?.text).toContain('"fileId":')
+    expect(String(requests[0]?.body)).not.toContain('private attachment content')
+
+    await user.click(
+      within(screen.getByRole('list', { name: 'Message attachments' })).getByRole('button'),
+    )
+    expect(await screen.findByRole('tab', { name: 'Chat notes.md' })).toBeVisible()
+
+    await user.click(
+      within(workspaceAttachments).getByRole('button', {
+        name: 'Remove Chat notes.md from Attachments',
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Remove' }))
+    const sentAttachment = within(
+      screen.getByRole('list', { name: 'Message attachments' }),
+    ).getByRole('button')
+    await waitFor(() => expect(sentAttachment).toBeDisabled())
+    expect(sentAttachment).toHaveTextContent('Unavailable')
   })
 })

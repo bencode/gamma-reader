@@ -39,6 +39,7 @@ const list = async (input: ListInput = {}, signal?: AbortSignal): Promise<ListRe
     const entry = {
       id: file.id,
       name: file.name,
+      collection: file.collection ?? 'files',
       type: file.previewKind,
       textReadable: !reason,
       ...(reason ? { reason } : {}),

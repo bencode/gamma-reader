@@ -36,7 +36,7 @@ export const createReaderTools = (local: LocalTools, analyzeImage?: ImageAnalyze
   const tools = [
     bind(
       'list',
-      'List local files and whether their text is readable. Follow next to continue.',
+      'List workspace files and chat attachments, including whether their text is readable. Follow next to continue.',
       Type.Object({ name: Type.Optional(Type.String()), cursor }),
       local.list,
     ),

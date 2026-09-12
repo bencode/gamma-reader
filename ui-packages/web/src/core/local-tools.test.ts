@@ -41,6 +41,11 @@ describe('local reader tools', () => {
       'keep',
     )
     await add('Fixture unsupported.html', '<p>text</p>', 'text/html')
+    await importStoredFiles(
+      [new File(['context'], 'Fixture attachment.txt', { type: 'text/plain' })],
+      'keep',
+      'attachments',
+    )
     let next: ListInput | null = { name: 'FIXTURE' }
     const files = []
     while (next) {
@@ -49,8 +54,12 @@ describe('local reader tools', () => {
       files.push(...result.files)
       next = result.next
     }
-    expect(files).toHaveLength(106)
-    expect(new Set(files.map(file => file.id)).size).toBe(106)
+    expect(files).toHaveLength(107)
+    expect(new Set(files.map(file => file.id)).size).toBe(107)
+    expect(files.find(file => file.name === 'Fixture attachment.txt')).toMatchObject({
+      collection: 'attachments',
+      textReadable: true,
+    })
     expect(files.find(file => file.type === 'html')).toMatchObject({
       textReadable: false,
       reason: expect.any(String),

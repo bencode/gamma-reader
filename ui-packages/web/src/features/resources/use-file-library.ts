@@ -65,6 +65,13 @@ export const useFileLibrary = () => {
     void reload()
   }, [reload])
 
+  const rememberPersistence = useCallback((result: ImportResult) => {
+    if (!persistRequested.current && result.imported.length > 0) {
+      persistRequested.current = true
+      void requestPersistentStorage()
+    }
+  }, [])
+
   const commitImport = async (selected: readonly File[], mode: DuplicateMode) => {
     setImporting(true)
     setStatus(null)
@@ -72,10 +79,7 @@ export const useFileLibrary = () => {
       const result = await importStoredFiles(selected, mode)
       await reload()
       setStatus(resultStatus(result))
-      if (!persistRequested.current && result.addedIds.length + result.replacedIds.length > 0) {
-        persistRequested.current = true
-        void requestPersistentStorage()
-      }
+      rememberPersistence(result)
     } catch (cause) {
       console.error('Unable to import files', cause)
       setStatus({ message: 'Files could not be added. Try again.' })
@@ -83,6 +87,16 @@ export const useFileLibrary = () => {
       setImporting(false)
     }
   }
+
+  const addAttachments = useCallback(
+    async (selected: readonly File[]) => {
+      const result = await importStoredFiles(selected, 'keep', 'attachments')
+      await reload()
+      rememberPersistence(result)
+      return result
+    },
+    [reload, rememberPersistence],
+  )
 
   const addFiles = (selected: readonly File[]) => {
     if (selected.length === 0 || importing) return
@@ -117,6 +131,7 @@ export const useFileLibrary = () => {
     status,
     duplicateNames: pendingFiles ? duplicateNames(pendingFiles, files) : [],
     addFiles,
+    addAttachments,
     resolveDuplicates,
     removeFile,
     retry: () => {

@@ -1,5 +1,6 @@
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 import {
+  type FileCollection,
   type ImportResult,
   maximumFileBytes,
   maximumLibraryBytes,
@@ -24,25 +25,41 @@ const databaseName = 'gamma-reader-files'
 let databasePromise: Promise<IDBPDatabase<FileDatabase>> | undefined
 
 const openFileDatabase = () => {
-  databasePromise ??= openDB<FileDatabase>(databaseName, 1, {
-    upgrade(database) {
-      const files = database.createObjectStore('files', { keyPath: 'id' })
-      files.createIndex('by-created-at', 'createdAt')
-      const contents = database.createObjectStore('contents', { keyPath: 'id' })
-      samples.forEach((sample, index) => {
-        const blob = new Blob([sample.content], { type: 'text/markdown' })
-        files.put({
-          id: sample.id,
-          name: sample.name,
-          mediaType: blob.type,
-          previewKind: 'markdown',
-          size: blob.size,
-          lastModified: 0,
-          createdAt: index,
-          revision: 1,
+  databasePromise ??= openDB<FileDatabase>(databaseName, 2, {
+    upgrade(database, oldVersion, _newVersion, transaction) {
+      if (oldVersion < 1) {
+        const files = database.createObjectStore('files', { keyPath: 'id' })
+        files.createIndex('by-created-at', 'createdAt')
+        const contents = database.createObjectStore('contents', { keyPath: 'id' })
+        samples.forEach((sample, index) => {
+          const blob = new Blob([sample.content], { type: 'text/markdown' })
+          files.put({
+            id: sample.id,
+            name: sample.name,
+            collection: 'files',
+            mediaType: blob.type,
+            previewKind: 'markdown',
+            size: blob.size,
+            lastModified: 0,
+            createdAt: index,
+            revision: 1,
+          })
+          contents.put({ id: sample.id, blob })
         })
-        contents.put({ id: sample.id, blob })
-      })
+      }
+      if (oldVersion === 1) {
+        const files = transaction.objectStore('files')
+        void (async () => {
+          let cursor = await files.openCursor()
+          while (cursor) {
+            await cursor.update({ ...cursor.value, collection: 'files' })
+            cursor = await cursor.continue()
+          }
+        })().catch(error => {
+          console.error('Unable to migrate the local file library', error)
+          transaction.abort()
+        })
+      }
     },
   }).catch(error => {
     databasePromise = undefined
@@ -115,11 +132,16 @@ const hasBrowserCapacity = async (bytes: number) => {
   }
 }
 
-type PlannedWrite = { metadata: StoredFileMetadata; content: StoredFileContent }
+type PlannedWrite = {
+  sourceIndex: number
+  metadata: StoredFileMetadata
+  content: StoredFileContent
+}
 
 export const importStoredFiles = async (
   selected: readonly File[],
   duplicateMode: DuplicateMode,
+  collection: FileCollection = 'files',
 ): Promise<ImportResult> => {
   const database = await openFileDatabase()
   const existing = await database.getAllFromIndex('files', 'by-created-at')
@@ -132,7 +154,7 @@ export const importStoredFiles = async (
 
   selected.forEach((file, index) => {
     if (file.size > maximumFileBytes) {
-      rejected.push({ name: file.name, reason: 'file-too-large' })
+      rejected.push({ sourceIndex: index, name: file.name, reason: 'file-too-large' })
       return
     }
     const requestedKey = file.name.toLowerCase()
@@ -145,12 +167,13 @@ export const importStoredFiles = async (
     const id = replaced ? duplicate.id : crypto.randomUUID()
     const previousSize = replaced ? duplicate.size : 0
     if (totalBytes - previousSize + file.size > maximumLibraryBytes) {
-      rejected.push({ name: file.name, reason: 'library-full' })
+      rejected.push({ sourceIndex: index, name: file.name, reason: 'library-full' })
       return
     }
     const metadata: StoredFileMetadata = {
       id,
       name,
+      collection,
       mediaType: file.type || 'application/octet-stream',
       previewKind: previewKindFor(name, file.type),
       size: file.size,
@@ -160,7 +183,11 @@ export const importStoredFiles = async (
     }
     totalBytes += file.size - previousSize
     planned.set(name.toLowerCase(), metadata)
-    writes.set(id, { metadata, content: { id, blob: file.slice(0, file.size, file.type) } })
+    writes.set(id, {
+      sourceIndex: index,
+      metadata,
+      content: { id, blob: file.slice(0, file.size, file.type) },
+    })
   })
 
   const addedBytes = totalBytes - existing.reduce((total, file) => total + file.size, 0)
@@ -169,9 +196,11 @@ export const importStoredFiles = async (
     return {
       addedIds: [],
       replacedIds: [],
+      imported: [],
       rejected: [
         ...rejected,
         ...plannedWrites.map(write => ({
+          sourceIndex: write.sourceIndex,
           name: write.metadata.name,
           reason: 'storage-unavailable' as const,
         })),
@@ -193,9 +222,11 @@ export const importStoredFiles = async (
       return {
         addedIds: [],
         replacedIds: [],
+        imported: [],
         rejected: [
           ...rejected,
           ...plannedWrites.map(write => ({
+            sourceIndex: write.sourceIndex,
             name: write.metadata.name,
             reason: 'storage-unavailable' as const,
           })),
@@ -204,13 +235,15 @@ export const importStoredFiles = async (
     throw error
   }
 
+  const imported = plannedWrites.map(write => ({
+    sourceIndex: write.sourceIndex,
+    metadata: write.metadata,
+    action: existingIds.has(write.metadata.id) ? ('replaced' as const) : ('added' as const),
+  }))
   return {
-    addedIds: plannedWrites
-      .filter(write => !existingIds.has(write.metadata.id))
-      .map(write => write.metadata.id),
-    replacedIds: plannedWrites
-      .filter(write => existingIds.has(write.metadata.id))
-      .map(write => write.metadata.id),
+    addedIds: imported.filter(item => item.action === 'added').map(item => item.metadata.id),
+    replacedIds: imported.filter(item => item.action === 'replaced').map(item => item.metadata.id),
+    imported,
     rejected,
   }
 }

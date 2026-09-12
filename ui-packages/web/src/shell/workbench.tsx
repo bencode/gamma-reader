@@ -110,11 +110,21 @@ export const Workbench = () => {
       onRemoved={workspace.closeDocument}
     />
   )
-  const assistant = <ConversationPanel inputRef={inputRef} onClose={closeAssistant} />
+  const assistant = (
+    <ConversationPanel
+      inputRef={inputRef}
+      onClose={closeAssistant}
+      availableFileIds={new Set(library.files.map(file => file.id))}
+      onOpenFile={id => {
+        workspace.openDocument(id)
+        if (overlay === 'assistant') setOverlay(null)
+      }}
+    />
+  )
 
   return (
     <WorkspaceProvider workspace={workspace} rootRef={rootRef}>
-      <ConversationProvider>
+      <ConversationProvider addAttachments={library.addAttachments}>
         <div className="workbench" ref={rootRef}>
           {!inlineFiles && (
             <nav className="files-rail" aria-label="Workspace controls">

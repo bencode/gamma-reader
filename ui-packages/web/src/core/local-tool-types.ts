@@ -1,4 +1,4 @@
-import type { PreviewKind } from './files'
+import type { FileCollection, PreviewKind } from './files'
 
 export type ReadRange = { unit: 'line' | 'page'; start: number; end: number }
 export type ListInput = { name?: string; cursor?: string }
@@ -13,6 +13,7 @@ export type ReaderState = {
   viewport: { startText: string; endText: string } | null
 }
 export type FileEntry = FileRef & {
+  collection: FileCollection
   type: PreviewKind
   textReadable: boolean
   reason?: string

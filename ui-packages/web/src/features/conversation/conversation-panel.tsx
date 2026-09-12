@@ -1,16 +1,22 @@
-import { ArrowUp, MessageSquare, Square, X } from 'lucide-react'
+import { MessageSquare, X } from 'lucide-react'
 import type { RefObject } from 'react'
+import { ConversationComposer } from './conversation-composer'
 import { useReaderConversation } from './conversation-context'
 import { ConversationMessages } from './conversation-messages'
 
 export const ConversationPanel = ({
   inputRef,
   onClose,
+  onOpenFile,
+  availableFileIds,
 }: {
   inputRef: RefObject<HTMLTextAreaElement | null>
   onClose: () => void
+  onOpenFile: (id: string) => void
+  availableFileIds: ReadonlySet<string>
 }) => {
-  const { draft, setDraft, messages, phase, error, send, stop } = useReaderConversation()
+  const { draft, setDraft, messages, phase, error, send, stop, draftAttachments } =
+    useReaderConversation()
   const running = phase === 'running' || phase === 'stopping'
   const status =
     phase === 'connecting'
@@ -35,7 +41,12 @@ export const ConversationPanel = ({
           <X size={17} />
         </button>
       </header>
-      <ConversationMessages messages={messages} running={running} />
+      <ConversationMessages
+        messages={messages}
+        running={running}
+        onOpenFile={onOpenFile}
+        availableFileIds={availableFileIds}
+      />
       <div className="composer-area">
         {status && (
           <p className="conversation-notice" role="status">
@@ -47,42 +58,22 @@ export const ConversationPanel = ({
             {error}
           </p>
         )}
-        <div className="composer">
-          <textarea
-            ref={inputRef}
-            aria-label="Your question"
-            placeholder="What would you like to understand?"
-            value={draft}
-            onChange={event => setDraft(event.target.value)}
-            rows={3}
-            onKeyDown={event => {
-              if (
-                event.key !== 'Enter' ||
-                event.shiftKey ||
-                event.nativeEvent.isComposing ||
-                event.keyCode === 229
-              )
-                return
-              event.preventDefault()
-              if (phase === 'ready') void send()
-            }}
-          />
-          <div className="composer-bottom">
-            <button
-              type="button"
-              className="send-button"
-              aria-label={running ? 'Stop generation' : 'Send question'}
-              title={running ? 'Stop generation' : 'Send question'}
-              disabled={phase === 'stopping' || (!running && (phase !== 'ready' || !draft.trim()))}
-              onClick={() => {
-                if (running) stop()
-                else void send()
-              }}
-            >
-              {running ? <Square size={13} /> : <ArrowUp size={17} />}
-            </button>
-          </div>
-        </div>
+        <ConversationComposer
+          inputRef={inputRef}
+          draft={draft}
+          phase={phase}
+          attachments={draftAttachments.attachments}
+          limitReached={draftAttachments.limitReached}
+          unsettled={draftAttachments.unsettled}
+          onDraftChange={setDraft}
+          onAdd={files => void draftAttachments.add(files)}
+          onRetry={key => void draftAttachments.retry(key)}
+          onRemove={draftAttachments.remove}
+          onOpenFile={onOpenFile}
+          onSend={() => void send()}
+          onStop={stop}
+          availableFileIds={availableFileIds}
+        />
       </div>
     </aside>
   )
