@@ -58,6 +58,40 @@ describe('local file store', () => {
     expect(await (await getStoredFileContent('legacy'))?.text()).toBe('legacy')
   })
 
+  it('adds conversation stores to version two without changing stored files', async () => {
+    await closeFileStore()
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('gamma-reader-files', 2)
+      request.onupgradeneeded = () => {
+        const files = request.result.createObjectStore('files', { keyPath: 'id' })
+        files.createIndex('by-created-at', 'createdAt')
+        const contents = request.result.createObjectStore('contents', { keyPath: 'id' })
+        files.put({
+          id: 'version-two',
+          name: 'Version two.md',
+          collection: 'files',
+          mediaType: 'text/markdown',
+          previewKind: 'markdown',
+          size: 3,
+          lastModified: 1,
+          createdAt: 1,
+          revision: 1,
+        })
+        contents.put({ id: 'version-two', blob: new Blob(['old'], { type: 'text/markdown' }) })
+      }
+      request.onsuccess = () => {
+        request.result.close()
+        resolve()
+      }
+      request.onerror = () => reject(request.error)
+    })
+
+    expect(await listStoredFiles()).toEqual([
+      expect.objectContaining({ id: 'version-two', name: 'Version two.md' }),
+    ])
+    expect(await (await getStoredFileContent('version-two'))?.text()).toBe('old')
+  })
+
   it('can retry after opening IndexedDB fails', async () => {
     vi.spyOn(indexedDB, 'open').mockImplementationOnce(() => {
       throw new DOMException('Temporarily unavailable', 'UnknownError')

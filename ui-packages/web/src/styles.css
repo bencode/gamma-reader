@@ -385,6 +385,166 @@ svg {
   min-height: 0;
   overflow: auto;
 }
+.conversation-view,
+.conversation-history {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+.conversation-header h2 {
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+}
+.conversation-header-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.conversation-storage-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  background: oklch(0.95 0.03 80);
+  color: oklch(0.42 0.06 70);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.conversation-storage-warning span {
+  flex: 1;
+}
+.conversation-storage-warning .icon-button {
+  width: 24px;
+  height: 24px;
+}
+.conversation-history-header {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+.conversation-history-header h2 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conversation-history-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+}
+.conversation-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.conversation-history-list > li {
+  margin-bottom: 3px;
+  border-radius: 7px;
+}
+.conversation-history-list > li.active {
+  background: var(--selected);
+}
+.conversation-history-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.conversation-history-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.conversation-history-main strong,
+.conversation-history-main time {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conversation-history-main strong {
+  font-size: 12px;
+  font-weight: 550;
+}
+.conversation-history-main time {
+  color: var(--muted);
+  font-size: 10px;
+}
+.conversation-history-more {
+  margin-right: 4px;
+}
+.conversation-history-list > li:not(.active):hover {
+  background: oklch(0.955 0 0);
+}
+.conversation-delete-confirmation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.conversation-delete-confirmation span {
+  flex: 1;
+}
+.conversation-delete-confirmation button,
+.conversation-history-feedback button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 5px;
+  padding: 5px 7px;
+  background: oklch(0.92 0.03 25);
+  color: oklch(0.45 0.12 25);
+  font-size: 10px;
+}
+.conversation-history-feedback,
+.conversation-history-empty {
+  margin: 20px 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: center;
+}
+.conversation-history-feedback {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.conversation-history-load-more {
+  display: block;
+  margin: 10px auto 18px;
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: oklch(0.93 0 0);
+  color: var(--muted);
+  font-size: 11px;
+}
+.conversation-history-load-more:hover:not(:disabled) {
+  color: inherit;
+}
 .composer-area {
   flex-shrink: 0;
   padding: 0 10px 10px;

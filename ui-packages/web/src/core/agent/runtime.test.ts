@@ -7,6 +7,7 @@ import {
 } from '../../data/file-store'
 import type { ReaderState } from '../local-tool-types'
 import { createLocalTools } from '../local-tools'
+import { createReaderUserMessage } from './reader-message'
 import { createReaderAgent } from './runtime'
 
 const config = {
@@ -40,8 +41,47 @@ const call = (name: string, args: unknown) =>
   )
 const emptyState = (): ReaderState => ({ openFiles: [], activeFile: null, viewport: null })
 const localTools = () => createLocalTools(emptyState, writeStoredTextFile)
+const session = { id: 'test-conversation', messages: [] }
 
 describe('reader agent', () => {
+  it('restores the transcript under the selected conversation id', () => {
+    const message = createReaderUserMessage('Earlier question', [])
+    const agent = createReaderAgent(config, localTools(), {
+      id: 'restored-conversation',
+      messages: [message],
+    })
+
+    expect(agent.sessionId).toBe('restored-conversation')
+    expect(agent.state.messages).toEqual([message])
+  })
+
+  it('sends the restored transcript as context for the next prompt', async () => {
+    const requests: Array<{ messages: Array<{ role: string; content: unknown }> }> = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      requests.push(JSON.parse(String(init?.body)))
+      return reply(requests.length === 1 ? 'Earlier answer' : 'Follow-up answer')
+    })
+    const first = createReaderAgent(config, localTools(), {
+      id: 'restored-context',
+      messages: [],
+    })
+    await first.prompt(createReaderUserMessage('Earlier question', []))
+    const restored = createReaderAgent(config, localTools(), {
+      id: 'restored-context',
+      messages: first.state.messages,
+    })
+
+    await restored.prompt(createReaderUserMessage('Follow-up question', []))
+
+    const context = requests[1]?.messages.filter(message => message.role !== 'system')
+    expect(context?.map(message => message.role)).toEqual(['user', 'assistant', 'user'])
+    expect(context?.map(message => JSON.stringify(message.content))).toEqual([
+      expect.stringContaining('Earlier question'),
+      expect.stringContaining('Earlier answer'),
+      expect.stringContaining('Follow-up question'),
+    ])
+  })
+
   it('writes a browser-local text file through the native Pi tool', async () => {
     const requests: Array<{ messages: Array<{ role: string; content: string }> }> = []
     const fetchModel = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
@@ -52,7 +92,7 @@ describe('reader agent', () => {
       return reply('Saved as Study notes.html.')
     })
     const writer = vi.fn(writeStoredTextFile)
-    const agent = createReaderAgent(config, createLocalTools(emptyState, writer))
+    const agent = createReaderAgent(config, createLocalTools(emptyState, writer), session)
 
     await agent.prompt('Save this as an HTML file')
 
@@ -100,6 +140,7 @@ describe('reader agent', () => {
     const agent = createReaderAgent(
       config,
       createLocalTools(() => state, writeStoredTextFile),
+      session,
     )
     await agent.prompt('Explain the current paragraph')
     expect(requests).toHaveLength(5)
@@ -123,7 +164,7 @@ describe('reader agent', () => {
     const result = agent.state.messages.findLast(message => message.role === 'toolResult')
     expect(result).toMatchObject({ content: [{ type: 'text', text: JSON.stringify(state) }] })
     expect(agent.state.messages.filter(message => message.role === 'user')).toHaveLength(2)
-    expect(createReaderAgent(config, localTools()).state.messages).toEqual([])
+    expect(createReaderAgent(config, localTools(), session).state.messages).toEqual([])
   })
 
   it('returns tool errors to the model without hiding a failed read', async () => {
@@ -131,7 +172,7 @@ describe('reader agent', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(call('read', { fileId: 'missing' }))
       .mockResolvedValueOnce(reply('The file is unavailable.'))
-    const agent = createReaderAgent(config, localTools())
+    const agent = createReaderAgent(config, localTools(), session)
     await agent.prompt('Read the file')
     expect(agent.state.messages.find(message => message.role === 'toolResult')).toMatchObject({
       isError: true,
@@ -161,7 +202,7 @@ describe('reader agent', () => {
       return reply('It shows a reading interface.')
     })
     try {
-      const agent = createReaderAgent(config, localTools())
+      const agent = createReaderAgent(config, localTools(), session)
       await agent.prompt('Describe the image')
       const vision = requests.find(request => request.url.includes('/vision/'))
       expect(vision?.body.model).toBe('glm-5.3-flash')
@@ -201,7 +242,7 @@ describe('reader agent', () => {
       if (count === 3) return call('analyze_image', { fileId })
       return reply('That file cannot be analyzed as an image.')
     })
-    const agent = createReaderAgent(config, localTools())
+    const agent = createReaderAgent(config, localTools(), session)
     await agent.prompt('Analyze the missing image')
     await agent.prompt('Analyze the text file as an image')
     expect(requests.some(request => request.includes('/vision/'))).toBe(false)
@@ -232,7 +273,7 @@ describe('reader agent', () => {
       { headers: { 'Content-Type': 'text/event-stream' } },
     )
     const fetchModel = vi.spyOn(globalThis, 'fetch').mockResolvedValue(toolsResponse)
-    const agent = createReaderAgent(config, local)
+    const agent = createReaderAgent(config, local, session)
     agent.subscribe(event => {
       if (event.type === 'tool_execution_start') agent.abort()
     })
@@ -246,7 +287,7 @@ describe('reader agent', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(Response.json({ error: { message: 'Unavailable' } }, { status: 503 }))
       .mockResolvedValueOnce(reply('Recovered'))
-    const agent = createReaderAgent(config, localTools())
+    const agent = createReaderAgent(config, localTools(), session)
     await agent.prompt('Hello')
     expect(fetchModel).toHaveBeenCalledTimes(1)
     expect(agent.state.messages.at(-1)).toMatchObject({ role: 'assistant', stopReason: 'error' })

@@ -184,6 +184,7 @@ describe('conversation', () => {
       )
     })
     open()
+    await waitFor(() => expect(question()).toBeEnabled())
     await user.type(question(), 'What am I reading?')
     await waitFor(() => expect(send()).toBeEnabled())
     await user.click(send())
@@ -196,8 +197,64 @@ describe('conversation', () => {
     await screen.findByText('Generation stopped.')
     expect(signal?.aborted).toBe(true)
     await user.type(question(), 'Continue')
+    await waitFor(() => expect(send()).toBeEnabled())
     await user.click(send())
     expect(await screen.findByText('Ready again')).toBeVisible()
+  })
+
+  it('switches between isolated conversations and restores the active transcript', async () => {
+    const user = userEvent.setup()
+    const requests: Array<{ messages: Array<{ role: string; content: unknown }> }> = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      requests.push(JSON.parse(String(init?.body)))
+      return complete(requests.length === 1 ? 'First answer' : 'Second answer')
+    })
+    const page = open()
+    await waitFor(() => expect(question()).toBeEnabled())
+
+    await user.type(question(), 'First topic')
+    await user.click(send())
+    expect(await screen.findByText('First answer')).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'New conversation' }))
+    await waitFor(() => {
+      expect(screen.queryByText('First answer')).not.toBeInTheDocument()
+      expect(question()).toBeEnabled()
+      expect(question()).toHaveValue('')
+    })
+    await user.type(question(), 'Second topic')
+    await waitFor(() => expect(send()).toBeEnabled())
+    await user.click(send())
+    expect(await screen.findByText('Second answer')).toBeVisible()
+
+    expect(
+      requests[1]?.messages
+        .filter(message => message.role !== 'system')
+        .map(message => message.role),
+    ).toEqual(['user'])
+    await user.click(screen.getByRole('button', { name: 'Conversation history' }))
+    const history = screen.getByRole('region', { name: 'Conversation history' })
+    expect(within(history).getByText('First topic')).toBeVisible()
+    expect(within(history).getByText('Second topic')).toBeVisible()
+    await user.click(within(history).getByText('First topic'))
+    await waitFor(() => expect(screen.getByText('First answer')).toBeVisible())
+    expect(screen.queryByText('Second answer')).not.toBeInTheDocument()
+
+    page.unmount()
+    open()
+    expect(await screen.findByText('First answer')).toBeVisible()
+    expect(question()).toHaveValue('')
+
+    await user.click(screen.getByRole('button', { name: 'Conversation history' }))
+    const restoredHistory = screen.getByRole('region', { name: 'Conversation history' })
+    const activeRow = within(restoredHistory).getByText('First topic').closest('li')
+    if (!activeRow) throw new Error('Active history row is missing')
+    await user.click(
+      within(activeRow).getByRole('button', { name: 'More actions for First topic' }),
+    )
+    await user.click(within(activeRow).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByText('Second answer')).toBeVisible()
   })
 
   it('shows initialization failure without discarding a draft', async () => {
@@ -219,6 +276,7 @@ describe('conversation', () => {
     })
     open()
     await screen.findByRole('tab', { name: 'Getting started.md' })
+    await waitFor(() => expect(question()).toBeEnabled())
 
     const attachment = new File(['private attachment content'], 'Chat notes.md', {
       type: 'text/markdown',

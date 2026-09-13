@@ -1,12 +1,13 @@
 import { ArrowUp, Paperclip, Square } from 'lucide-react'
 import { type DragEvent, type RefObject, useLayoutEffect, useRef, useState } from 'react'
 import { DraftAttachmentTray } from './conversation-attachments'
+import type { ConversationPhase } from './use-conversation'
 import type { DraftAttachment } from './use-draft-attachments'
 
 type ComposerProps = {
   inputRef: RefObject<HTMLTextAreaElement | null>
   draft: string
-  phase: 'connecting' | 'ready' | 'unavailable' | 'error' | 'running' | 'stopping'
+  phase: ConversationPhase
   attachments: DraftAttachment[]
   limitReached: boolean
   unsettled: boolean
@@ -71,6 +72,7 @@ export const ConversationComposer = ({
 
   return (
     <fieldset
+      disabled={phase === 'loading' || phase === 'switching'}
       aria-label="Message composer"
       className={dragging ? 'composer drop-active' : 'composer'}
       onDragEnter={event => {
@@ -97,6 +99,7 @@ export const ConversationComposer = ({
       />
       <textarea
         ref={inputRef}
+        disabled={phase === 'loading' || phase === 'switching'}
         aria-label="Your question"
         placeholder="Ask about what you are reading"
         value={draft}

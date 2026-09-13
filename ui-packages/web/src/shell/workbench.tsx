@@ -156,7 +156,7 @@ export const Workbench = () => {
                 type="button"
                 className="icon-button rail-save"
                 aria-label="Save to folder"
-                title="Saving is not available yet. Reloading clears the conversation and draft."
+                title="Saving files to a folder is not available yet."
                 disabled
               >
                 <Save size={17} />

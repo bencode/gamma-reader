@@ -47,11 +47,11 @@ Importing files stores them locally in this browser. Removing a file from this l
 | Add local files as you need them | Save reading records |
 | Read Markdown, text, PDF, HTML, and images | Use Word documents as AI context |
 | Ask questions about your reading | Edit and connect reading notes |
-| Resize and hide panels | Save conversations across reloads |
+| Resize and hide panels | Export a workspace for another browser |
 
 ## A note about saving
 
-Your files, open tabs, and tab order are remembered in this browser. The address points to the document you are reading. Your conversation, draft question, and scroll positions stay in the current page only. **Reloading clears those temporary values.** Your panel widths are also remembered, including when you hide a panel and bring it back.
+Your files, open tabs, tab order, conversations, and draft questions are remembered in this browser. The address points to the document you are reading. Your panel widths are also remembered, including when you hide a panel and bring it back.
 
 Browser drafts and explicit saving to a local folder will arrive in a later iteration. Original documents will remain unchanged.
 
