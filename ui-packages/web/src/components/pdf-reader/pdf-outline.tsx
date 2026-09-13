@@ -1,4 +1,3 @@
-import { X } from 'lucide-react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { useEffect, useRef, useState } from 'react'
 import styles from './style.module.scss'
@@ -177,17 +176,6 @@ export const PdfOutline = ({
         onClick={onClose}
       />
       <aside className={styles.outlinePanel} aria-label="PDF contents">
-        <header>
-          <h2>Contents</h2>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Close contents"
-            onClick={onClose}
-          >
-            <X size={16} />
-          </button>
-        </header>
         <ul>
           {entries.map(entry => {
             const destination = entry.pageNumber
@@ -208,10 +196,7 @@ export const PdfOutline = ({
                     aria-label={`${entry.title}, page ${destination}`}
                     aria-current={entry.key === activeKey ? 'location' : undefined}
                     style={{ paddingInlineStart: 10 + entry.depth * 14 }}
-                    onClick={() => {
-                      onPageChange(destination)
-                      onClose()
-                    }}
+                    onClick={() => onPageChange(destination)}
                   >
                     <span>{entry.title}</span>
                     <small>{destination}</small>

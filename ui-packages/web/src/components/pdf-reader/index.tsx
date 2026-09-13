@@ -7,6 +7,7 @@ import 'react-pdf/dist/Page/TextLayer.css'
 import { PdfOutline, usePdfOutline } from './pdf-outline'
 import { PdfToolbar } from './pdf-toolbar'
 import styles from './style.module.scss'
+import { usePdfPan } from './use-pdf-pan'
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
@@ -30,6 +31,8 @@ export type PdfReaderProps = {
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value))
 
+const embeddedOutlineMinimumWidth = 640
+
 export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function PdfReader(
   { source, name, pageNumber, onPageChange },
   ref,
@@ -41,10 +44,15 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
   const [pageCount, setPageCount] = useState(0)
   const [textReadyPage, setTextReadyPage] = useState<number>()
   const [zoom, setZoom] = useState(1)
-  const [width, setWidth] = useState(720)
+  const [readerWidth, setReaderWidth] = useState(0)
+  const [pageViewportWidth, setPageViewportWidth] = useState(720)
   const [outlineOpen, setOutlineOpen] = useState(false)
+  const [panActive, setPanActive] = useState(false)
+  const pan = usePdfPan(panActive)
   const outline = usePdfOutline(pdf)
   const outlineEntries = outline.status === 'ready' ? outline.entries : []
+  const outlineLayout = readerWidth >= embeddedOutlineMinimumWidth ? 'embedded' : 'overlay'
+  const outlineVisible = outlineOpen && outlineEntries.length > 0
 
   useImperativeHandle(
     ref,
@@ -63,12 +71,16 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
 
   useEffect(() => {
     const root = rootRef.current
-    if (!root) return
-    const observer = new ResizeObserver(entries => {
-      const entry = entries[0]
-      if (entry) setWidth(entry.contentRect.width)
-    })
+    const scroll = scrollRef.current
+    if (!root || !scroll) return
+    const measure = () => {
+      setReaderWidth(root.clientWidth)
+      setPageViewportWidth(scroll.clientWidth)
+    }
+    const observer = new ResizeObserver(measure)
     observer.observe(root)
+    observer.observe(scroll)
+    measure()
     return () => observer.disconnect()
   }, [])
 
@@ -80,24 +92,53 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
     onPageChange(page)
   }
 
+  const changeZoom = (next: number) => {
+    const nextZoom = clamp(next, 0.5, 2)
+    if (nextZoom <= 1) setPanActive(false)
+    else if (zoom <= 1) setPanActive(true)
+    setZoom(nextZoom)
+  }
+
+  const openOutlinePage = (next: number) => {
+    navigate(next)
+    if (outlineLayout === 'overlay') setOutlineOpen(false)
+  }
+
   return (
-    <div className={`media-reader ${styles.reader}`} ref={rootRef}>
+    <div
+      className={`media-reader ${styles.reader}`}
+      ref={rootRef}
+      data-outline-layout={outlineLayout}
+      data-outline-open={outlineVisible}
+    >
       <PdfToolbar
         pageNumber={pageNumber}
         pageCount={pageCount}
         zoom={zoom}
         outlineAvailable={outlineEntries.length > 0}
         outlineOpen={outlineOpen}
+        panAvailable={zoom > 1}
+        panActive={panActive}
         onPageChange={navigate}
-        onZoomChange={next => setZoom(clamp(next, 0.5, 2))}
+        onZoomChange={changeZoom}
         onToggleOutline={() => setOutlineOpen(open => !open)}
+        onPanActiveChange={setPanActive}
       />
       <div className={styles.stage}>
+        {outlineVisible && (
+          <PdfOutline
+            entries={outlineEntries}
+            pageNumber={pageNumber}
+            onPageChange={openOutlinePage}
+            onClose={() => setOutlineOpen(false)}
+          />
+        )}
         <div
-          className={styles.scroll}
+          className={`${styles.scroll} ${panActive ? styles.pan : ''} ${pan.dragging ? styles.dragging : ''}`}
           ref={scrollRef}
           role="document"
           aria-label={`${name} page ${pageNumber}`}
+          {...pan.bindings}
         >
           <Document
             file={source}
@@ -120,11 +161,11 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
               setOutlineOpen(false)
             }}
           >
-            <div ref={pageRef}>
+            <div className={styles.page} ref={pageRef}>
               <Page
                 pageNumber={pageNumber}
                 onRenderTextLayerSuccess={() => setTextReadyPage(pageNumber)}
-                width={Math.max(240, width - 48) * zoom}
+                width={Math.max(240, pageViewportWidth - 48) * zoom}
                 loading={<div className="preview-state">Rendering page…</div>}
                 error={
                   <div className="preview-state error-state">This page could not be rendered.</div>
@@ -134,14 +175,6 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
             </div>
           </Document>
         </div>
-        {outlineOpen && outlineEntries.length > 0 && (
-          <PdfOutline
-            entries={outlineEntries}
-            pageNumber={pageNumber}
-            onPageChange={navigate}
-            onClose={() => setOutlineOpen(false)}
-          />
-        )}
       </div>
     </div>
   )
