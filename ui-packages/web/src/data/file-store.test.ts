@@ -98,12 +98,34 @@ describe('local file store', () => {
     })
 
     await expect(listStoredFiles()).rejects.toThrow('Temporarily unavailable')
-    await expect(listStoredFiles()).resolves.toHaveLength(3)
+    await expect(listStoredFiles()).resolves.toHaveLength(4)
   })
 
   it('seeds samples once and keeps a deleted sample removed after reopening', async () => {
     const initial = await listStoredFiles()
-    expect(initial.map(file => file.id)).toContain('getting-started')
+    expect(initial).toEqual([
+      expect.objectContaining({
+        id: 'getting-started',
+        name: 'Getting started.md',
+        previewKind: 'markdown',
+      }),
+      expect.objectContaining({
+        id: 'how-gamma-reader-works',
+        name: 'How Gamma Reader works.svg',
+        previewKind: 'image',
+      }),
+      expect.objectContaining({
+        id: 'art-of-noticing',
+        name: 'The art of noticing.pdf',
+        previewKind: 'pdf',
+      }),
+      expect.objectContaining({
+        id: 'reading-notes',
+        name: 'Reading notes.md',
+        previewKind: 'markdown',
+      }),
+    ])
+    expect((await getStoredFileContent('art-of-noticing'))?.type).toBe('application/pdf')
 
     await removeStoredFile('getting-started')
     await closeFileStore()

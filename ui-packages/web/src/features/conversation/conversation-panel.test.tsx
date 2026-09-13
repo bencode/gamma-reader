@@ -11,7 +11,7 @@ const event = (delta: unknown, finish: string | null = null) =>
 const config = { enabled: true, provider: 'zai-coding-cn', modelId: 'glm-5.3' }
 const open = () =>
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={['/files/getting-started']}>
       <Workbench />
     </MemoryRouter>,
   )

@@ -1,6 +1,6 @@
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 import type { StoredConversation, StoredConversationMessage } from '../core/conversations'
-import type { StoredFileContent, StoredFileMetadata } from '../core/files'
+import { previewKindFor, type StoredFileContent, type StoredFileMetadata } from '../core/files'
 import { samples } from '../core/samples'
 
 export type WorkspaceDatabase = DBSchema & {
@@ -33,13 +33,13 @@ export const openWorkspaceDatabase = () => {
         files.createIndex('by-created-at', 'createdAt')
         const contents = database.createObjectStore('contents', { keyPath: 'id' })
         samples.forEach((sample, index) => {
-          const blob = new Blob([sample.content], { type: 'text/markdown' })
+          const blob = new Blob([sample.content], { type: sample.mediaType })
           files.put({
             id: sample.id,
             name: sample.name,
             collection: 'files',
             mediaType: blob.type,
-            previewKind: 'markdown',
+            previewKind: previewKindFor(sample.name, blob.type),
             size: blob.size,
             lastModified: 0,
             createdAt: index,

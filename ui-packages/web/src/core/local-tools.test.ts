@@ -166,9 +166,9 @@ describe('local reader tools', () => {
       issueCount += result.issues.length
       ids.push(...result.matches.map(match => match.fileId))
       next = result.next
-      expect(issueCount).toBeLessThanOrEqual(130)
+      expect(issueCount).toBeLessThanOrEqual(131)
     }
-    expect(issueCount).toBe(130)
+    expect(issueCount).toBe(131)
     expect(ids).toEqual([id])
     const bad = await importStoredFiles(
       [new File([new Uint8Array([255])], 'Broken.txt', { type: 'text/plain' })],
