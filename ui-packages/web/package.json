@@ -51,6 +51,7 @@
     "vite": "7.3.6",
     "vitest": "3.2.7",
     "@gamma-reader/server": "workspace:*",
-    "@types/mdast": "4.0.4"
+    "@types/mdast": "4.0.4",
+    "sass": "1.104.1"
   }
 }

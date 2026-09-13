@@ -2,7 +2,9 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import type { ConversationAttachment } from '../../core/agent/reader-message'
 import { Workbench } from '../../shell/workbench'
+import { DraftAttachmentTray, MessageAttachments } from './conversation-attachments'
 
 const event = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'answer', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
@@ -21,6 +23,73 @@ const complete = (text: string) =>
   })
 
 describe('conversation', () => {
+  it('previews unsent images and keeps image navigation inside the attachment group', async () => {
+    const user = userEvent.setup()
+    const onOpen = vi.fn()
+    render(
+      <DraftAttachmentTray
+        attachments={[
+          {
+            key: 'first-image',
+            file: new File(['first'], 'First.png', { type: 'image/png' }),
+            status: 'adding',
+          },
+          {
+            key: 'second-image',
+            file: new File(['second'], 'Second.png', { type: 'image/png' }),
+            status: 'adding',
+          },
+        ]}
+        onOpen={onOpen}
+        onRetry={vi.fn()}
+        onRemove={vi.fn()}
+        availableFileIds={new Set()}
+      />,
+    )
+
+    await user.click(screen.getByTitle('Preview First.png'))
+    let dialog = await screen.findByRole('dialog', { name: 'Preview First.png' })
+    expect(screen.queryByRole('button', { name: 'Open in reader' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Previous image' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Next image' })).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: 'Next image' }))
+    dialog = await screen.findByRole('dialog', { name: 'Preview Second.png' })
+    expect(screen.getByRole('button', { name: 'Previous image' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Next image' })).toBeDisabled()
+
+    fireEvent(dialog, new Event('cancel', { cancelable: true }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(onOpen).not.toHaveBeenCalled()
+  })
+
+  it('offers the reader action when a sent image has a stable file id', async () => {
+    const user = userEvent.setup()
+    const onOpen = vi.fn()
+    const attachment: ConversationAttachment = {
+      id: 'stored-image',
+      name: 'Sent.png',
+      mediaType: 'image/png',
+      previewKind: 'image',
+      size: 4,
+    }
+    render(
+      <MessageAttachments
+        attachments={[attachment]}
+        onOpen={onOpen}
+        availableFileIds={new Set([attachment.id])}
+      />,
+    )
+
+    await user.click(screen.getByTitle('Preview Sent.png'))
+    expect(await screen.findByRole('dialog', { name: 'Preview Sent.png' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Previous image' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Open in reader' }))
+
+    expect(onOpen).toHaveBeenCalledWith(attachment.id)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('streams Markdown, preserves messages when panels remount, and sends only the question', async () => {
     const user = userEvent.setup()
     let controller: ReadableStreamDefaultController<Uint8Array> | undefined

@@ -725,14 +725,7 @@ svg {
   margin: 0 5px;
   background: var(--line);
 }
-.page-count {
-  min-width: 52px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 11px;
-}
-.media-scroll,
-.pdf-scroll {
+.media-scroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -753,15 +746,6 @@ svg {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-}
-.pdf-scroll .react-pdf__Document {
-  width: max-content;
-  min-width: 100%;
-  display: flex;
-  justify-content: center;
-}
-.pdf-scroll .react-pdf__Page {
-  box-shadow: 0 2px 8px oklch(0 0 0 / 0.14);
 }
 .html-preview {
   width: 100%;
@@ -839,7 +823,9 @@ svg {
 
 .draft-attachments,
 .message-attachments {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 6px;
   list-style: none;
   margin: 0 0 9px;
@@ -848,9 +834,14 @@ svg {
 .message-attachments {
   margin: 8px 0 0;
 }
+.draft-attachment,
+.message-attachments > li {
+  flex: 1 1 220px;
+  max-width: 260px;
+  min-width: 0;
+}
 .draft-attachment {
   display: flex;
-  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: oklch(0.98 0 0);
@@ -935,6 +926,142 @@ svg {
 @keyframes attachment-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+.image-lightbox {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: oklch(0.13 0 0);
+  color: oklch(0.97 0 0);
+  overflow: hidden;
+}
+.image-lightbox::backdrop {
+  background: oklch(0 0 0 / 0.72);
+}
+.image-lightbox-toolbar {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 48px;
+  padding: 6px 10px 6px 16px;
+  border-bottom: 1px solid oklch(1 0 0 / 0.12);
+  background: oklch(0.16 0 0);
+}
+.image-lightbox-toolbar strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.image-lightbox-position {
+  color: oklch(0.72 0 0);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.image-lightbox-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+.image-lightbox-actions .icon-button,
+.image-lightbox-navigation {
+  color: inherit;
+}
+.image-lightbox-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: oklch(0.82 0 0);
+  font-size: 11px;
+}
+.image-lightbox-open:hover,
+.image-lightbox-actions .icon-button:hover,
+.image-lightbox-navigation:hover:not(:disabled) {
+  background: oklch(1 0 0 / 0.1);
+  color: oklch(1 0 0);
+}
+.image-lightbox-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: calc(100dvh - 48px);
+  padding: 24px 64px 32px;
+}
+.image-lightbox-stage > img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  box-shadow: 0 8px 32px oklch(0 0 0 / 0.28);
+}
+.image-lightbox-stage > p {
+  margin: 0;
+  color: oklch(0.72 0 0);
+  font-size: 12px;
+}
+.image-lightbox-stage > p[role="alert"] {
+  color: oklch(0.78 0.08 25);
+}
+.image-lightbox-navigation {
+  position: absolute;
+  top: 50%;
+  width: 40px;
+  height: 48px;
+  transform: translateY(-50%);
+  background: oklch(0 0 0 / 0.28);
+}
+.image-lightbox-navigation.previous {
+  left: 12px;
+}
+.image-lightbox-navigation.next {
+  right: 12px;
+}
+.image-lightbox-navigation:disabled {
+  opacity: 0.22;
+}
+
+@media (max-width: 599px) {
+  .image-lightbox-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-left: 12px;
+  }
+  .image-lightbox-position {
+    display: none;
+  }
+  .image-lightbox-open {
+    width: 30px;
+    padding: 0;
+    justify-content: center;
+    font-size: 0;
+  }
+  .image-lightbox-stage {
+    padding: 16px 44px 24px;
+  }
+  .image-lightbox-navigation {
+    width: 34px;
+    background: oklch(0 0 0 / 0.38);
+  }
+  .image-lightbox-navigation.previous {
+    left: 5px;
+  }
+  .image-lightbox-navigation.next {
+    right: 5px;
   }
 }
 
