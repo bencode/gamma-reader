@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { createStore } from 'zustand/vanilla'
 import type { ReaderState } from '../core/local-tool-types'
-import { createLocalTools, type LocalTools } from '../core/local-tools'
+import { createLocalTools, type LocalTools, type WorkspaceTextWriter } from '../core/local-tools'
 import type { Workspace } from './use-workspace'
 
 export const createWorkspaceStore = (tabs: string[]) => createStore(() => ({ tabs }))
@@ -27,10 +27,12 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
 export const WorkspaceProvider = ({
   workspace,
   rootRef,
+  writeTextFile,
   children,
 }: {
   workspace: Workspace
   rootRef: RefObject<HTMLDivElement | null>
+  writeTextFile: WorkspaceTextWriter
   children: ReactNode
 }) => {
   const current = useRef(workspace)
@@ -60,13 +62,17 @@ export const WorkspaceProvider = ({
         return {
           openFiles,
           activeFile: file
-            ? { id: file.id, name: file.name, ...(pageNumber !== undefined ? { pageNumber } : {}) }
+            ? {
+                id: file.id,
+                name: file.name,
+                ...(pageNumber !== undefined ? { pageNumber } : {}),
+              }
             : null,
           viewport: blocked ? null : (binding?.getViewport() ?? null),
         }
-      }),
+      }, writeTextFile),
     }),
-    [rootRef],
+    [rootRef, writeTextFile],
   )
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
 }

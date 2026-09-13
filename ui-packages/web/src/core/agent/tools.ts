@@ -1,7 +1,14 @@
-import type { AgentTool } from '@earendil-works/pi-agent-core'
+import {
+  type AgentHarnessTool,
+  type AgentTool,
+  createWriteTool,
+  type ExecutionToolContext,
+  FileError,
+} from '@earendil-works/pi-agent-core'
 import { type Static, type TSchema, Type } from 'typebox'
 import type { LocalTools } from '../local-tools'
 import type { ImageAnalyzer } from './vision'
+import { createWorkspaceWriteEnv } from './workspace-write-env'
 
 const cursor = Type.Optional(
   Type.String({ description: 'Opaque cursor from next. Copy it unchanged.' }),
@@ -32,7 +39,35 @@ const bind = <P extends TSchema>(
   },
 })
 
+const bindHarnessTool = <P extends TSchema, D>(
+  tool: AgentHarnessTool<ExecutionToolContext, P, D>,
+  context: ExecutionToolContext,
+): AgentTool<TSchema, D> => ({
+  name: tool.name,
+  label: tool.label,
+  description: tool.description,
+  parameters: tool.parameters,
+  executionMode: 'sequential',
+  execute: async (id, args, signal, onUpdate) => {
+    try {
+      return await tool.execute(id, args as Static<P>, signal, onUpdate, context)
+    } catch (cause) {
+      if (cause instanceof Error && cause.cause instanceof FileError)
+        throw new Error(`${cause.message} ${cause.cause.message}`, { cause })
+      throw cause
+    }
+  },
+})
+
 export const createReaderTools = (local: LocalTools, analyzeImage?: ImageAnalyzer) => {
+  const piWrite = bindHarnessTool(createWriteTool(), {
+    env: createWorkspaceWriteEnv(local.writeTextFile),
+  })
+  const write = {
+    ...piWrite,
+    description:
+      'Create or completely overwrite one UTF-8 text file in the browser workspace. Use a root-level file name such as notes.md; folders are not available.',
+  }
   const tools = [
     bind(
       'list',
@@ -58,6 +93,7 @@ export const createReaderTools = (local: LocalTools, analyzeImage?: ImageAnalyze
       Type.Object({}),
       () => local.get_reader_state(),
     ),
+    write,
   ]
   return analyzeImage
     ? [

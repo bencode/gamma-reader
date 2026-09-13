@@ -8,8 +8,80 @@ import { Workbench } from './workbench'
 const material = (name: string) =>
   within(screen.getByRole('list', { name: 'Files' })).getByRole('button', { name })
 const waitForWorkspace = () => screen.findByRole('tab', { name: 'Getting started.md' })
+const streamEvent = (delta: unknown, finish: string | null = null) =>
+  `data: ${JSON.stringify({ id: 'reply', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
+const reply = (text: string) =>
+  new Response(`${streamEvent({ content: text }) + streamEvent({}, 'stop')}data: [DONE]\n\n`, {
+    headers: { 'Content-Type': 'text/event-stream' },
+  })
+const writeCall = (path: string, content: string) =>
+  new Response(
+    `${streamEvent(
+      {
+        tool_calls: [
+          {
+            index: 0,
+            id: 'write-file',
+            type: 'function',
+            function: { name: 'write', arguments: JSON.stringify({ path, content }) },
+          },
+        ],
+      },
+      'tool_calls',
+    )}data: [DONE]\n\n`,
+    { headers: { 'Content-Type': 'text/event-stream' } },
+  )
 
 describe('reading workspace', () => {
+  it('shows an agent-written file without changing the active document', async () => {
+    const user = userEvent.setup()
+    let modelRequests = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+      const url = String(input)
+      if (url === '/api/agent/config')
+        return Response.json({ enabled: true, provider: 'zai-coding-cn', modelId: 'glm-5.3' })
+      if (url.endsWith('/api/agent/chat/completions')) {
+        modelRequests += 1
+        if (modelRequests === 1)
+          return writeCall('Saved notes.md', '# Saved\n\nA durable conclusion.')
+        if (modelRequests === 3)
+          return writeCall('saved NOTES.md', '# Revised\n\nThe updated conclusion.')
+        return reply(modelRequests === 2 ? 'Saved the notes.' : 'Revised the notes.')
+      }
+      throw new Error(`Unexpected network request: ${url}`)
+    })
+    render(
+      <MemoryRouter>
+        <Workbench />
+      </MemoryRouter>,
+    )
+    await waitForWorkspace()
+    const input = screen.getByRole('textbox', { name: 'Your question' })
+    await waitFor(() => expect(input).toBeEnabled())
+    await user.type(input, 'Save our conclusion as a new file')
+    await user.click(screen.getByRole('button', { name: 'Send question' }))
+
+    expect(await screen.findByRole('button', { name: 'Saved notes.md' })).toBeVisible()
+    expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.queryByRole('tab', { name: 'Saved notes.md' })).not.toBeInTheDocument()
+
+    await user.click(material('Saved notes.md'))
+    expect(await screen.findByRole('tab', { name: 'Saved notes.md' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(await screen.findByRole('heading', { name: 'Saved' })).toBeVisible()
+
+    await waitFor(() => expect(input).toBeEnabled())
+    await user.type(input, 'Replace that file with the revised conclusion')
+    await user.click(screen.getByRole('button', { name: 'Send question' }))
+    expect(await screen.findByRole('heading', { name: 'Revised' })).toBeVisible()
+    expect(screen.getAllByRole('tab', { name: 'saved NOTES.md' })).toHaveLength(1)
+  })
+
   it('opens unique tabs, chooses the right neighbor on close, and reopens from empty', async () => {
     const user = userEvent.setup()
     const network = vi.spyOn(globalThis, 'fetch')

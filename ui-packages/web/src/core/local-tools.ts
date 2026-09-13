@@ -1,6 +1,7 @@
 import { listStoredFiles } from '../data/file-store'
 import { openDocumentSource, readDocument, searchPage, unreadableReason } from './document-source'
 import { normalizeSearchText } from './document-text'
+import type { StoredFileMetadata } from './files'
 import {
   type ListInput,
   type ListResult,
@@ -172,10 +173,20 @@ const search = async (input: SearchInput, signal?: AbortSignal): Promise<SearchR
   return result
 }
 
-export const createLocalTools = (getReaderState: () => ReaderState) => ({
+export type WorkspaceTextWriter = (
+  name: string,
+  content: string,
+  signal?: AbortSignal,
+) => Promise<StoredFileMetadata>
+
+export const createLocalTools = (
+  getReaderState: () => ReaderState,
+  writeTextFile: WorkspaceTextWriter,
+) => ({
   list,
   search,
   read: readDocument,
   get_reader_state: getReaderState,
+  writeTextFile,
 })
 export type LocalTools = ReturnType<typeof createLocalTools>

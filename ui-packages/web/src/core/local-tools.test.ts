@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { importStoredFiles, listStoredFiles, removeStoredFile } from '../data/file-store'
+import {
+  importStoredFiles,
+  listStoredFiles,
+  removeStoredFile,
+  writeStoredTextFile,
+} from '../data/file-store'
 import type { ListInput, ReadInput, SearchInput, SearchMatch } from './local-tool-types'
 import { createLocalTools } from './local-tools'
 
@@ -21,7 +26,10 @@ vi.mock('./pdf-source', () => ({
   }),
 }))
 
-const tools = createLocalTools(() => ({ openFiles: [], activeFile: null, viewport: null }))
+const tools = createLocalTools(
+  () => ({ openFiles: [], activeFile: null, viewport: null }),
+  writeStoredTextFile,
+)
 const add = async (name: string, text: string, type = 'text/plain') => {
   const result = await importStoredFiles([new File([text], name, { type })], 'keep')
   const id = result.addedIds[0]

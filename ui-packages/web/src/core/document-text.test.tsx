@@ -2,7 +2,7 @@ import { render } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { Markdown } from '../components/markdown'
-import { importStoredFiles } from '../data/file-store'
+import { importStoredFiles, writeStoredTextFile } from '../data/file-store'
 import { readViewport } from '../features/reader/reader-viewport'
 import { findTextMatches, markdownText, normalizeSearchText } from './document-text'
 import { createLocalTools } from './local-tools'
@@ -87,11 +87,14 @@ describe('formula and diagram source context', () => {
       range.getClientRects = () => rects
       return range
     })
-    const tools = createLocalTools(() => ({
-      openFiles: [{ id: fileId, name: 'formulas.md' }],
-      activeFile: { id: fileId, name: 'formulas.md' },
-      viewport: readViewport(container, container),
-    }))
+    const tools = createLocalTools(
+      () => ({
+        openFiles: [{ id: fileId, name: 'formulas.md' }],
+        activeFile: { id: fileId, name: 'formulas.md' },
+        viewport: readViewport(container, container),
+      }),
+      writeStoredTextFile,
+    )
     const viewport = tools.get_reader_state().viewport
     expect(viewport).toEqual({ startText: 'Before x^2 after.', endText: '\\frac{a}{b}' })
     for (const query of [viewport?.startText, viewport?.endText]) {

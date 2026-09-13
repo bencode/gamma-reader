@@ -6,6 +6,7 @@ import {
   listStoredFiles,
   removeStoredFile,
   requestPersistentStorage,
+  writeStoredTextFile,
 } from '../../data/file-store'
 
 type LibraryStatus = { message: string }
@@ -65,8 +66,8 @@ export const useFileLibrary = () => {
     void reload()
   }, [reload])
 
-  const rememberPersistence = useCallback((result: ImportResult) => {
-    if (!persistRequested.current && result.imported.length > 0) {
+  const rememberPersistence = useCallback((changed = true) => {
+    if (!persistRequested.current && changed) {
       persistRequested.current = true
       void requestPersistentStorage()
     }
@@ -79,7 +80,7 @@ export const useFileLibrary = () => {
       const result = await importStoredFiles(selected, mode)
       await reload()
       setStatus(resultStatus(result))
-      rememberPersistence(result)
+      rememberPersistence(result.imported.length > 0)
     } catch (cause) {
       console.error('Unable to import files', cause)
       setStatus({ message: 'Files could not be added. Try again.' })
@@ -92,8 +93,18 @@ export const useFileLibrary = () => {
     async (selected: readonly File[]) => {
       const result = await importStoredFiles(selected, 'keep', 'attachments')
       await reload()
-      rememberPersistence(result)
+      rememberPersistence(result.imported.length > 0)
       return result
+    },
+    [reload, rememberPersistence],
+  )
+
+  const writeTextFile = useCallback(
+    async (name: string, content: string, signal?: AbortSignal) => {
+      const metadata = await writeStoredTextFile(name, content, signal)
+      await reload()
+      rememberPersistence()
+      return metadata
     },
     [reload, rememberPersistence],
   )
@@ -132,6 +143,7 @@ export const useFileLibrary = () => {
     duplicateNames: pendingFiles ? duplicateNames(pendingFiles, files) : [],
     addFiles,
     addAttachments,
+    writeTextFile,
     resolveDuplicates,
     removeFile,
     retry: () => {

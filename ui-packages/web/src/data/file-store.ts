@@ -142,7 +142,9 @@ export const importStoredFiles = async (
   selected: readonly File[],
   duplicateMode: DuplicateMode,
   collection: FileCollection = 'files',
+  signal?: AbortSignal,
 ): Promise<ImportResult> => {
+  signal?.throwIfAborted()
   const database = await openFileDatabase()
   const existing = await database.getAllFromIndex('files', 'by-created-at')
   const existingIds = new Set(existing.map(file => file.id))
@@ -208,16 +210,24 @@ export const importStoredFiles = async (
     }
   }
 
+  signal?.throwIfAborted()
   try {
     const transaction = database.transaction(['files', 'contents'], 'readwrite')
-    await Promise.all([
-      ...plannedWrites.flatMap(write => [
-        transaction.objectStore('files').put(write.metadata),
-        transaction.objectStore('contents').put(write.content),
-      ]),
-      transaction.done,
-    ])
+    const abort = () => transaction.abort()
+    signal?.addEventListener('abort', abort, { once: true })
+    try {
+      await Promise.all([
+        ...plannedWrites.flatMap(write => [
+          transaction.objectStore('files').put(write.metadata),
+          transaction.objectStore('contents').put(write.content),
+        ]),
+        transaction.done,
+      ])
+    } finally {
+      signal?.removeEventListener('abort', abort)
+    }
   } catch (error) {
+    signal?.throwIfAborted()
     if (error instanceof DOMException && error.name === 'QuotaExceededError')
       return {
         addedIds: [],
@@ -246,6 +256,28 @@ export const importStoredFiles = async (
     imported,
     rejected,
   }
+}
+
+const writeError = (reason: ImportResult['rejected'][number]['reason']) => {
+  if (reason === 'file-too-large') return new Error('The file exceeds the 50 MB file limit.')
+  if (reason === 'library-full') return new Error('The file exceeds the 500 MB library limit.')
+  return new Error('The file does not fit in browser storage.')
+}
+
+export const writeStoredTextFile = async (name: string, content: string, signal?: AbortSignal) => {
+  signal?.throwIfAborted()
+  const existing = (await listStoredFiles()).find(
+    file => file.name.toLowerCase() === name.toLowerCase(),
+  )
+  const file = new File([content], name, {
+    type: 'text/plain;charset=utf-8',
+    lastModified: Date.now(),
+  })
+  const result = await importStoredFiles([file], 'replace', existing?.collection ?? 'files', signal)
+  const written = result.imported[0]?.metadata
+  if (written) return written
+  const rejected = result.rejected[0]
+  throw rejected ? writeError(rejected.reason) : new Error('The file could not be written.')
 }
 
 export const removeStoredFile = async (id: string) => {

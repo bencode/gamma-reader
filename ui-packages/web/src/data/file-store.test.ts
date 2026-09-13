@@ -6,6 +6,7 @@ import {
   importStoredFiles,
   listStoredFiles,
   removeStoredFile,
+  writeStoredTextFile,
 } from './file-store'
 
 const textFile = (name: string, content: string) =>
@@ -93,6 +94,28 @@ describe('local file store', () => {
     const files = await listStoredFiles()
     expect(files.find(file => file.id === id)).toMatchObject({ name: 'Draft.md', revision: 2 })
     expect(files.find(file => file.id === keptId)?.name).toBe('Draft (2).md')
+  })
+
+  it('writes generated text through the same limits and replacement model', async () => {
+    const first = await writeStoredTextFile('Generated.json', '{"value":"初稿"}')
+    expect(first).toMatchObject({
+      name: 'Generated.json',
+      collection: 'files',
+      previewKind: 'text',
+      revision: 1,
+    })
+    expect(first.size).toBe(new TextEncoder().encode('{"value":"初稿"}').byteLength)
+
+    const second = await writeStoredTextFile('generated.JSON', '{"value":"final"}')
+    expect(second).toMatchObject({ id: first.id, revision: 2, createdAt: first.createdAt })
+    expect(await (await getStoredFileContent(first.id))?.text()).toBe('{"value":"final"}')
+
+    const controller = new AbortController()
+    controller.abort()
+    await expect(
+      writeStoredTextFile('Cancelled.txt', 'not written', controller.signal),
+    ).rejects.toThrow()
+    expect((await listStoredFiles()).some(file => file.name === 'Cancelled.txt')).toBe(false)
   })
 
   it('stores only the last copy when a selected batch repeats a new name', async () => {

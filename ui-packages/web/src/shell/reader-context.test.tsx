@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type { StoredFileMetadata } from '../core/files'
 import type { LocalTools } from '../core/local-tools'
+import { writeStoredTextFile } from '../data/file-store'
 import { useWorkspace } from './use-workspace'
 import { useLocalTools, useReaderBinding, WorkspaceProvider } from './workspace-context'
 
@@ -50,7 +51,7 @@ const Harness = ({
   const workspace = useWorkspace(available, false)
   const rootRef = useRef<HTMLDivElement>(null)
   return (
-    <WorkspaceProvider workspace={workspace} rootRef={rootRef}>
+    <WorkspaceProvider workspace={workspace} rootRef={rootRef} writeTextFile={writeStoredTextFile}>
       <div ref={rootRef}>
         <Capture onTools={onTools} />
         {workspace.activeId && (

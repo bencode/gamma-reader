@@ -10,6 +10,7 @@ const toolLabel = (name: string) => {
   if (name === 'search') return 'Searching files'
   if (name === 'read') return 'Reading document'
   if (name === 'analyze_image') return 'Analyzing image'
+  if (name === 'write') return 'Writing file'
   return name
 }
 

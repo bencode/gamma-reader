@@ -123,7 +123,11 @@ export const Workbench = () => {
   )
 
   return (
-    <WorkspaceProvider workspace={workspace} rootRef={rootRef}>
+    <WorkspaceProvider
+      workspace={workspace}
+      rootRef={rootRef}
+      writeTextFile={library.writeTextFile}
+    >
       <ConversationProvider addAttachments={library.addAttachments}>
         <div className="workbench" ref={rootRef}>
           {!inlineFiles && (

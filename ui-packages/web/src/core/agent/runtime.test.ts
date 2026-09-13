@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { importStoredFiles } from '../../data/file-store'
+import {
+  getStoredFileContent,
+  importStoredFiles,
+  listStoredFiles,
+  writeStoredTextFile,
+} from '../../data/file-store'
 import type { ReaderState } from '../local-tool-types'
 import { createLocalTools } from '../local-tools'
 import { createReaderAgent } from './runtime'
@@ -34,8 +39,39 @@ const call = (name: string, args: unknown) =>
     { headers: { 'Content-Type': 'text/event-stream' } },
   )
 const emptyState = (): ReaderState => ({ openFiles: [], activeFile: null, viewport: null })
+const localTools = () => createLocalTools(emptyState, writeStoredTextFile)
 
 describe('reader agent', () => {
+  it('writes a browser-local text file through the native Pi tool', async () => {
+    const requests: Array<{ messages: Array<{ role: string; content: string }> }> = []
+    const fetchModel = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body))
+      requests.push(body)
+      if (requests.length === 1)
+        return call('write', { path: 'Study notes.html', content: '<main>Saved</main>' })
+      return reply('Saved as Study notes.html.')
+    })
+    const writer = vi.fn(writeStoredTextFile)
+    const agent = createReaderAgent(config, createLocalTools(emptyState, writer))
+
+    await agent.prompt('Save this as an HTML file')
+
+    expect(writer).toHaveBeenCalledWith(
+      'Study notes.html',
+      '<main>Saved</main>',
+      expect.any(AbortSignal),
+    )
+    const written = (await listStoredFiles()).find(file => file.name === 'Study notes.html')
+    if (!written) throw new Error('Written file is missing')
+    expect(written.previewKind).toBe('html')
+    expect(await (await getStoredFileContent(written.id))?.text()).toBe('<main>Saved</main>')
+    expect(requests[1]?.messages.at(-1)?.content).toContain('Successfully wrote')
+    expect(agent.state.messages.findLast(message => message.role === 'toolResult')).toMatchObject({
+      isError: false,
+    })
+    expect(fetchModel).toHaveBeenCalledTimes(2)
+  })
+
   it('runs local tools through Pi and supplies context only after a tool request', async () => {
     const imported = await importStoredFiles(
       [new File(['# Local secret\n\nThe fox reads quietly.'], 'private.md')],
@@ -63,7 +99,7 @@ describe('reader agent', () => {
     })
     const agent = createReaderAgent(
       config,
-      createLocalTools(() => state),
+      createLocalTools(() => state, writeStoredTextFile),
     )
     await agent.prompt('Explain the current paragraph')
     expect(requests).toHaveLength(5)
@@ -87,7 +123,7 @@ describe('reader agent', () => {
     const result = agent.state.messages.findLast(message => message.role === 'toolResult')
     expect(result).toMatchObject({ content: [{ type: 'text', text: JSON.stringify(state) }] })
     expect(agent.state.messages.filter(message => message.role === 'user')).toHaveLength(2)
-    expect(createReaderAgent(config, createLocalTools(emptyState)).state.messages).toEqual([])
+    expect(createReaderAgent(config, localTools()).state.messages).toEqual([])
   })
 
   it('returns tool errors to the model without hiding a failed read', async () => {
@@ -95,7 +131,7 @@ describe('reader agent', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(call('read', { fileId: 'missing' }))
       .mockResolvedValueOnce(reply('The file is unavailable.'))
-    const agent = createReaderAgent(config, createLocalTools(emptyState))
+    const agent = createReaderAgent(config, localTools())
     await agent.prompt('Read the file')
     expect(agent.state.messages.find(message => message.role === 'toolResult')).toMatchObject({
       isError: true,
@@ -125,7 +161,7 @@ describe('reader agent', () => {
       return reply('It shows a reading interface.')
     })
     try {
-      const agent = createReaderAgent(config, createLocalTools(emptyState))
+      const agent = createReaderAgent(config, localTools())
       await agent.prompt('Describe the image')
       const vision = requests.find(request => request.url.includes('/vision/'))
       expect(vision?.body.model).toBe('glm-5.3-flash')
@@ -165,7 +201,7 @@ describe('reader agent', () => {
       if (count === 3) return call('analyze_image', { fileId })
       return reply('That file cannot be analyzed as an image.')
     })
-    const agent = createReaderAgent(config, createLocalTools(emptyState))
+    const agent = createReaderAgent(config, localTools())
     await agent.prompt('Analyze the missing image')
     await agent.prompt('Analyze the text file as an image')
     expect(requests.some(request => request.includes('/vision/'))).toBe(false)
@@ -176,7 +212,7 @@ describe('reader agent', () => {
   })
 
   it('aborts generation and skips later queued tools', async () => {
-    const local = createLocalTools(emptyState)
+    const local = localTools()
     const search = vi.spyOn(local, 'search')
     const toolsResponse = new Response(
       `${event(
@@ -210,7 +246,7 @@ describe('reader agent', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(Response.json({ error: { message: 'Unavailable' } }, { status: 503 }))
       .mockResolvedValueOnce(reply('Recovered'))
-    const agent = createReaderAgent(config, createLocalTools(emptyState))
+    const agent = createReaderAgent(config, localTools())
     await agent.prompt('Hello')
     expect(fetchModel).toHaveBeenCalledTimes(1)
     expect(agent.state.messages.at(-1)).toMatchObject({ role: 'assistant', stopReason: 'error' })
