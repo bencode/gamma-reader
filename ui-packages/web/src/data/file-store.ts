@@ -1,4 +1,3 @@
-import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 import {
   type FileCollection,
   type ImportResult,
@@ -8,81 +7,18 @@ import {
   type StoredFileContent,
   type StoredFileMetadata,
 } from '../core/files'
-import { samples } from '../core/samples'
-
-type FileDatabase = DBSchema & {
-  files: {
-    key: string
-    value: StoredFileMetadata
-    indexes: { 'by-created-at': number }
-  }
-  contents: { key: string; value: StoredFileContent }
-}
+import {
+  closeWorkspaceDatabase,
+  deleteWorkspaceDatabase,
+  openWorkspaceDatabase,
+} from './workspace-database'
 
 export type DuplicateMode = 'replace' | 'keep'
 
-const databaseName = 'gamma-reader-files'
-let databasePromise: Promise<IDBPDatabase<FileDatabase>> | undefined
+const openFileDatabase = openWorkspaceDatabase
 
-const openFileDatabase = () => {
-  databasePromise ??= openDB<FileDatabase>(databaseName, 2, {
-    upgrade(database, oldVersion, _newVersion, transaction) {
-      if (oldVersion < 1) {
-        const files = database.createObjectStore('files', { keyPath: 'id' })
-        files.createIndex('by-created-at', 'createdAt')
-        const contents = database.createObjectStore('contents', { keyPath: 'id' })
-        samples.forEach((sample, index) => {
-          const blob = new Blob([sample.content], { type: 'text/markdown' })
-          files.put({
-            id: sample.id,
-            name: sample.name,
-            collection: 'files',
-            mediaType: blob.type,
-            previewKind: 'markdown',
-            size: blob.size,
-            lastModified: 0,
-            createdAt: index,
-            revision: 1,
-          })
-          contents.put({ id: sample.id, blob })
-        })
-      }
-      if (oldVersion === 1) {
-        const files = transaction.objectStore('files')
-        void (async () => {
-          let cursor = await files.openCursor()
-          while (cursor) {
-            await cursor.update({ ...cursor.value, collection: 'files' })
-            cursor = await cursor.continue()
-          }
-        })().catch(error => {
-          console.error('Unable to migrate the local file library', error)
-          transaction.abort()
-        })
-      }
-    },
-  }).catch(error => {
-    databasePromise = undefined
-    throw error
-  })
-  return databasePromise
-}
-
-export const closeFileStore = async () => {
-  const database = await databasePromise
-  database?.close()
-  databasePromise = undefined
-}
-
-export const deleteFileStore = async () => {
-  await closeFileStore()
-  await new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(databaseName)
-    request.onsuccess = () => resolve()
-    request.onerror = () => reject(request.error ?? new Error('Unable to delete file database'))
-    request.onblocked = () => reject(new Error('Unable to delete an open file database'))
-  })
-}
+export const closeFileStore = closeWorkspaceDatabase
+export const deleteFileStore = deleteWorkspaceDatabase
 
 export const listStoredFiles = async () => {
   const database = await openFileDatabase()
@@ -288,14 +224,4 @@ export const removeStoredFile = async (id: string) => {
     transaction.objectStore('contents').delete(id),
     transaction.done,
   ])
-}
-
-export const requestPersistentStorage = async () => {
-  if (!navigator.storage?.persist) return false
-  try {
-    return await navigator.storage.persist()
-  } catch (error) {
-    console.error('Unable to request persistent browser storage', error)
-    return false
-  }
 }

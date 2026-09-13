@@ -39,7 +39,7 @@ const openReader = (path = '/') =>
   )
 
 describe('local workspace navigation', () => {
-  it('restores tab order and the last active document without saving the conversation draft', async () => {
+  it('restores tab order, the active document, and the conversation draft', async () => {
     const user = userEvent.setup()
     const page = openReader()
     await waitForWorkspace()
@@ -48,11 +48,15 @@ describe('local workspace navigation', () => {
     )
     await user.click(file('Reading notes.md'))
     await user.click(file('The art of noticing.md'))
-    await user.type(screen.getByRole('textbox'), 'An unsaved question')
+    await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled())
+    await user.type(screen.getByRole('textbox'), 'A saved question')
     expect(savedWorkspace()).toEqual({
       tabs: ['getting-started', 'reading-notes', 'art-of-noticing'],
       lastActiveId: 'art-of-noticing',
     })
+    await waitFor(() =>
+      expect(localStorage.getItem('gamma-reader.active-conversation')).not.toBeNull(),
+    )
     page.unmount()
     openReader()
     await waitForWorkspace()
@@ -60,7 +64,7 @@ describe('local workspace navigation', () => {
     await waitFor(() =>
       expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/art-of-noticing'),
     )
-    expect(screen.getByRole('textbox')).toHaveValue('')
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('A saved question'))
   })
 
   it('lets a document route override the saved selection and append a missing tab', async () => {

@@ -1,4 +1,4 @@
-import { Agent } from '@earendil-works/pi-agent-core'
+import { Agent, type AgentMessage } from '@earendil-works/pi-agent-core'
 import { createModels } from '@earendil-works/pi-ai'
 import { zaiCodingCnProvider } from '@earendil-works/pi-ai/providers/zai-coding-cn'
 import type { AgentConfig } from '@gamma-reader/server/agent-contract'
@@ -10,6 +10,7 @@ import { createImageAnalyzer } from './vision'
 export const createReaderAgent = (
   config: Extract<AgentConfig, { enabled: true }>,
   tools: LocalTools,
+  session: { id: string; messages: readonly AgentMessage[] },
 ) => {
   const models = createModels()
   models.setProvider(zaiCodingCnProvider())
@@ -19,12 +20,14 @@ export const createReaderAgent = (
     ? createImageAnalyzer({ ...config, visionModelId: config.visionModelId })
     : undefined
   return new Agent({
+    sessionId: session.id,
     toolExecution: 'sequential',
     initialState: {
       model: { ...model, baseUrl: new URL('/api/agent', window.location.origin).href },
       systemPrompt,
       thinkingLevel: 'low',
       tools: createReaderTools(tools, analyzeImage),
+      messages: [...session.messages],
     },
     streamFn: (currentModel, context, options) =>
       models.streamSimple(currentModel, context, {

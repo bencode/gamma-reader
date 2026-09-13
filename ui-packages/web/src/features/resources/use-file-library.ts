@@ -5,9 +5,9 @@ import {
   importStoredFiles,
   listStoredFiles,
   removeStoredFile,
-  requestPersistentStorage,
   writeStoredTextFile,
 } from '../../data/file-store'
+import { requestPersistentStorage } from '../../data/workspace-database'
 
 type LibraryStatus = { message: string }
 

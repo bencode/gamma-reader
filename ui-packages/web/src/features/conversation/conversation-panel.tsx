@@ -1,7 +1,8 @@
-import { MessageSquare, X } from 'lucide-react'
-import type { RefObject } from 'react'
+import { History, MessageSquare, Plus, X } from 'lucide-react'
+import { Activity, type RefObject } from 'react'
 import { ConversationComposer } from './conversation-composer'
 import { useReaderConversation } from './conversation-context'
+import { ConversationHistory } from './conversation-history'
 import { ConversationMessages } from './conversation-messages'
 
 export const ConversationPanel = ({
@@ -15,66 +16,147 @@ export const ConversationPanel = ({
   onOpenFile: (id: string) => void
   availableFileIds: ReadonlySet<string>
 }) => {
-  const { draft, setDraft, messages, phase, error, send, stop, draftAttachments } =
-    useReaderConversation()
+  const conversation = useReaderConversation()
+  const {
+    active,
+    draft,
+    setDraft,
+    messages,
+    phase,
+    error,
+    storageError,
+    dismissStorageError,
+    view,
+    showChat,
+    showHistory,
+    historyItems,
+    historyLoading,
+    historyError,
+    historyHasMore,
+    reloadHistory,
+    loadMore,
+    switchTo,
+    startNew,
+    deleteConversation,
+    send,
+    stop,
+    draftAttachments,
+  } = conversation
   const running = phase === 'running' || phase === 'stopping'
+  const switching = phase === 'switching'
   const status =
-    phase === 'connecting'
-      ? 'Connecting…'
-      : phase === 'unavailable'
-        ? 'Chat is currently unavailable.'
-        : undefined
+    phase === 'loading'
+      ? 'Opening conversation…'
+      : phase === 'connecting'
+        ? 'Connecting…'
+        : phase === 'unavailable'
+          ? 'Chat is currently unavailable.'
+          : undefined
   return (
     <aside className="conversation-panel panel-surface" aria-label="Reading assistant">
-      <header className="panel-header">
-        <h2>
-          <MessageSquare size={16} />
-          <span>Reading assistant</span>
-        </h2>
-        <button
-          type="button"
-          className="icon-button"
-          onClick={onClose}
-          aria-label="Close reading assistant"
-          title="Close reading assistant"
-        >
-          <X size={17} />
-        </button>
-      </header>
-      <ConversationMessages
-        messages={messages}
-        running={running}
-        onOpenFile={onOpenFile}
-        availableFileIds={availableFileIds}
-      />
-      <div className="composer-area">
-        {status && (
-          <p className="conversation-notice" role="status">
-            {status}
-          </p>
-        )}
-        {error && (
-          <p className="conversation-notice" role="alert">
-            {error}
-          </p>
-        )}
-        <ConversationComposer
-          inputRef={inputRef}
-          draft={draft}
-          phase={phase}
-          attachments={draftAttachments.attachments}
-          limitReached={draftAttachments.limitReached}
-          unsettled={draftAttachments.unsettled}
-          onDraftChange={setDraft}
-          onAdd={files => void draftAttachments.add(files)}
-          onRetry={key => void draftAttachments.retry(key)}
-          onRemove={draftAttachments.remove}
-          onOpenFile={onOpenFile}
-          onSend={() => void send()}
-          onStop={stop}
-          availableFileIds={availableFileIds}
+      <Activity mode={view === 'chat' ? 'visible' : 'hidden'}>
+        <div className="conversation-view">
+          <header className="panel-header conversation-header">
+            <h2 title={active.title ?? 'New conversation'}>
+              <MessageSquare size={16} />
+              <span>{active.title ?? 'New conversation'}</span>
+            </h2>
+            <div className="conversation-header-actions">
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => void startNew()}
+                disabled={switching}
+                aria-label="New conversation"
+                title="New conversation"
+              >
+                <Plus size={17} />
+              </button>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={showHistory}
+                disabled={switching}
+                aria-label="Conversation history"
+                title="Conversation history"
+              >
+                <History size={16} />
+              </button>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={onClose}
+                aria-label="Close reading assistant"
+                title="Close reading assistant"
+              >
+                <X size={17} />
+              </button>
+            </div>
+          </header>
+          <ConversationMessages
+            messages={messages}
+            running={running}
+            onOpenFile={onOpenFile}
+            availableFileIds={availableFileIds}
+          />
+          <div className="composer-area">
+            {status && (
+              <p className="conversation-notice" role="status">
+                {status}
+              </p>
+            )}
+            {error && (
+              <p className="conversation-notice" role="alert">
+                {error}
+              </p>
+            )}
+            {storageError && (
+              <div className="conversation-storage-warning" role="alert">
+                <span>{storageError}</span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={dismissStorageError}
+                  aria-label="Dismiss storage warning"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+            <ConversationComposer
+              inputRef={inputRef}
+              draft={draft}
+              phase={phase}
+              attachments={draftAttachments.attachments}
+              limitReached={draftAttachments.limitReached}
+              unsettled={draftAttachments.unsettled}
+              onDraftChange={setDraft}
+              onAdd={files => void draftAttachments.add(files)}
+              onRetry={key => void draftAttachments.retry(key)}
+              onRemove={draftAttachments.remove}
+              onOpenFile={onOpenFile}
+              onSend={() => void send()}
+              onStop={stop}
+              availableFileIds={availableFileIds}
+            />
+          </div>
+        </div>
+      </Activity>
+      <Activity mode={view === 'history' ? 'visible' : 'hidden'}>
+        <ConversationHistory
+          items={historyItems}
+          activeId={active.id}
+          loading={historyLoading}
+          error={historyError}
+          hasMore={historyHasMore}
+          switching={switching}
+          onBack={showChat}
+          onNew={() => void startNew()}
+          onSelect={id => void switchTo(id)}
+          onLoadMore={() => void (historyItems.length ? loadMore() : reloadHistory())}
+          onDelete={deleteConversation}
         />
-      </div>
+      </Activity>
     </aside>
   )
 }
