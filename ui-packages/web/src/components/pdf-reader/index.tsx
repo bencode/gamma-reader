@@ -1,12 +1,14 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist'
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Document, Page } from 'react-pdf'
-import '../../core/pdf-source'
+import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import { PdfOutline, usePdfOutline } from './pdf-outline'
 import { PdfToolbar } from './pdf-toolbar'
 import styles from './style.module.scss'
+
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 export type PdfRenderedPage = {
   textLayer: HTMLElement
