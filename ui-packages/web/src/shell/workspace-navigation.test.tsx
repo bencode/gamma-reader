@@ -10,7 +10,11 @@ const file = (name: string) =>
   within(screen.getByRole('list', { name: 'Files' })).getByRole('button', { name })
 const tabNames = () => screen.queryAllByRole('tab').map(tab => tab.textContent)
 const savedWorkspace = () => JSON.parse(localStorage.getItem(storageKey) ?? 'null')
-const waitForWorkspace = () => screen.findByRole('tab', { name: 'Getting started.md' })
+const waitForWorkspace = async () => {
+  const panel = await screen.findByRole('complementary', { name: 'Files' })
+  const list = await within(panel).findByRole('list', { name: 'Files' })
+  return within(list).findByRole('button', { name: 'Getting started.md' })
+}
 
 const Navigation = () => {
   const location = useLocation()
@@ -43,16 +47,15 @@ describe('local workspace navigation', () => {
     const user = userEvent.setup()
     const page = openReader()
     await waitForWorkspace()
-    await waitFor(() =>
-      expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/getting-started'),
-    )
+    await waitFor(() => expect(screen.getByLabelText('Current route')).toHaveTextContent('/files'))
+    await user.click(file('Getting started.md'))
     await user.click(file('Reading notes.md'))
-    await user.click(file('The art of noticing.md'))
+    await user.click(file('How Gamma Reader works.svg'))
     await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled())
     await user.type(screen.getByRole('textbox'), 'A saved question')
     expect(savedWorkspace()).toEqual({
-      tabs: ['getting-started', 'reading-notes', 'art-of-noticing'],
-      lastActiveId: 'art-of-noticing',
+      tabs: ['getting-started', 'reading-notes', 'how-gamma-reader-works'],
+      lastActiveId: 'how-gamma-reader-works',
     })
     await waitFor(() =>
       expect(localStorage.getItem('gamma-reader.active-conversation')).not.toBeNull(),
@@ -60,9 +63,15 @@ describe('local workspace navigation', () => {
     page.unmount()
     openReader()
     await waitForWorkspace()
-    expect(tabNames()).toEqual(['Getting started.md', 'Reading notes.md', 'The art of noticing.md'])
+    expect(tabNames()).toEqual([
+      'Getting started.md',
+      'Reading notes.md',
+      'How Gamma Reader works.svg',
+    ])
     await waitFor(() =>
-      expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/art-of-noticing'),
+      expect(screen.getByLabelText('Current route')).toHaveTextContent(
+        '/files/how-gamma-reader-works',
+      ),
     )
     await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('A saved question'))
   })
@@ -72,75 +81,109 @@ describe('local workspace navigation', () => {
       storageKey,
       JSON.stringify({ tabs: ['reading-notes'], lastActiveId: 'reading-notes' }),
     )
-    openReader('/files/art-of-noticing')
-    await screen.findByRole('tab', { name: 'The art of noticing.md' })
-    expect(tabNames()).toEqual(['Reading notes.md', 'The art of noticing.md'])
-    expect(screen.getByRole('tab', { name: 'The art of noticing.md' })).toHaveAttribute(
+    openReader('/files/getting-started')
+    await screen.findByRole('tab', { name: 'Getting started.md' })
+    expect(tabNames()).toEqual(['Reading notes.md', 'Getting started.md'])
+    expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    expect(savedWorkspace().lastActiveId).toBe('art-of-noticing')
+    expect(savedWorkspace().lastActiveId).toBe('getting-started')
   })
 
   it('navigates history without undoing the local tab list or adding duplicate active entries', async () => {
     const user = userEvent.setup()
     openReader()
     await waitForWorkspace()
-    await user.click(file('The art of noticing.md'))
+    await user.click(file('Getting started.md'))
+    await user.click(file('How Gamma Reader works.svg'))
     await user.click(file('Reading notes.md'))
     await user.click(screen.getByRole('tab', { name: 'Reading notes.md' }))
     await user.click(screen.getByRole('button', { name: 'Back' }))
-    expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/art-of-noticing')
-    expect(tabNames()).toEqual(['Getting started.md', 'The art of noticing.md', 'Reading notes.md'])
-    await user.click(screen.getByRole('button', { name: 'Forward' }))
-    expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/reading-notes')
-    await user.click(screen.getByRole('tab', { name: 'The art of noticing.md' }))
-    await user.click(screen.getByRole('button', { name: 'Back' }))
-    expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/reading-notes')
-    await user.click(screen.getByRole('button', { name: 'Close The art of noticing.md' }))
-    await user.click(screen.getByRole('button', { name: 'Back' }))
-    expect(tabNames()).toEqual(['Getting started.md', 'Reading notes.md', 'The art of noticing.md'])
-    expect(screen.getByRole('tab', { name: 'The art of noticing.md' })).toHaveAttribute(
-      'aria-selected',
-      'true',
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'How Gamma Reader works.svg' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
     )
+    expect(tabNames()).toEqual([
+      'Getting started.md',
+      'How Gamma Reader works.svg',
+      'Reading notes.md',
+    ])
+    await user.click(screen.getByRole('button', { name: 'Forward' }))
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
+    )
+    expect(tabNames()).toEqual([
+      'Getting started.md',
+      'How Gamma Reader works.svg',
+      'Reading notes.md',
+    ])
+    await user.click(screen.getByRole('tab', { name: 'How Gamma Reader works.svg' }))
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
+    )
+    await user.click(screen.getByRole('button', { name: 'Close How Gamma Reader works.svg' }))
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'How Gamma Reader works.svg' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
+    )
+    expect(tabNames()).toEqual([
+      'Getting started.md',
+      'Reading notes.md',
+      'How Gamma Reader works.svg',
+    ])
   })
 
-  it('restores an intentionally empty workspace after closing its last tab', async () => {
+  it('starts empty and restores an intentionally empty workspace', async () => {
     const user = userEvent.setup()
     const page = openReader()
     await waitForWorkspace()
+    await screen.findByRole('heading', { name: 'Start with a document' })
+    expect(tabNames()).toEqual([])
+    await waitFor(() => expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null }))
+
+    await user.click(screen.getByRole('button', { name: 'Open Getting started.md' }))
+    await screen.findByRole('tab', { name: 'Getting started.md' })
     await user.click(screen.getByRole('button', { name: 'Close Getting started.md' }))
     expect(screen.getByLabelText('Current route')).toHaveTextContent('/files')
     expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null })
     page.unmount()
+
     openReader()
     await screen.findByRole('button', { name: 'Open Getting started.md' })
     expect(tabNames()).toEqual([])
   })
 
-  it('does not open an unknown route as a file or discard existing tabs', async () => {
+  it('does not open an unknown route as a file or create a tab', async () => {
     openReader('/files/not-in-this-browser')
     await waitForWorkspace()
     await waitFor(() =>
       expect(screen.getByLabelText('Current route')).toHaveTextContent(/^\/files$/),
     )
-    expect(tabNames()).toEqual(['Getting started.md'])
+    expect(tabNames()).toEqual([])
     expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument()
-    expect(savedWorkspace()).toEqual({ tabs: ['getting-started'], lastActiveId: null })
+    expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null })
   })
 
-  it('restores defaults and reports damaged storage', async () => {
+  it('restores empty defaults and reports damaged storage', async () => {
     localStorage.setItem(storageKey, '{')
     const report = vi.spyOn(console, 'error').mockImplementation(() => {})
     openReader()
     await waitForWorkspace()
-    await waitFor(() =>
-      expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      ),
-    )
+    expect(await screen.findByRole('heading', { name: 'Start with a document' })).toBeVisible()
+    expect(tabNames()).toEqual([])
     expect(report).toHaveBeenCalledWith('Unable to restore workspace', expect.any(Error))
   })
 
@@ -156,6 +199,7 @@ describe('local workspace navigation', () => {
     const report = vi.spyOn(console, 'error').mockImplementation(() => {})
     openReader()
     await waitForWorkspace()
+    await user.click(file('Getting started.md'))
     await user.click(file('Reading notes.md'))
     await user.click(screen.getByRole('button', { name: 'Close Getting started.md' }))
     expect(tabNames()).toEqual(['Reading notes.md'])
@@ -170,13 +214,14 @@ describe('local workspace navigation', () => {
     const user = userEvent.setup()
     openReader()
     await waitForWorkspace()
-    await screen.findByRole('heading', { name: 'A little room to read' })
+    await user.click(file('Getting started.md'))
+    await screen.findByRole('heading', { name: 'Welcome to Gamma Reader' })
     const pane = screen.getByRole('tabpanel')
     const scroll = pane.querySelector('.document-scroll')
     if (!scroll) throw new Error('Document scroll container is missing')
     fireEvent.scroll(scroll, { target: { scrollTop: 180 } })
     const text = screen.getByText(
-      'This is your reading space. There is no folder to organize before you begin.',
+      'Open local documents in a browser workspace with no desktop application to install and no file upload step.',
     )
     const range = document.createRange()
     range.selectNodeContents(text)

@@ -7,6 +7,10 @@ import { removeStoredFile } from '../data/file-store'
 import { Workbench } from './workbench'
 
 const filesList = () => within(screen.getByRole('list', { name: 'Files' }))
+const waitForFiles = async () => {
+  const panel = await screen.findByRole('complementary', { name: 'Files' })
+  return within(panel).findByRole('list', { name: 'Files' })
+}
 
 describe('file library', () => {
   it('adds multiple local files and previews Markdown and sandboxed HTML', async () => {
@@ -16,7 +20,7 @@ describe('file library', () => {
         <Workbench />
       </MemoryRouter>,
     )
-    await screen.findByRole('tab', { name: 'Getting started.md' })
+    await waitForFiles()
 
     await user.upload(screen.getByLabelText('Choose files'), [
       new File(['# Imported note\n\nStored in this browser.'], 'Imported.md', {
@@ -51,7 +55,7 @@ describe('file library', () => {
         <Workbench />
       </MemoryRouter>,
     )
-    await screen.findByRole('tab', { name: 'Getting started.md' })
+    await waitForFiles()
     const input = screen.getByLabelText('Choose files')
 
     await user.upload(input, new File(['one'], 'Draft.txt', { type: 'text/plain' }))

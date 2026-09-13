@@ -1,54 +1,115 @@
 # Gamma Reader
 
-An open-source AI reading companion for local documents.
+A browser-native, local-first AI reading workspace for documents.
 
-The current iteration provides a local file library, a three-panel reading workspace,
-and a Node service with a health endpoint. Open the application to read the built-in
-examples or add several files from your computer. Gamma Reader copies selected files
-into this browser's IndexedDB storage; document contents are not uploaded to the
-server.
+[Try Gamma Reader](https://reader.upivot.io) - no account or personal API key required.
 
-Markdown, UTF-8 plain text, PDF, HTML, and common image formats have in-app previews.
-HTML previews run in a sandboxed frame. Other formats, including Word documents, stay
-available in Files for later use as reading context but do not have an in-app preview.
-Each file may use up to 50 MB, and the library may use up to 500 MB.
+<p align="center">
+  <img src="ui-packages/web/src/assets/samples/how-gamma-reader-works.svg" alt="Documents are copied into browser storage for reading and local agent tools. Questions and the content used to answer them are sent through the Gamma Reader server to the configured model." width="960" />
+</p>
 
-The Files and assistant panels can be resized or hidden. At narrower widths,
-Files opens in an overlay; below 800px, the assistant also opens in an overlay.
-Tab reading positions, question drafts, and excerpts survive panel changes within
-the current page. Reloading clears those temporary values. Open tabs and their
-order are stored in this browser; the current document is selected by its
-`/files/:documentId` route. Opening `/` resumes the last active document, or the
-empty workspace at `/files` when no document was active. Panel width preferences are
-stored in this browser and restored after reloading; window resizing does not
-overwrite those preferences.
+## Highlights
 
-Removing an item deletes only its browser copy and does not change the original file.
-Folder access, Word preview, AI responses, notes editing, and saving are not connected
-yet. Their relevant controls are disabled rather than reporting simulated success.
-No document or question is sent to a model in this iteration.
+- Open the hosted web app directly, with no desktop application to install.
+- Copy documents into this browser's IndexedDB storage without uploading them to the application server.
+- Preview, parse, and search large documents locally, avoiding an initial network transfer.
+- Use a thin Node server that only proxies reading-assistant requests to the configured model provider; it has no file library or conversation database.
+- Read Markdown with math, Mermaid diagrams, and syntax highlighting.
+- Navigate PDFs with outlines, direct page entry, a progress slider, zoom, and fit controls.
+- Preview sandboxed HTML and common image formats, including SVG.
+- Ask an agent that can inspect the current reading state, list files, search, read, analyze images, and write new text files.
+- Keep multiple conversations with their own message history and attachments.
 
-## Development
+## Local-first, precisely
+
+Gamma Reader copies imported files directly into IndexedDB storage owned by the current browser. Previewing, PDF parsing, text extraction, and search run in the browser. Large documents do not wait for an application-server upload before they can be opened.
+
+Removing a file deletes that browser copy and leaves the original file on your computer unchanged.
+
+| Action | Leaves the browser |
+| --- | --- |
+| Add or open a document | No |
+| Preview, parse, or search a document | No |
+| Store files, tabs, drafts, and conversations | No |
+| Ask the assistant | The conversation and any file content read or analyzed for the answer are sent through the Gamma Reader server to the configured model provider. |
+
+The Node service is an LLM proxy for credentials and streaming model requests. It does not store a server-side file library or conversation database. The hosted reader is configured by its operator, so people using it do not need to create an account or provide a model key.
+
+## Document support
+
+| Format | Preview | Agent support |
+| --- | --- | --- |
+| Markdown | Rendered with math, Mermaid, and syntax highlighting | Search and read |
+| UTF-8 text | Text preview for files up to 5 MiB | Search and read |
+| PDF | Outline, page navigation, progress, zoom, and fit controls | Extracted text; OCR is not available |
+| HTML | Sandboxed preview | Text reading is not available yet |
+| Images, including SVG | Image preview and zoom | Vision analysis |
+| Word and other formats | Stored in Files without a preview | Reading is not available yet |
+
+Each file may use up to 50 MiB. The browser library may use up to 500 MiB.
+
+## Run locally
 
 Use Node 24 and pnpm 10.14.0.
 
 ```sh
+corepack enable
 pnpm install
-pnpm dev
+GLM_API_KEY=your-key pnpm dev
 ```
 
-Open http://localhost:5302. Vite proxies `/api` to the Node service on port 3302
-and fails if its frontend port is occupied. No model credential is required.
+Open [http://localhost:5302](http://localhost:5302). Vite proxies `/api` to the Node service on port `3302`.
 
-To override the backend port:
+The server reads configuration from the process environment and does not load `.env` files automatically:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `GLM_API_KEY` | Required for chat | Server-side model credential |
+| `GLM_MODEL` | `glm-5.3` | Main reading model |
+| `GLM_VISION_MODEL` | `glm-5.3-flash` | Image analysis model |
+| `PORT` | `3302` | Node service port |
+| `HOST` | `127.0.0.1` | Node service host |
+| `GAMMA_BACKEND` | `http://127.0.0.1:3302` | Vite development proxy target |
+
+The document reader still works when `GLM_API_KEY` is absent; chat reports that it is unavailable.
+
+## Production
+
+Docker Compose builds the frontend and server into one image. Create an untracked `.env` containing `GLM_API_KEY`, then run:
 
 ```sh
-PORT=3303 GAMMA_BACKEND=http://127.0.0.1:3303 pnpm dev
+docker compose -f compose.production.yml up -d --build --wait
 ```
 
-Node reads `PORT` (default `3302`) and `HOST` (default `127.0.0.1`) from the
-environment. `GAMMA_BACKEND` sets the development proxy target. The server does not
-load `.env` files automatically.
+The service listens on container port `3302` and includes a health check at `GET /api/health`. Put TLS and the public hostname at the reverse proxy.
+
+For a production build without Docker:
+
+```sh
+pnpm build
+pnpm start
+```
+
+## Architecture
+
+```text
+Browser
+  React + Vite + Tailwind CSS
+  IndexedDB
+    files          document metadata
+    contents       document Blob data
+    conversations  conversation state
+    messages       message history
+  Local preview, PDF parsing, search, and reader tools
+  pi agent runtime
+
+Node server
+  Hono application and static frontend hosting
+  Stateless GLM-compatible model proxy
+  No document or conversation storage
+```
+
+Document routes use `/files/:documentId`. The route identifies a file stored in the current browser and is not a shareable file URL.
 
 ## Checks
 
@@ -56,48 +117,7 @@ load `.env` files automatically.
 pnpm typecheck
 pnpm test
 pnpm check
-```
-
-`check` runs Biome, TypeScript, and frontend and server behavior tests without
-rewriting source. Tests use DOM interactions and temporary local files; they do
-not call external services.
-
-## Production
-
-```sh
 pnpm build
-pnpm start
 ```
 
-Build output lives in `ui-packages/web/dist` and `web-packages/server/dist`.
-The Node service serves the frontend and API at http://localhost:3302.
-Startup fails if the frontend build is missing.
-
-Static assets resolve relative to the server module, so this also works from
-another working directory:
-
-```sh
-NODE_ENV=production node /path/to/gamma-reader/web-packages/server/dist/main.js
-```
-
-Local development uses HTTP. Configure TLS at the hosting layer for a hosted reader.
-
-## API
-
-`GET /api/health` returns:
-
-```json
-{ "status": "ok", "service": "gamma-reader" }
-```
-
-Unknown API routes return JSON 404 responses. The server returns the application
-entry page for `/files` and `/files/:documentId`, so document routes support direct
-access and reloading. Other unknown pages and missing assets return 404. Routes
-identify documents available in this browser; they do not share local files.
-
-## Repository
-
-- `ui-packages/web`: React, Vite, and Tailwind CSS.
-- `web-packages/server`: Hono application, Node entrypoint, and HTTP tests.
-
-All code, comments, documentation, and application copy are in English.
+`check` runs Biome, TypeScript, and frontend and server behavior tests without rewriting source. Tests do not call external model services.

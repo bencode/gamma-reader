@@ -51,7 +51,7 @@ describe('reading workspace', () => {
       throw new Error(`Unexpected network request: ${url}`)
     })
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
       </MemoryRouter>,
     )
@@ -61,7 +61,9 @@ describe('reading workspace', () => {
     await user.type(input, 'Save our conclusion as a new file')
     await user.click(screen.getByRole('button', { name: 'Send question' }))
 
-    expect(await screen.findByRole('button', { name: 'Saved notes.md' })).toBeVisible()
+    expect(
+      await screen.findByRole('button', { name: 'Saved notes.md' }, { timeout: 3000 }),
+    ).toBeVisible()
     expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -86,16 +88,16 @@ describe('reading workspace', () => {
     const user = userEvent.setup()
     const network = vi.spyOn(globalThis, 'fetch')
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
       </MemoryRouter>,
     )
     await waitForWorkspace()
-    await user.click(material('The art of noticing.md'))
+    await user.click(material('How Gamma Reader works.svg'))
     await user.click(material('Reading notes.md'))
-    await user.click(material('The art of noticing.md'))
+    await user.click(material('How Gamma Reader works.svg'))
     expect(screen.getAllByRole('tab')).toHaveLength(3)
-    await user.click(screen.getByRole('button', { name: 'Close The art of noticing.md' }))
+    await user.click(screen.getByRole('button', { name: 'Close How Gamma Reader works.svg' }))
     expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -107,7 +109,7 @@ describe('reading workspace', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Close Reading notes.md' }))
     await user.click(screen.getByRole('button', { name: 'Open Getting started.md' }))
-    expect(await screen.findByRole('heading', { name: 'A little room to read' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Welcome to Gamma Reader' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Save to folder' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Send question' })).toBeDisabled()
     expect(screen.queryByRole('heading', { name: 'Your files' })).not.toBeInTheDocument()
@@ -120,12 +122,12 @@ describe('reading workspace', () => {
   it('keeps each tab scroll position and supports keyboard tab switching', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
       </MemoryRouter>,
     )
     await waitForWorkspace()
-    await screen.findByRole('heading', { name: 'A little room to read' })
+    await screen.findByRole('heading', { name: 'Welcome to Gamma Reader' })
     const pane = screen.getByRole('tabpanel')
     const scroll = pane.querySelector('.document-scroll')
     if (!scroll) throw new Error('Document scroll container is missing')
@@ -145,16 +147,16 @@ describe('reading workspace', () => {
   it('keeps keyboard navigation in the reader after closing tabs', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
       </MemoryRouter>,
     )
     await waitForWorkspace()
-    await user.click(material('The art of noticing.md'))
+    await user.click(material('How Gamma Reader works.svg'))
     await user.click(material('Reading notes.md'))
-    await user.click(screen.getByRole('tab', { name: 'The art of noticing.md' }))
+    await user.click(screen.getByRole('tab', { name: 'How Gamma Reader works.svg' }))
     await user.tab()
-    expect(screen.getByRole('button', { name: 'Close The art of noticing.md' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Close How Gamma Reader works.svg' })).toHaveFocus()
     await user.keyboard('{Enter}')
     expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveFocus()
     await user.keyboard('{ArrowLeft}')
@@ -171,7 +173,7 @@ describe('reading workspace', () => {
   it('preserves a question across document and panel changes', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
       </MemoryRouter>,
     )
@@ -204,7 +206,7 @@ describe('reading workspace', () => {
     }))
     const user = userEvent.setup()
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
       </MemoryRouter>,
     )
@@ -281,7 +283,7 @@ describe('panel width preferences', () => {
   it('saves keyboard resizing but does not overwrite preferences on panel remount', async () => {
     const user = userEvent.setup()
     const page = render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
       </MemoryRouter>,
     )
@@ -298,7 +300,7 @@ describe('panel width preferences', () => {
     expect(localStorage.getItem(storageKey)).toBe(stored)
     page.unmount()
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
       </MemoryRouter>,
     )

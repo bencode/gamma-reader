@@ -103,8 +103,8 @@ export const DocumentTabs = ({
         ) : workspace.activeId === null ? (
           <div className="empty-reader">
             <BookOpen size={30} strokeWidth={1.4} />
-            <h1>A place for your next question</h1>
-            <p>Choose a document from Files to start reading.</p>
+            <h1>Start with a document</h1>
+            <p>Open a sample from Files, or add your own.</p>
             {workspace.files[0] && (
               <button
                 type="button"
