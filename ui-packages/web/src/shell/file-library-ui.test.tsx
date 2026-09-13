@@ -32,7 +32,9 @@ describe('file library', () => {
     ])
 
     await filesList().findByRole('button', { name: 'Imported.md' })
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(
+      within(screen.getByRole('complementary', { name: 'Files' })).queryByRole('status'),
+    ).not.toBeInTheDocument()
     await user.click(filesList().getByRole('button', { name: 'Imported.md' }))
     expect(await screen.findByRole('heading', { name: 'Imported note' })).toBeVisible()
 

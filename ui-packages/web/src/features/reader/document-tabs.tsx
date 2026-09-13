@@ -1,24 +1,42 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { BookOpen, MessageSquare, X } from 'lucide-react'
-import { Activity, useLayoutEffect, useRef } from 'react'
+import { Activity, useEffect, useLayoutEffect, useRef } from 'react'
 import type { Workspace } from '../../shell/use-workspace'
-import { FilePreview } from './file-preview'
+import { FilePreview, type PdfSourceCacheEntry } from './file-preview'
 
 type DocumentTabsProps = {
   workspace: Workspace
   assistantVisible: boolean
   onOpenAssistant: (trigger: HTMLElement) => void
-  onQuote: (documentId: string, text: string) => void
 }
 
 export const DocumentTabs = ({
   workspace,
   assistantVisible,
   onOpenAssistant,
-  onQuote,
 }: DocumentTabsProps) => {
   const focusTargetRef = useRef<HTMLButtonElement>(null)
   const closingTabRef = useRef<string | null>(null)
+  const pdfSources = useRef(new Map<string, PdfSourceCacheEntry>())
+
+  useEffect(() => {
+    const openIds = new Set(workspace.tabs)
+    pdfSources.current.forEach((source, id) => {
+      if (openIds.has(id)) return
+      URL.revokeObjectURL(source.url)
+      pdfSources.current.delete(id)
+    })
+  }, [workspace.tabs])
+
+  useEffect(
+    () => () => {
+      pdfSources.current.forEach(source => {
+        URL.revokeObjectURL(source.url)
+      })
+      pdfSources.current.clear()
+    },
+    [],
+  )
 
   useLayoutEffect(() => {
     const closing = closingTabRef.current
@@ -108,7 +126,7 @@ export const DocumentTabs = ({
                   document={source}
                   active={workspace.activeId === id}
                   scrollPositions={workspace.scrollPositions}
-                  onQuote={onQuote}
+                  pdfSources={pdfSources}
                 />
               </Tabs.Content>
             </Activity>

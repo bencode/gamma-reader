@@ -8,7 +8,6 @@ type TextFileReaderProps = {
   blob: Blob
   active: boolean
   scrollPositions: Workspace['scrollPositions']
-  onQuote: (documentId: string, text: string) => void
 }
 
 export const TextFileReader = ({
@@ -16,7 +15,6 @@ export const TextFileReader = ({
   blob,
   active,
   scrollPositions,
-  onQuote,
 }: TextFileReaderProps) => {
   const [state, setState] = useState<
     | { status: 'loading' }
@@ -71,7 +69,6 @@ export const TextFileReader = ({
       markdown={document.previewKind === 'markdown'}
       active={active}
       scrollPositions={scrollPositions}
-      onQuote={onQuote}
     />
   )
 }

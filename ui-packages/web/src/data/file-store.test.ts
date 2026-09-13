@@ -6,6 +6,7 @@ import {
   importStoredFiles,
   listStoredFiles,
   removeStoredFile,
+  writeStoredTextFile,
 } from './file-store'
 
 const textFile = (name: string, content: string) =>
@@ -24,6 +25,39 @@ const fileWithReportedSize = (name: string, size: number) => {
 }
 
 describe('local file store', () => {
+  it('migrates version-one metadata into the files collection', async () => {
+    await closeFileStore()
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('gamma-reader-files', 1)
+      request.onupgradeneeded = () => {
+        const files = request.result.createObjectStore('files', { keyPath: 'id' })
+        files.createIndex('by-created-at', 'createdAt')
+        const contents = request.result.createObjectStore('contents', { keyPath: 'id' })
+        files.put({
+          id: 'legacy',
+          name: 'Legacy.md',
+          mediaType: 'text/markdown',
+          previewKind: 'markdown',
+          size: 6,
+          lastModified: 1,
+          createdAt: 1,
+          revision: 1,
+        })
+        contents.put({ id: 'legacy', blob: new Blob(['legacy'], { type: 'text/markdown' }) })
+      }
+      request.onsuccess = () => {
+        request.result.close()
+        resolve()
+      }
+      request.onerror = () => reject(request.error)
+    })
+
+    expect(await listStoredFiles()).toEqual([
+      expect.objectContaining({ id: 'legacy', collection: 'files' }),
+    ])
+    expect(await (await getStoredFileContent('legacy'))?.text()).toBe('legacy')
+  })
+
   it('can retry after opening IndexedDB fails', async () => {
     vi.spyOn(indexedDB, 'open').mockImplementationOnce(() => {
       throw new DOMException('Temporarily unavailable', 'UnknownError')
@@ -62,6 +96,28 @@ describe('local file store', () => {
     expect(files.find(file => file.id === keptId)?.name).toBe('Draft (2).md')
   })
 
+  it('writes generated text through the same limits and replacement model', async () => {
+    const first = await writeStoredTextFile('Generated.json', '{"value":"初稿"}')
+    expect(first).toMatchObject({
+      name: 'Generated.json',
+      collection: 'files',
+      previewKind: 'text',
+      revision: 1,
+    })
+    expect(first.size).toBe(new TextEncoder().encode('{"value":"初稿"}').byteLength)
+
+    const second = await writeStoredTextFile('generated.JSON', '{"value":"final"}')
+    expect(second).toMatchObject({ id: first.id, revision: 2, createdAt: first.createdAt })
+    expect(await (await getStoredFileContent(first.id))?.text()).toBe('{"value":"final"}')
+
+    const controller = new AbortController()
+    controller.abort()
+    await expect(
+      writeStoredTextFile('Cancelled.txt', 'not written', controller.signal),
+    ).rejects.toThrow()
+    expect((await listStoredFiles()).some(file => file.name === 'Cancelled.txt')).toBe(false)
+  })
+
   it('stores only the last copy when a selected batch repeats a new name', async () => {
     const result = await importStoredFiles(
       [textFile('Repeated.md', 'first'), textFile('Repeated.md', 'last')],
@@ -85,12 +141,35 @@ describe('local file store', () => {
     )
   })
 
+  it('stores chat attachments in the shared workspace with source mappings', async () => {
+    const result = await importStoredFiles(
+      [textFile('Chat notes.md', 'private attachment content')],
+      'keep',
+      'attachments',
+    )
+
+    expect(result.imported).toHaveLength(1)
+    expect(result.imported[0]).toMatchObject({
+      sourceIndex: 0,
+      action: 'added',
+      metadata: { name: 'Chat notes.md', collection: 'attachments' },
+    })
+    expect((await listStoredFiles()).find(file => file.name === 'Chat notes.md')).toMatchObject({
+      collection: 'attachments',
+    })
+    expect(await (await getStoredFileContent(result.imported[0]?.metadata.id ?? ''))?.text()).toBe(
+      'private attachment content',
+    )
+  })
+
   it('rejects files over 50 MB and additions beyond the 500 MB library limit', async () => {
     const tooLarge = await importStoredFiles(
       [fileWithReportedSize('too-large.bin', maximumFileBytes + 1)],
       'keep',
     )
-    expect(tooLarge.rejected).toEqual([{ name: 'too-large.bin', reason: 'file-too-large' }])
+    expect(tooLarge.rejected).toEqual([
+      { sourceIndex: 0, name: 'too-large.bin', reason: 'file-too-large' },
+    ])
 
     const firstBatch = Array.from({ length: 9 }, (_, index) =>
       fileWithReportedSize(`large-${index}.bin`, maximumFileBytes),
@@ -101,6 +180,8 @@ describe('local file store', () => {
       [fileWithReportedSize('one-more.bin', maximumFileBytes)],
       'keep',
     )
-    expect(libraryFull.rejected).toEqual([{ name: 'one-more.bin', reason: 'library-full' }])
+    expect(libraryFull.rejected).toEqual([
+      { sourceIndex: 0, name: 'one-more.bin', reason: 'library-full' },
+    ])
   })
 })

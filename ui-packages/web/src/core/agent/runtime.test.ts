@@ -1,0 +1,256 @@
+import { describe, expect, it, vi } from 'vitest'
+import {
+  getStoredFileContent,
+  importStoredFiles,
+  listStoredFiles,
+  writeStoredTextFile,
+} from '../../data/file-store'
+import type { ReaderState } from '../local-tool-types'
+import { createLocalTools } from '../local-tools'
+import { createReaderAgent } from './runtime'
+
+const config = {
+  enabled: true,
+  provider: 'zai-coding-cn',
+  modelId: 'glm-5.3',
+  visionModelId: 'glm-5.3-flash',
+} as const
+const event = (delta: unknown, finish: string | null = null) =>
+  `data: ${JSON.stringify({ id: 'reply', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
+const reply = (text: string) =>
+  new Response(`${event({ content: text }) + event({}, 'stop')}data: [DONE]\n\n`, {
+    headers: { 'Content-Type': 'text/event-stream' },
+  })
+const call = (name: string, args: unknown) =>
+  new Response(
+    `${event(
+      {
+        tool_calls: [
+          {
+            index: 0,
+            id: `call-${name}`,
+            type: 'function',
+            function: { name, arguments: JSON.stringify(args) },
+          },
+        ],
+      },
+      'tool_calls',
+    )}data: [DONE]\n\n`,
+    { headers: { 'Content-Type': 'text/event-stream' } },
+  )
+const emptyState = (): ReaderState => ({ openFiles: [], activeFile: null, viewport: null })
+const localTools = () => createLocalTools(emptyState, writeStoredTextFile)
+
+describe('reader agent', () => {
+  it('writes a browser-local text file through the native Pi tool', async () => {
+    const requests: Array<{ messages: Array<{ role: string; content: string }> }> = []
+    const fetchModel = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body))
+      requests.push(body)
+      if (requests.length === 1)
+        return call('write', { path: 'Study notes.html', content: '<main>Saved</main>' })
+      return reply('Saved as Study notes.html.')
+    })
+    const writer = vi.fn(writeStoredTextFile)
+    const agent = createReaderAgent(config, createLocalTools(emptyState, writer))
+
+    await agent.prompt('Save this as an HTML file')
+
+    expect(writer).toHaveBeenCalledWith(
+      'Study notes.html',
+      '<main>Saved</main>',
+      expect.any(AbortSignal),
+    )
+    const written = (await listStoredFiles()).find(file => file.name === 'Study notes.html')
+    if (!written) throw new Error('Written file is missing')
+    expect(written.previewKind).toBe('html')
+    expect(await (await getStoredFileContent(written.id))?.text()).toBe('<main>Saved</main>')
+    expect(requests[1]?.messages.at(-1)?.content).toContain('Successfully wrote')
+    expect(agent.state.messages.findLast(message => message.role === 'toolResult')).toMatchObject({
+      isError: false,
+    })
+    expect(fetchModel).toHaveBeenCalledTimes(2)
+  })
+
+  it('runs local tools through Pi and supplies context only after a tool request', async () => {
+    const imported = await importStoredFiles(
+      [new File(['# Local secret\n\nThe fox reads quietly.'], 'private.md')],
+      'keep',
+    )
+    const fileId = imported.addedIds[0]
+    if (!fileId) throw new Error('Missing fixture')
+    const state: ReaderState = {
+      openFiles: [{ id: fileId, name: 'private.md' }],
+      activeFile: { id: fileId, name: 'private.md' },
+      viewport: { startText: 'The fox', endText: 'quietly.' },
+    }
+    const requests: { messages: { role: string; content: string; tool_call_id?: string }[] }[] = []
+    const fetchModel = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body))
+      requests.push(body)
+      if (requests.length === 1) return call('get_reader_state', {})
+      if (requests.length === 2) return call('list', {})
+      if (requests.length === 3) return call('search', { query: 'The fox', fileId })
+      if (requests.length === 4) {
+        const found = JSON.parse(body.messages.at(-1).content).matches[0]
+        return call('read', { fileId: found.fileId, range: found.range })
+      }
+      return reply('The fox reads quietly.')
+    })
+    const agent = createReaderAgent(
+      config,
+      createLocalTools(() => state, writeStoredTextFile),
+    )
+    await agent.prompt('Explain the current paragraph')
+    expect(requests).toHaveLength(5)
+    expect(requests[0]?.messages.filter(message => message.role !== 'system')).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'Explain the current paragraph' }] },
+    ])
+    expect(JSON.stringify(requests[0])).not.toContain('private.md')
+    expect(JSON.stringify(requests[0])).not.toContain('Local secret')
+    expect(
+      requests[4]?.messages
+        .filter(message => message.role === 'tool')
+        .map(message => message.tool_call_id),
+    ).toEqual(['call-get_reader_state', 'call-list', 'call-search', 'call-read'])
+    expect(requests[4]?.messages.at(-1)?.content).toContain('The fox reads quietly.')
+    expect(fetchModel.mock.calls[0]?.[0].toString()).toContain('/api/agent/chat/completions')
+    state.activeFile = null
+    fetchModel
+      .mockResolvedValueOnce(call('get_reader_state', {}))
+      .mockResolvedValueOnce(reply('No active file.'))
+    await agent.prompt('What about now?')
+    const result = agent.state.messages.findLast(message => message.role === 'toolResult')
+    expect(result).toMatchObject({ content: [{ type: 'text', text: JSON.stringify(state) }] })
+    expect(agent.state.messages.filter(message => message.role === 'user')).toHaveLength(2)
+    expect(createReaderAgent(config, localTools()).state.messages).toEqual([])
+  })
+
+  it('returns tool errors to the model without hiding a failed read', async () => {
+    const fetchModel = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(call('read', { fileId: 'missing' }))
+      .mockResolvedValueOnce(reply('The file is unavailable.'))
+    const agent = createReaderAgent(config, localTools())
+    await agent.prompt('Read the file')
+    expect(agent.state.messages.find(message => message.role === 'toolResult')).toMatchObject({
+      isError: true,
+    })
+    expect(fetchModel).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses a one-shot vision model and returns only its text to the main agent', async () => {
+    const imported = await importStoredFiles(
+      [new File(['private-image-bytes'], 'screen.png', { type: 'image/png' })],
+      'keep',
+    )
+    const fileId = imported.addedIds[0]
+    if (!fileId) throw new Error('Missing image fixture')
+    const close = vi.fn()
+    const previous = globalThis.createImageBitmap
+    globalThis.createImageBitmap = vi.fn(
+      async () => ({ width: 2, height: 2, close }) as ImageBitmap,
+    )
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = []
+    const fetchModel = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      const request = { url: String(url), body: JSON.parse(String(init?.body)) }
+      requests.push(request)
+      if (request.url.includes('/vision/')) return reply('The image shows a reading interface.')
+      if (requests.filter(item => !item.url.includes('/vision/')).length === 1)
+        return call('analyze_image', { fileId, question: 'What is shown?' })
+      return reply('It shows a reading interface.')
+    })
+    try {
+      const agent = createReaderAgent(config, localTools())
+      await agent.prompt('Describe the image')
+      const vision = requests.find(request => request.url.includes('/vision/'))
+      expect(vision?.body.model).toBe('glm-5.3-flash')
+      expect(JSON.stringify(vision?.body)).toContain('data:image/png;base64,')
+      const finalMain = requests.filter(request => !request.url.includes('/vision/')).at(-1)
+      expect(JSON.stringify(finalMain?.body)).toContain('The image shows a reading interface.')
+      expect(JSON.stringify(finalMain?.body)).not.toContain('cHJpdmF0ZS1pbWFnZS1ieXRlcw==')
+      expect(agent.state.messages.findLast(message => message.role === 'toolResult')).toMatchObject(
+        {
+          content: [
+            {
+              type: 'text',
+              text: expect.stringContaining('The image shows a reading interface.'),
+            },
+          ],
+        },
+      )
+      expect(close).toHaveBeenCalled()
+      expect(fetchModel).toHaveBeenCalledTimes(3)
+    } finally {
+      globalThis.createImageBitmap = previous
+    }
+  })
+
+  it('rejects missing and non-image files before contacting the vision model', async () => {
+    const imported = await importStoredFiles(
+      [new File(['Readable text'], 'note.txt', { type: 'text/plain' })],
+      'keep',
+    )
+    const fileId = imported.addedIds[0]
+    if (!fileId) throw new Error('Missing text fixture')
+    const requests: string[] = []
+    const fetchModel = vi.spyOn(globalThis, 'fetch').mockImplementation(async url => {
+      requests.push(String(url))
+      const count = requests.filter(request => !request.includes('/vision/')).length
+      if (count === 1) return call('analyze_image', { fileId: 'missing' })
+      if (count === 3) return call('analyze_image', { fileId })
+      return reply('That file cannot be analyzed as an image.')
+    })
+    const agent = createReaderAgent(config, localTools())
+    await agent.prompt('Analyze the missing image')
+    await agent.prompt('Analyze the text file as an image')
+    expect(requests.some(request => request.includes('/vision/'))).toBe(false)
+    expect(
+      agent.state.messages.filter(message => message.role === 'toolResult' && message.isError),
+    ).toHaveLength(2)
+    expect(fetchModel).toHaveBeenCalledTimes(4)
+  })
+
+  it('aborts generation and skips later queued tools', async () => {
+    const local = localTools()
+    const search = vi.spyOn(local, 'search')
+    const toolsResponse = new Response(
+      `${event(
+        {
+          tool_calls: ['list', 'search'].map((name, index) => ({
+            index,
+            id: name,
+            type: 'function',
+            function: {
+              name,
+              arguments: JSON.stringify(name === 'search' ? { query: 'fox' } : {}),
+            },
+          })),
+        },
+        'tool_calls',
+      )}data: [DONE]\n\n`,
+      { headers: { 'Content-Type': 'text/event-stream' } },
+    )
+    const fetchModel = vi.spyOn(globalThis, 'fetch').mockResolvedValue(toolsResponse)
+    const agent = createReaderAgent(config, local)
+    agent.subscribe(event => {
+      if (event.type === 'tool_execution_start') agent.abort()
+    })
+    await agent.prompt('Search the files')
+    expect(search).not.toHaveBeenCalled()
+    expect(fetchModel).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not automatically retry provider errors and can accept a later question', async () => {
+    const fetchModel = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ error: { message: 'Unavailable' } }, { status: 503 }))
+      .mockResolvedValueOnce(reply('Recovered'))
+    const agent = createReaderAgent(config, localTools())
+    await agent.prompt('Hello')
+    expect(fetchModel).toHaveBeenCalledTimes(1)
+    expect(agent.state.messages.at(-1)).toMatchObject({ role: 'assistant', stopReason: 'error' })
+    await agent.prompt('Try again')
+    expect(agent.state.messages.at(-1)).toMatchObject({ role: 'assistant', stopReason: 'stop' })
+  })
+})

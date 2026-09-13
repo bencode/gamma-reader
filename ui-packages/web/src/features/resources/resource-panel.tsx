@@ -30,6 +30,46 @@ const FileKindIcon = ({ kind }: { kind: PreviewKind }) => {
   return <FileText size={15} />
 }
 
+const ResourceList = ({
+  files,
+  label,
+  activeId,
+  onOpen,
+  onRemove,
+}: {
+  files: StoredFileMetadata[]
+  label: 'Files' | 'Attachments'
+  activeId: string | null
+  onOpen: (id: string) => void
+  onRemove: (file: StoredFileMetadata) => void
+}) => (
+  <ul aria-label={label}>
+    {files.map(file => (
+      <li className="resource-row" key={file.id}>
+        <button
+          type="button"
+          className={activeId === file.id ? 'resource-item active' : 'resource-item'}
+          onClick={() => onOpen(file.id)}
+          aria-current={activeId === file.id ? 'page' : undefined}
+          title={`${file.name} · ${formatBytes(file.size)}`}
+        >
+          <FileKindIcon kind={file.previewKind} />
+          <span>{file.name}</span>
+        </button>
+        <button
+          type="button"
+          className="icon-button resource-remove"
+          aria-label={`Remove ${file.name} from ${label}`}
+          title={`Remove from ${label}`}
+          onClick={() => onRemove(file)}
+        >
+          <Trash2 size={13} />
+        </button>
+      </li>
+    ))}
+  </ul>
+)
+
 export const ResourcePanel = ({
   activeId,
   library,
@@ -39,6 +79,8 @@ export const ResourcePanel = ({
 }: ResourcePanelProps) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const [removeCandidate, setRemoveCandidate] = useState<StoredFileMetadata | null>(null)
+  const files = library.files.filter(file => (file.collection ?? 'files') === 'files')
+  const attachments = library.files.filter(file => file.collection === 'attachments')
 
   return (
     <aside className="resource-panel panel-surface" aria-label="Files">
@@ -110,31 +152,29 @@ export const ResourcePanel = ({
             <p>Add a document when you are ready to read.</p>
           </div>
         ) : (
-          <ul aria-label="Files">
-            {library.files.map(file => (
-              <li className="resource-row" key={file.id}>
-                <button
-                  type="button"
-                  className={activeId === file.id ? 'resource-item active' : 'resource-item'}
-                  onClick={() => onOpen(file.id)}
-                  aria-current={activeId === file.id ? 'page' : undefined}
-                  title={`${file.name} · ${formatBytes(file.size)}`}
-                >
-                  <FileKindIcon kind={file.previewKind} />
-                  <span>{file.name}</span>
-                </button>
-                <button
-                  type="button"
-                  className="icon-button resource-remove"
-                  aria-label={`Remove ${file.name} from Files`}
-                  title="Remove from Files"
-                  onClick={() => setRemoveCandidate(file)}
-                >
-                  <Trash2 size={13} />
-                </button>
-              </li>
-            ))}
-          </ul>
+          <>
+            {files.length > 0 && (
+              <ResourceList
+                files={files}
+                label="Files"
+                activeId={activeId}
+                onOpen={onOpen}
+                onRemove={setRemoveCandidate}
+              />
+            )}
+            {attachments.length > 0 && (
+              <section className="resource-group" aria-labelledby="attachments-heading">
+                <h3 id="attachments-heading">Attachments</h3>
+                <ResourceList
+                  files={attachments}
+                  label="Attachments"
+                  activeId={activeId}
+                  onOpen={onOpen}
+                  onRemove={setRemoveCandidate}
+                />
+              </section>
+            )}
+          </>
         )}
       </div>
       <footer className="resource-footer">
