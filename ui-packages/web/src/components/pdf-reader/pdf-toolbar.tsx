@@ -1,6 +1,20 @@
-import { ChevronLeft, ChevronRight, ListTree, Minus, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Hand, Minus, PanelLeft, Plus } from 'lucide-react'
 import { type FormEvent, type KeyboardEvent, useEffect, useState } from 'react'
 import styles from './style.module.scss'
+
+type PdfToolbarProps = {
+  pageNumber: number
+  pageCount: number
+  zoom: number
+  outlineAvailable: boolean
+  outlineOpen: boolean
+  panAvailable: boolean
+  panActive: boolean
+  onPageChange: (pageNumber: number) => void
+  onZoomChange: (zoom: number) => void
+  onToggleOutline: () => void
+  onPanActiveChange: (active: boolean) => void
+}
 
 const PageNumberInput = ({
   pageNumber,
@@ -42,6 +56,7 @@ const PageNumberInput = ({
         disabled={pageCount === 0}
         onChange={event => setValue(event.target.value)}
         onBlur={commit}
+        onFocus={event => event.currentTarget.select()}
         onKeyDown={reset}
       />
       <span aria-hidden="true">/</span>
@@ -56,30 +71,32 @@ export const PdfToolbar = ({
   zoom,
   outlineAvailable,
   outlineOpen,
+  panAvailable,
+  panActive,
   onPageChange,
   onZoomChange,
   onToggleOutline,
-}: {
-  pageNumber: number
-  pageCount: number
-  zoom: number
-  outlineAvailable: boolean
-  outlineOpen: boolean
-  onPageChange: (pageNumber: number) => void
-  onZoomChange: (zoom: number) => void
-  onToggleOutline: () => void
-}) => (
-  <div className={`preview-toolbar ${styles.toolbar}`} role="toolbar" aria-label="PDF controls">
+  onPanActiveChange,
+}: PdfToolbarProps) => (
+  <div
+    className={`preview-toolbar ${styles.toolbar} ${outlineAvailable ? styles.toolbarWithOutline : ''}`}
+    role="toolbar"
+    aria-label="PDF controls"
+  >
     {outlineAvailable && (
       <button
         type="button"
-        className={outlineOpen ? `icon-button ${styles.outlineActive}` : 'icon-button'}
-        aria-label="Table of contents"
+        className={
+          outlineOpen
+            ? `icon-button ${styles.outlineToggle} ${styles.activeControl}`
+            : `icon-button ${styles.outlineToggle}`
+        }
+        aria-label={outlineOpen ? 'Hide table of contents' : 'Show table of contents'}
         aria-pressed={outlineOpen}
-        title="Table of contents"
+        title={outlineOpen ? 'Hide table of contents' : 'Show table of contents'}
         onClick={onToggleOutline}
       >
-        <ListTree size={16} />
+        <PanelLeft size={16} />
       </button>
     )}
     <span className={styles.controls}>
@@ -117,6 +134,17 @@ export const PdfToolbar = ({
     )}
     <span className="toolbar-divider" aria-hidden="true" />
     <span className={styles.controls}>
+      <button
+        type="button"
+        className={panActive ? `icon-button ${styles.activeControl}` : 'icon-button'}
+        aria-label={panActive ? 'Select text' : 'Pan document'}
+        aria-pressed={panActive}
+        title={panActive ? 'Select text' : 'Pan document'}
+        disabled={!panAvailable}
+        onClick={() => onPanActiveChange(!panActive)}
+      >
+        <Hand size={15} />
+      </button>
       <button
         type="button"
         className="icon-button"
