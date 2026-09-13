@@ -1,0 +1,29 @@
+name: gamma-reader
+
+services:
+  reader:
+    image: gamma-reader:${GAMMA_READER_TAG:-latest}
+    build:
+      context: .
+      target: runtime
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3302
+      GLM_API_KEY: ${GLM_API_KEY:?GLM_API_KEY is required}
+      GLM_MODEL: ${GLM_MODEL:-glm-5.3}
+      GLM_VISION_MODEL: ${GLM_VISION_MODEL:-glm-5.3-flash}
+    ports:
+      - "172.17.0.1:3302:3302"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:3302/api/health').then(response => process.exit(response.ok ? 0 : 1)).catch(error => { console.error(error); process.exit(1) })
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
