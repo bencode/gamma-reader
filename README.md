@@ -1,8 +1,8 @@
 # Gamma Reader
 
-A browser-native, local-first AI reading workspace for documents.
+A browser-native, local-first AI reader powered by [pi](https://github.com/earendil-works/pi).
 
-[Try Gamma Reader](https://reader.upivot.io) - no account or personal API key required.
+[Try Gamma Reader](https://reader.upivot.io) — no account, desktop app, or personal API key required.
 
 <p align="center">
   <img src="ui-packages/web/src/assets/samples/how-gamma-reader-works.svg" alt="Documents are copied into browser storage for reading and local agent tools. Questions and the content used to answer them are sent through the Gamma Reader server to the configured model." width="960" />
@@ -10,41 +10,28 @@ A browser-native, local-first AI reading workspace for documents.
 
 ## Highlights
 
-- Open the hosted web app directly, with no desktop application to install.
-- Copy documents into this browser's IndexedDB storage without uploading them to the application server.
-- Preview, parse, and search large documents locally, avoiding an initial network transfer.
-- Use a thin Node server that only proxies reading-assistant requests to the configured model provider; it has no file library or conversation database.
-- Read Markdown with math, Mermaid diagrams, and syntax highlighting.
-- Navigate PDFs with outlines, direct page entry, a progress slider, zoom, and fit controls.
-- Preview sandboxed HTML and common image formats, including SVG.
-- Ask an agent that can inspect the current reading state, list files, search, read, analyze images, and write new text files.
-- Keep multiple conversations with their own message history and attachments.
+- Run the pi agent loop and document tools directly in the browser.
+- Keep files, tabs, attachments, and conversations in this browser's IndexedDB storage.
+- Preview, parse, and search documents locally, including large files that never need an application-server upload.
+- Ask the agent to inspect the current reading state, search and read documents, analyze images, and write notes.
+- Use a small Node service that only proxies model requests and stores no file library or conversation history.
 
-## Local-first, precisely
+## Data boundary
 
-Gamma Reader copies imported files directly into IndexedDB storage owned by the current browser. Previewing, PDF parsing, text extraction, and search run in the browser. Large documents do not wait for an application-server upload before they can be opened.
+Opening, previewing, parsing, searching, and storing a document stay in the browser. When you use the assistant, your question and the document text or images needed for the answer are sent through the Gamma Reader server to the configured model provider.
 
-Removing a file deletes that browser copy and leaves the original file on your computer unchanged.
-
-| Action | Leaves the browser |
-| --- | --- |
-| Add or open a document | No |
-| Preview, parse, or search a document | No |
-| Store files, tabs, drafts, and conversations | No |
-| Ask the assistant | The conversation and any file content read or analyzed for the answer are sent through the Gamma Reader server to the configured model provider. |
-
-The Node service is an LLM proxy for credentials and streaming model requests. It does not store a server-side file library or conversation database. The hosted reader is configured by its operator, so people using it do not need to create an account or provide a model key.
+Removing a file deletes the browser copy and leaves the original file on your computer unchanged.
 
 ## Document support
 
 | Format | Preview | Agent support |
 | --- | --- | --- |
-| Markdown | Rendered with math, Mermaid, and syntax highlighting | Search and read |
+| Markdown | Math, Mermaid, and syntax highlighting | Search and read |
 | UTF-8 text | Text preview for files up to 5 MiB | Search and read |
-| PDF | Outline, page navigation, progress, zoom, and fit controls | Extracted text; OCR is not available |
-| HTML | Sandboxed preview | Text reading is not available yet |
+| PDF | Outline, page navigation, progress, zoom, and fit controls | Extracted text; no OCR |
+| HTML | Sandboxed preview | Not yet readable by the agent |
 | Images, including SVG | Image preview and zoom | Vision analysis |
-| Word and other formats | Stored in Files without a preview | Reading is not available yet |
+| Word and other formats | Stored in Files without a preview | Not yet readable by the agent |
 
 Each file may use up to 50 MiB. The browser library may use up to 500 MiB.
 
@@ -58,9 +45,7 @@ pnpm install
 GLM_API_KEY=your-key pnpm dev
 ```
 
-Open [http://localhost:5302](http://localhost:5302). Vite proxies `/api` to the Node service on port `3302`.
-
-The server reads configuration from the process environment and does not load `.env` files automatically:
+Open [http://localhost:5302](http://localhost:5302). The reader works without a model key, but chat is disabled.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -69,55 +54,40 @@ The server reads configuration from the process environment and does not load `.
 | `GLM_VISION_MODEL` | `glm-5.3-flash` | Image analysis model |
 | `PORT` | `3302` | Node service port |
 | `HOST` | `127.0.0.1` | Node service host |
-| `GAMMA_BACKEND` | `http://127.0.0.1:3302` | Vite development proxy target |
-
-The document reader still works when `GLM_API_KEY` is absent; chat reports that it is unavailable.
+| `GAMMA_BACKEND` | `http://127.0.0.1:3302` | Vite proxy target |
 
 ## Production
 
-Docker Compose builds the frontend and server into one image. Create an untracked `.env` containing `GLM_API_KEY`, then run:
+Create an untracked `.env` containing `GLM_API_KEY`, then run:
 
 ```sh
 docker compose -f compose.production.yml up -d --build --wait
 ```
 
-The service listens on container port `3302` and includes a health check at `GET /api/health`. Put TLS and the public hostname at the reverse proxy.
-
-For a production build without Docker:
-
-```sh
-pnpm build
-pnpm start
-```
+The container serves the web app and Node proxy on port `3302` and exposes `/api/health`.
 
 ## Architecture
 
 ```text
 Browser
-  React + Vite + Tailwind CSS
-  IndexedDB
-    files          document metadata
-    contents       document Blob data
-    conversations  conversation state
-    messages       message history
-  Local preview, PDF parsing, search, and reader tools
-  pi agent runtime
+  React + Vite
+  pi agent runtime and local document tools
+  IndexedDB: files, attachments, tabs, and conversations
 
 Node server
-  Hono application and static frontend hosting
-  Stateless GLM-compatible model proxy
-  No document or conversation storage
+  Hono static server and stateless LLM proxy
+  No file library or conversation database
 ```
 
-Document routes use `/files/:documentId`. The route identifies a file stored in the current browser and is not a shareable file URL.
-
-## Checks
+## Development
 
 ```sh
-pnpm typecheck
-pnpm test
 pnpm check
 pnpm build
 ```
 
-`check` runs Biome, TypeScript, and frontend and server behavior tests without rewriting source. Tests do not call external model services.
+`check` runs Biome, TypeScript, and frontend and server tests without rewriting source. Tests do not call external model services.
+
+## License
+
+[MIT](LICENSE)
