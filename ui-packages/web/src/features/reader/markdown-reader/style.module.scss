@@ -1,0 +1,247 @@
+.reader {
+  --markdown-outline-width: clamp(220px, 28cqi, 280px);
+
+  container-type: inline-size;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.toolbar {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.toolbarWithOutline {
+  padding-left: 40px;
+}
+
+.outlineToggle {
+  position: absolute;
+  top: 50%;
+  left: 7px;
+  transform: translateY(-50%);
+}
+
+.activeControl,
+.activeMode {
+  background: var(--selected);
+  color: var(--accent);
+}
+
+.modeControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--surface);
+
+  button {
+    display: inline-flex;
+    min-height: 24px;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 11px;
+
+    &:hover {
+      color: inherit;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    &.activeMode {
+      background: var(--selected);
+      color: var(--accent);
+    }
+  }
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.previewScroll {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+}
+
+.outlineLayer {
+  position: relative;
+  flex: 0 0 var(--markdown-outline-width);
+  min-width: 0;
+  height: 100%;
+}
+
+.outlineBackdrop {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: oklch(0 0 0 / 0.12);
+}
+
+.outlinePanel {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+
+  ul {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0;
+    padding: 5px;
+    list-style: none;
+  }
+
+  li {
+    border-radius: 5px;
+  }
+}
+
+.outlineItem {
+  display: block;
+  width: 100%;
+  min-height: 30px;
+  padding-block: 5px;
+  padding-right: 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    background: oklch(0.94 0 0);
+    color: oklch(0.25 0 0);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+}
+
+.activeOutlineItem {
+  background: var(--selected);
+
+  .outlineItem {
+    color: var(--accent);
+  }
+}
+
+.sourceView {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface);
+
+  :global(.cm-editor) {
+    height: 100%;
+    background: var(--surface);
+    color: inherit;
+    font-size: 13px;
+  }
+
+  :global(.cm-scroller) {
+    overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    line-height: 1.65;
+  }
+
+  :global(.cm-content) {
+    padding-block: 18px 48px;
+  }
+
+  :global(.cm-gutters) {
+    border-right: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--muted);
+  }
+
+  :global(.cm-activeLine),
+  :global(.cm-activeLineGutter) {
+    background: var(--selected);
+  }
+
+  :global(.cm-editor.cm-focused) {
+    outline: 2px solid color-mix(in oklch, var(--accent) 45%, transparent);
+    outline-offset: -2px;
+  }
+}
+
+.reader[data-outline-layout='embedded'][data-outline-open='true'] {
+  .toolbarWithOutline {
+    padding-left: var(--markdown-outline-width);
+  }
+
+  .toolbar::after {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--markdown-outline-width);
+    width: 1px;
+    background: var(--line);
+    content: '';
+  }
+}
+
+.reader[data-outline-layout='overlay'] {
+  .outlineLayer {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    height: auto;
+  }
+
+  .outlineBackdrop {
+    display: block;
+  }
+
+  .outlinePanel {
+    width: min(300px, calc(100% - 28px));
+    box-shadow: 4px 0 8px oklch(0 0 0 / 0.1);
+    animation: outline-enter 140ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes outline-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outlinePanel {
+    animation: none;
+  }
+}
