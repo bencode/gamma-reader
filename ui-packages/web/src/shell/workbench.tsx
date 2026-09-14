@@ -1,10 +1,17 @@
-import { BookOpen, PanelLeft, Plus, Save } from 'lucide-react'
+import { BookOpen, PanelLeft, Plus } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { ConversationProvider } from '../features/conversation/conversation-context'
 import { ConversationPanel } from '../features/conversation/conversation-panel'
 import { DocumentTabs } from '../features/reader/document-tabs'
+import { ReplaceExportedFilesDialog } from '../features/resources/file-dialogs'
+import {
+  FolderExportIcon,
+  folderExportLabel,
+  folderExportTitle,
+} from '../features/resources/folder-export-control'
 import { ResourcePanel } from '../features/resources/resource-panel'
+import { useFileExport } from '../features/resources/use-file-export'
 import { useFileLibrary } from '../features/resources/use-file-library'
 import { usePanelWidths } from './use-panel-widths'
 import { useWorkspace } from './use-workspace'
@@ -31,6 +38,7 @@ const subscribeMode = (notify: () => void) => {
 export const Workbench = () => {
   const rootRef = useRef<HTMLDivElement>(null)
   const library = useFileLibrary()
+  const exporter = useFileExport(library.files)
   const workspace = useWorkspace(library.files, library.loading)
   const { widths, saveWidths } = usePanelWidths()
   const groupElementRef = useRef<HTMLDivElement>(null)
@@ -50,6 +58,9 @@ export const Workbench = () => {
   const railRef = useRef<HTMLButtonElement>(null)
   const inlineFiles = mode === 'wide' && filesOpen
   const inlineAssistant = mode !== 'narrow' && assistantOpen
+  const exportableFileCount = library.files.filter(
+    file => (file.collection ?? 'files') === 'files',
+  ).length
 
   useEffect(() => {
     if (overlayRequest && overlayRequest.mode !== mode) setOverlayRequest(null)
@@ -98,10 +109,18 @@ export const Workbench = () => {
       )
     }
   }
+
+  useEffect(() => {
+    if (!exporter.error || inlineFiles || overlay === 'files') return
+    if (mode === 'wide') setFilesOpen(true)
+    else setOverlayRequest({ kind: 'files', mode })
+  }, [exporter.error, inlineFiles, mode, overlay])
+
   const files = (
     <ResourcePanel
       activeId={workspace.activeId}
       library={library}
+      exporter={exporter}
       onClose={closeFiles}
       onOpen={id => {
         workspace.openDocument(id)
@@ -155,11 +174,20 @@ export const Workbench = () => {
               <button
                 type="button"
                 className="icon-button rail-save"
-                aria-label="Save to folder"
-                title="Saving files to a folder is not available yet."
-                disabled
+                aria-label={folderExportLabel(exporter)}
+                title={folderExportTitle(exporter)}
+                disabled={
+                  !exporter.supported ||
+                  exporter.phase !== 'idle' ||
+                  exporter.savingFileId !== null ||
+                  exportableFileCount === 0
+                }
+                onClick={event => {
+                  triggerRef.current = event.currentTarget
+                  void exporter.saveToFolder()
+                }}
               >
-                <Save size={17} />
+                <FolderExportIcon exporter={exporter} />
               </button>
             </nav>
           )}
@@ -230,6 +258,17 @@ export const Workbench = () => {
           >
             {overlay === 'files' ? files : overlay === 'assistant' ? assistant : null}
           </dialog>
+          {exporter.conflicts && (
+            <ReplaceExportedFilesDialog
+              folderName={exporter.conflicts.folderName}
+              names={exporter.conflicts.names}
+              onCancel={exporter.cancelOverwrite}
+              onReplace={() => void exporter.confirmOverwrite()}
+            />
+          )}
+          <p className="visually-hidden" role="status" aria-live="polite">
+            {exporter.announcement}
+          </p>
         </div>
       </ConversationProvider>
     </WorkspaceProvider>

@@ -126,6 +126,71 @@ svg {
   font-size: 12px;
   font-weight: 600;
 }
+.resource-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.folder-save-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.folder-save-main {
+  position: relative;
+}
+.folder-save-control:has(.folder-save-menu-button) .folder-save-main {
+  border-radius: 5px 0 0 5px;
+}
+.folder-save-menu-button {
+  width: 18px;
+  border-radius: 0 5px 5px 0;
+}
+.folder-save-main.dirty::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--panel);
+  border-radius: 50%;
+  background: var(--accent);
+}
+.folder-save-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 190px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px oklch(0 0 0 / 0.12);
+}
+.folder-save-menu p {
+  overflow: hidden;
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-save-menu button {
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+}
+.folder-save-menu button:hover,
+.folder-save-menu button:focus-visible {
+  background: oklch(0.945 0 0);
+}
 .resource-list {
   flex: 1;
   overflow: auto;
@@ -174,23 +239,6 @@ svg {
   background: var(--selected);
   color: var(--accent);
   font-weight: 550;
-}
-.resource-footer {
-  padding: 4px 6px;
-  border-top: 1px solid var(--line);
-  flex-shrink: 0;
-}
-.save-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  border: 0;
-  border-radius: 5px;
-  height: 28px;
-  padding: 0 8px;
-  background: transparent;
-  font-size: 12px;
 }
 .add-popover {
   inset: 72px auto auto 8px;
@@ -667,8 +715,7 @@ svg {
 }
 
 .brand > span,
-.panel-header h2 > span,
-.save-button > span {
+.panel-header h2 > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -708,14 +755,18 @@ svg {
   flex: 1;
   min-width: 0;
 }
-.resource-remove {
-  width: 24px;
-  height: 24px;
+.resource-actions {
+  display: flex;
+  align-items: center;
   margin-right: 3px;
   opacity: 0;
 }
-.resource-row:hover .resource-remove,
-.resource-row:focus-within .resource-remove {
+.resource-actions .icon-button {
+  width: 24px;
+  height: 24px;
+}
+.resource-row:hover .resource-actions,
+.resource-row:focus-within .resource-actions {
   opacity: 1;
 }
 .resource-state {
@@ -889,6 +940,17 @@ svg {
   margin: 0 5px;
   background: var(--line);
 }
+.folder-save-spinner {
+  animation: attachment-spin 1s linear infinite;
+}
+.dialog-file-list {
+  max-height: 160px;
+  overflow: auto;
+  margin: 10px 0;
+  padding-left: 22px;
+  font-size: 12px;
+  line-height: 1.7;
+}
 .media-scroll {
   flex: 1;
   min-height: 0;
@@ -918,7 +980,7 @@ svg {
   background: var(--surface);
 }
 @media (pointer: coarse) {
-  .resource-remove {
+  .resource-actions {
     opacity: 1;
   }
 }
