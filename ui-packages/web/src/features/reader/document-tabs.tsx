@@ -1,8 +1,13 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { BookOpen, MessageSquare, X } from 'lucide-react'
-import { Activity, useEffect, useLayoutEffect, useRef } from 'react'
+import { Activity, lazy, useEffect, useLayoutEffect, useRef } from 'react'
 import type { Workspace } from '../../shell/use-workspace'
 import { FilePreview, type PdfSourceCacheEntry } from './file-preview'
+import { isP5SourceName } from './p5-file'
+
+const P5FileReader = lazy(() =>
+  import('./p5-file-reader').then(module => ({ default: module.P5FileReader })),
+)
 
 type DocumentTabsProps = {
   workspace: Workspace
@@ -128,6 +133,7 @@ export const DocumentTabs = ({
                   active={workspace.activeId === id}
                   scrollPositions={workspace.scrollPositions}
                   pdfSources={pdfSources}
+                  textReader={isP5SourceName(source.name) ? P5FileReader : undefined}
                 />
               </Tabs.Content>
             </Activity>

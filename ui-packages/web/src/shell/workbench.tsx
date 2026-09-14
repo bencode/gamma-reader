@@ -4,6 +4,7 @@ import { Group, Panel, Separator } from 'react-resizable-panels'
 import { ConversationProvider } from '../features/conversation/conversation-context'
 import { ConversationPanel } from '../features/conversation/conversation-panel'
 import { DocumentTabs } from '../features/reader/document-tabs'
+import { prepareP5SourceFile } from '../features/reader/p5-file'
 import { ReplaceExportedFilesDialog } from '../features/resources/file-dialogs'
 import {
   FolderExportIcon,
@@ -37,7 +38,7 @@ const subscribeMode = (notify: () => void) => {
 
 export const Workbench = () => {
   const rootRef = useRef<HTMLDivElement>(null)
-  const library = useFileLibrary()
+  const library = useFileLibrary(prepareP5SourceFile)
   const exporter = useFileExport(library.files)
   const workspace = useWorkspace(library.files, library.loading)
   const { widths, saveWidths } = usePanelWidths()

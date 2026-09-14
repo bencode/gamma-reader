@@ -1,0 +1,40 @@
+.root {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface);
+
+  :global(.cm-editor) {
+    height: 100%;
+    background: var(--surface);
+    color: inherit;
+    font-size: 13px;
+  }
+
+  :global(.cm-scroller) {
+    overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    line-height: 1.65;
+  }
+
+  :global(.cm-content) {
+    padding-block: 18px 48px;
+  }
+
+  :global(.cm-gutters) {
+    border-right: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--muted);
+  }
+
+  :global(.cm-activeLine),
+  :global(.cm-activeLineGutter) {
+    background: var(--selected);
+  }
+
+  :global(.cm-editor.cm-focused) {
+    outline: 2px solid color-mix(in oklch, var(--accent) 45%, transparent);
+    outline-offset: -2px;
+  }
+}

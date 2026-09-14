@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { type ComponentType, Suspense, useEffect, useRef, useState } from 'react'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
 import { MarkdownReader } from './markdown-reader'
@@ -9,7 +9,16 @@ type TextFileReaderProps = {
   blob: Blob
   active: boolean
   scrollPositions: Workspace['scrollPositions']
+  textReader?: TextReaderComponent
 }
+
+export type TextReaderProps = {
+  document: StoredFileMetadata
+  content: string
+  active: boolean
+}
+
+export type TextReaderComponent = ComponentType<TextReaderProps>
 
 export const TextFileReader = ({
   document,
@@ -17,6 +26,7 @@ export const TextFileReader = ({
   blob,
   active,
   scrollPositions,
+  textReader,
 }: TextFileReaderProps) => {
   const processedDocument = useRef<{ id: string; revision: number }>(null)
   const [state, setState] = useState<
@@ -75,6 +85,19 @@ export const TextFileReader = ({
         <p>{state.message}</p>
       </div>
     )
+  if (textReader) {
+    const Reader = textReader
+    return (
+      <Suspense fallback={<div className="preview-state">Preparing {document.name}…</div>}>
+        <Reader
+          key={`${document.id}:${document.revision}`}
+          document={document}
+          content={state.content}
+          active={active}
+        />
+      </Suspense>
+    )
+  }
   return (
     <MarkdownReader
       document={document}

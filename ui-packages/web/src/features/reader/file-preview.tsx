@@ -4,7 +4,7 @@ import { getStoredFileContent } from '../../data/file-store'
 import type { Workspace } from '../../shell/use-workspace'
 import { HtmlReader } from './html-reader'
 import { ImageReader } from './image-reader'
-import { TextFileReader } from './text-file-reader'
+import { TextFileReader, type TextReaderComponent } from './text-file-reader'
 
 const PdfReader = lazy(() => import('./pdf-reader').then(module => ({ default: module.PdfReader })))
 
@@ -14,6 +14,7 @@ type FilePreviewProps = {
   active: boolean
   scrollPositions: Workspace['scrollPositions']
   pdfSources: RefObject<Map<string, PdfSourceCacheEntry>>
+  textReader?: TextReaderComponent
 }
 
 export type PdfSourceCacheEntry = { revision: number; url: string }
@@ -29,11 +30,12 @@ export const FilePreview = ({
   active,
   scrollPositions,
   pdfSources,
+  textReader,
 }: FilePreviewProps) => {
   const [state, setState] = useState<ContentState>({ status: 'idle' })
 
   useEffect(() => {
-    if (!active || document.previewKind === 'unsupported') return
+    if (!active || (document.previewKind === 'unsupported' && !textReader)) return
     let current = true
     void getStoredFileContent(document.id).then(
       blob => {
@@ -64,9 +66,9 @@ export const FilePreview = ({
     return () => {
       current = false
     }
-  }, [active, document.id, document.previewKind, document.revision, pdfSources])
+  }, [active, document.id, document.previewKind, document.revision, pdfSources, textReader])
 
-  if (document.previewKind === 'unsupported')
+  if (document.previewKind === 'unsupported' && !textReader)
     return (
       <div className="preview-state unavailable-preview">
         <h1>Preview unavailable</h1>
@@ -111,6 +113,7 @@ export const FilePreview = ({
       files={files}
       active={active}
       scrollPositions={scrollPositions}
+      textReader={textReader}
     />
   )
 }

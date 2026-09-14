@@ -40,7 +40,9 @@ const resultStatus = (result: ImportResult): LibraryStatus | null => {
   }
 }
 
-export const useFileLibrary = () => {
+const keepFile = (file: File) => file
+
+export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => {
   const [files, setFiles] = useState<StoredFileMetadata[]>([])
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
@@ -77,7 +79,7 @@ export const useFileLibrary = () => {
     setImporting(true)
     setStatus(null)
     try {
-      const result = await importStoredFiles(selected, mode)
+      const result = await importStoredFiles(selected.map(prepareFile), mode)
       await reload()
       setStatus(resultStatus(result))
       rememberPersistence(result.imported.length > 0)
@@ -91,12 +93,12 @@ export const useFileLibrary = () => {
 
   const addAttachments = useCallback(
     async (selected: readonly File[]) => {
-      const result = await importStoredFiles(selected, 'keep', 'attachments')
+      const result = await importStoredFiles(selected.map(prepareFile), 'keep', 'attachments')
       await reload()
       rememberPersistence(result.imported.length > 0)
       return result
     },
-    [reload, rememberPersistence],
+    [prepareFile, reload, rememberPersistence],
   )
 
   const writeTextFile = useCallback(

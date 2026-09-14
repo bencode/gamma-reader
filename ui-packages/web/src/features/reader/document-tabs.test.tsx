@@ -9,14 +9,24 @@ import { DocumentTabs } from './document-tabs'
 const previewMounts = vi.hoisted(() => new Map<string, number>())
 
 vi.mock('./file-preview', () => ({
-  FilePreview: ({ document }: { document: StoredFileMetadata }) => {
+  FilePreview: ({
+    document,
+    textReader,
+  }: {
+    document: StoredFileMetadata
+    textReader?: unknown
+  }) => {
     const instance = useRef<number | undefined>(undefined)
     if (instance.current === undefined) {
       const next = (previewMounts.get(document.id) ?? 0) + 1
       previewMounts.set(document.id, next)
       instance.current = next
     }
-    return <div data-testid={`preview-${document.id}`}>{instance.current}</div>
+    return (
+      <div data-testid={`preview-${document.id}`} data-reader={textReader ? 'custom' : 'default'}>
+        {instance.current}
+      </div>
+    )
   },
 }))
 
@@ -68,5 +78,21 @@ describe('document tab lifecycles', () => {
       <DocumentTabs workspace={workspace('pdf')} assistantVisible onOpenAssistant={vi.fn()} />,
     )
     expect(screen.getByTestId('preview-pdf')).toHaveTextContent('1')
+  })
+
+  it('selects the p5 reader only for the compound .p5.js suffix', () => {
+    const p5 = storedFile('p5', 'Orbit.p5.js', 'text')
+    const javascript = storedFile('javascript', 'helpers.js', 'text')
+    const p5Workspace = {
+      ...workspace('p5'),
+      store: createWorkspaceStore([p5.id, javascript.id]),
+      files: [p5, javascript],
+      tabs: [p5.id, javascript.id],
+    }
+
+    render(<DocumentTabs workspace={p5Workspace} assistantVisible onOpenAssistant={vi.fn()} />)
+
+    expect(screen.getByTestId('preview-p5')).toHaveAttribute('data-reader', 'custom')
+    expect(screen.getByTestId('preview-javascript')).toHaveAttribute('data-reader', 'default')
   })
 })
