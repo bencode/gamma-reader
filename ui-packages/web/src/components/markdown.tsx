@@ -1,10 +1,11 @@
-import { type ComponentProps, isValidElement } from 'react'
+import { type ComponentProps, isValidElement, useMemo } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import { imagePlaceholder } from '../core/document-text'
 import { markdownPlugins, normalizeMath } from '../core/markdown-math'
+import { MarkdownImage, type MarkdownImageContext } from './markdown-image'
 import { MermaidDiagram } from './mermaid-diagram'
 
 const CodeBlock = ({ children, ...props }: ComponentProps<'pre'>) => {
@@ -26,13 +27,13 @@ const CodeBlock = ({ children, ...props }: ComponentProps<'pre'>) => {
 
 type MarkdownVariant = 'reader' | 'chat'
 
-const createComponents = (variant: MarkdownVariant): Components => ({
+const createComponents = (variant: MarkdownVariant, images?: MarkdownImageContext): Components => ({
   pre: ({ node: _node, ...props }) => <CodeBlock {...props} />,
-  img: ({ alt }) => (
-    <span className="omitted-image">
-      {variant === 'chat' && !alt ? '[Image]' : imagePlaceholder(alt)}
-    </span>
-  ),
+  img: ({ alt, src }) => {
+    const fallback = variant === 'chat' && !alt ? '[Image]' : imagePlaceholder(alt ?? undefined)
+    if (!images || !src) return <span className="omitted-image">{fallback}</span>
+    return <MarkdownImage alt={alt ?? undefined} context={images} fallback={fallback} src={src} />
+  },
   a: ({ href, children }) => {
     const fragment = variant === 'reader' && href?.startsWith('#')
     return (
@@ -47,20 +48,29 @@ const createComponents = (variant: MarkdownVariant): Components => ({
   },
 })
 
-const components = { reader: createComponents('reader'), chat: createComponents('chat') }
-
-export const Markdown = ({ text, variant }: { text: string; variant: MarkdownVariant }) => (
-  <div className={`markdown-content markdown-${variant}`}>
-    <ReactMarkdown
-      remarkPlugins={markdownPlugins}
-      rehypePlugins={[
-        [rehypeKatex, { trust: false }],
-        [rehypeHighlight, { detect: false, ignoreMissing: true, plainText: ['mermaid'] }],
-      ]}
-      skipHtml
-      components={components[variant]}
-    >
-      {normalizeMath(text)}
-    </ReactMarkdown>
-  </div>
-)
+export const Markdown = ({
+  text,
+  variant,
+  images,
+}: {
+  text: string
+  variant: MarkdownVariant
+  images?: MarkdownImageContext
+}) => {
+  const components = useMemo(() => createComponents(variant, images), [images, variant])
+  return (
+    <div className={`markdown-content markdown-${variant}`}>
+      <ReactMarkdown
+        remarkPlugins={markdownPlugins}
+        rehypePlugins={[
+          [rehypeKatex, { trust: false }],
+          [rehypeHighlight, { detect: false, ignoreMissing: true, plainText: ['mermaid'] }],
+        ]}
+        skipHtml
+        components={components}
+      >
+        {normalizeMath(text)}
+      </ReactMarkdown>
+    </div>
+  )
+}

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
 import { MarkdownReader } from './markdown-reader'
 
 type TextFileReaderProps = {
   document: StoredFileMetadata
+  files: readonly StoredFileMetadata[]
   blob: Blob
   active: boolean
   scrollPositions: Workspace['scrollPositions']
@@ -12,10 +13,12 @@ type TextFileReaderProps = {
 
 export const TextFileReader = ({
   document,
+  files,
   blob,
   active,
   scrollPositions,
 }: TextFileReaderProps) => {
+  const processedDocument = useRef<{ id: string; revision: number }>(null)
   const [state, setState] = useState<
     | { status: 'loading' }
     | { status: 'ready'; content: string }
@@ -23,7 +26,13 @@ export const TextFileReader = ({
   >({ status: 'loading' })
 
   useEffect(() => {
+    if (
+      processedDocument.current?.id === document.id &&
+      processedDocument.current.revision === document.revision
+    )
+      return
     if (document.size > maximumTextPreviewBytes) {
+      processedDocument.current = { id: document.id, revision: document.revision }
       setState({ status: 'error', message: 'Text files over 5 MB are stored but not previewed.' })
       return
     }
@@ -33,25 +42,29 @@ export const TextFileReader = ({
       buffer => {
         if (!current) return
         try {
+          const content = new TextDecoder('utf-8', { fatal: true }).decode(buffer)
+          processedDocument.current = { id: document.id, revision: document.revision }
           setState({
             status: 'ready',
-            content: new TextDecoder('utf-8', { fatal: true }).decode(buffer),
+            content,
           })
         } catch (error) {
           console.error('Unable to decode text file', error)
+          processedDocument.current = { id: document.id, revision: document.revision }
           setState({ status: 'error', message: 'This text file is not valid UTF-8.' })
         }
       },
       error => {
         if (!current) return
         console.error('Unable to read text file', error)
+        processedDocument.current = { id: document.id, revision: document.revision }
         setState({ status: 'error', message: 'This text file could not be read.' })
       },
     )
     return () => {
       current = false
     }
-  }, [blob, document.size])
+  }, [blob, document.id, document.revision, document.size])
 
   if (state.status === 'loading')
     return <div className="preview-state">Opening {document.name}…</div>
@@ -66,6 +79,7 @@ export const TextFileReader = ({
     <MarkdownReader
       document={document}
       content={state.content}
+      files={files}
       markdown={document.previewKind === 'markdown'}
       active={active}
       scrollPositions={scrollPositions}

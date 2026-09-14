@@ -10,6 +10,7 @@ const PdfReader = lazy(() => import('./pdf-reader').then(module => ({ default: m
 
 type FilePreviewProps = {
   document: StoredFileMetadata
+  files: readonly StoredFileMetadata[]
   active: boolean
   scrollPositions: Workspace['scrollPositions']
   pdfSources: RefObject<Map<string, PdfSourceCacheEntry>>
@@ -24,6 +25,7 @@ type ContentState =
 
 export const FilePreview = ({
   document,
+  files,
   active,
   scrollPositions,
   pdfSources,
@@ -106,6 +108,7 @@ export const FilePreview = ({
     <TextFileReader
       document={document}
       blob={state.blob}
+      files={files}
       active={active}
       scrollPositions={scrollPositions}
     />
