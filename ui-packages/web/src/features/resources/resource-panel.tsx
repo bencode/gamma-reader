@@ -1,23 +1,27 @@
 import {
   BookOpen,
   FileCode2,
+  FileDown,
   FileImage,
   FileQuestion,
   FileText,
+  LoaderCircle,
   PanelLeft,
   Plus,
-  Save,
   Trash2,
   X,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { formatBytes, type PreviewKind, type StoredFileMetadata } from '../../core/files'
 import { DuplicateFilesDialog, RemoveFileDialog } from './file-dialogs'
+import { FolderExportControl } from './folder-export-control'
+import type { FileExportController } from './use-file-export'
 import type { FileLibrary } from './use-file-library'
 
 type ResourcePanelProps = {
   activeId: string | null
   library: FileLibrary
+  exporter: FileExportController
   onOpen: (id: string) => void
   onRemoved: (id: string) => void
   onClose: () => void
@@ -36,12 +40,18 @@ const ResourceList = ({
   activeId,
   onOpen,
   onRemove,
+  onSaveAs,
+  savingFileId,
+  exportBusy,
 }: {
   files: StoredFileMetadata[]
   label: 'Files' | 'Attachments'
   activeId: string | null
   onOpen: (id: string) => void
   onRemove: (file: StoredFileMetadata) => void
+  onSaveAs: (id: string) => void
+  savingFileId: string | null
+  exportBusy: boolean
 }) => (
   <ul aria-label={label}>
     {files.map(file => (
@@ -56,15 +66,31 @@ const ResourceList = ({
           <FileKindIcon kind={file.previewKind} />
           <span>{file.name}</span>
         </button>
-        <button
-          type="button"
-          className="icon-button resource-remove"
-          aria-label={`Remove ${file.name} from ${label}`}
-          title={`Remove from ${label}`}
-          onClick={() => onRemove(file)}
-        >
-          <Trash2 size={13} />
-        </button>
+        <span className="resource-actions">
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={`Save ${file.name} as`}
+            title="Save as…"
+            disabled={exportBusy}
+            onClick={() => onSaveAs(file.id)}
+          >
+            {savingFileId === file.id ? (
+              <LoaderCircle className="folder-save-spinner" size={13} />
+            ) : (
+              <FileDown size={13} />
+            )}
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={`Remove ${file.name} from ${label}`}
+            title={`Remove from ${label}`}
+            onClick={() => onRemove(file)}
+          >
+            <Trash2 size={13} />
+          </button>
+        </span>
       </li>
     ))}
   </ul>
@@ -73,6 +99,7 @@ const ResourceList = ({
 export const ResourcePanel = ({
   activeId,
   library,
+  exporter,
   onOpen,
   onRemoved,
   onClose,
@@ -100,16 +127,19 @@ export const ResourcePanel = ({
       </header>
       <div className="resource-toolbar">
         <h2>Files</h2>
-        <button
-          className="icon-button"
-          type="button"
-          aria-label="Add files"
-          title="Add files"
-          disabled={library.loading || library.importing}
-          onClick={() => inputRef.current?.click()}
-        >
-          <Plus size={16} />
-        </button>
+        <div className="resource-toolbar-actions">
+          <FolderExportControl exporter={exporter} disabled={files.length === 0} />
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Add files"
+            title="Add files"
+            disabled={library.loading || library.importing}
+            onClick={() => inputRef.current?.click()}
+          >
+            <Plus size={16} />
+          </button>
+        </div>
         <input
           ref={inputRef}
           className="visually-hidden"
@@ -130,6 +160,19 @@ export const ResourcePanel = ({
             className="icon-button"
             aria-label="Dismiss file status"
             onClick={library.dismissStatus}
+          >
+            <X size={13} />
+          </button>
+        </div>
+      )}
+      {exporter.error && (
+        <div className="file-status" role="alert">
+          <span>{exporter.error}</span>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Dismiss save error"
+            onClick={exporter.dismissError}
           >
             <X size={13} />
           </button>
@@ -160,6 +203,9 @@ export const ResourcePanel = ({
                 activeId={activeId}
                 onOpen={onOpen}
                 onRemove={setRemoveCandidate}
+                onSaveAs={id => void exporter.saveAs(id)}
+                savingFileId={exporter.savingFileId}
+                exportBusy={exporter.phase === 'saving' || exporter.savingFileId !== null}
               />
             )}
             {attachments.length > 0 && (
@@ -171,22 +217,15 @@ export const ResourcePanel = ({
                   activeId={activeId}
                   onOpen={onOpen}
                   onRemove={setRemoveCandidate}
+                  onSaveAs={id => void exporter.saveAs(id)}
+                  savingFileId={exporter.savingFileId}
+                  exportBusy={exporter.phase === 'saving' || exporter.savingFileId !== null}
                 />
               </section>
             )}
           </>
         )}
       </div>
-      <footer className="resource-footer">
-        <button
-          className="save-button"
-          type="button"
-          disabled
-          title="Saving is not available yet. Reloading clears reading drafts and excerpts."
-        >
-          <Save size={15} /> <span>Save to folder</span>
-        </button>
-      </footer>
       {library.duplicateNames.length > 0 && (
         <DuplicateFilesDialog
           names={library.duplicateNames}

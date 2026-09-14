@@ -79,3 +79,38 @@ export const RemoveFileDialog = ({
     </div>
   </Modal>
 )
+
+export const ReplaceExportedFilesDialog = ({
+  folderName,
+  names,
+  onCancel,
+  onReplace,
+}: {
+  folderName: string
+  names: string[]
+  onCancel: () => void
+  onReplace: () => void
+}) => {
+  const visibleNames = names.slice(0, 10)
+  return (
+    <Modal label="Replace existing files" onCancel={onCancel}>
+      <h2>Replace files in {folderName}?</h2>
+      <p>{names.length === 1 ? 'This file already exists:' : 'These files already exist:'}</p>
+      <ul className="dialog-file-list">
+        {visibleNames.map(name => (
+          <li key={name}>{name}</li>
+        ))}
+      </ul>
+      {names.length > visibleNames.length && <p>And {names.length - visibleNames.length} more.</p>}
+      <p>Replacing updates those files with the copies currently saved in this browser.</p>
+      <div className="dialog-actions">
+        <button type="button" className="text-button" onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="button" className="primary-button" onClick={onReplace}>
+          Replace files
+        </button>
+      </div>
+    </Modal>
+  )
+}

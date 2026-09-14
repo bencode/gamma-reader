@@ -1,5 +1,6 @@
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 import type { StoredConversation, StoredConversationMessage } from '../core/conversations'
+import type { FolderExportRecord } from '../core/file-export'
 import { previewKindFor, type StoredFileContent, type StoredFileMetadata } from '../core/files'
 import { samples } from '../core/samples'
 
@@ -20,13 +21,14 @@ export type WorkspaceDatabase = DBSchema & {
     value: StoredConversationMessage
     indexes: { 'by-conversation': string }
   }
+  folderExports: { key: string; value: FolderExportRecord }
 }
 
 const databaseName = 'gamma-reader-files'
 let databasePromise: Promise<IDBPDatabase<WorkspaceDatabase>> | undefined
 
 export const openWorkspaceDatabase = () => {
-  databasePromise ??= openDB<WorkspaceDatabase>(databaseName, 3, {
+  databasePromise ??= openDB<WorkspaceDatabase>(databaseName, 4, {
     upgrade(database, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         const files = database.createObjectStore('files', { keyPath: 'id' })
@@ -69,6 +71,7 @@ export const openWorkspaceDatabase = () => {
         })
         messages.createIndex('by-conversation', 'conversationId')
       }
+      if (oldVersion < 4) database.createObjectStore('folderExports', { keyPath: 'id' })
     },
   }).catch(error => {
     databasePromise = undefined
