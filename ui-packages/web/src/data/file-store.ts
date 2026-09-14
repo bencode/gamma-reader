@@ -17,6 +17,13 @@ export type DuplicateMode = 'replace' | 'keep'
 
 const openFileDatabase = openWorkspaceDatabase
 
+const svgMediaType = 'image/svg+xml'
+const isSvg = (name: string) => name.toLowerCase().endsWith('.svg')
+const storedBlob = (metadata: StoredFileMetadata | undefined, blob: Blob) =>
+  metadata && isSvg(metadata.name) && blob.type !== svgMediaType
+    ? new Blob([blob], { type: svgMediaType })
+    : blob
+
 export const closeFileStore = closeWorkspaceDatabase
 export const deleteFileStore = deleteWorkspaceDatabase
 
@@ -27,7 +34,13 @@ export const listStoredFiles = async () => {
 
 export const getStoredFileContent = async (id: string) => {
   const database = await openFileDatabase()
-  return (await database.get('contents', id))?.blob ?? null
+  const transaction = database.transaction(['files', 'contents'], 'readonly')
+  const [metadata, content] = await Promise.all([
+    transaction.objectStore('files').get(id),
+    transaction.objectStore('contents').get(id),
+    transaction.done,
+  ])
+  return content ? storedBlob(metadata, content.blob) : null
 }
 
 export const getStoredFile = async (id: string) => {
@@ -40,7 +53,7 @@ export const getStoredFile = async (id: string) => {
   ])
   if (!metadata) return null
   if (!content) throw new Error(`Stored file content is missing: ${metadata.name}`)
-  return { metadata, blob: content.blob }
+  return { metadata, blob: storedBlob(metadata, content.blob) }
 }
 
 const nextName = (requested: string, occupied: Set<string>) => {
@@ -206,7 +219,7 @@ export const writeStoredTextFile = async (name: string, content: string, signal?
     file => file.name.toLowerCase() === name.toLowerCase(),
   )
   const file = new File([content], name, {
-    type: 'text/plain;charset=utf-8',
+    type: isSvg(name) ? svgMediaType : 'text/plain;charset=utf-8',
     lastModified: Date.now(),
   })
   const result = await importStoredFiles([file], 'replace', existing?.collection ?? 'files', signal)

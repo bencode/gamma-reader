@@ -124,6 +124,7 @@ export const DocumentTabs = ({
               <Tabs.Content value={id} className="document-pane" forceMount>
                 <FilePreview
                   document={source}
+                  files={workspace.files}
                   active={workspace.activeId === id}
                   scrollPositions={workspace.scrollPositions}
                   pdfSources={pdfSources}

@@ -1,13 +1,15 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import { Markdown } from '../../components/markdown'
 import type { StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
 import { useReaderBinding } from '../../shell/workspace-context'
+import { createMarkdownImageResolver, workspacePathFor } from './markdown-image-resolver'
 import { readViewport } from './reader-viewport'
 
 type MarkdownReaderProps = {
   document: StoredFileMetadata
   content: string
+  files: readonly StoredFileMetadata[]
   markdown: boolean
   active: boolean
   scrollPositions: Workspace['scrollPositions']
@@ -16,6 +18,7 @@ type MarkdownReaderProps = {
 export const MarkdownReader = ({
   document,
   content,
+  files,
   markdown,
   active,
   scrollPositions,
@@ -32,6 +35,11 @@ export const MarkdownReader = ({
       scrollRef.current.scrollTop = scrollPositions.current.get(document.id) ?? 0
   }, [active, document.id, scrollPositions])
 
+  const images = useMemo(
+    () => ({ basePath: workspacePathFor(document), resolve: createMarkdownImageResolver(files) }),
+    [document, files],
+  )
+
   return (
     <div className="reader-content">
       <div
@@ -45,7 +53,11 @@ export const MarkdownReader = ({
           className={markdown ? 'markdown-body' : 'markdown-body plain-text-body'}
           ref={articleRef}
         >
-          {markdown ? <Markdown text={content} variant="reader" /> : <pre>{content}</pre>}
+          {markdown ? (
+            <Markdown text={content} variant="reader" images={images} />
+          ) : (
+            <pre>{content}</pre>
+          )}
         </article>
       </div>
     </div>

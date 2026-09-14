@@ -5,6 +5,7 @@ import { MarkdownReader } from './markdown-reader'
 
 type TextFileReaderProps = {
   document: StoredFileMetadata
+  files: readonly StoredFileMetadata[]
   blob: Blob
   active: boolean
   scrollPositions: Workspace['scrollPositions']
@@ -12,6 +13,7 @@ type TextFileReaderProps = {
 
 export const TextFileReader = ({
   document,
+  files,
   blob,
   active,
   scrollPositions,
@@ -66,6 +68,7 @@ export const TextFileReader = ({
     <MarkdownReader
       document={document}
       content={state.content}
+      files={files}
       markdown={document.previewKind === 'markdown'}
       active={active}
       scrollPositions={scrollPositions}

@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Markdown } from './markdown'
+import type { MarkdownImageResolver } from './markdown-image'
 
 const { draw } = vi.hoisted(() => ({ draw: vi.fn() }))
 vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: draw } }))
@@ -126,5 +127,83 @@ $$\int_0^1 x\,dx = \frac12$$
     expect(container.querySelector('img')).toBeNull()
     expect(screen.getByRole('link', { name: 'Link' })).toHaveAttribute('rel', 'noopener noreferrer')
     expect(container.querySelector('[href^="javascript:"]')).toBeNull()
+  })
+
+  it('renders a resolved local image and releases its object URL', async () => {
+    const resolve: MarkdownImageResolver = vi.fn(async () => new Blob(['image']))
+    const view = render(
+      <Markdown
+        variant="reader"
+        text="![Architecture](./diagram.svg?raw#overview)"
+        images={{ basePath: 'docs/readme.md', resolve }}
+      />,
+    )
+
+    expect(await screen.findByRole('img', { name: 'Architecture' })).toHaveAttribute(
+      'src',
+      'blob:gamma-reader-preview#overview',
+    )
+    expect(resolve).toHaveBeenCalledWith('./diagram.svg?raw#overview', 'docs/readme.md')
+
+    view.unmount()
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:gamma-reader-preview')
+  })
+
+  it('releases a local image immediately when the browser cannot decode it', async () => {
+    const resolve: MarkdownImageResolver = vi.fn(async () => new Blob(['invalid image']))
+    const view = render(
+      <Markdown
+        variant="reader"
+        text="![Broken](broken.svg)"
+        images={{ basePath: 'readme.md', resolve }}
+      />,
+    )
+    const image = await screen.findByRole('img', { name: 'Broken' })
+
+    fireEvent.error(image)
+    expect(screen.queryByRole('img', { name: 'Broken' })).not.toBeInTheDocument()
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1)
+
+    view.unmount()
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not replace a new local image with an older asynchronous result', async () => {
+    let resolveOld: (blob: Blob) => void = () => {
+      throw new Error('Image resolution has not started')
+    }
+    const resolve: MarkdownImageResolver = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Blob>(done => {
+            resolveOld = done
+          }),
+      )
+      .mockResolvedValueOnce(new Blob(['new']))
+    const view = render(
+      <Markdown
+        variant="reader"
+        text="![Diagram](old.svg)"
+        images={{ basePath: 'readme.md', resolve }}
+      />,
+    )
+    await waitFor(() => expect(resolve).toHaveBeenCalledTimes(1))
+
+    view.rerender(
+      <Markdown
+        variant="reader"
+        text="![Diagram](new.svg)"
+        images={{ basePath: 'readme.md', resolve }}
+      />,
+    )
+    expect(await screen.findByRole('img', { name: 'Diagram' })).toHaveAttribute(
+      'src',
+      'blob:gamma-reader-preview',
+    )
+
+    resolveOld(new Blob(['old']))
+    await Promise.resolve()
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1)
   })
 })

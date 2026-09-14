@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { maximumFileBytes } from '../core/files'
 import {
   closeFileStore,
+  getStoredFile,
   getStoredFileContent,
   importStoredFiles,
   listStoredFiles,
@@ -172,6 +173,23 @@ describe('local file store', () => {
       writeStoredTextFile('Cancelled.txt', 'not written', controller.signal),
     ).rejects.toThrow()
     expect((await listStoredFiles()).some(file => file.name === 'Cancelled.txt')).toBe(false)
+  })
+
+  it('stores generated SVG as an image and repairs legacy SVG Blob types when reading', async () => {
+    const source = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="4" /></svg>'
+    const generated = await writeStoredTextFile('Generated.svg', source)
+
+    expect(generated).toMatchObject({ mediaType: 'image/svg+xml', previewKind: 'image' })
+    expect((await getStoredFileContent(generated.id))?.type).toBe('image/svg+xml')
+
+    const legacy = await importStoredFiles(
+      [new File([source], 'Legacy.svg', { type: 'text/plain;charset=utf-8' })],
+      'keep',
+    )
+    const legacyId = onlyAddedId(legacy)
+    expect(legacy.imported[0]?.metadata.mediaType).toBe('text/plain;charset=utf-8')
+    expect((await getStoredFileContent(legacyId))?.type).toBe('image/svg+xml')
+    expect((await getStoredFile(legacyId))?.blob.type).toBe('image/svg+xml')
   })
 
   it('stores only the last copy when a selected batch repeats a new name', async () => {

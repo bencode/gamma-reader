@@ -397,6 +397,15 @@ svg {
   line-height: 1.85;
   overflow-wrap: anywhere;
 }
+.markdown-local-image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(72vh, 900px);
+  margin: 24px auto;
+  object-fit: contain;
+}
 .empty-reader {
   height: 100%;
   display: flex;
