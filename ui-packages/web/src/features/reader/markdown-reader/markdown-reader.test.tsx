@@ -1,9 +1,7 @@
-import { act, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Activity } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StoredFileMetadata } from '../../../core/files'
-import { TextFileReader } from '../text-file-reader'
 import { parseMarkdownHeadings } from './heading-model'
 import { MarkdownReader } from './index'
 
@@ -26,7 +24,6 @@ const renderReader = (content: string) =>
       document={document}
       content={content}
       files={[document]}
-      markdown
       active
       scrollPositions={{ current: new Map() }}
     />,
@@ -55,104 +52,18 @@ describe('Markdown file reader', () => {
     ])
   })
 
-  it('opens the outline and switches to a lazy, read-only source view', async () => {
+  it('opens the outline and navigates rendered headings', async () => {
     const user = userEvent.setup()
     renderReader('# Introduction\n\n## Details\n\nBody')
-
     await user.click(screen.getByRole('button', { name: 'Show table of contents' }))
     expect(screen.getByRole('complementary', { name: 'Markdown contents' })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Source' }))
-    expect(
-      screen.queryByRole('complementary', { name: 'Markdown contents' }),
-    ).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Show table of contents' })).toBeDisabled()
-
-    const source = await screen.findByLabelText('Guide.md source')
-    expect(source).toHaveAttribute('contenteditable', 'false')
-    expect(source).toHaveTextContent('# Introduction')
-
-    await user.click(screen.getByRole('button', { name: 'Preview' }))
-    expect(screen.getByRole('button', { name: 'Show table of contents' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Details' }))
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
   })
 
   it('omits the outline control when the document has no headings', () => {
     renderReader('A paragraph without headings.')
 
     expect(screen.queryByRole('button', { name: 'Show table of contents' })).not.toBeInTheDocument()
-  })
-
-  it('keeps the selected view when Activity hides and restores the file', async () => {
-    const user = userEvent.setup()
-    const blob = new Blob(['# Persistent source'], { type: 'text/markdown' })
-    const props = {
-      document,
-      files: [document],
-      blob,
-      active: true,
-      scrollPositions: { current: new Map<string, number>() },
-    }
-    const view = render(
-      <Activity mode="visible">
-        <TextFileReader {...props} />
-      </Activity>,
-    )
-
-    await user.click(await screen.findByRole('button', { name: 'Source' }))
-    expect(await screen.findByLabelText('Guide.md source')).toBeInTheDocument()
-
-    view.rerender(
-      <Activity mode="hidden">
-        <TextFileReader {...props} active={false} />
-      </Activity>,
-    )
-    view.rerender(
-      <Activity mode="visible">
-        <TextFileReader
-          {...props}
-          blob={new Blob(['# Persistent source'], { type: 'text/markdown' })}
-        />
-      </Activity>,
-    )
-
-    expect(await screen.findByLabelText('Guide.md source')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Source' })).toHaveAttribute('aria-pressed', 'true')
-  })
-
-  it('restarts decoding when Activity interrupts an unfinished file read', async () => {
-    const content = new TextEncoder().encode('# Restored reader').buffer
-    let finishFirstRead: (value: ArrayBuffer) => void = () => undefined
-    const firstRead = new Promise<ArrayBuffer>(resolve => {
-      finishFirstRead = resolve
-    })
-    const arrayBuffer = vi.fn().mockReturnValueOnce(firstRead).mockResolvedValue(content)
-    const blob = { arrayBuffer } as unknown as Blob
-    const props = {
-      document,
-      files: [document],
-      blob,
-      active: true,
-      scrollPositions: { current: new Map<string, number>() },
-    }
-    const view = render(
-      <Activity mode="visible">
-        <TextFileReader {...props} />
-      </Activity>,
-    )
-
-    view.rerender(
-      <Activity mode="hidden">
-        <TextFileReader {...props} active={false} />
-      </Activity>,
-    )
-    await act(() => finishFirstRead(content))
-    view.rerender(
-      <Activity mode="visible">
-        <TextFileReader {...props} />
-      </Activity>,
-    )
-
-    expect(await screen.findByRole('heading', { name: 'Restored reader' })).toBeInTheDocument()
-    expect(arrayBuffer).toHaveBeenCalledTimes(2)
   })
 })

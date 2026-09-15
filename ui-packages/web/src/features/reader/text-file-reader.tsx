@@ -1,7 +1,8 @@
-import { type ComponentType, Suspense, useEffect, useRef, useState } from 'react'
+import { type ComponentType, useEffect, useRef, useState } from 'react'
+import type { SourceLanguage } from '../../components/source-editor'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
-import { MarkdownReader } from './markdown-reader'
+import { TextDocumentWorkspace } from './text-document-workspace'
 
 type TextFileReaderProps = {
   document: StoredFileMetadata
@@ -9,16 +10,22 @@ type TextFileReaderProps = {
   blob: Blob
   active: boolean
   scrollPositions: Workspace['scrollPositions']
-  textReader?: TextReaderComponent
+  textReader: TextReaderDefinition
 }
 
 export type TextReaderProps = {
   document: StoredFileMetadata
   content: string
+  files: readonly StoredFileMetadata[]
   active: boolean
+  scrollPositions: Workspace['scrollPositions']
 }
 
 export type TextReaderComponent = ComponentType<TextReaderProps>
+export type TextReaderDefinition = {
+  Preview: TextReaderComponent
+  sourceLanguage: SourceLanguage
+}
 
 export const TextFileReader = ({
   document,
@@ -26,12 +33,12 @@ export const TextFileReader = ({
   blob,
   active,
   scrollPositions,
-  textReader,
+  textReader: { Preview, sourceLanguage },
 }: TextFileReaderProps) => {
   const processedDocument = useRef<{ id: string; revision: number }>(null)
   const [state, setState] = useState<
     | { status: 'loading' }
-    | { status: 'ready'; content: string }
+    | { status: 'ready'; content: string; revision: number }
     | { status: 'error'; message: string }
   >({ status: 'loading' })
 
@@ -47,7 +54,7 @@ export const TextFileReader = ({
       return
     }
     let current = true
-    setState({ status: 'loading' })
+    setState(current => (current.status === 'ready' ? current : { status: 'loading' }))
     void blob.arrayBuffer().then(
       buffer => {
         if (!current) return
@@ -57,6 +64,7 @@ export const TextFileReader = ({
           setState({
             status: 'ready',
             content,
+            revision: document.revision,
           })
         } catch (error) {
           console.error('Unable to decode text file', error)
@@ -85,25 +93,13 @@ export const TextFileReader = ({
         <p>{state.message}</p>
       </div>
     )
-  if (textReader) {
-    const Reader = textReader
-    return (
-      <Suspense fallback={<div className="preview-state">Preparing {document.name}…</div>}>
-        <Reader
-          key={`${document.id}:${document.revision}`}
-          document={document}
-          content={state.content}
-          active={active}
-        />
-      </Suspense>
-    )
-  }
   return (
-    <MarkdownReader
-      document={document}
-      content={state.content}
+    <TextDocumentWorkspace
+      document={{ ...document, revision: state.revision }}
+      persistedContent={state.content}
+      sourceLanguage={sourceLanguage}
+      Preview={Preview}
       files={files}
-      markdown={document.previewKind === 'markdown'}
       active={active}
       scrollPositions={scrollPositions}
     />

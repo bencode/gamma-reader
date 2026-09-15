@@ -53,6 +53,18 @@ describe('p5 reader', () => {
     expect(screen.getByTitle('scene.p5.js p5 preview')).not.toHaveAttribute('srcdoc', srcDoc)
   })
 
+  it('runs edited source only on explicit request', async () => {
+    const user = userEvent.setup()
+    const view = render(<P5Reader name="scene.p5.js" source="function setup() {}" active />)
+    const original = screen.getByTitle('scene.p5.js p5 preview').getAttribute('srcdoc')
+    view.rerender(
+      <P5Reader name="scene.p5.js" source="function setup() { background(0) }" active />,
+    )
+    expect(screen.getByTitle('scene.p5.js p5 preview')).toHaveAttribute('srcdoc', original)
+    await user.click(screen.getByRole('button', { name: 'Run changes' }))
+    expect(screen.getByTitle('scene.p5.js p5 preview')).not.toHaveAttribute('srcdoc', original)
+  })
+
   it('recovers frame state and separates lifecycle suspension from user controls', async () => {
     const user = userEvent.setup()
     const view = render(<P5Reader name="scene.p5.js" source="function draw() {}" active />)

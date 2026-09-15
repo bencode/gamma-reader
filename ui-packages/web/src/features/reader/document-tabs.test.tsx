@@ -2,8 +2,10 @@ import { render, screen } from '@testing-library/react'
 import { useRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { StoredFileMetadata } from '../../core/files'
+import { updateStoredTextFile, writeStoredTextFile } from '../../data/file-store'
 import type { Workspace } from '../../shell/use-workspace'
-import { createWorkspaceStore } from '../../shell/workspace-context'
+import { WorkspaceProvider } from '../../shell/workspace-context'
+import { createWorkspaceActions, createWorkspaceStore } from '../../shell/workspace-store'
 import { DocumentTabs } from './document-tabs'
 
 const previewMounts = vi.hoisted(() => new Map<string, number>())
@@ -49,40 +51,54 @@ const storedFile = (
 const files = [storedFile('pdf', 'Guide.pdf', 'pdf'), storedFile('image', 'Figure.png', 'image')]
 const scrollPositions = { current: new Map<string, number>() }
 
-const workspace = (activeId: string): Workspace => ({
-  store: createWorkspaceStore(files.map(file => file.id)),
-  tabs: files.map(file => file.id),
-  files,
-  filesLoading: false,
-  activeId,
-  scrollPositions,
-  openDocument: vi.fn(),
-  closeDocument: vi.fn(),
-})
+const workspace = (activeId: string): Workspace => {
+  const store = createWorkspaceStore(files.map(file => file.id))
+  return {
+    store,
+    actions: createWorkspaceActions(store),
+    tabs: files.map(file => file.id),
+    files,
+    filesLoading: false,
+    activeId,
+    scrollPositions,
+    openDocument: vi.fn(),
+    closeDocument: vi.fn(),
+  }
+}
+
+const TestTabs = ({ workspace }: { workspace: Workspace }) => {
+  const rootRef = useRef<HTMLDivElement>(null)
+  return (
+    <WorkspaceProvider
+      workspace={workspace}
+      rootRef={rootRef}
+      writeTextFile={writeStoredTextFile}
+      updateTextFile={updateStoredTextFile}
+    >
+      <div ref={rootRef}>
+        <DocumentTabs workspace={workspace} assistantVisible onOpenAssistant={vi.fn()} />
+      </div>
+    </WorkspaceProvider>
+  )
+}
 
 describe('document tab lifecycles', () => {
   it('keeps the same PDF instance while another document is active', () => {
-    const view = render(
-      <DocumentTabs workspace={workspace('pdf')} assistantVisible onOpenAssistant={vi.fn()} />,
-    )
+    const view = render(<TestTabs workspace={workspace('pdf')} />)
 
     expect(screen.getByTestId('preview-pdf')).toHaveTextContent('1')
 
-    view.rerender(
-      <DocumentTabs workspace={workspace('image')} assistantVisible onOpenAssistant={vi.fn()} />,
-    )
+    view.rerender(<TestTabs workspace={workspace('image')} />)
     expect(screen.getByTestId('preview-pdf')).not.toBeVisible()
     expect(screen.getByTestId('preview-image')).toBeInTheDocument()
 
-    view.rerender(
-      <DocumentTabs workspace={workspace('pdf')} assistantVisible onOpenAssistant={vi.fn()} />,
-    )
+    view.rerender(<TestTabs workspace={workspace('pdf')} />)
     expect(screen.getByTestId('preview-pdf')).toHaveTextContent('1')
   })
 
-  it('selects the p5 reader only for the compound .p5.js suffix', () => {
+  it('provides text capabilities for p5 but not binary images', () => {
     const p5 = storedFile('p5', 'Orbit.p5.js', 'text')
-    const javascript = storedFile('javascript', 'helpers.js', 'text')
+    const javascript = storedFile('javascript', 'Figure.png', 'image')
     const p5Workspace = {
       ...workspace('p5'),
       store: createWorkspaceStore([p5.id, javascript.id]),
@@ -90,7 +106,7 @@ describe('document tab lifecycles', () => {
       tabs: [p5.id, javascript.id],
     }
 
-    render(<DocumentTabs workspace={p5Workspace} assistantVisible onOpenAssistant={vi.fn()} />)
+    render(<TestTabs workspace={p5Workspace} />)
 
     expect(screen.getByTestId('preview-p5')).toHaveAttribute('data-reader', 'custom')
     expect(screen.getByTestId('preview-javascript')).toHaveAttribute('data-reader', 'default')

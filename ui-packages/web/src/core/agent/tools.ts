@@ -111,6 +111,32 @@ export const createReaderTools = (local: LocalTools, analyzeImage?: ImageAnalyze
       Type.Object({}),
       () => local.get_reader_state(),
     ),
+    bind(
+      'read_active_source',
+      'Read raw source of the active editable file, including unsaved changes. Ranges are one-based inclusive lines. Follow next unchanged to continue. Returns fileId and an opaque version string for edit_active_source; pass the version unchanged.',
+      Type.Object({
+        range: Type.Optional(
+          Type.Object({
+            unit: Type.Literal('line'),
+            start: Type.Integer({ minimum: 1 }),
+            end: Type.Integer({ minimum: 1 }),
+          }),
+        ),
+        cursor,
+      }),
+      local.read_active_source,
+    ),
+    bind(
+      'edit_active_source',
+      'Replace one unique exact oldText in the active source draft. Pass fileId and expectedVersion from read_active_source. Does not save to IndexedDB. If the active file or version changed, read again. Empty oldText is allowed only for an empty source.',
+      Type.Object({
+        fileId,
+        expectedVersion: Type.String({ minLength: 1 }),
+        oldText: Type.String(),
+        newText: Type.String(),
+      }),
+      local.edit_active_source,
+    ),
     write,
   ]
   return analyzeImage

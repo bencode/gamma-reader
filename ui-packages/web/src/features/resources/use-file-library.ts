@@ -5,6 +5,7 @@ import {
   importStoredFiles,
   listStoredFiles,
   removeStoredFile,
+  updateStoredTextFile,
   writeStoredTextFile,
 } from '../../data/file-store'
 import { requestPersistentStorage } from '../../data/workspace-database'
@@ -111,6 +112,17 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     [reload, rememberPersistence],
   )
 
+  const updateTextFile = useCallback(
+    async (id: string, expectedRevision: number, content: string, signal?: AbortSignal) => {
+      const result = await updateStoredTextFile(id, expectedRevision, content, signal)
+      if (result.status === 'saved') rememberPersistence()
+      if (result.status === 'saved' || result.status === 'conflict' || result.status === 'missing')
+        await reload()
+      return result
+    },
+    [reload, rememberPersistence],
+  )
+
   const addFiles = (selected: readonly File[]) => {
     if (selected.length === 0 || importing) return
     const duplicates = duplicateNames(selected, files)
@@ -146,6 +158,7 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     addFiles,
     addAttachments,
     writeTextFile,
+    updateTextFile,
     resolveDuplicates,
     removeFile,
     retry: () => {

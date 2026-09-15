@@ -1,13 +1,41 @@
 import * as Tabs from '@radix-ui/react-tabs'
-import { BookOpen, MessageSquare, X } from 'lucide-react'
-import { Activity, lazy, useEffect, useLayoutEffect, useRef } from 'react'
+import { BookOpen, Code2, MessageSquare, Save, X } from 'lucide-react'
+import { Activity, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
+import { useSourceDrafts, useWorkspaceSourceActions } from '../../shell/workspace-context'
+import { sourceDirty } from '../../shell/workspace-store'
 import { FilePreview, type PdfSourceCacheEntry } from './file-preview'
+import { HtmlReader } from './html-reader'
+import { SvgReader } from './image-reader'
+import { MarkdownReader } from './markdown-reader'
 import { isP5SourceName } from './p5-file'
+import type { TextReaderDefinition } from './text-file-reader'
+import { UnsavedSourceDialog } from './unsaved-source-dialog'
 
 const P5FileReader = lazy(() =>
   import('./p5-file-reader').then(module => ({ default: module.P5FileReader })),
 )
+
+const markdownReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage: 'markdown' }
+const plainReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage: 'plain' }
+const jsReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage: 'javascript' }
+const tsReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage: 'typescript' }
+const p5Reader: TextReaderDefinition = { Preview: P5FileReader, sourceLanguage: 'javascript' }
+const htmlReader: TextReaderDefinition = { Preview: HtmlReader, sourceLanguage: 'plain' }
+const svgReader: TextReaderDefinition = { Preview: SvgReader, sourceLanguage: 'plain' }
+
+const textReaderFor = (file: StoredFileMetadata): TextReaderDefinition | undefined => {
+  if (isP5SourceName(file.name)) return p5Reader
+  if (file.previewKind === 'markdown') return markdownReader
+  if (file.previewKind === 'html') return htmlReader
+  if (file.name.toLowerCase().endsWith('.svg') || file.mediaType === 'image/svg+xml')
+    return svgReader
+  if (/\.(?:js|jsx|mjs|cjs)$/i.test(file.name)) return jsReader
+  if (/\.(?:ts|tsx)$/i.test(file.name)) return tsReader
+  if (file.previewKind === 'text') return plainReader
+  return undefined
+}
 
 type DocumentTabsProps = {
   workspace: Workspace
@@ -20,6 +48,16 @@ export const DocumentTabs = ({
   assistantVisible,
   onOpenAssistant,
 }: DocumentTabsProps) => {
+  const drafts = useSourceDrafts()
+  const actions = useWorkspaceSourceActions()
+  const activeDraft = workspace.activeId ? drafts[workspace.activeId] : undefined
+  const [closeCandidate, setCloseCandidate] = useState<string | null>(null)
+  const candidate = workspace.files.find(file => file.id === closeCandidate)
+  const close = (id: string) => {
+    closingTabRef.current = id
+    workspace.closeDocument(id)
+    setCloseCandidate(null)
+  }
   const focusTargetRef = useRef<HTMLButtonElement>(null)
   const closingTabRef = useRef<string | null>(null)
   const pdfSources = useRef(new Map<string, PdfSourceCacheEntry>())
@@ -72,14 +110,21 @@ export const DocumentTabs = ({
                   ref={workspace.activeId === id ? focusTargetRef : undefined}
                 >
                   {source.name}
+                  {sourceDirty(drafts[id]) && (
+                    <span className="source-dirty" role="img" aria-label="Unsaved changes">
+                      {' '}
+                      ●
+                    </span>
+                  )}
                 </Tabs.Trigger>
                 <button
                   type="button"
                   className="tab-close icon-button"
                   aria-label={`Close ${source.name}`}
                   onClick={() => {
-                    closingTabRef.current = id
-                    workspace.closeDocument(id)
+                    if (sourceDirty(drafts[id]) || drafts[id]?.savePhase === 'saving')
+                      setCloseCandidate(id)
+                    else close(id)
                   }}
                 >
                   <X size={13} />
@@ -88,6 +133,31 @@ export const DocumentTabs = ({
             )
           })}
         </Tabs.List>
+        {activeDraft && workspace.activeId && (
+          <div className="source-controls">
+            <button
+              type="button"
+              className={activeDraft.sourceOpen ? 'toolbar-button active' : 'toolbar-button'}
+              aria-pressed={activeDraft.sourceOpen}
+              onClick={() =>
+                actions.setSourceOpen(workspace.activeId as string, !activeDraft.sourceOpen)
+              }
+            >
+              <Code2 size={14} />
+              Source
+            </button>
+            <button
+              type="button"
+              className="toolbar-button"
+              disabled={!sourceDirty(activeDraft) || activeDraft.savePhase === 'saving'}
+              title="Save to browser (⌘/Ctrl+S)"
+              onClick={() => void actions.saveSource(workspace.activeId as string)}
+            >
+              <Save size={14} />
+              {activeDraft.savePhase === 'saving' ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        )}
         {!assistantVisible && (
           <button
             type="button"
@@ -133,13 +203,22 @@ export const DocumentTabs = ({
                   active={workspace.activeId === id}
                   scrollPositions={workspace.scrollPositions}
                   pdfSources={pdfSources}
-                  textReader={isP5SourceName(source.name) ? P5FileReader : undefined}
+                  textReader={textReaderFor(source)}
                 />
               </Tabs.Content>
             </Activity>
           ) : null
         })}
       </main>
+      {candidate && (
+        <UnsavedSourceDialog
+          fileId={candidate.id}
+          name={candidate.name}
+          workspace={workspace}
+          onCancel={() => setCloseCandidate(null)}
+          onClose={() => close(candidate.id)}
+        />
+      )}
     </Tabs.Root>
   )
 }

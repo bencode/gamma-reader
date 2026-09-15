@@ -11,7 +11,6 @@
   justify-content: space-between;
 }
 
-.modeControls,
 .runtimeControls {
   display: inline-flex;
   align-items: center;
@@ -108,4 +107,9 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+
+.runtimeControls .runControl {
+  width: auto;
+  padding-inline: 8px;
 }

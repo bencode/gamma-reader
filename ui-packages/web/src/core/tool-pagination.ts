@@ -1,4 +1,4 @@
-import { LocalToolError, type ReadRange } from './local-tool-types'
+import { LocalToolError, type ReadRange, type SourceLineRange } from './local-tool-types'
 
 export const maximumResultBytes = 16 * 1024
 const encoder = new TextEncoder()
@@ -24,6 +24,13 @@ export type Continuation =
       page: number
       offset: number
     }
+  | {
+      operation: 'read-active-source'
+      fileId: string
+      version: string
+      range: SourceLineRange
+      offset: number
+    }
 
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
@@ -41,6 +48,15 @@ export const sameRange = (left: ReadRange, right: ReadRange) =>
 const validContinuation = (value: unknown): value is Continuation => {
   if (!record(value)) return false
   if (value.operation === 'list') return typeof value.name === 'string' && integer(value.index, 0)
+  if (value.operation === 'read-active-source')
+    return (
+      typeof value.fileId === 'string' &&
+      typeof value.version === 'string' &&
+      value.version.length > 0 &&
+      validRange(value.range) &&
+      value.range.unit === 'line' &&
+      integer(value.offset, 0)
+    )
   if (typeof value.fileId !== 'string' || !integer(value.revision, 1) || !integer(value.page, 1))
     return false
   if (value.operation === 'search')
@@ -72,6 +88,8 @@ export const decodeCursor = (token?: string) => {
 
 export const changedFile = () =>
   new LocalToolError('File changed. Restart the call without a cursor.')
+export const changedSource = () =>
+  new LocalToolError('Source changed. Call read_active_source again without a cursor.')
 export const mismatchedCursor = () =>
   new LocalToolError('Cursor does not match this request. Restart without a cursor.')
 

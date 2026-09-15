@@ -1,30 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { ConfirmationDialog as Modal } from '../../components/confirmation-dialog'
 import type { StoredFileMetadata } from '../../core/files'
 import type { DuplicateMode } from '../../data/file-store'
-
-type ModalProps = { children: React.ReactNode; label: string; onCancel: () => void }
-
-const Modal = ({ children, label, onCancel }: ModalProps) => {
-  const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    const dialog = ref.current
-    dialog?.showModal()
-    return () => dialog?.close()
-  }, [])
-  return (
-    <dialog
-      ref={ref}
-      className="confirmation-dialog"
-      aria-label={label}
-      onCancel={event => {
-        event.preventDefault()
-        onCancel()
-      }}
-    >
-      {children}
-    </dialog>
-  )
-}
 
 export const DuplicateFilesDialog = ({
   names,
@@ -58,10 +34,12 @@ export const RemoveFileDialog = ({
   file,
   onCancel,
   onRemove,
+  dirty = false,
 }: {
   file: StoredFileMetadata
   onCancel: () => void
   onRemove: () => void
+  dirty?: boolean
 }) => (
   <Modal label={`Remove ${file.name}`} onCancel={onCancel}>
     <h2>Remove from Files?</h2>
@@ -69,6 +47,7 @@ export const RemoveFileDialog = ({
       This removes the browser copy of <strong>{file.name}</strong>. The original file on your
       computer will not change.
     </p>
+    {dirty && <p>Unsaved source changes will also be discarded.</p>}
     <div className="dialog-actions">
       <button type="button" className="text-button" onClick={onCancel}>
         Cancel

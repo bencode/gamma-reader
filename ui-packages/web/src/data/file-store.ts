@@ -15,6 +15,12 @@ import {
 
 export type DuplicateMode = 'replace' | 'keep'
 
+export type UpdateStoredTextFileResult =
+  | { status: 'saved'; metadata: StoredFileMetadata }
+  | { status: 'conflict' }
+  | { status: 'missing' }
+  | { status: 'rejected'; reason: ImportResult['rejected'][number]['reason'] }
+
 const openFileDatabase = openWorkspaceDatabase
 
 const svgMediaType = 'image/svg+xml'
@@ -227,6 +233,63 @@ export const writeStoredTextFile = async (name: string, content: string, signal?
   if (written) return written
   const rejected = result.rejected[0]
   throw rejected ? writeError(rejected.reason) : new Error('The file could not be written.')
+}
+
+export const updateStoredTextFile = async (
+  id: string,
+  expectedRevision: number,
+  content: string,
+  signal?: AbortSignal,
+): Promise<UpdateStoredTextFileResult> => {
+  signal?.throwIfAborted()
+  const database = await openFileDatabase()
+  const files = await database.getAllFromIndex('files', 'by-created-at')
+  const existing = files.find(file => file.id === id)
+  if (!existing) return { status: 'missing' }
+  const blob = new Blob([content], { type: existing.mediaType })
+  if (blob.size > maximumFileBytes) return { status: 'rejected', reason: 'file-too-large' }
+  const libraryBytes = files.reduce((total, file) => total + file.size, 0)
+  if (libraryBytes - existing.size + blob.size > maximumLibraryBytes)
+    return { status: 'rejected', reason: 'library-full' }
+  if (!(await hasBrowserCapacity(Math.max(0, blob.size - existing.size))))
+    return { status: 'rejected', reason: 'storage-unavailable' }
+
+  signal?.throwIfAborted()
+  try {
+    const transaction = database.transaction(['files', 'contents'], 'readwrite')
+    const abort = () => transaction.abort()
+    signal?.addEventListener('abort', abort, { once: true })
+    try {
+      const current = await transaction.objectStore('files').get(id)
+      if (!current) {
+        await transaction.done
+        return { status: 'missing' }
+      }
+      if (current.revision !== expectedRevision) {
+        await transaction.done
+        return { status: 'conflict' }
+      }
+      const metadata: StoredFileMetadata = {
+        ...current,
+        size: blob.size,
+        lastModified: Date.now(),
+        revision: current.revision + 1,
+      }
+      await Promise.all([
+        transaction.objectStore('files').put(metadata),
+        transaction.objectStore('contents').put({ id, blob }),
+        transaction.done,
+      ])
+      return { status: 'saved', metadata }
+    } finally {
+      signal?.removeEventListener('abort', abort)
+    }
+  } catch (error) {
+    signal?.throwIfAborted()
+    if (error instanceof DOMException && error.name === 'QuotaExceededError')
+      return { status: 'rejected', reason: 'storage-unavailable' }
+    throw error
+  }
 }
 
 export const removeStoredFile = async (id: string) => {
