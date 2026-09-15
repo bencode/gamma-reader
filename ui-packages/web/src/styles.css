@@ -1498,3 +1498,39 @@ svg {
 .markdown-content :is(.hljs-title, .hljs-section, .hljs-name) {
   color: oklch(0.44 0.12 255);
 }
+
+.source-controls {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding-inline: 6px;
+}
+.source-controls button {
+  font-size: 11px;
+  padding: 4px 6px;
+  margin: 0;
+}
+.source-controls button:disabled {
+  opacity: 0.45;
+}
+.source-dirty {
+  color: var(--accent);
+  font-size: 10px;
+}
+.html-reader {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.html-toolbar {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+}
+.html-reader .html-preview {
+  flex: 1;
+  min-height: 0;
+}
+.html-toolbar button:disabled {
+  opacity: 0.45;
+}

@@ -7,6 +7,7 @@ import {
   importStoredFiles,
   listStoredFiles,
   removeStoredFile,
+  updateStoredTextFile,
   writeStoredTextFile,
 } from './file-store'
 
@@ -257,5 +258,25 @@ describe('local file store', () => {
     expect(libraryFull.rejected).toEqual([
       { sourceIndex: 0, name: 'one-more.bin', reason: 'library-full' },
     ])
+  })
+})
+
+describe('source save revision checks', () => {
+  it('commits one competing revision and rejects the other without losing the winner', async () => {
+    const file = await writeStoredTextFile('Save.md', 'original')
+    const results = await Promise.all([
+      updateStoredTextFile(file.id, file.revision, 'first'),
+      updateStoredTextFile(file.id, file.revision, 'second'),
+    ])
+    expect(results.filter(result => result.status === 'saved')).toHaveLength(1)
+    expect(results.filter(result => result.status === 'conflict')).toHaveLength(1)
+    const saved = await getStoredFile(file.id)
+    expect(saved?.metadata.revision).toBe(file.revision + 1)
+    expect(await saved?.blob.text()).toBe(results[0]?.status === 'saved' ? 'first' : 'second')
+    await removeStoredFile(file.id)
+    expect(await updateStoredTextFile(file.id, file.revision + 1, 'late')).toEqual({
+      status: 'missing',
+    })
+    expect(await getStoredFile(file.id)).toBeNull()
   })
 })

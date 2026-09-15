@@ -1,10 +1,9 @@
 import { lazy, type RefObject, Suspense, useEffect, useState } from 'react'
 import { formatBytes, type StoredFileMetadata } from '../../core/files'
-import { getStoredFileContent } from '../../data/file-store'
+import { getStoredFile } from '../../data/file-store'
 import type { Workspace } from '../../shell/use-workspace'
-import { HtmlReader } from './html-reader'
 import { ImageReader } from './image-reader'
-import { TextFileReader, type TextReaderComponent } from './text-file-reader'
+import { TextFileReader, type TextReaderDefinition } from './text-file-reader'
 
 const PdfReader = lazy(() => import('./pdf-reader').then(module => ({ default: module.PdfReader })))
 
@@ -14,14 +13,14 @@ type FilePreviewProps = {
   active: boolean
   scrollPositions: Workspace['scrollPositions']
   pdfSources: RefObject<Map<string, PdfSourceCacheEntry>>
-  textReader?: TextReaderComponent
+  textReader?: TextReaderDefinition
 }
 
 export type PdfSourceCacheEntry = { revision: number; url: string }
 
 type ContentState =
   | { status: 'idle' }
-  | { status: 'ready'; id: string; revision: number; blob: Blob }
+  | { status: 'ready'; document: StoredFileMetadata; blob: Blob }
   | { status: 'error'; id: string; revision: number }
 
 export const FilePreview = ({
@@ -37,21 +36,22 @@ export const FilePreview = ({
   useEffect(() => {
     if (!active || (document.previewKind === 'unsupported' && !textReader)) return
     let current = true
-    void getStoredFileContent(document.id).then(
-      blob => {
+    void getStoredFile(document.id).then(
+      stored => {
         if (!current) return
-        if (blob) {
+        if (stored) {
+          const { metadata, blob } = stored
           if (document.previewKind === 'pdf') {
             const cached = pdfSources.current.get(document.id)
-            if (!cached || cached.revision !== document.revision) {
+            if (!cached || cached.revision !== metadata.revision) {
               if (cached) URL.revokeObjectURL(cached.url)
               pdfSources.current.set(document.id, {
-                revision: document.revision,
+                revision: metadata.revision,
                 url: URL.createObjectURL(blob),
               })
             }
           }
-          setState({ status: 'ready', id: document.id, revision: document.revision, blob })
+          setState({ status: 'ready', document: metadata, blob })
         } else {
           console.error('Stored file content is missing', document.id)
           setState({ status: 'error', id: document.id, revision: document.revision })
@@ -86,11 +86,25 @@ export const FilePreview = ({
       </div>
     )
 
-  if (state.status !== 'ready' || state.id !== document.id || state.revision !== document.revision)
+  if (
+    state.status !== 'ready' ||
+    state.document.id !== document.id ||
+    (!textReader && state.document.revision !== document.revision)
+  )
     return <div className="preview-state">Opening {document.name}…</div>
 
+  if (textReader)
+    return (
+      <TextFileReader
+        document={state.document}
+        blob={state.blob}
+        files={files}
+        active={active}
+        scrollPositions={scrollPositions}
+        textReader={textReader}
+      />
+    )
   if (document.previewKind === 'image') return <ImageReader document={document} blob={state.blob} />
-  if (document.previewKind === 'html') return <HtmlReader document={document} blob={state.blob} />
   if (document.previewKind === 'pdf') {
     const source = pdfSources.current.get(document.id)
     if (!source || source.revision !== document.revision)
@@ -107,13 +121,9 @@ export const FilePreview = ({
     )
   }
   return (
-    <TextFileReader
-      document={document}
-      blob={state.blob}
-      files={files}
-      active={active}
-      scrollPositions={scrollPositions}
-      textReader={textReader}
-    />
+    <div className="preview-state error-state">
+      <h1>Preview unavailable</h1>
+      <p>This file does not have a text preview.</p>
+    </div>
   )
 }

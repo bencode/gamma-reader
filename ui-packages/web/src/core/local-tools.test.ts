@@ -6,7 +6,7 @@ import {
   writeStoredTextFile,
 } from '../data/file-store'
 import type { ListInput, ReadInput, SearchInput, SearchMatch } from './local-tool-types'
-import { createLocalTools } from './local-tools'
+import { type ActiveSourceSnapshot, createLocalTools } from './local-tools'
 
 const pdf = vi.hoisted(() => ({
   pages: ['Opening context.\nA shared phrase.', 'Ending context.\nA shared phrase.'],
@@ -233,5 +233,63 @@ describe('local reader tools', () => {
     expect(remaining.matches).toHaveLength(2)
     expect(remaining.next).toBeNull()
     await expect(tools.search({ fileId: '', query: 'matching' })).rejects.toThrow('not found')
+  })
+})
+
+describe('active source tools', () => {
+  it('reads raw source with lossless bounded pagination and detects changes', () => {
+    let source: ActiveSourceSnapshot = {
+      fileId: 'a',
+      name: 'A.md',
+      version: crypto.randomUUID(),
+      content: `# Raw source\n${'中😀'.repeat(15000)}`,
+    }
+    const local = createLocalTools(
+      () => ({ openFiles: [], activeFile: null, viewport: null }),
+      writeStoredTextFile,
+      {
+        get: () => source,
+        replace: (_fileId, _version, content) =>
+          (source = { ...source, content, version: crypto.randomUUID() }),
+      },
+    )
+    const first = local.read_active_source()
+    let content = first.content
+    let next = first.next
+    while (next) {
+      const result = local.read_active_source(next)
+      budget(result)
+      content += result.content
+      next = result.next
+    }
+    expect(content).toBe(source.content)
+    source = { ...source, version: crypto.randomUUID() }
+    expect(() => local.read_active_source(first.next ?? {})).toThrow('Source changed')
+  })
+
+  it('edits only the matching active file and version with a unique exact match', () => {
+    let source: ActiveSourceSnapshot = {
+      fileId: 'a',
+      name: 'A.md',
+      version: crypto.randomUUID(),
+      content: 'same same',
+    }
+    const local = createLocalTools(
+      () => ({ openFiles: [], activeFile: null, viewport: null }),
+      writeStoredTextFile,
+      {
+        get: () => source,
+        replace: (_fileId, _version, content) =>
+          (source = { ...source, content, version: crypto.randomUUID() }),
+      },
+    )
+    const input = { fileId: 'a', expectedVersion: source.version, oldText: 'same', newText: 'new' }
+    expect(() => local.edit_active_source(input)).toThrow('more than once')
+    expect(() => local.edit_active_source({ ...input, fileId: 'b' })).toThrow('Source changed')
+    const edited = local.edit_active_source({ ...input, oldText: 'same same' })
+    expect(edited.version).not.toBe(input.expectedVersion)
+    expect(edited.version).toBe(source.version)
+    expect(local.read_active_source().content).toBe('new')
+    expect(() => local.edit_active_source(input)).toThrow('Source changed')
   })
 })

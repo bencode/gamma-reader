@@ -23,47 +23,9 @@
   transform: translateY(-50%);
 }
 
-.activeControl,
-.activeMode {
+.activeControl {
   background: var(--selected);
   color: var(--accent);
-}
-
-.modeControls {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 6px;
-  background: var(--surface);
-
-  button {
-    display: inline-flex;
-    min-height: 24px;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 8px;
-    border: 0;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--muted);
-    font: inherit;
-    font-size: 11px;
-
-    &:hover {
-      color: inherit;
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 1px;
-    }
-
-    &.activeMode {
-      background: var(--selected);
-      color: var(--accent);
-    }
-  }
 }
 
 .stage {

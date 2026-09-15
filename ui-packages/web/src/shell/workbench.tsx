@@ -147,6 +147,7 @@ export const Workbench = () => {
       workspace={workspace}
       rootRef={rootRef}
       writeTextFile={library.writeTextFile}
+      updateTextFile={library.updateTextFile}
     >
       <ConversationProvider addAttachments={library.addAttachments}>
         <div className="workbench" ref={rootRef}>

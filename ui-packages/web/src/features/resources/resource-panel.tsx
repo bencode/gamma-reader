@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { formatBytes, type PreviewKind, type StoredFileMetadata } from '../../core/files'
+import { useSourceDrafts } from '../../shell/workspace-context'
+import { sourceDirty } from '../../shell/workspace-store'
 import { DuplicateFilesDialog, RemoveFileDialog } from './file-dialogs'
 import { FolderExportControl } from './folder-export-control'
 import type { FileExportController } from './use-file-export'
@@ -104,6 +106,7 @@ export const ResourcePanel = ({
   onRemoved,
   onClose,
 }: ResourcePanelProps) => {
+  const drafts = useSourceDrafts()
   const inputRef = useRef<HTMLInputElement>(null)
   const [removeCandidate, setRemoveCandidate] = useState<StoredFileMetadata | null>(null)
   const files = library.files.filter(file => (file.collection ?? 'files') === 'files')
@@ -235,6 +238,7 @@ export const ResourcePanel = ({
       {removeCandidate && (
         <RemoveFileDialog
           file={removeCandidate}
+          dirty={sourceDirty(drafts[removeCandidate.id])}
           onCancel={() => setRemoveCandidate(null)}
           onRemove={() => {
             const id = removeCandidate.id

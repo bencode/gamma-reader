@@ -1,31 +1,14 @@
-import { Code2, Eye, PanelLeft } from 'lucide-react'
-import { lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { PanelLeft } from 'lucide-react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Markdown } from '../../../components/markdown'
-import type { StoredFileMetadata } from '../../../core/files'
 import { normalizeMath } from '../../../core/markdown-math'
-import type { Workspace } from '../../../shell/use-workspace'
 import { useReaderBinding } from '../../../shell/workspace-context'
 import { createMarkdownImageResolver, workspacePathFor } from '../markdown-image-resolver'
 import { readViewport } from '../reader-viewport'
+import type { TextReaderProps } from '../text-file-reader'
 import { parseMarkdownHeadings } from './heading-model'
 import { MarkdownOutline } from './outline'
-import type { MarkdownSourceViewHandle } from './source-view'
 import styles from './style.module.scss'
-
-const MarkdownSourceView = lazy(() =>
-  import('./source-view').then(module => ({ default: module.MarkdownSourceView })),
-)
-
-type MarkdownViewMode = 'preview' | 'source'
-
-type MarkdownReaderProps = {
-  document: StoredFileMetadata
-  content: string
-  files: readonly StoredFileMetadata[]
-  markdown: boolean
-  active: boolean
-  scrollPositions: Workspace['scrollPositions']
-}
 
 const embeddedOutlineMinimumWidth = 640
 
@@ -42,22 +25,17 @@ export const MarkdownReader = ({
   document,
   content,
   files,
-  markdown,
   active,
   scrollPositions,
-}: MarkdownReaderProps) => {
+}: TextReaderProps) => {
+  const markdown = document.previewKind === 'markdown'
   const rootRef = useRef<HTMLDivElement>(null)
   const previewScrollRef = useRef<HTMLDivElement>(null)
   const articleRef = useRef<HTMLElement>(null)
-  const sourceRef = useRef<MarkdownSourceViewHandle>(null)
-  const sourceScrollTop = useRef(0)
-  const modeRef = useRef<MarkdownViewMode>('preview')
   const headingElements = useRef<HTMLElement[]>([])
-  const [mode, setMode] = useState<MarkdownViewMode>('preview')
   const [outlineOpen, setOutlineOpen] = useState(false)
   const [readerWidth, setReaderWidth] = useState(0)
   const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null)
-  modeRef.current = mode
 
   const headings = useMemo(
     () => (markdown ? parseMarkdownHeadings(normalizeMath(content)) : []),
@@ -71,13 +49,7 @@ export const MarkdownReader = ({
   const binding = useMemo(
     () => ({
       fileId: document.id,
-      getViewport: () => {
-        if (modeRef.current === 'source') {
-          const elements = sourceRef.current?.getViewportElements()
-          return elements ? readViewport(elements.content, elements.scroll) : null
-        }
-        return readViewport(articleRef.current, previewScrollRef.current)
-      },
+      getViewport: () => readViewport(articleRef.current, previewScrollRef.current),
     }),
     [document.id],
   )
@@ -94,12 +66,12 @@ export const MarkdownReader = ({
   }, [markdown])
 
   useLayoutEffect(() => {
-    if (!active || mode !== 'preview' || !previewScrollRef.current) return
+    if (!active || !previewScrollRef.current) return
     previewScrollRef.current.scrollTop = scrollPositions.current.get(document.id) ?? 0
-  }, [active, document.id, mode, scrollPositions])
+  }, [active, document.id, scrollPositions])
 
   useLayoutEffect(() => {
-    if (!markdown || mode !== 'preview' || !articleRef.current || !previewScrollRef.current) return
+    if (!markdown || !articleRef.current || !previewScrollRef.current) return
     const elements = [...articleRef.current.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')]
     elements.forEach((element, index) => {
       const heading = headings[index]
@@ -107,7 +79,7 @@ export const MarkdownReader = ({
     })
     headingElements.current = elements
     setActiveHeadingId(activeHeadingFrom(elements, previewScrollRef.current))
-  }, [headings, markdown, mode])
+  }, [headings, markdown])
 
   if (!markdown)
     return (
@@ -127,7 +99,7 @@ export const MarkdownReader = ({
     )
 
   const outlineLayout = readerWidth >= embeddedOutlineMinimumWidth ? 'embedded' : 'overlay'
-  const outlineVisible = outlineOpen && mode === 'preview' && headings.length > 0
+  const outlineVisible = outlineOpen && headings.length > 0
   const navigateToHeading = (id: string) => {
     const target = headingElements.current.find(element => element.id === id)
     target?.scrollIntoView({
@@ -160,42 +132,12 @@ export const MarkdownReader = ({
             }
             aria-label={outlineVisible ? 'Hide table of contents' : 'Show table of contents'}
             aria-pressed={outlineVisible}
-            title={
-              mode === 'source'
-                ? 'Table of contents is available in Preview'
-                : outlineVisible
-                  ? 'Hide table of contents'
-                  : 'Show table of contents'
-            }
-            disabled={mode === 'source'}
+            title={outlineVisible ? 'Hide table of contents' : 'Show table of contents'}
             onClick={() => setOutlineOpen(open => !open)}
           >
             <PanelLeft size={16} />
           </button>
         )}
-        <span className={styles.modeControls}>
-          <button
-            type="button"
-            className={mode === 'preview' ? styles.activeMode : undefined}
-            aria-pressed={mode === 'preview'}
-            onClick={() => setMode('preview')}
-          >
-            <Eye size={14} />
-            Preview
-          </button>
-          <button
-            type="button"
-            className={mode === 'source' ? styles.activeMode : undefined}
-            aria-pressed={mode === 'source'}
-            onClick={() => {
-              setOutlineOpen(false)
-              setMode('source')
-            }}
-          >
-            <Code2 size={14} />
-            Source
-          </button>
-        </span>
       </div>
       <div className={styles.stage}>
         {outlineVisible && (
@@ -206,30 +148,19 @@ export const MarkdownReader = ({
             onClose={closeOutline}
           />
         )}
-        {mode === 'preview' ? (
-          <div
-            className={`document-scroll ${styles.previewScroll}`}
-            ref={previewScrollRef}
-            onScroll={event => {
-              if (!active) return
-              scrollPositions.current.set(document.id, event.currentTarget.scrollTop)
-              setActiveHeadingId(activeHeadingFrom(headingElements.current, event.currentTarget))
-            }}
-          >
-            <article className="markdown-body" ref={articleRef}>
-              <Markdown text={content} variant="reader" images={images} />
-            </article>
-          </div>
-        ) : (
-          <Suspense fallback={<div className="preview-state">Opening source…</div>}>
-            <MarkdownSourceView
-              ref={sourceRef}
-              content={content}
-              name={document.name}
-              scrollPosition={sourceScrollTop}
-            />
-          </Suspense>
-        )}
+        <div
+          className={`document-scroll ${styles.previewScroll}`}
+          ref={previewScrollRef}
+          onScroll={event => {
+            if (!active) return
+            scrollPositions.current.set(document.id, event.currentTarget.scrollTop)
+            setActiveHeadingId(activeHeadingFrom(headingElements.current, event.currentTarget))
+          }}
+        >
+          <article className="markdown-body" ref={articleRef}>
+            <Markdown text={content} variant="reader" images={images} />
+          </article>
+        </div>
       </div>
     </div>
   )

@@ -81,6 +81,44 @@ describe('file library', () => {
     expect(preview).toHaveAttribute('referrerpolicy', 'no-referrer')
   })
 
+  it('confirms dirty tab closure and saves the draft before closing', async () => {
+    Range.prototype.getClientRects = () => [new DOMRect(0, 0, 100, 20)] as unknown as DOMRectList
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <Workbench />
+      </MemoryRouter>,
+    )
+    await waitForFiles()
+    await user.upload(
+      screen.getByLabelText('Choose files'),
+      new File(['# Close test'], 'Close.md', { type: 'text/markdown' }),
+    )
+    await user.click(await filesList().findByRole('button', { name: 'Close.md' }))
+    await user.click(await screen.findByRole('button', { name: 'Source' }))
+    const editor = await screen.findByRole('textbox', { name: 'Close.md source' })
+    await user.click(editor)
+    await user.keyboard('changed')
+    await user.click(screen.getByRole('button', { name: 'Close Close.md' }))
+    expect(screen.getByRole('dialog', { name: 'Save changes to Close.md' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('textbox', { name: 'Close.md source' })).toHaveTextContent('changed')
+    await user.click(screen.getByRole('button', { name: 'Remove Close.md from Files' }))
+    expect(screen.getByRole('dialog', { name: 'Remove Close.md' })).toHaveTextContent(
+      'Unsaved source changes',
+    )
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getByRole('button', { name: 'Close Close.md' }))
+    await user.click(screen.getByRole('button', { name: 'Save and close' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('tab', { name: /Close.md/ })).not.toBeInTheDocument(),
+    )
+    await screen.findByRole('heading', { name: 'Start with a document' })
+    await user.click(filesList().getByRole('button', { name: 'Close.md' }))
+    await waitFor(() => expect(screen.getByRole('tabpanel')).toHaveTextContent('changed'))
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
   it('resolves duplicate names and removes the active browser copy', async () => {
     const user = userEvent.setup()
     render(
