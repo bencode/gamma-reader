@@ -193,7 +193,6 @@ export const Workbench = () => {
             </nav>
           )}
           <Group
-            key={`${mode}-${inlineFiles}-${inlineAssistant}`}
             className="workspace-panels"
             elementRef={groupElementRef}
             orientation="horizontal"

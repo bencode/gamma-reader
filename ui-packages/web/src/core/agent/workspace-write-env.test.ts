@@ -1,4 +1,9 @@
-import { createWriteTool } from '@earendil-works/pi-agent-core'
+import {
+  type AgentHarnessToolInvocation,
+  createWriteTool,
+  TODO_CONTEXT,
+  withAbortSignal,
+} from '@earendil-works/pi-agent-core'
 import { describe, expect, it, vi } from 'vitest'
 import {
   getStoredFileContent,
@@ -10,16 +15,30 @@ import { createWorkspaceWriteEnv } from './workspace-write-env'
 
 const executeWrite = async (path: string, content: string, signal?: AbortSignal) => {
   const tool = createWriteTool()
-  return tool.execute('write-fixture', { path, content }, signal, undefined, {
-    env: createWorkspaceWriteEnv(writeStoredTextFile),
-  })
+  const id = 'write-fixture'
+  const invocation: AgentHarnessToolInvocation = {
+    invocationId: id,
+    operationId: id,
+    turnId: id,
+    getMemo: async () => undefined,
+    setMemo: async () => undefined,
+  }
+  const context = signal ? withAbortSignal(signal, TODO_CONTEXT) : TODO_CONTEXT
+  return tool.execute(
+    id,
+    { path, content },
+    () => undefined,
+    { env: createWorkspaceWriteEnv(writeStoredTextFile) },
+    invocation,
+    context,
+  )
 }
 
 describe('browser workspace write environment', () => {
   it('uses Pi write to create and completely replace UTF-8 text files', async () => {
     const created = await executeWrite('Study notes.md', '# 第一版')
     expect(created.content).toEqual([
-      { type: 'text', text: 'Successfully wrote 5 bytes to Study notes.md' },
+      { type: 'text', text: 'Successfully wrote to Study notes.md' },
     ])
     const first = (await listStoredFiles()).find(file => file.name === 'Study notes.md')
     if (!first) throw new Error('Written file is missing')
@@ -59,20 +78,30 @@ describe('browser workspace write environment', () => {
     await expect(executeWrite('/outside.md', 'blocked')).rejects.toThrow('workspace root')
 
     const env = createWorkspaceWriteEnv(writeStoredTextFile)
-    await expect(env.writeFile('binary.png', new Uint8Array([1]))).resolves.toMatchObject({
+    await expect(
+      env.writeFile('binary.png', new Uint8Array([1]), TODO_CONTEXT),
+    ).resolves.toMatchObject({
       ok: false,
       error: { code: 'not_supported' },
     })
     const writer = vi.fn(writeStoredTextFile)
     const controller = new AbortController()
     controller.abort()
+    const context = withAbortSignal(controller.signal, TODO_CONTEXT)
     await expect(
       createWriteTool().execute(
         'cancelled',
         { path: 'cancelled.md', content: 'not written' },
-        controller.signal,
-        undefined,
+        () => undefined,
         { env: createWorkspaceWriteEnv(writer) },
+        {
+          invocationId: 'cancelled',
+          operationId: 'cancelled',
+          turnId: 'cancelled',
+          getMemo: async () => undefined,
+          setMemo: async () => undefined,
+        },
+        context,
       ),
     ).rejects.toThrow()
     expect(writer).not.toHaveBeenCalled()

@@ -17,6 +17,7 @@ export const MermaidDiagram = ({ source, complete }: { source: string; complete:
           htmlLabels: false,
           suppressErrorRendering: true,
           theme: 'neutral',
+          layout: 'dagre',
           fontFamily: 'system-ui, sans-serif',
         })
         document.body.append(container)
