@@ -1,11 +1,14 @@
 import {
   type AgentHarnessTool,
+  type AgentHarnessToolInvocation,
   type AgentTool,
   createWriteTool,
   type ExecutionToolContext,
   FileError,
+  TODO_CONTEXT,
+  withAbortSignal,
 } from '@earendil-works/pi-agent-core'
-import { type Static, type TSchema, Type } from 'typebox'
+import { type Static, type TSchema, Type } from '@earendil-works/pi-ai'
 import type { LocalTools } from '../local-tools'
 import type { ImageAnalyzer } from './vision'
 import { createWorkspaceWriteEnv } from './workspace-write-env'
@@ -41,7 +44,7 @@ const bind = <P extends TSchema>(
 
 const bindHarnessTool = <P extends TSchema, D>(
   tool: AgentHarnessTool<ExecutionToolContext, P, D>,
-  context: ExecutionToolContext,
+  toolContext: ExecutionToolContext,
 ): AgentTool<TSchema, D> => ({
   name: tool.name,
   label: tool.label,
@@ -49,8 +52,23 @@ const bindHarnessTool = <P extends TSchema, D>(
   parameters: tool.parameters,
   executionMode: 'sequential',
   execute: async (id, args, signal, onUpdate) => {
+    const invocation: AgentHarnessToolInvocation = {
+      invocationId: id,
+      operationId: id,
+      turnId: id,
+      getMemo: async () => undefined,
+      setMemo: async () => undefined,
+    }
+    const context = signal ? withAbortSignal(signal, TODO_CONTEXT) : TODO_CONTEXT
     try {
-      return await tool.execute(id, args as Static<P>, signal, onUpdate, context)
+      return await tool.execute(
+        id,
+        args as Static<P>,
+        onUpdate ?? (() => undefined),
+        toolContext,
+        invocation,
+        context,
+      )
     } catch (cause) {
       if (cause instanceof Error && cause.cause instanceof FileError)
         throw new Error(`${cause.message} ${cause.cause.message}`, { cause })

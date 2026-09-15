@@ -31,6 +31,13 @@ vi.stubGlobal(
 
 // jsdom has no visual geometry or native modal implementation.
 Object.defineProperties(HTMLElement.prototype, {
+  offsetLeft: {
+    configurable: true,
+    get: function (this: HTMLElement) {
+      const siblings = this.parentElement?.children
+      return siblings ? Array.from(siblings).indexOf(this) : 0
+    },
+  },
   offsetWidth: { configurable: true, get: () => 500 },
   offsetHeight: { configurable: true, get: () => 900 },
 })

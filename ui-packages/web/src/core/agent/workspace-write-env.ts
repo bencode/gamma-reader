@@ -1,4 +1,5 @@
 import {
+  type Context,
   type ExecutionEnv,
   ExecutionError,
   err,
@@ -34,7 +35,8 @@ const fileName = (path: string) => {
   return relative
 }
 
-const attempt = async <T>(path: string, action: () => T | Promise<T>, signal?: AbortSignal) => {
+const attempt = async <T>(path: string, action: () => T | Promise<T>, context: Context) => {
+  const signal = context.abortSignal
   try {
     signal?.throwIfAborted()
     return ok<T, FileError>(await action())
@@ -69,10 +71,10 @@ const metadataFor = async (path: string) => {
 
 export const createWorkspaceWriteEnv = (writeTextFile: WorkspaceTextWriter): ExecutionEnv => ({
   cwd: root,
-  absolutePath: (path, signal) => attempt(path, () => `${root}/${fileName(path)}`, signal),
-  canonicalPath: (path, signal) =>
-    attempt(path, async () => `${root}/${(await metadataFor(path)).name}`, signal),
-  exists: (path, signal) =>
+  absolutePath: (path, context) => attempt(path, () => `${root}/${fileName(path)}`, context),
+  canonicalPath: (path, context) =>
+    attempt(path, async () => `${root}/${(await metadataFor(path)).name}`, context),
+  exists: (path, context) =>
     attempt(
       path,
       async () => {
@@ -84,9 +86,9 @@ export const createWorkspaceWriteEnv = (writeTextFile: WorkspaceTextWriter): Exe
           throw cause
         }
       },
-      signal,
+      context,
     ),
-  fileInfo: (path, signal) =>
+  fileInfo: (path, context) =>
     attempt<FileInfo>(
       path,
       async () => {
@@ -99,17 +101,17 @@ export const createWorkspaceWriteEnv = (writeTextFile: WorkspaceTextWriter): Exe
           mtimeMs: metadata.lastModified,
         }
       },
-      signal,
+      context,
     ),
-  writeFile: (path, content, signal) =>
+  writeFile: (path, content, context) =>
     attempt(
       path,
       async () => {
         if (typeof content !== 'string')
           throw new FileError('not_supported', 'Only UTF-8 text content can be written.', path)
-        await writeTextFile(fileName(path), content, signal)
+        await writeTextFile(fileName(path), content, context.abortSignal)
       },
-      signal,
+      context,
     ),
   joinPath: () => unsupported<string>(),
   readTextFile: () => unsupported<string>(),

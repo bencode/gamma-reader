@@ -1,0 +1,152 @@
+.page {
+  width: min(100% - 40px, 900px);
+  margin: 0 auto;
+  padding: 72px 0 36px;
+}
+
+.hero {
+  max-width: 720px;
+  margin-bottom: 78px;
+
+  h1 {
+    max-width: 650px;
+    margin: 20px 0 18px;
+    color: #242120;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(46px, 8vw, 78px);
+    font-weight: 500;
+    letter-spacing: -0.055em;
+    line-height: 0.96;
+  }
+
+  > p {
+    max-width: 590px;
+    margin: 0;
+    color: #69635f;
+    font-size: 17px;
+    line-height: 1.68;
+  }
+}
+
+.packageMark {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  border: 1px solid rgb(63 54 50 / 14%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 50%);
+  color: #5e5753;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+}
+
+.hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 24px;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: rgb(61 52 48 / 6%);
+    color: #77706c;
+    font-size: 11px;
+  }
+
+  .edited {
+    background: rgb(150 52 107 / 9%);
+    color: #8b2f61;
+  }
+}
+
+.article {
+  display: grid;
+  gap: 88px;
+}
+
+.lesson {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.34fr) minmax(0, 0.66fr);
+  gap: clamp(32px, 6vw, 68px);
+  align-items: start;
+}
+
+.lessonCopy {
+  position: sticky;
+  top: 28px;
+
+  span {
+    color: #96346b;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    margin: 11px 0 9px;
+    color: #2d2927;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 25px;
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1.08;
+  }
+
+  p {
+    margin: 0;
+    color: #746e69;
+    font-size: 12.5px;
+    line-height: 1.62;
+  }
+}
+
+.cells {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+
+.footer {
+  margin-top: 92px;
+  padding-top: 18px;
+  border-top: 1px solid rgb(63 54 50 / 13%);
+  color: #8a837f;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+}
+
+@media (max-width: 700px) {
+  .page {
+    width: min(100% - 24px, 900px);
+    padding-top: 40px;
+  }
+
+  .hero {
+    margin-bottom: 58px;
+
+    h1 {
+      font-size: clamp(42px, 14vw, 62px);
+    }
+  }
+
+  .article {
+    gap: 64px;
+  }
+
+  .lesson {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .lessonCopy {
+    position: static;
+    max-width: 520px;
+  }
+}
