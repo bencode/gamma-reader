@@ -107,7 +107,7 @@ describe('conversation', () => {
       )
     })
     open()
-    await screen.findByRole('tab', { name: 'Getting started.md' })
+    await screen.findByRole('tab', { name: 'Start here.md' })
     await user.type(question(), 'Explain this')
     await waitFor(() => expect(send()).toBeEnabled())
     fireEvent.keyDown(question(), { key: 'Enter', isComposing: true })
@@ -275,7 +275,7 @@ describe('conversation', () => {
       return complete('I read the attachment.')
     })
     open()
-    await screen.findByRole('tab', { name: 'Getting started.md' })
+    await screen.findByRole('tab', { name: 'Start here.md' })
     await waitFor(() => expect(question()).toBeEnabled())
 
     const attachment = new File(['private attachment content'], 'Chat notes.md', {

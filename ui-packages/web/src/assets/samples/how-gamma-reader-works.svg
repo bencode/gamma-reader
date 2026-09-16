@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 820" role="img" aria-labelledby="title description">
   <title id="title">Gamma Reader local-first browser architecture</title>
-  <desc id="description">Files are copied directly into IndexedDB and processed by the browser. Asking the assistant sends only the question and content needed for the answer through a stateless LLM proxy to the configured model.</desc>
+  <desc id="description">Files, attachments, and conversations persist in IndexedDB. Tabs use localStorage; unsaved Source drafts and code execution state live in memory. The pi agent and tools run in the browser. AI requests send conversation and tool context through a Node proxy to the model provider.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0 0 10 5 0 10z" fill="#8f315f"/>
@@ -15,8 +15,8 @@
   <g font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
     <rect x="54" y="42" width="188" height="30" rx="15" fill="#f8eff4"/>
     <text x="73" y="63" fill="#8f315f" font-size="13" font-weight="700" letter-spacing="1">BROWSER-NATIVE</text>
-    <text x="54" y="126" fill="#2b292a" font-size="40" font-weight="650">Local documents. Browser tools. One thin model proxy.</text>
-    <text x="54" y="164" fill="#716c6f" font-size="18">Open a URL and start reading — no desktop application or file upload step.</text>
+    <text x="54" y="126" fill="#2b292a" font-size="40" font-weight="650">Read. Experiment. Create. In your browser.</text>
+    <text x="54" y="164" fill="#716c6f" font-size="18">Local files and tools, with AI inference through a thin model proxy.</text>
 
     <rect x="38" y="198" width="906" height="514" rx="24" fill="#ffffff" stroke="#d8d3d6" stroke-width="2" stroke-dasharray="8 8"/>
     <text x="66" y="232" fill="#716c6f" font-size="13" font-weight="700" letter-spacing="1.4">YOUR DEVICE · BROWSER APPLICATION</text>
@@ -33,11 +33,12 @@
       <path d="M18 43h30M18 57h30"/>
     </g>
     <text x="94" y="405" fill="#2b292a" font-size="21" font-weight="650">Local files</text>
-    <text x="94" y="435" fill="#716c6f" font-size="15">PDF · Markdown · HTML</text>
-    <text x="94" y="461" fill="#716c6f" font-size="15">Images · Text</text>
+    <text x="94" y="435" fill="#716c6f" font-size="15">PDF · Markdown · Images</text>
+    <text x="94" y="461" fill="#716c6f" font-size="15">.lab.md · .p5.js · Text</text>
 
     <path d="M292 378h47" fill="none" stroke="#8f315f" stroke-width="3" marker-end="url(#arrow)"/>
-    <text x="297" y="359" fill="#8f315f" font-size="12" font-weight="700">LOCAL COPY</text>
+    <text x="297" y="345" fill="#8f315f" font-size="10" font-weight="700">LOCAL</text>
+    <text x="297" y="359" fill="#8f315f" font-size="10" font-weight="700">COPY</text>
 
     <rect x="382" y="278" width="222" height="44" rx="9" fill="#f8eff4"/>
     <g transform="translate(399 290)" fill="none" stroke="#8f315f" stroke-width="2">
@@ -58,28 +59,32 @@
     <rect x="382" y="466" width="179" height="24" rx="12" fill="#edf7ef"/>
     <text x="395" y="483" fill="#326b3c" font-size="12" font-weight="650">Persists in this browser</text>
 
-    <path d="M628 378h49" fill="none" stroke="#8f315f" stroke-width="3" marker-end="url(#arrow)"/>
-    <text x="640" y="359" fill="#8f315f" font-size="12" font-weight="700">READ</text>
+    <path d="M644 378h33" fill="none" stroke="#8f315f" stroke-width="3" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <text x="636" y="345" fill="#8f315f" font-size="10" font-weight="700">READ</text>
+    <text x="636" y="359" fill="#8f315f" font-size="10" font-weight="700">WRITE</text>
 
     <g transform="translate(720 299)" fill="none" stroke="#8f315f" stroke-width="3" stroke-linecap="round">
       <rect width="55" height="42" rx="5"/>
       <path d="M12 13h31M12 23h25M12 33h18"/>
       <path d="M66 10h21M66 21h21M66 32h15"/>
     </g>
-    <text x="720" y="386" fill="#2b292a" font-size="21" font-weight="650">Local runtime</text>
-    <text x="720" y="417" fill="#716c6f" font-size="15">Preview · PDF parsing</text>
-    <text x="720" y="443" fill="#716c6f" font-size="15">Search · Read · Write</text>
-    <text x="720" y="469" fill="#716c6f" font-size="15">Tabs · Agent tools</text>
+    <text x="720" y="386" fill="#2b292a" font-size="21" font-weight="650">pi agent + tools</text>
+    <text x="720" y="417" fill="#716c6f" font-size="15">Preview · Search · Edit</text>
+    <text x="720" y="443" fill="#716c6f" font-size="15">Code Lab · Workers</text>
+    <text x="720" y="469" fill="#716c6f" font-size="15">p5 · Sandboxed iframe</text>
 
-    <rect x="70" y="548" width="842" height="126" rx="16" fill="#f7f7f7" stroke="#e5e1e3"/>
-    <circle cx="102" cy="583" r="7" fill="#4d8b59"/>
-    <text x="122" y="589" fill="#2b292a" font-size="18" font-weight="650">The document path stays inside the browser.</text>
-    <text x="94" y="624" fill="#514d4f" font-size="16">Opening, previewing, parsing, and searching do not upload the file.</text>
-    <text x="94" y="651" fill="#716c6f" font-size="15">Large documents skip a network transfer, so they are available as soon as the local copy is stored.</text>
+    <rect x="70" y="548" width="398" height="126" rx="16" fill="#f7f7f7" stroke="#e5e1e3"/>
+    <text x="94" y="580" fill="#2b292a" font-size="18" font-weight="650">localStorage</text>
+    <text x="94" y="615" fill="#514d4f" font-size="16">Open tabs · Last active file</text>
+    <text x="94" y="650" fill="#716c6f" font-size="14">Restored in this browser profile</text>
+    <rect x="494" y="548" width="418" height="126" rx="16" fill="#f7f7f7" stroke="#e5e1e3"/>
+    <text x="518" y="580" fill="#2b292a" font-size="18" font-weight="650">Memory</text>
+    <text x="518" y="615" fill="#514d4f" font-size="16">Unsaved Source · Code state and output</text>
+    <text x="518" y="650" fill="#716c6f" font-size="14">Source Save → IndexedDB · Export → disk</text>
 
     <path d="M912 378h88" fill="none" stroke="#8f315f" stroke-width="3" marker-end="url(#arrow)"/>
-    <text x="930" y="342" fill="#8f315f" font-size="12" font-weight="700">QUESTION +</text>
-    <text x="925" y="359" fill="#8f315f" font-size="12" font-weight="700">USED CONTENT</text>
+    <text x="930" y="342" fill="#8f315f" font-size="11" font-weight="700">QUESTIONS</text>
+    <text x="930" y="359" fill="#8f315f" font-size="11" font-weight="700">+ CONTEXT</text>
 
     <g filter="url(#shadow)">
       <rect x="1018" y="252" width="326" height="198" rx="16" fill="#ffffff" stroke="#e5e1e3"/>
@@ -98,12 +103,13 @@
       <path d="M18 39a25 25 0 1 1 45-17 22 22 0 1 1 8 43H17A17 17 0 0 1 18 39z"/>
       <path d="M34 45h36M34 55h26"/>
     </g>
-    <text x="1144" y="583" fill="#2b292a" font-size="21" font-weight="650">Configured model</text>
-    <text x="1144" y="615" fill="#716c6f" font-size="15">Receives only requests made</text>
-    <text x="1144" y="640" fill="#716c6f" font-size="15">through the reading assistant</text>
+    <text x="1144" y="583" fill="#2b292a" font-size="21" font-weight="650">Model provider</text>
+    <text x="1144" y="615" fill="#716c6f" font-size="15">AI inference</text>
+    <text x="1144" y="640" fill="#716c6f" font-size="15">Text and image context</text>
 
     <line x1="54" y1="756" x2="1346" y2="756" stroke="#dedbdd"/>
-    <text x="54" y="789" fill="#2b292a" font-size="16" font-weight="600">Privacy boundary:</text>
-    <text x="202" y="789" fill="#716c6f" font-size="16">files remain local; a model request may include the question and the passages or images needed to answer it.</text>
+    <text x="54" y="745" fill="#716c6f" font-size="14">Files and attachments share browser storage. Code runtimes can download dependencies and make network requests.</text>
+    <text x="54" y="789" fill="#2b292a" font-size="16" font-weight="600">Data boundary:</text>
+    <text x="188" y="789" fill="#716c6f" font-size="16">adding files makes local copies; AI requests send conversation and tool context to the model provider.</text>
   </g>
 </svg>

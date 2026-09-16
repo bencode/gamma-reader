@@ -2,8 +2,13 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Workbench } from './workbench'
+
+beforeEach(() => {
+  // Lab samples mount CodeMirror, which measures text geometry unavailable in jsdom.
+  Range.prototype.getClientRects = () => [new DOMRect(0, 0, 100, 20)] as unknown as DOMRectList
+})
 
 const storageKey = 'gamma-reader.workspace'
 const file = (name: string) =>
@@ -13,7 +18,7 @@ const savedWorkspace = () => JSON.parse(localStorage.getItem(storageKey) ?? 'nul
 const waitForWorkspace = async () => {
   const panel = await screen.findByRole('complementary', { name: 'Files' })
   const list = await within(panel).findByRole('list', { name: 'Files' })
-  return within(list).findByRole('button', { name: 'Getting started.md' })
+  return within(list).findByRole('button', { name: 'Start here.md' })
 }
 
 const Navigation = () => {
@@ -48,13 +53,15 @@ describe('local workspace navigation', () => {
     const page = openReader()
     await waitForWorkspace()
     await waitFor(() => expect(screen.getByLabelText('Current route')).toHaveTextContent('/files'))
-    await user.click(file('Getting started.md'))
-    await user.click(file('Reading notes.md'))
+    await user.click(file('Start here.md'))
+    await user.click(file('Explore a wave.lab.md'))
     await user.click(file('How Gamma Reader works.svg'))
-    await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled())
-    await user.type(screen.getByRole('textbox'), 'A saved question')
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Your question' })).toBeEnabled(),
+    )
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'A saved question')
     expect(savedWorkspace()).toEqual({
-      tabs: ['getting-started', 'reading-notes', 'how-gamma-reader-works'],
+      tabs: ['getting-started', 'explore-wave', 'how-gamma-reader-works'],
       lastActiveId: 'how-gamma-reader-works',
     })
     await waitFor(() =>
@@ -64,8 +71,8 @@ describe('local workspace navigation', () => {
     openReader()
     await waitForWorkspace()
     expect(tabNames()).toEqual([
-      'Getting started.md',
-      'Reading notes.md',
+      'Start here.md',
+      'Explore a wave.lab.md',
       'How Gamma Reader works.svg',
     ])
     await waitFor(() =>
@@ -73,18 +80,22 @@ describe('local workspace navigation', () => {
         '/files/how-gamma-reader-works',
       ),
     )
-    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('A saved question'))
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Your question' })).toHaveValue(
+        'A saved question',
+      ),
+    )
   })
 
   it('lets a document route override the saved selection and append a missing tab', async () => {
     localStorage.setItem(
       storageKey,
-      JSON.stringify({ tabs: ['reading-notes'], lastActiveId: 'reading-notes' }),
+      JSON.stringify({ tabs: ['explore-wave'], lastActiveId: 'explore-wave' }),
     )
     openReader('/files/getting-started')
-    await screen.findByRole('tab', { name: 'Getting started.md' })
-    expect(tabNames()).toEqual(['Reading notes.md', 'Getting started.md'])
-    expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveAttribute(
+    await screen.findByRole('tab', { name: 'Start here.md' })
+    expect(tabNames()).toEqual(['Explore a wave.lab.md', 'Start here.md'])
+    expect(screen.getByRole('tab', { name: 'Start here.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
@@ -95,10 +106,10 @@ describe('local workspace navigation', () => {
     const user = userEvent.setup()
     openReader()
     await waitForWorkspace()
-    await user.click(file('Getting started.md'))
+    await user.click(file('Start here.md'))
     await user.click(file('How Gamma Reader works.svg'))
-    await user.click(file('Reading notes.md'))
-    await user.click(screen.getByRole('tab', { name: 'Reading notes.md' }))
+    await user.click(file('Explore a wave.lab.md'))
+    await user.click(screen.getByRole('tab', { name: 'Explore a wave.lab.md' }))
     await user.click(screen.getByRole('button', { name: 'Back' }))
     await waitFor(() =>
       expect(screen.getByRole('tab', { name: 'How Gamma Reader works.svg' })).toHaveAttribute(
@@ -107,26 +118,26 @@ describe('local workspace navigation', () => {
       ),
     )
     expect(tabNames()).toEqual([
-      'Getting started.md',
+      'Start here.md',
       'How Gamma Reader works.svg',
-      'Reading notes.md',
+      'Explore a wave.lab.md',
     ])
     await user.click(screen.getByRole('button', { name: 'Forward' }))
     await waitFor(() =>
-      expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
+      expect(screen.getByRole('tab', { name: 'Explore a wave.lab.md' })).toHaveAttribute(
         'aria-selected',
         'true',
       ),
     )
     expect(tabNames()).toEqual([
-      'Getting started.md',
+      'Start here.md',
       'How Gamma Reader works.svg',
-      'Reading notes.md',
+      'Explore a wave.lab.md',
     ])
     await user.click(screen.getByRole('tab', { name: 'How Gamma Reader works.svg' }))
     await user.click(screen.getByRole('button', { name: 'Back' }))
     await waitFor(() =>
-      expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
+      expect(screen.getByRole('tab', { name: 'Explore a wave.lab.md' })).toHaveAttribute(
         'aria-selected',
         'true',
       ),
@@ -140,8 +151,8 @@ describe('local workspace navigation', () => {
       ),
     )
     expect(tabNames()).toEqual([
-      'Getting started.md',
-      'Reading notes.md',
+      'Start here.md',
+      'Explore a wave.lab.md',
       'How Gamma Reader works.svg',
     ])
   })
@@ -154,15 +165,15 @@ describe('local workspace navigation', () => {
     expect(tabNames()).toEqual([])
     await waitFor(() => expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null }))
 
-    await user.click(screen.getByRole('button', { name: 'Open Getting started.md' }))
-    await screen.findByRole('tab', { name: 'Getting started.md' })
-    await user.click(screen.getByRole('button', { name: 'Close Getting started.md' }))
+    await user.click(screen.getByRole('button', { name: 'Open Start here.md' }))
+    await screen.findByRole('tab', { name: 'Start here.md' })
+    await user.click(screen.getByRole('button', { name: 'Close Start here.md' }))
     expect(screen.getByLabelText('Current route')).toHaveTextContent('/files')
     expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null })
     page.unmount()
 
     openReader()
-    await screen.findByRole('button', { name: 'Open Getting started.md' })
+    await screen.findByRole('button', { name: 'Open Start here.md' })
     expect(tabNames()).toEqual([])
   })
 
@@ -199,11 +210,11 @@ describe('local workspace navigation', () => {
     const report = vi.spyOn(console, 'error').mockImplementation(() => {})
     openReader()
     await waitForWorkspace()
-    await user.click(file('Getting started.md'))
-    await user.click(file('Reading notes.md'))
-    await user.click(screen.getByRole('button', { name: 'Close Getting started.md' }))
-    expect(tabNames()).toEqual(['Reading notes.md'])
-    expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
+    await user.click(file('Start here.md'))
+    await user.click(file('Explore a wave.lab.md'))
+    await user.click(screen.getByRole('button', { name: 'Close Start here.md' }))
+    expect(tabNames()).toEqual(['Explore a wave.lab.md'])
+    expect(screen.getByRole('tab', { name: 'Explore a wave.lab.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
@@ -214,24 +225,24 @@ describe('local workspace navigation', () => {
     const user = userEvent.setup()
     openReader()
     await waitForWorkspace()
-    await user.click(file('Getting started.md'))
-    await screen.findByRole('heading', { name: 'Welcome to Gamma Reader' })
+    await user.click(file('Start here.md'))
+    await screen.findByRole('heading', { name: 'Start here' })
     const pane = screen.getByRole('tabpanel')
     const scroll = pane.querySelector('.document-scroll')
     if (!scroll) throw new Error('Document scroll container is missing')
     fireEvent.scroll(scroll, { target: { scrollTop: 180 } })
     const text = screen.getByText(
-      'Open local documents in a browser workspace with no desktop application to install and no file upload step.',
+      'Read, experiment, and create with AI, using files in your browser.',
     )
     const range = document.createRange()
     range.selectNodeContents(text)
     window.getSelection()?.addRange(range)
     fireEvent.pointerUp(text)
     expect(screen.queryByRole('button', { name: 'Ask AI' })).not.toBeInTheDocument()
-    await user.click(file('Reading notes.md'))
+    await user.click(file('Explore a wave.lab.md'))
     expect(pane).not.toBeVisible()
     expect(screen.queryByRole('button', { name: 'Ask AI' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('tab', { name: 'Getting started.md' }))
+    await user.click(screen.getByRole('tab', { name: 'Start here.md' }))
     await waitFor(() => expect(pane).toBeVisible())
     expect(scroll.scrollTop).toBe(180)
     expect(screen.queryByRole('button', { name: 'Ask AI' })).not.toBeInTheDocument()

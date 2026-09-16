@@ -1,14 +1,19 @@
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getStoredFileContent, listStoredFiles } from '../data/file-store'
 import { usePanelWidths } from './use-panel-widths'
 import { Workbench } from './workbench'
 
+beforeEach(() => {
+  // Lab samples mount CodeMirror, which measures text geometry unavailable in jsdom.
+  Range.prototype.getClientRects = () => [new DOMRect(0, 0, 100, 20)] as unknown as DOMRectList
+})
+
 const material = (name: string) =>
   within(screen.getByRole('list', { name: 'Files' })).getByRole('button', { name })
-const waitForWorkspace = () => screen.findByRole('tab', { name: 'Getting started.md' })
+const waitForWorkspace = () => screen.findByRole('tab', { name: 'Start here.md' })
 const streamEvent = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'reply', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
 const reply = (text: string) =>
@@ -72,7 +77,7 @@ describe('reading workspace', () => {
     expect(
       await screen.findByRole('button', { name: 'Saved notes.md' }, { timeout: 3000 }),
     ).toBeVisible()
-    expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'Start here.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
@@ -116,22 +121,22 @@ describe('reading workspace', () => {
     )
     await waitForWorkspace()
     await user.click(material('How Gamma Reader works.svg'))
-    await user.click(material('Reading notes.md'))
+    await user.click(material('Explore a wave.lab.md'))
     await user.click(material('How Gamma Reader works.svg'))
     expect(screen.getAllByRole('tab')).toHaveLength(3)
     await user.click(screen.getByRole('button', { name: 'Close How Gamma Reader works.svg' }))
-    expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'Explore a wave.lab.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    await user.click(screen.getByRole('button', { name: 'Close Getting started.md' }))
-    expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
+    await user.click(screen.getByRole('button', { name: 'Close Start here.md' }))
+    expect(screen.getByRole('tab', { name: 'Explore a wave.lab.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    await user.click(screen.getByRole('button', { name: 'Close Reading notes.md' }))
-    await user.click(screen.getByRole('button', { name: 'Open Getting started.md' }))
-    expect(await screen.findByRole('heading', { name: 'Welcome to Gamma Reader' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Close Explore a wave.lab.md' }))
+    await user.click(screen.getByRole('button', { name: 'Open Start here.md' }))
+    expect(await screen.findByRole('heading', { name: 'Start here' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Save to folder' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Send question' })).toBeDisabled()
     expect(screen.queryByRole('heading', { name: 'Your files' })).not.toBeInTheDocument()
@@ -149,17 +154,17 @@ describe('reading workspace', () => {
       </MemoryRouter>,
     )
     await waitForWorkspace()
-    await screen.findByRole('heading', { name: 'Welcome to Gamma Reader' })
+    await screen.findByRole('heading', { name: 'Start here' })
     const pane = screen.getByRole('tabpanel')
     const scroll = pane.querySelector('.document-scroll')
     if (!scroll) throw new Error('Document scroll container is missing')
     fireEvent.scroll(scroll, { target: { scrollTop: 260 } })
-    await user.click(material('Reading notes.md'))
-    await user.click(screen.getByRole('tab', { name: 'Getting started.md' }))
+    await user.click(material('Explore a wave.lab.md'))
+    await user.click(screen.getByRole('tab', { name: 'Start here.md' }))
     expect(scroll.scrollTop).toBe(260)
     await user.keyboard('{ArrowRight}')
     await waitFor(() =>
-      expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
+      expect(screen.getByRole('tab', { name: 'Explore a wave.lab.md' })).toHaveAttribute(
         'aria-selected',
         'true',
       ),
@@ -175,21 +180,21 @@ describe('reading workspace', () => {
     )
     await waitForWorkspace()
     await user.click(material('How Gamma Reader works.svg'))
-    await user.click(material('Reading notes.md'))
+    await user.click(material('Explore a wave.lab.md'))
     await user.click(screen.getByRole('tab', { name: 'How Gamma Reader works.svg' }))
     await user.tab()
     expect(screen.getByRole('button', { name: 'Close How Gamma Reader works.svg' })).toHaveFocus()
     await user.keyboard('{Enter}')
-    expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'Explore a wave.lab.md' })).toHaveFocus()
     await user.keyboard('{ArrowLeft}')
-    expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'Start here.md' })).toHaveFocus()
     await user.keyboard('{ArrowRight}')
     await user.tab()
     await user.keyboard('{Enter}')
-    expect(screen.getByRole('tab', { name: 'Getting started.md' })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'Start here.md' })).toHaveFocus()
     await user.tab()
     await user.keyboard('{Enter}')
-    expect(screen.getByRole('button', { name: 'Open Getting started.md' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Open Start here.md' })).toHaveFocus()
   })
 
   it('preserves a question across document and panel changes', async () => {
@@ -201,12 +206,14 @@ describe('reading workspace', () => {
     )
     await waitForWorkspace()
     await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'What does this mean?')
-    await user.click(material('Reading notes.md'))
-    await user.click(screen.getByRole('button', { name: 'Close Getting started.md' }))
+    await user.click(material('Explore a wave.lab.md'))
+    await user.click(screen.getByRole('button', { name: 'Close Start here.md' }))
     await user.click(screen.getByRole('button', { name: 'Close reading assistant' }))
     await user.click(screen.getByRole('button', { name: 'Hide files' }))
     await user.click(screen.getByRole('button', { name: 'Open reading assistant' }))
-    expect(screen.getByRole('textbox')).toHaveValue('What does this mean?')
+    expect(screen.getByRole('textbox', { name: 'Your question' })).toHaveValue(
+      'What does this mean?',
+    )
   })
 
   it('keeps drafts when resizing into an overlay and restores focus when it closes', async () => {
@@ -233,7 +240,10 @@ describe('reading workspace', () => {
       </MemoryRouter>,
     )
     await waitForWorkspace()
-    await user.type(screen.getByRole('textbox'), 'Explain the main idea in simpler terms.')
+    await user.type(
+      screen.getByRole('textbox', { name: 'Your question' }),
+      'Explain the main idea in simpler terms.',
+    )
     act(() => {
       wide = false
       listeners.forEach(notify => {
@@ -243,14 +253,16 @@ describe('reading workspace', () => {
     const trigger = screen.getByRole('button', { name: 'Open reading assistant' })
     await user.click(trigger)
     expect(screen.getByRole('dialog', { name: 'Reading assistant panel' })).toBeVisible()
-    expect(screen.getByRole('textbox')).toHaveValue('Explain the main idea in simpler terms.')
+    expect(screen.getByRole('textbox', { name: 'Your question' })).toHaveValue(
+      'Explain the main idea in simpler terms.',
+    )
     await user.click(screen.getByRole('button', { name: 'Close reading assistant' }))
     expect(trigger).toHaveFocus()
     await user.click(screen.getByRole('button', { name: 'Open files' }))
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    await user.click(material('Reading notes.md'))
+    await user.click(material('Explore a wave.lab.md'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Reading notes.md' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'Explore a wave.lab.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )

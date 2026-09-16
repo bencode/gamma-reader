@@ -164,7 +164,7 @@ describe('file library', () => {
   it('confirms new name conflicts before saving Files to a remembered folder', async () => {
     const user = userEvent.setup()
     const existing = new Blob(['external'])
-    const target = exportDirectory('Reading exports', { 'Getting started.md': existing })
+    const target = exportDirectory('Reading exports', { 'Start here.md': existing })
     const anotherTarget = exportDirectory('Other exports')
     const picker = vi
       .fn()
@@ -192,7 +192,7 @@ describe('file library', () => {
 
       expect(target.entries.size).toBe(samples.length)
       expect(target.writes).toHaveLength(samples.length)
-      expect(await target.entries.get('Getting started.md')?.text()).not.toBe('external')
+      expect(await target.entries.get('Start here.md')?.text()).not.toBe('external')
 
       await user.upload(
         screen.getByLabelText('Choose files'),
@@ -257,10 +257,10 @@ describe('file library', () => {
         </MemoryRouter>,
       )
       await waitForFiles()
-      await user.click(screen.getByRole('button', { name: 'Save Reading notes.md as' }))
+      await user.click(screen.getByRole('button', { name: 'Save Explore a wave.lab.md as' }))
       await waitFor(() => expect(writes).toHaveLength(1))
 
-      expect(screen.queryByRole('tab', { name: 'Reading notes.md' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('tab', { name: 'Explore a wave.lab.md' })).not.toBeInTheDocument()
     } finally {
       Reflect.deleteProperty(window, 'showSaveFilePicker')
     }
