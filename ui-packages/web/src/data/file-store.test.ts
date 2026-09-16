@@ -100,7 +100,7 @@ describe('local file store', () => {
     })
 
     await expect(listStoredFiles()).rejects.toThrow('Temporarily unavailable')
-    await expect(listStoredFiles()).resolves.toHaveLength(4)
+    await expect(listStoredFiles()).resolves.toHaveLength(5)
   })
 
   it('seeds samples once and keeps a deleted sample removed after reopening', async () => {
@@ -108,13 +108,8 @@ describe('local file store', () => {
     expect(initial).toEqual([
       expect.objectContaining({
         id: 'getting-started',
-        name: 'Getting started.md',
+        name: 'Start here.md',
         previewKind: 'markdown',
-      }),
-      expect.objectContaining({
-        id: 'how-gamma-reader-works',
-        name: 'How Gamma Reader works.svg',
-        previewKind: 'image',
       }),
       expect.objectContaining({
         id: 'art-of-noticing',
@@ -122,9 +117,19 @@ describe('local file store', () => {
         previewKind: 'pdf',
       }),
       expect.objectContaining({
-        id: 'reading-notes',
-        name: 'Reading notes.md',
+        id: 'explore-wave',
+        name: 'Explore a wave.lab.md',
         previewKind: 'markdown',
+      }),
+      expect.objectContaining({
+        id: 'orbit-demo',
+        name: 'Orbit.p5.js',
+        previewKind: 'text',
+      }),
+      expect.objectContaining({
+        id: 'how-gamma-reader-works',
+        name: 'How Gamma Reader works.svg',
+        previewKind: 'image',
       }),
     ])
     expect((await getStoredFileContent('art-of-noticing'))?.type).toBe('application/pdf')

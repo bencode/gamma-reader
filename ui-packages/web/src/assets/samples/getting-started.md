@@ -1,17 +1,29 @@
-# Welcome to Gamma Reader
+# Start here
 
-Open local documents in a browser workspace with no desktop application to install and no file upload step.
+Read, experiment, and create with AI, using files in your browser.
 
-## Try it
+## Read
 
-1. Open **How Gamma Reader works.svg** to see the browser and server architecture.
-2. Open **The art of noticing.pdf** and ask the assistant for its main idea.
-3. Add your own documents with **+** in Files.
+Open **The art of noticing.pdf** from Files, then ask the assistant:
 
-## What stays local
+> What is the central idea, and which passage best supports it?
 
-Your files are copied directly into IndexedDB. Previewing, PDF parsing, searching, tabs, drafts, attachments, and conversation history all work in this browser.
+## Experiment
 
-Adding or opening a file does not upload it to Gamma Reader's server. This makes large documents available after a fast local copy instead of a network transfer.
+Open **Explore a wave.lab.md**. Run the TypeScript cell, change its frequency, and run it again. Try the Python plot below it when you are ready.
 
-When you ask the assistant, your question and any passages or images needed for the answer pass through a thin LLM proxy to the configured model. The server has no file library or conversation database.
+## Create
+
+Open **Orbit.p5.js** and choose **Source**. Change `speed`, choose **Run changes**, then **Save** (⌘/Ctrl+S) to keep your edit in this browser.
+
+Turn your reading into a new file by asking:
+
+> Summarize our discussion of The art of noticing.pdf and save the conclusions as Reading notes.md.
+
+Use **+** in Files to add your own material. Use a file's **Save as…** action to export its saved copy to your computer.
+
+## Your data
+
+Files and conversations stay in this browser. Questions and context used by the assistant are sent to the model through a server proxy. Source drafts need **Save**; code results last only while their document stays open.
+
+Open **How Gamma Reader works.svg** for the data flow. Reading and experiments also work without AI chat.
