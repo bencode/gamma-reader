@@ -1,4 +1,4 @@
-import { EditorState, type Extension } from '@codemirror/state'
+import { EditorState, type Extension, Transaction } from '@codemirror/state'
 import { basicSetup, EditorView } from 'codemirror'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import styles from './style.module.scss'
@@ -38,7 +38,10 @@ const synchronize = (view: EditorView, next: string, applyingExternal: { current
   }
   applyingExternal.current = true
   try {
-    view.dispatch({ changes: { from, to, insert: next.slice(from, end) } })
+    view.dispatch({
+      changes: { from, to, insert: next.slice(from, end) },
+      annotations: Transaction.addToHistory.of(false),
+    })
   } finally {
     applyingExternal.current = false
   }

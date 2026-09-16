@@ -2,6 +2,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@te
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import { getStoredFileContent, listStoredFiles } from '../data/file-store'
 import { usePanelWidths } from './use-panel-widths'
 import { Workbench } from './workbench'
 
@@ -57,10 +58,17 @@ describe('reading workspace', () => {
     )
     await waitForWorkspace()
     const input = screen.getByRole('textbox', { name: 'Your question' })
-    await waitFor(() => expect(input).toBeEnabled())
+    await waitFor(() => expect(input).toBeEnabled(), { timeout: 3000 })
     await user.type(input, 'Save our conclusion as a new file')
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: 'Send question' })).toBeEnabled(),
+      {
+        timeout: 3000,
+      },
+    )
     await user.click(screen.getByRole('button', { name: 'Send question' }))
 
+    expect(await screen.findByText('Saved the notes.', {}, { timeout: 3000 })).toBeVisible()
     expect(
       await screen.findByRole('button', { name: 'Saved notes.md' }, { timeout: 3000 }),
     ).toBeVisible()
@@ -69,20 +77,34 @@ describe('reading workspace', () => {
       'true',
     )
     expect(screen.queryByRole('tab', { name: 'Saved notes.md' })).not.toBeInTheDocument()
+    const created = (await listStoredFiles()).find(file => file.name === 'Saved notes.md')
+    if (!created) throw new Error('The agent-created file was not persisted.')
+    expect(created.revision).toBe(1)
 
     await user.click(material('Saved notes.md'))
     expect(await screen.findByRole('tab', { name: 'Saved notes.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    expect(await screen.findByRole('heading', { name: 'Saved' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Saved' }, { timeout: 3000 })).toBeVisible()
 
-    await waitFor(() => expect(input).toBeEnabled())
     await user.type(input, 'Replace that file with the revised conclusion')
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: 'Send question' })).toBeEnabled(),
+      {
+        timeout: 3000,
+      },
+    )
     await user.click(screen.getByRole('button', { name: 'Send question' }))
-    expect(await screen.findByRole('heading', { name: 'Revised' })).toBeVisible()
+    expect(await screen.findByText('Revised the notes.', {}, { timeout: 3000 })).toBeVisible()
+    const replaced = (await listStoredFiles()).find(file => file.id === created.id)
+    expect(replaced).toMatchObject({ name: 'saved NOTES.md', revision: 2 })
+    expect(await (await getStoredFileContent(created.id))?.text()).toBe(
+      '# Revised\n\nThe updated conclusion.',
+    )
+    expect(await screen.findByRole('heading', { name: 'Revised' }, { timeout: 3000 })).toBeVisible()
     expect(screen.getAllByRole('tab', { name: 'saved NOTES.md' })).toHaveLength(1)
-  })
+  }, 10000)
 
   it('opens unique tabs, chooses the right neighbor on close, and reopens from empty', async () => {
     const user = userEvent.setup()

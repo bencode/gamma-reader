@@ -2,13 +2,14 @@ import { type ComponentProps, isValidElement, useMemo } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeKatex from 'rehype-katex'
+import type { PluggableList } from 'unified'
 import 'katex/dist/katex.min.css'
 import { imagePlaceholder } from '../core/document-text'
 import { markdownPlugins, normalizeMath } from '../core/markdown-math'
 import { MarkdownImage, type MarkdownImageContext } from './markdown-image'
 import { MermaidDiagram } from './mermaid-diagram'
 
-const CodeBlock = ({ children, ...props }: ComponentProps<'pre'>) => {
+export const MarkdownCodeBlock = ({ children, ...props }: ComponentProps<'pre'>) => {
   if (
     isValidElement<{ className?: string; children?: string; 'data-diagram-closed'?: string }>(
       children,
@@ -28,7 +29,7 @@ const CodeBlock = ({ children, ...props }: ComponentProps<'pre'>) => {
 type MarkdownVariant = 'reader' | 'chat'
 
 const createComponents = (variant: MarkdownVariant, images?: MarkdownImageContext): Components => ({
-  pre: ({ node: _node, ...props }) => <CodeBlock {...props} />,
+  pre: ({ node: _node, ...props }) => <MarkdownCodeBlock {...props} />,
   img: ({ alt, src }) => {
     const fallback = variant === 'chat' && !alt ? '[Image]' : imagePlaceholder(alt ?? undefined)
     if (!images || !src) return <span className="omitted-image">{fallback}</span>
@@ -48,20 +49,31 @@ const createComponents = (variant: MarkdownVariant, images?: MarkdownImageContex
   },
 })
 
+export type MarkdownExtensions = {
+  components?: Components
+  remarkPlugins?: PluggableList
+}
+
 export const Markdown = ({
   text,
   variant,
   images,
-}: {
+  components: overrides,
+  remarkPlugins,
+}: MarkdownExtensions & {
   text: string
   variant: MarkdownVariant
   images?: MarkdownImageContext
 }) => {
-  const components = useMemo(() => createComponents(variant, images), [images, variant])
+  const components = useMemo(
+    () => ({ ...createComponents(variant, images), ...overrides }),
+    [images, overrides, variant],
+  )
+  const plugins = useMemo(() => [...markdownPlugins, ...(remarkPlugins ?? [])], [remarkPlugins])
   return (
     <div className={`markdown-content markdown-${variant}`}>
       <ReactMarkdown
-        remarkPlugins={markdownPlugins}
+        remarkPlugins={plugins}
         rehypePlugins={[
           [rehypeKatex, { trust: false }],
           [rehypeHighlight, { detect: false, ignoreMissing: true, plainText: ['mermaid'] }],

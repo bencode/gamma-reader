@@ -1,4 +1,4 @@
-import { type ComponentType, useEffect, useRef, useState } from 'react'
+import { type ComponentType, type ReactNode, useEffect, useRef, useState } from 'react'
 import type { SourceLanguage } from '../../components/source-editor'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
@@ -22,7 +22,13 @@ export type TextReaderProps = {
 }
 
 export type TextReaderComponent = ComponentType<TextReaderProps>
+export type DocumentScopeProps = {
+  fileId: string
+  children: ReactNode
+}
+
 export type TextReaderDefinition = {
+  Scope?: ComponentType<DocumentScopeProps>
   Preview: TextReaderComponent
   sourceLanguage: SourceLanguage
 }

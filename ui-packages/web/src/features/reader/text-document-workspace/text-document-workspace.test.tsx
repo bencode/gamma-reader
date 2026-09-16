@@ -1,8 +1,10 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { EditorView } from 'codemirror'
 import { Activity, useLayoutEffect, useMemo, useRef } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { SourceEditor } from '../../../components/source-editor'
 import type { StoredFileMetadata } from '../../../core/files'
 import type { LocalTools } from '../../../core/local-tools'
 import {
@@ -216,6 +218,29 @@ describe('text source workspace', () => {
     await user.click(restored)
     await user.keyboard('{Control>}z{/Control}')
     await waitFor(() => expect(handles?.tools.read_active_source().content).not.toBe(content))
+  })
+
+  it('does not undo host synchronization when undoing a user edit', async () => {
+    const changed = vi.fn()
+    const editorFor = (value: string) => (
+      <SourceEditor
+        name="Lesson.lab.md"
+        value={value}
+        language="markdown"
+        active
+        onChange={changed}
+      />
+    )
+    const page = render(editorFor('```python run\n1\n```'))
+    const element = await screen.findByRole('textbox', { name: 'Lesson.lab.md source' })
+    const editor = EditorView.findFromDOM(element)
+    if (!editor) throw new Error('Editor not ready')
+    act(() => editor.dispatch({ changes: { from: 0, insert: '# Title\n\n' } }))
+    page.rerender(editorFor('# Title\n\n```python run id=stable\n1\n```'))
+    await waitFor(() => expect(editor.state.doc.toString()).toContain('id=stable'))
+    fireEvent.keyDown(element, { key: 'z', code: 'KeyZ', ctrlKey: true })
+    await waitFor(() => expect(editor.state.doc.toString()).toBe('```python run id=stable\n1\n```'))
+    expect(changed).toHaveBeenLastCalledWith('```python run id=stable\n1\n```')
   })
 
   it('restarts decoding when Activity interrupts an unfinished read', async () => {

@@ -4,7 +4,6 @@
   border-radius: 8px;
   background: #f8f8f7;
   color: #292827;
-  box-shadow: 0 1px 2px rgb(32 27 24 / 4%);
 }
 
 .header {
@@ -39,11 +38,10 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #77736f;
+  color: #65615e;
   font-size: 11px;
 }
 
-.dirtyDot,
 .progressDot {
   width: 5px;
   height: 5px;
@@ -96,8 +94,7 @@
 }
 
 .editor {
-  max-height: 420px;
-  overflow: auto;
+  min-width: 0;
 
   :global(.cm-editor) {
     min-height: 82px;
@@ -112,6 +109,8 @@
 
   :global(.cm-scroller) {
     min-height: 82px;
+    max-height: 420px;
+    overflow: auto;
     padding: 7px 0;
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
     line-height: 1.62;
@@ -153,7 +152,7 @@
 
 .progress,
 .muted {
-  color: #77736f;
+  color: #65615e;
 }
 
 .progress {
@@ -172,8 +171,7 @@
 }
 
 .error {
-  padding-left: 9px;
-  border-left: 2px solid #c76058;
+  white-space: pre-wrap;
 }
 
 .outputImage {
@@ -217,9 +215,9 @@
   }
 
   .actions button {
-    width: 30px;
-    padding-inline: 0;
-    font-size: 0;
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 8px;
   }
 
   .actions button svg {
@@ -232,4 +230,10 @@
   .progressDot {
     animation: none;
   }
+}
+
+.outdated {
+  margin-bottom: 8px;
+  color: #8b2f61;
+  font-family: system-ui, sans-serif;
 }
