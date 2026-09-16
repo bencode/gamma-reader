@@ -1,11 +1,12 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { BookOpen, Code2, MessageSquare, Save, X } from 'lucide-react'
-import { Activity, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
 import { useSourceDrafts, useWorkspaceSourceActions } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
-import { FilePreview, type PdfSourceCacheEntry } from './file-preview'
+import { DocumentPane } from './document-pane'
+import type { PdfSourceCacheEntry } from './file-preview'
 import { HtmlReader } from './html-reader'
 import { SvgReader } from './image-reader'
 import { MarkdownReader } from './markdown-reader'
@@ -17,6 +18,16 @@ const P5FileReader = lazy(() =>
   import('./p5-file-reader').then(module => ({ default: module.P5FileReader })),
 )
 
+const LabReader = lazy(() => import('./lab-reader').then(module => ({ default: module.LabReader })))
+const LabDocumentScope = lazy(() =>
+  import('./lab-reader/document-scope').then(module => ({ default: module.LabDocumentScope })),
+)
+const labReader: TextReaderDefinition = {
+  Preview: LabReader,
+  Scope: LabDocumentScope,
+  sourceLanguage: 'markdown',
+}
+
 const markdownReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage: 'markdown' }
 const plainReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage: 'plain' }
 const jsReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage: 'javascript' }
@@ -26,6 +37,7 @@ const htmlReader: TextReaderDefinition = { Preview: HtmlReader, sourceLanguage: 
 const svgReader: TextReaderDefinition = { Preview: SvgReader, sourceLanguage: 'plain' }
 
 const textReaderFor = (file: StoredFileMetadata): TextReaderDefinition | undefined => {
+  if (file.name.toLowerCase().endsWith('.lab.md')) return labReader
   if (isP5SourceName(file.name)) return p5Reader
   if (file.previewKind === 'markdown') return markdownReader
   if (file.previewKind === 'html') return htmlReader
@@ -195,18 +207,15 @@ export const DocumentTabs = ({
         {workspace.tabs.map(id => {
           const source = workspace.files.find(document => document.id === id)
           return source ? (
-            <Activity key={id} mode={workspace.activeId === id ? 'visible' : 'hidden'}>
-              <Tabs.Content value={id} className="document-pane" forceMount>
-                <FilePreview
-                  document={source}
-                  files={workspace.files}
-                  active={workspace.activeId === id}
-                  scrollPositions={workspace.scrollPositions}
-                  pdfSources={pdfSources}
-                  textReader={textReaderFor(source)}
-                />
-              </Tabs.Content>
-            </Activity>
+            <DocumentPane
+              key={id}
+              document={source}
+              files={workspace.files}
+              active={workspace.activeId === id}
+              scrollPositions={workspace.scrollPositions}
+              pdfSources={pdfSources}
+              textReader={textReaderFor(source)}
+            />
           ) : null
         })}
       </main>

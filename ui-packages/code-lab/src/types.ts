@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 export type CodeLabLanguage = 'scheme' | 'clojure' | 'python' | 'typescript'
 
 export type CodeLabCell = Readonly<{
@@ -18,37 +20,12 @@ export type CodeLabExecutionResult = Readonly<{
 
 export type CodeLabCellPhase = 'idle' | 'loading' | 'running' | 'succeeded' | 'failed' | 'stopped'
 
-export type CodeLabCellSnapshot = Readonly<{
-  id: string
-  language: CodeLabLanguage
-  source: string
-  dirty: boolean
-  phase: CodeLabCellPhase
-  progress: string | null
-  result: CodeLabExecutionResult | null
-  canRun: boolean
-  canStop: boolean
-}>
-
-export type CodeLabSessionSnapshot = Readonly<{
-  dirty: boolean
-}>
-
-export type CodeLabSession = {
-  getCells(): readonly CodeLabCell[]
-  getCellSnapshot(cellId: string): CodeLabCellSnapshot
-  getSessionSnapshot(): CodeLabSessionSnapshot
-  subscribeCell(cellId: string, listener: () => void): () => void
-  subscribeSession(listener: () => void): () => void
-  updateCell(cellId: string, source: string): void
-  runCell(cellId: string): Promise<void>
-  stopCell(cellId: string): void
-  resetCell(cellId: string): void
-  markSaved(): void
-  dispose(): void
+export type CodeLabProviderProps = {
+  cells: readonly CodeLabCell[]
+  onCellChange?: (cellId: string, source: string) => void
+  children: ReactNode
 }
 
 export type CodeCellProps = {
   cellId: string
-  session: CodeLabSession
 }

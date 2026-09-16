@@ -150,3 +150,77 @@
     max-width: 520px;
   }
 }
+
+.demo {
+  margin-block: 64px;
+
+  h2 {
+    margin: 0 0 12px;
+    color: #2d2927;
+    font-size: 24px;
+    font-weight: 550;
+  }
+
+  > p {
+    max-width: 70ch;
+    margin: 0 0 24px;
+    color: #625c59;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+}
+
+.demoControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    font-size: 13px;
+  }
+}
+
+.demoControls button,
+.hostCellHeader button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #d8d1d5;
+  border-radius: 6px;
+  background: transparent;
+  color: #793257;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: #f0e9ed; }
+  &:focus-visible { outline: 2px solid #96346b; outline-offset: 2px; }
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+
+.hostCell { min-width: 0; }
+
+.hostCellHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: #625c59;
+  font-size: 12px;
+
+  button { border: 0; }
+}
+
+.hostData {
+  margin-top: 20px;
+  color: #625c59;
+  font-size: 13px;
+
+  summary { padding-block: 10px; cursor: pointer; }
+  pre { max-height: 320px; overflow: auto; line-height: 1.6; }
+}

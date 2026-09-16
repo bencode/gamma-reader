@@ -1,6 +1,7 @@
-import { Play, RotateCcw, Square } from 'lucide-react'
-import { useCallback, useSyncExternalStore } from 'react'
+import { Play, Square } from 'lucide-react'
+import { useSyncExternalStore } from 'react'
 import type { CodeCellProps, CodeLabLanguage } from '../../types'
+import { useCodeLabContext } from '../code-lab-provider'
 import { CodeEditor } from './code-editor'
 import { CodeOutput } from './code-output'
 import styles from './style.module.scss'
@@ -21,45 +22,51 @@ const phaseLabels = {
   stopped: 'Stopped',
 } as const
 
-export const CodeCell = ({ cellId, session }: CodeCellProps) => {
-  const subscribe = useCallback(
-    (listener: () => void) => session.subscribeCell(cellId, listener),
-    [cellId, session],
+export const CodeCell = ({ cellId }: CodeCellProps) => {
+  const { cells, onCellChange, runtime } = useCodeLabContext()
+  const executions = useSyncExternalStore(
+    runtime.subscribe,
+    runtime.getSnapshot,
+    runtime.getSnapshot,
   )
-  const getSnapshot = useCallback(() => session.getCellSnapshot(cellId), [cellId, session])
-  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
-  const executing = snapshot.phase === 'loading' || snapshot.phase === 'running'
-  const resetDisabled = executing || (!snapshot.dirty && snapshot.result === null)
+  const cell = cells.find(cell => cell.id === cellId)
+  if (!cell) return null
 
-  const run = useCallback(() => {
-    void session
-      .runCell(cellId)
-      .catch(error => console.error(`Unable to start Code Lab cell ${cellId}`, error))
-  }, [cellId, session])
+  const currentExecution = executions.get(cellId)
+  const execution = currentExecution?.language === cell.language ? currentExecution : undefined
+  const executing = execution?.phase === 'loading' || execution?.phase === 'running'
+  const busy = [...executions.values()].some(
+    other =>
+      other.language === cell.language && (other.phase === 'loading' || other.phase === 'running'),
+  )
+  const run = () => {
+    if (!busy) void runtime.runCell(cell)
+  }
+  const label = languageLabels[cell.language]
 
   return (
-    <section className={styles.cell} aria-label={`${languageLabels[snapshot.language]} code cell`}>
+    <section className={styles.cell} aria-label={`${label} code cell`}>
       <header className={styles.header}>
         <div className={styles.identity}>
-          <span className={styles.language}>{languageLabels[snapshot.language]}</span>
+          <span className={styles.language}>{label}</span>
           <span className={styles.status} aria-live="polite">
-            {snapshot.dirty && <span className={styles.dirtyDot} aria-hidden="true" />}
-            {snapshot.dirty && 'Edited · '}
-            {phaseLabels[snapshot.phase]}
+            {busy && !executing ? `Waiting for ${label}` : phaseLabels[execution?.phase ?? 'idle']}
           </span>
         </div>
         <div className={styles.actions}>
-          <button type="button" disabled={resetDisabled} onClick={() => session.resetCell(cellId)}>
-            <RotateCcw size={13} aria-hidden="true" />
-            Reset
-          </button>
-          {snapshot.canStop ? (
-            <button type="button" className={styles.stop} onClick={() => session.stopCell(cellId)}>
+          {executing ? (
+            <button type="button" className={styles.stop} onClick={() => runtime.stopCell(cellId)}>
               <Square size={12} fill="currentColor" aria-hidden="true" />
               Stop
             </button>
           ) : (
-            <button type="button" className={styles.run} disabled={!snapshot.canRun} onClick={run}>
+            <button
+              type="button"
+              className={styles.run}
+              disabled={busy}
+              title="Run code (⌘/Ctrl+Enter)"
+              onClick={run}
+            >
               <Play size={13} fill="currentColor" aria-hidden="true" />
               Run
             </button>
@@ -68,16 +75,14 @@ export const CodeCell = ({ cellId, session }: CodeCellProps) => {
       </header>
       <div className={styles.editor}>
         <CodeEditor
-          language={snapshot.language}
-          source={snapshot.source}
-          readOnly={executing}
-          onChange={source => session.updateCell(cellId, source)}
-          onRun={() => {
-            if (snapshot.canRun) run()
-          }}
+          language={cell.language}
+          source={cell.source}
+          readOnly={!onCellChange || executing}
+          onChange={source => onCellChange?.(cellId, source)}
+          onRun={run}
         />
       </div>
-      <CodeOutput snapshot={snapshot} />
+      <CodeOutput execution={execution} source={cell.source} />
     </section>
   )
 }

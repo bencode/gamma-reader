@@ -111,4 +111,20 @@ describe('document tab lifecycles', () => {
     expect(screen.getByTestId('preview-p5')).toHaveAttribute('data-reader', 'custom')
     expect(screen.getByTestId('preview-javascript')).toHaveAttribute('data-reader', 'default')
   })
+  it('mounts a Lab scope only after activation and removes it when its tab closes', async () => {
+    const lab = storedFile('lab', 'Lesson.LAB.MD', 'markdown')
+    const image = storedFile('figure', 'Figure.png', 'image')
+    const initial = { ...workspace(image.id), files: [lab, image], tabs: [lab.id, image.id] }
+    const view = render(<TestTabs workspace={initial} />)
+    expect(screen.queryByTestId('preview-lab')).toBeNull()
+    view.rerender(<TestTabs workspace={{ ...initial, activeId: lab.id }} />)
+    expect(await screen.findByTestId('preview-lab', {}, { timeout: 5000 })).toHaveAttribute(
+      'data-reader',
+      'custom',
+    )
+    view.rerender(<TestTabs workspace={initial} />)
+    expect(screen.getByTestId('preview-lab')).not.toBeVisible()
+    view.rerender(<TestTabs workspace={{ ...initial, tabs: [image.id] }} />)
+    expect(screen.queryByTestId('preview-lab')).toBeNull()
+  })
 })

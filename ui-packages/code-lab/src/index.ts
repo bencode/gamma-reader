@@ -1,13 +1,11 @@
-export { createCodeLabSession } from './code-lab-session'
 export { CodeCell } from './components/code-cell'
+export { CodeLabProvider } from './components/code-lab-provider'
 export type {
   CodeCellProps,
   CodeLabCell,
   CodeLabCellPhase,
-  CodeLabCellSnapshot,
   CodeLabExecutionResult,
   CodeLabLanguage,
   CodeLabOutput,
-  CodeLabSession,
-  CodeLabSessionSnapshot,
+  CodeLabProviderProps,
 } from './types'

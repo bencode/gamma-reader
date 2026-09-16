@@ -1,6 +1,6 @@
 import { PanelLeft } from 'lucide-react'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Markdown } from '../../../components/markdown'
+import { Markdown, type MarkdownExtensions } from '../../../components/markdown'
 import { normalizeMath } from '../../../core/markdown-math'
 import { useReaderBinding } from '../../../shell/workspace-context'
 import { createMarkdownImageResolver, workspacePathFor } from '../markdown-image-resolver'
@@ -27,7 +27,8 @@ export const MarkdownReader = ({
   files,
   active,
   scrollPositions,
-}: TextReaderProps) => {
+  markdownOptions,
+}: TextReaderProps & { markdownOptions?: MarkdownExtensions }) => {
   const markdown = document.previewKind === 'markdown'
   const rootRef = useRef<HTMLDivElement>(null)
   const previewScrollRef = useRef<HTMLDivElement>(null)
@@ -158,7 +159,7 @@ export const MarkdownReader = ({
           }}
         >
           <article className="markdown-body" ref={articleRef}>
-            <Markdown text={content} variant="reader" images={images} />
+            <Markdown text={content} variant="reader" images={images} {...markdownOptions} />
           </article>
         </div>
       </div>

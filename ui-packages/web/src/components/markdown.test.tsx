@@ -1,4 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { Root } from 'mdast'
+import type { Plugin } from 'unified'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Markdown } from './markdown'
 import type { MarkdownImageResolver } from './markdown-image'
@@ -31,6 +33,26 @@ $$\int_0^1 x\,dx = \frac12$$
       'data-math-source',
       'E=mc^2',
     )
+  })
+
+  it('accepts component and plugin extensions while keeping default math and links', () => {
+    const annotate: Plugin<[], Root> = () => tree => {
+      tree.children.forEach(node => {
+        if (node.type === 'code') node.data = { hProperties: { dataExample: 'extended' } }
+      })
+    }
+    const { container } = render(
+      <Markdown
+        variant="reader"
+        text={'# Lesson\n\n$x^2$ [Reference](https://example.test)\n\n```text\nhello\n```'}
+        remarkPlugins={[annotate]}
+        components={{ h1: ({ children }) => <h1 data-lesson>{children}</h1> }}
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'Lesson' })).toHaveAttribute('data-lesson')
+    expect(container.querySelector('code[data-example="extended"]')).toHaveTextContent('hello')
+    expect(container.querySelector('.katex')).not.toBeNull()
+    expect(screen.getByRole('link')).toHaveAttribute('rel', 'noopener noreferrer')
   })
 
   it('preserves code and highlights only recognized language fences', () => {

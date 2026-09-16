@@ -129,6 +129,8 @@ const useWorkspaceContext = () => {
   return context
 }
 
+export const useWorkspaceStore = () => useWorkspaceContext().store
+
 export const useLocalTools = () => useWorkspaceContext().tools
 
 export const useWorkspaceSource = (fileId: string | null) => {

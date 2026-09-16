@@ -1,0 +1,21 @@
+.cell {
+  margin-block: var(--prose-gap);
+  min-width: 0;
+  max-width: 100%;
+
+  > section pre {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+.error {
+  color: var(--danger);
+  font-size: 12px;
+}
