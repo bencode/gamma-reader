@@ -10,12 +10,13 @@ RUN corepack enable
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY ui-packages/code-lab/package.json ui-packages/code-lab/package.json
 COPY ui-packages/web/package.json ui-packages/web/package.json
 COPY web-packages/server/package.json web-packages/server/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN pnpm build
+RUN pnpm --filter @gamma-reader/server --filter @gamma-reader/web build
 RUN pnpm --filter @gamma-reader/server deploy --prod --legacy /prod/server
 
 FROM ${NODE_IMAGE} AS runtime
