@@ -1,6 +1,19 @@
 import { ChevronLeft, ChevronRight, Hand, Minus, PanelLeft, Plus } from 'lucide-react'
 import { type FormEvent, type KeyboardEvent, useEffect, useState } from 'react'
+import {
+  ReadingAppearanceNote,
+  ReadingAppearancePopover,
+  type ReadingThemeOption,
+  ReadingThemeSetting,
+} from '../reading-appearance'
+import type { PdfReadingTheme } from './index'
 import styles from './style.module.scss'
+
+const themeOptions: readonly ReadingThemeOption<PdfReadingTheme>[] = [
+  { value: 'original', label: 'Original', background: '#ffffff', foreground: '#333333' },
+  { value: 'paper', label: 'Paper', background: '#f3ead2', foreground: '#302b26' },
+  { value: 'dark', label: 'Dark', background: '#1d1f20', foreground: '#e7e2d8' },
+]
 
 type PdfToolbarProps = {
   pageNumber: number
@@ -10,10 +23,12 @@ type PdfToolbarProps = {
   outlineOpen: boolean
   panAvailable: boolean
   panActive: boolean
+  theme: PdfReadingTheme
   onPageChange: (pageNumber: number) => void
   onZoomChange: (zoom: number) => void
   onToggleOutline: () => void
   onPanActiveChange: (active: boolean) => void
+  onThemeChange: (theme: PdfReadingTheme) => void
 }
 
 const PageNumberInput = ({
@@ -73,10 +88,12 @@ export const PdfToolbar = ({
   outlineOpen,
   panAvailable,
   panActive,
+  theme,
   onPageChange,
   onZoomChange,
   onToggleOutline,
   onPanActiveChange,
+  onThemeChange,
 }: PdfToolbarProps) => (
   <div
     className={`preview-toolbar ${styles.toolbar} ${outlineAvailable ? styles.toolbarWithOutline : ''}`}
@@ -167,5 +184,9 @@ export const PdfToolbar = ({
         <Plus size={15} />
       </button>
     </span>
+    <ReadingAppearancePopover className={styles.appearanceToggle}>
+      <ReadingThemeSetting value={theme} options={themeOptions} onChange={onThemeChange} />
+      <ReadingAppearanceNote>Paper and Dark recolor document pages.</ReadingAppearanceNote>
+    </ReadingAppearancePopover>
   </div>
 )

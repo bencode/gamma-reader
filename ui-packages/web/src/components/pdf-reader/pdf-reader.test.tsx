@@ -10,6 +10,7 @@ const toolbar = (overrides: Partial<Parameters<typeof PdfToolbar>[0]> = {}) => {
   const onPageChange = vi.fn()
   const onPanActiveChange = vi.fn()
   const onToggleOutline = vi.fn()
+  const onThemeChange = vi.fn()
   const props = {
     pageNumber: 3,
     pageCount: 10,
@@ -18,14 +19,16 @@ const toolbar = (overrides: Partial<Parameters<typeof PdfToolbar>[0]> = {}) => {
     outlineOpen: false,
     panAvailable: false,
     panActive: false,
+    theme: 'original' as const,
     onPageChange,
     onZoomChange: vi.fn(),
     onToggleOutline,
     onPanActiveChange,
+    onThemeChange,
     ...overrides,
   }
   render(<PdfToolbar {...props} />)
-  return { onPageChange, onPanActiveChange, onToggleOutline }
+  return { onPageChange, onPanActiveChange, onToggleOutline, onThemeChange }
 }
 
 const PanSurface = ({ enabled }: { enabled: boolean }) => {
@@ -87,10 +90,12 @@ describe('PDF reader controls', () => {
         outlineOpen={false}
         panAvailable={false}
         panActive={false}
+        theme="original"
         onPageChange={vi.fn()}
         onZoomChange={vi.fn()}
         onToggleOutline={vi.fn()}
         onPanActiveChange={vi.fn()}
+        onThemeChange={vi.fn()}
       />,
     )
     expect(screen.getAllByRole('button', { name: 'Show table of contents' })).toHaveLength(1)
@@ -104,6 +109,17 @@ describe('PDF reader controls', () => {
     expect(toggle).toHaveAttribute('aria-pressed', 'true')
     await user.click(toggle)
     expect(onToggleOutline).toHaveBeenCalledOnce()
+  })
+
+  it('changes the PDF reading theme from the appearance menu', async () => {
+    const user = userEvent.setup()
+    const { onThemeChange } = toolbar()
+
+    await user.click(screen.getByRole('button', { name: 'Reading appearance' }))
+    expect(screen.getByText('Paper and Dark recolor document pages.')).toBeVisible()
+    await user.click(screen.getByRole('radio', { name: 'Paper' }))
+
+    expect(onThemeChange).toHaveBeenCalledWith('paper')
   })
 
   it('resolves named, referenced, and direct outline destinations', async () => {

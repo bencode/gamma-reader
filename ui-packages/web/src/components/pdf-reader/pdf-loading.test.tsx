@@ -2,18 +2,20 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { type ReactNode, Suspense, use, useEffect, useLayoutEffect, useState } from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { PdfReader } from './index'
+import { PdfReader, type PdfReadingTheme } from './index'
 
 const loading = vi.hoisted(() => ({
   page: Promise.resolve(),
   pageFailure: undefined as 'load' | 'render' | undefined,
   options: undefined as { wasmUrl: string } | undefined,
+  pageColors: undefined as { background: string; foreground: string } | undefined,
 }))
 
 beforeEach(() => {
   loading.page = Promise.resolve()
   loading.pageFailure = undefined
   loading.options = undefined
+  loading.pageColors = undefined
 })
 const pdf = {
   numPages: 3,
@@ -44,7 +46,14 @@ vi.mock('react-pdf', () => ({
     useEffect(() => onLoadSuccess(pdf), [onLoadSuccess])
     return children
   },
-  Page: ({ pageNumber }: { pageNumber: number }) => {
+  Page: ({
+    pageNumber,
+    pageColors,
+  }: {
+    pageNumber: number
+    pageColors?: { background: string; foreground: string }
+  }) => {
+    loading.pageColors = pageColors
     useLayoutEffect(() => {
       if (pageNumber === 2 && loading.pageFailure === 'render')
         throw new Error('Page rendering failed')
@@ -57,9 +66,17 @@ vi.mock('react-pdf', () => ({
 
 const Reader = ({ source = 'blob:sample' }: { source?: string }) => {
   const [page, setPage] = useState(1)
+  const [theme, setTheme] = useState<PdfReadingTheme>('original')
   return (
     <Suspense fallback={<div>Preparing PDF preview</div>}>
-      <PdfReader source={source} name="Sample.pdf" pageNumber={page} onPageChange={setPage} />
+      <PdfReader
+        source={source}
+        name="Sample.pdf"
+        pageNumber={page}
+        theme={theme}
+        onPageChange={setPage}
+        onThemeChange={setTheme}
+      />
     </Suspense>
   )
 }
@@ -69,6 +86,17 @@ it('provides the local PDF.js WASM directory to the document', async () => {
 
   expect(await screen.findByText('Page content 1')).toBeVisible()
   expect(loading.options).toEqual({ wasmUrl: '/wasm/' })
+})
+
+it('recolors the rendered page when the reading theme changes', async () => {
+  render(<Reader />)
+  expect(await screen.findByText('Page content 1')).toBeVisible()
+  expect(loading.pageColors).toBeUndefined()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Reading appearance' }))
+  fireEvent.click(screen.getByRole('radio', { name: 'Paper' }))
+
+  expect(loading.pageColors).toEqual({ background: '#f3ead2', foreground: '#302b26' })
 })
 
 it.each(['next', 'slider', 'outline'])(
