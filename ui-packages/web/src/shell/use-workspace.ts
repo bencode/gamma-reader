@@ -60,17 +60,29 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
     void navigate(documentPath(id))
   }
 
-  const closeDocument = (id: string) => {
-    const index = tabs.indexOf(id)
-    if (index === -1) return
+  const closeDocuments = (ids: readonly string[]) => {
+    const current = store.getState().tabs
+    const closing = new Set(ids.filter(id => current.includes(id)))
+    if (!closing.size) return
+    const active = navigationTargetRef.current
+    const index = active ? current.indexOf(active) : -1
+    const next =
+      current.slice(index + 1).find(id => !closing.has(id)) ??
+      current.slice(0, index).findLast(id => !closing.has(id)) ??
+      null
     startTransition(() => {
-      actions.setTabs(current => current.filter(tab => tab !== id))
-      if (activeId === id)
-        void navigate(documentPath(tabs[index + 1] ?? tabs[index - 1] ?? null), { replace: true })
+      actions.closeDocuments([...closing])
+      if (active && closing.has(active)) {
+        navigationTargetRef.current = next
+        void navigate(documentPath(next), { replace: true })
+      }
     })
-    scrollPositions.current.delete(id)
-    actions.forgetSource(id)
+    closing.forEach(id => {
+      scrollPositions.current.delete(id)
+    })
   }
+
+  const closeDocument = (id: string) => closeDocuments([id])
 
   return {
     store,
@@ -82,6 +94,7 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
     scrollPositions,
     openDocument,
     closeDocument,
+    closeDocuments,
   }
 }
 

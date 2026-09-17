@@ -157,6 +157,9 @@ export const PdfOutline = ({
 
   useEffect(() => {
     focusRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
     const close = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       event.preventDefault()

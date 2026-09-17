@@ -248,3 +248,51 @@ describe('local workspace navigation', () => {
     expect(screen.queryByRole('button', { name: 'Ask AI' })).not.toBeInTheDocument()
   })
 })
+
+describe('bulk tab navigation', () => {
+  it.each([
+    {
+      command: 'Close others',
+      target: 'How Gamma Reader works.svg',
+      remaining: ['How Gamma Reader works.svg'],
+      active: 'how-gamma-reader-works',
+    },
+    {
+      command: 'Close to the right',
+      target: 'Start here.md',
+      remaining: ['Start here.md'],
+      active: 'getting-started',
+    },
+    {
+      command: 'Close',
+      target: 'How Gamma Reader works.svg',
+      remaining: ['Start here.md', 'Explore a wave.lab.md'],
+      active: 'explore-wave',
+    },
+    { command: 'Close all', target: 'Start here.md', remaining: [], active: null },
+  ])(
+    '$command preserves the correct selection and stored tab list',
+    async ({ command, target, remaining, active }) => {
+      const user = userEvent.setup()
+      openReader()
+      await waitForWorkspace()
+      await user.click(file('Start here.md'))
+      await user.click(file('How Gamma Reader works.svg'))
+      await user.click(file('Explore a wave.lab.md'))
+      const selected = screen.getByRole('tab', { name: 'Explore a wave.lab.md' })
+      fireEvent.contextMenu(screen.getByRole('tab', { name: target }))
+      expect(selected).toHaveAttribute('aria-selected', 'true')
+      await user.click(screen.getByRole('menuitem', { name: command }))
+      await waitFor(() => expect(tabNames()).toEqual(remaining))
+      expect(savedWorkspace().lastActiveId).toBe(active)
+      expect(screen.getByLabelText('Current route').textContent).toBe(
+        active ? `/files/${active}` : '/files',
+      )
+      if (active) expect(screen.getByRole('tab', { selected: true })).toHaveFocus()
+      else expect(screen.getByRole('button', { name: 'Open Start here.md' })).toHaveFocus()
+      expect(
+        within(screen.getByRole('list', { name: 'Files' })).getByRole('button', { name: target }),
+      ).toBeVisible()
+    },
+  )
+})

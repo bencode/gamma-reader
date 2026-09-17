@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { maximumFileBytes } from '../core/files'
+import type { FileCollection } from '../core/files'
 import {
   closeFileStore,
   getStoredFile,
@@ -242,27 +242,67 @@ describe('local file store', () => {
     )
   })
 
-  it('rejects files over 50 MB and additions beyond the 500 MB library limit', async () => {
-    const tooLarge = await importStoredFiles(
-      [fileWithReportedSize('too-large.bin', maximumFileBytes + 1)],
-      'keep',
-    )
-    expect(tooLarge.rejected).toEqual([
-      { sourceIndex: 0, name: 'too-large.bin', reason: 'file-too-large' },
-    ])
+  it.each<FileCollection>(['files', 'attachments'])(
+    'accepts 200 MiB in %s and preserves the file when an oversized replacement is rejected',
+    async collection => {
+      const size = 200 * 1024 * 1024
+      const result = await importStoredFiles(
+        [fileWithReportedSize('large.pdf', size)],
+        'keep',
+        collection,
+      )
+      const id = onlyAddedId(result)
+      const before = await getStoredFile(id)
+      const rejected = await importStoredFiles(
+        [fileWithReportedSize('large.pdf', size + 1)],
+        'replace',
+        collection,
+      )
+      expect(rejected.rejected).toEqual([
+        { sourceIndex: 0, name: 'large.pdf', reason: 'file-too-large' },
+      ])
+      expect((await getStoredFile(id))?.metadata).toEqual(before?.metadata)
+      expect(await (await getStoredFileContent(id))?.text()).toBe('content')
+    },
+  )
 
-    const firstBatch = Array.from({ length: 9 }, (_, index) =>
-      fileWithReportedSize(`large-${index}.bin`, maximumFileBytes),
+  it('shares the 1 GiB limit with attachments and charges only replacement growth', async () => {
+    const seedBytes = (await listStoredFiles()).reduce((total, file) => total + file.size, 0)
+    const size = 200 * 1024 * 1024
+    const files = Array.from({ length: 5 }, (_, index) =>
+      fileWithReportedSize(`large-${index}.bin`, size),
     )
-    expect((await importStoredFiles(firstBatch, 'keep')).addedIds).toHaveLength(9)
+    expect((await importStoredFiles(files, 'keep')).addedIds).toHaveLength(5)
+    const remaining = 1024 * 1024 * 1024 - seedBytes - 5 * size
+    const tail = fileWithReportedSize('tail.bin', remaining)
+    const id = onlyAddedId(await importStoredFiles([tail], 'keep', 'attachments'))
+    const overflow = await importStoredFiles([fileWithReportedSize('extra.bin', 1)], 'keep')
+    expect(overflow.rejected[0]?.reason).toBe('library-full')
+    const rejected = await importStoredFiles(
+      [fileWithReportedSize('tail.bin', remaining + 1)],
+      'replace',
+      'attachments',
+    )
+    expect(rejected.rejected[0]?.reason).toBe('library-full')
+    expect((await getStoredFile(id))?.metadata.size).toBe(remaining)
+    const replaced = await importStoredFiles([tail], 'replace', 'attachments')
+    expect(replaced.imported[0]).toMatchObject({ action: 'replaced', metadata: { id } })
+  })
 
-    const libraryFull = await importStoredFiles(
-      [fileWithReportedSize('one-more.bin', maximumFileBytes)],
-      'keep',
-    )
-    expect(libraryFull.rejected).toEqual([
-      { sourceIndex: 0, name: 'one-more.bin', reason: 'library-full' },
-    ])
+  it('rejects an import when the browser quota is lower than the application limit', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, 'storage')
+    Object.defineProperty(navigator, 'storage', {
+      configurable: true,
+      value: { estimate: async () => ({ quota: 100, usage: 99 }) },
+    })
+    try {
+      const result = await importStoredFiles([fileWithReportedSize('small.bin', 2)], 'keep')
+      expect(result.rejected[0]?.reason).toBe('storage-unavailable')
+      expect((await listStoredFiles()).some(file => file.name === 'small.bin')).toBe(false)
+    } finally {
+      if (descriptor) Object.defineProperty(navigator, 'storage', descriptor)
+      else Reflect.deleteProperty(navigator, 'storage')
+    }
   })
 })
 

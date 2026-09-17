@@ -1,4 +1,5 @@
-import type { FileCollection, PreviewKind } from './files'
+import type { FileCollection, PreviewKind } from '../../core/files'
+import type { FileRef } from '../../core/reader-state'
 
 export type ReadRange = { unit: 'line' | 'page'; start: number; end: number }
 export type ListInput = { name?: string; cursor?: string }
@@ -23,12 +24,6 @@ export type EditActiveSourceInput = {
 export type EditActiveSourceResult = { version: string }
 export type AnalyzeImageInput = { fileId: string; question?: string }
 export type AnalyzeImageResult = { fileId: string; name: string; analysis: string }
-export type FileRef = { id: string; name: string }
-export type ReaderState = {
-  openFiles: FileRef[]
-  activeFile: (FileRef & { pageNumber?: number; source?: { dirty: boolean } }) | null
-  viewport: { startText: string; endText: string } | null
-}
 export type FileEntry = FileRef & {
   collection: FileCollection
   type: PreviewKind

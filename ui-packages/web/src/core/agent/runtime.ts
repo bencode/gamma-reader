@@ -1,32 +1,25 @@
-import { Agent, type AgentMessage } from '@earendil-works/pi-agent-core'
+import { Agent, type AgentMessage, type AgentState } from '@earendil-works/pi-agent-core'
 import { createModels } from '@earendil-works/pi-ai'
 import { zaiCodingCnProvider } from '@earendil-works/pi-ai/providers/zai-coding-cn'
 import type { AgentConfig } from '@gamma-reader/server/agent-contract'
-import type { LocalTools } from '../local-tools'
-import { systemPrompt } from './system-prompt'
-import { createReaderTools } from './tools'
-import { createImageAnalyzer } from './vision'
 
-export const createReaderAgent = (
+export const createAgent = (
   config: Extract<AgentConfig, { enabled: true }>,
-  tools: LocalTools,
+  options: { tools: AgentState['tools']; systemPrompt: string },
   session: { id: string; messages: readonly AgentMessage[] },
 ) => {
   const models = createModels()
   models.setProvider(zaiCodingCnProvider())
   const model = models.getModel(config.provider, config.modelId)
   if (!model) throw new Error(`Unsupported GLM model: ${config.modelId}`)
-  const analyzeImage = config.visionModelId
-    ? createImageAnalyzer({ ...config, visionModelId: config.visionModelId })
-    : undefined
   return new Agent({
     sessionId: session.id,
     toolExecution: 'sequential',
     initialState: {
       model: { ...model, baseUrl: new URL('/api/agent', window.location.origin).href },
-      systemPrompt,
+      systemPrompt: options.systemPrompt,
       thinkingLevel: 'low',
-      tools: createReaderTools(tools, analyzeImage),
+      tools: options.tools,
       messages: [...session.messages],
     },
     streamFn: (currentModel, context, options) =>

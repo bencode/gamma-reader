@@ -6,8 +6,21 @@ import type { PluggableList } from 'unified'
 import 'katex/dist/katex.min.css'
 import { imagePlaceholder } from '../core/document-text'
 import { markdownPlugins, normalizeMath } from '../core/markdown-math'
+import { markdownHighlightLanguages } from './markdown-highlight-languages'
 import { MarkdownImage, type MarkdownImageContext } from './markdown-image'
 import { MermaidDiagram } from './mermaid-diagram'
+
+const rehypePlugins: PluggableList = [
+  [rehypeKatex, { trust: false }],
+  [
+    rehypeHighlight,
+    {
+      detect: false,
+      languages: markdownHighlightLanguages,
+      plainText: ['mermaid', 'text', 'txt', 'plaintext'],
+    },
+  ],
+]
 
 export const MarkdownCodeBlock = ({ children, ...props }: ComponentProps<'pre'>) => {
   if (
@@ -74,10 +87,7 @@ export const Markdown = ({
     <div className={`markdown-content markdown-${variant}`}>
       <ReactMarkdown
         remarkPlugins={plugins}
-        rehypePlugins={[
-          [rehypeKatex, { trust: false }],
-          [rehypeHighlight, { detect: false, ignoreMissing: true, plainText: ['mermaid'] }],
-        ]}
+        rehypePlugins={rehypePlugins}
         skipHtml
         components={components}
       >

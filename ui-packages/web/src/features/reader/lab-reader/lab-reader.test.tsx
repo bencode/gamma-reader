@@ -4,7 +4,6 @@ import { StrictMode, useLayoutEffect, useRef } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StoredFileMetadata } from '../../../core/files'
-import type { LocalTools } from '../../../core/local-tools'
 import {
   getStoredFileContent,
   updateStoredTextFile,
@@ -12,6 +11,7 @@ import {
 } from '../../../data/file-store'
 import { useWorkspace, type Workspace } from '../../../shell/use-workspace'
 import { useLocalTools, WorkspaceProvider } from '../../../shell/workspace-context'
+import type { LocalTools } from '../../agent/local-tools'
 import { DocumentTabs } from '../document-tabs'
 import { parseLabDocument } from './document-model'
 

@@ -10,9 +10,9 @@ import {
   useRef,
 } from 'react'
 import { useStore } from 'zustand'
-import type { LocalTools, WorkspaceTextWriter } from '../core/local-tools'
 import type { UpdateStoredTextFileResult } from '../data/file-store'
 import { getStoredFile } from '../data/file-store'
+import type { LocalTools, WorkspaceTextWriter } from '../features/agent/local-tools'
 import type { Workspace } from './use-workspace'
 import { type ReaderBinding, useWorkspaceTools } from './use-workspace-tools'
 import { sourceDirty, type WorkspaceActions, type WorkspaceStore } from './workspace-store'
@@ -90,9 +90,9 @@ export const WorkspaceProvider = ({
           result.status === 'missing'
             ? 'This file is no longer available in Files.'
             : result.reason === 'file-too-large'
-              ? 'The edited file exceeds the 50 MB file limit.'
+              ? 'The edited file exceeds the 200 MiB file limit.'
               : result.reason === 'library-full'
-                ? 'The edited file exceeds the 500 MB library limit.'
+                ? 'The edited file exceeds the 1 GiB library limit.'
                 : 'The edited file does not fit in browser storage.'
         actions.failSourceSave(fileId, message, true)
         return 'failed' as const

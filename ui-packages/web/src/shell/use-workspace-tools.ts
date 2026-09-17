@@ -1,10 +1,11 @@
 import { type RefObject, useLayoutEffect, useMemo, useRef } from 'react'
-import { LocalToolError, type ReaderState } from '../core/local-tool-types'
+import type { ReaderState } from '../core/reader-state'
 import {
   type ActiveSourceSnapshot,
   createLocalTools,
   type WorkspaceTextWriter,
-} from '../core/local-tools'
+} from '../features/agent/local-tools'
+import { LocalToolError } from '../features/agent/tool-types'
 import type { Workspace } from './use-workspace'
 import { sourceDirty } from './workspace-store'
 

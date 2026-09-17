@@ -1,11 +1,12 @@
 import * as Tabs from '@radix-ui/react-tabs'
-import { BookOpen, Code2, MessageSquare, Save, X } from 'lucide-react'
-import { lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { BookOpen, Code2, MessageSquare, Save } from 'lucide-react'
+import { lazy, useEffect, useRef, useState } from 'react'
 import type { StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
 import { useSourceDrafts, useWorkspaceSourceActions } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
 import { DocumentPane } from './document-pane'
+import { DocumentTabBar } from './document-tab-bar'
 import type { PdfSourceCacheEntry } from './file-preview'
 import { HtmlReader } from './html-reader'
 import { SvgReader } from './image-reader'
@@ -49,6 +50,11 @@ const textReaderFor = (file: StoredFileMetadata): TextReaderDefinition | undefin
   return undefined
 }
 
+type TabFocusTarget =
+  | { kind: 'select'; id: string }
+  | { kind: 'close'; ids: readonly string[] }
+  | { kind: 'restore'; element: HTMLElement | null }
+
 type DocumentTabsProps = {
   workspace: Workspace
   assistantVisible: boolean
@@ -63,15 +69,35 @@ export const DocumentTabs = ({
   const drafts = useSourceDrafts()
   const actions = useWorkspaceSourceActions()
   const activeDraft = workspace.activeId ? drafts[workspace.activeId] : undefined
-  const [closeCandidate, setCloseCandidate] = useState<string | null>(null)
-  const candidate = workspace.files.find(file => file.id === closeCandidate)
-  const close = (id: string) => {
-    closingTabRef.current = id
-    workspace.closeDocument(id)
-    setCloseCandidate(null)
-  }
+  const [pendingCloseIds, setPendingCloseIds] = useState<readonly string[] | null>(null)
   const focusTargetRef = useRef<HTMLButtonElement>(null)
-  const closingTabRef = useRef<string | null>(null)
+  const emptyReaderRef = useRef<HTMLDivElement>(null)
+  const pendingFocus = useRef<TabFocusTarget | null>(null)
+  const closeOrigin = useRef<HTMLElement | null>(null)
+  const close = (ids: readonly string[]) => {
+    pendingFocus.current = { kind: 'close', ids }
+    workspace.closeDocuments(ids)
+    setPendingCloseIds(null)
+  }
+  const requestClose = (ids: readonly string[]) => {
+    const current = workspace.store.getState()
+    const targets = ids.filter(id => current.tabs.includes(id))
+    if (!targets.length) return
+    if (
+      targets.some(
+        id =>
+          sourceDirty(current.sourceDrafts[id]) || current.sourceDrafts[id]?.savePhase === 'saving',
+      )
+    ) {
+      closeOrigin.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null
+      setPendingCloseIds(targets)
+    } else close(targets)
+  }
+  const items = workspace.tabs.flatMap(id => {
+    const file = workspace.files.find(file => file.id === id)
+    return file ? [{ id, name: file.name, dirty: sourceDirty(drafts[id]) }] : []
+  })
   const pdfSources = useRef(new Map<string, PdfSourceCacheEntry>())
 
   useEffect(() => {
@@ -93,11 +119,22 @@ export const DocumentTabs = ({
     [],
   )
 
-  useLayoutEffect(() => {
-    const closing = closingTabRef.current
-    if (!closing || workspace.tabs.includes(closing) || workspace.activeId === closing) return
-    closingTabRef.current = null
-    focusTargetRef.current?.focus()
+  useEffect(() => {
+    const target = pendingFocus.current
+    if (!target) return
+    if (target.kind === 'select' && workspace.activeId !== target.id) return
+    if (
+      target.kind === 'close' &&
+      (target.ids.some(id => workspace.tabs.includes(id)) ||
+        (workspace.activeId && target.ids.includes(workspace.activeId)))
+    )
+      return
+    pendingFocus.current = null
+    const element =
+      target.kind === 'restore' && target.element?.isConnected
+        ? target.element
+        : (focusTargetRef.current ?? emptyReaderRef.current)
+    element?.focus({ preventScroll: true })
   })
 
   return (
@@ -107,44 +144,20 @@ export const DocumentTabs = ({
       onValueChange={workspace.openDocument}
     >
       <div className="tabs-header">
-        <Tabs.List className="document-tabs" aria-label="Open documents">
-          {workspace.tabs.map(id => {
-            const source = workspace.files.find(document => document.id === id)
-            if (!source) return null
-            return (
-              <div
-                className={workspace.activeId === id ? 'document-tab active' : 'document-tab'}
-                key={id}
-              >
-                <Tabs.Trigger
-                  value={id}
-                  title={source.name}
-                  ref={workspace.activeId === id ? focusTargetRef : undefined}
-                >
-                  {source.name}
-                  {sourceDirty(drafts[id]) && (
-                    <span className="source-dirty" role="img" aria-label="Unsaved changes">
-                      {' '}
-                      ●
-                    </span>
-                  )}
-                </Tabs.Trigger>
-                <button
-                  type="button"
-                  className="tab-close icon-button"
-                  aria-label={`Close ${source.name}`}
-                  onClick={() => {
-                    if (sourceDirty(drafts[id]) || drafts[id]?.savePhase === 'saving')
-                      setCloseCandidate(id)
-                    else close(id)
-                  }}
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            )
-          })}
-        </Tabs.List>
+        <DocumentTabBar
+          items={items}
+          activeId={workspace.activeId}
+          activeTriggerRef={focusTargetRef}
+          onSelect={id => {
+            pendingFocus.current = { kind: 'select', id }
+            workspace.openDocument(id)
+            if (workspace.activeId === id) {
+              pendingFocus.current = null
+              focusTargetRef.current?.focus({ preventScroll: true })
+            }
+          }}
+          onRequestClose={requestClose}
+        />
         {activeDraft && workspace.activeId && (
           <div className="source-controls">
             <button
@@ -188,7 +201,7 @@ export const DocumentTabs = ({
             Opening Files…
           </div>
         ) : workspace.activeId === null ? (
-          <div className="empty-reader">
+          <div className="empty-reader" ref={emptyReaderRef} tabIndex={-1}>
             <BookOpen size={30} strokeWidth={1.4} />
             <h1>Start with a document</h1>
             <p>Open a sample from Files, or add your own.</p>
@@ -219,13 +232,15 @@ export const DocumentTabs = ({
           ) : null
         })}
       </main>
-      {candidate && (
+      {pendingCloseIds && (
         <UnsavedSourceDialog
-          fileId={candidate.id}
-          name={candidate.name}
+          fileIds={pendingCloseIds}
           workspace={workspace}
-          onCancel={() => setCloseCandidate(null)}
-          onClose={() => close(candidate.id)}
+          onCancel={() => {
+            setPendingCloseIds(null)
+            pendingFocus.current = { kind: 'restore', element: closeOrigin.current }
+          }}
+          onClose={() => close(pendingCloseIds)}
         />
       )}
     </Tabs.Root>

@@ -21,6 +21,7 @@ export type WorkspaceState = {
 }
 
 export type WorkspaceActions = {
+  closeDocuments: (ids: readonly string[]) => void
   setTabs: (update: (tabs: string[]) => string[]) => void
   synchronizeSource: (fileId: string, persisted: PersistedSource) => void
   setSourceOpen: (fileId: string, open: boolean) => void
@@ -57,6 +58,17 @@ export type WorkspaceStore = ReturnType<typeof createWorkspaceStore>
 export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions => {
   const set = store.setState
   return {
+    closeDocuments: ids =>
+      set(state => {
+        const closing = new Set(ids)
+        if (!state.tabs.some(id => closing.has(id))) return state
+        return {
+          tabs: state.tabs.filter(id => !closing.has(id)),
+          sourceDrafts: Object.fromEntries(
+            Object.entries(state.sourceDrafts).filter(([id]) => !closing.has(id)),
+          ),
+        }
+      }),
     setTabs: update =>
       set(state => {
         const tabs = update(state.tabs)

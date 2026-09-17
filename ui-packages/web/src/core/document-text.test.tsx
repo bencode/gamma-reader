@@ -2,10 +2,13 @@ import { render } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { Markdown } from '../components/markdown'
-import { importStoredFiles, writeStoredTextFile } from '../data/file-store'
+import { getStoredFile, importStoredFiles, writeStoredTextFile } from '../data/file-store'
+import { createReaderDocumentAccess } from '../features/agent/create-reader-agent'
+import { createDocumentTools } from '../features/agent/document-tools'
+import { createLocalTools } from '../features/agent/local-tools'
+import { createPdfRuntime } from '../features/agent/pdf/runtime'
 import { readViewport } from '../features/reader/reader-viewport'
 import { findTextMatches, markdownText, normalizeSearchText } from './document-text'
-import { createLocalTools } from './local-tools'
 
 describe('searchable document text', () => {
   it.each([
@@ -95,14 +98,17 @@ describe('formula and diagram source context', () => {
       }),
       writeStoredTextFile,
     )
+    const documents = createDocumentTools(
+      createReaderDocumentAccess(createPdfRuntime(getStoredFile)),
+    )
     const viewport = tools.get_reader_state().viewport
     expect(viewport).toEqual({ startText: 'Before x^2 after.', endText: '\\frac{a}{b}' })
     for (const query of [viewport?.startText, viewport?.endText]) {
       if (!query) throw new Error('Missing anchor')
-      const found = await tools.search({ query, fileId })
+      const found = await documents.search({ query, fileId })
       expect(found.matches).toHaveLength(1)
       const range = found.matches[0]?.range
-      const read = await tools.read({ fileId, range })
+      const read = await documents.read({ fileId, range })
       expect(read.content).toContain(query)
     }
   })

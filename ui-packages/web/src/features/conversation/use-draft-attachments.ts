@@ -12,8 +12,8 @@ type AddWorkspaceAttachments = (files: readonly File[]) => Promise<ImportResult>
 const maximumDraftAttachments = 10
 
 const rejectionText = (reason: ImportResult['rejected'][number]['reason']) => {
-  if (reason === 'file-too-large') return 'File is over 50 MB.'
-  if (reason === 'library-full') return 'The 500 MB workspace limit is full.'
+  if (reason === 'file-too-large') return 'File is over 200 MiB.'
+  if (reason === 'library-full') return 'The 1 GiB workspace limit is full.'
   return 'The browser could not store this file.'
 }
 

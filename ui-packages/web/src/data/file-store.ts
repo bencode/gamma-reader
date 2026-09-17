@@ -214,8 +214,8 @@ export const importStoredFiles = async (
 }
 
 const writeError = (reason: ImportResult['rejected'][number]['reason']) => {
-  if (reason === 'file-too-large') return new Error('The file exceeds the 50 MB file limit.')
-  if (reason === 'library-full') return new Error('The file exceeds the 500 MB library limit.')
+  if (reason === 'file-too-large') return new Error('The file exceeds the 200 MiB file limit.')
+  if (reason === 'library-full') return new Error('The file exceeds the 1 GiB library limit.')
   return new Error('The file does not fit in browser storage.')
 }
 
