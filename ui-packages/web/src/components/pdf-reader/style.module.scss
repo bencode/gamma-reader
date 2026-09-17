@@ -7,6 +7,7 @@
 .toolbar {
   position: relative;
   gap: 4px;
+  padding-right: 40px;
 }
 
 .toolbarWithOutline {
@@ -18,6 +19,12 @@
   top: 50%;
   left: 7px;
   transform: translateY(-50%);
+}
+
+.appearanceToggle {
+  position: absolute;
+  top: 5px;
+  right: 7px;
 }
 
 .activeControl {
@@ -92,6 +99,18 @@
 
   :global(.react-pdf__Page) {
     box-shadow: 0 2px 8px oklch(0 0 0 / 0.14);
+  }
+}
+
+.scroll[data-reading-theme='paper'] {
+  background: oklch(0.88 0.025 85);
+}
+
+.scroll[data-reading-theme='dark'] {
+  background: oklch(0.14 0.008 260);
+
+  :global(.react-pdf__Page) {
+    box-shadow: 0 0 0 1px oklch(0.4 0.01 260);
   }
 }
 

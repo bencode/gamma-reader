@@ -10,6 +10,7 @@
 .toolbar {
   position: relative;
   flex: 0 0 auto;
+  padding-right: 40px;
 }
 
 .toolbarWithOutline {
@@ -21,6 +22,12 @@
   top: 50%;
   left: 7px;
   transform: translateY(-50%);
+}
+
+.appearanceToggle {
+  position: absolute;
+  top: 5px;
+  right: 7px;
 }
 
 .activeControl {
@@ -40,6 +47,114 @@
   min-width: 0;
   height: auto;
   min-height: 0;
+}
+
+.previewScroll[data-reading-theme='light'] {
+  --surface: oklch(1 0 0);
+  --panel: oklch(0.98 0 0);
+  --line: oklch(0.9 0 0);
+  --muted: oklch(0.48 0 0);
+  --accent: oklch(0.45 0.13 350);
+
+  background: var(--surface);
+  color: oklch(0.28 0 0);
+}
+
+.previewScroll[data-reading-theme='paper'] {
+  --surface: oklch(0.95 0.025 85);
+  --panel: oklch(0.91 0.025 85);
+  --line: oklch(0.82 0.025 80);
+  --muted: oklch(0.43 0.02 70);
+  --accent: oklch(0.42 0.12 350);
+
+  background: var(--surface);
+  color: oklch(0.27 0.012 70);
+}
+
+.previewScroll[data-reading-theme='dark'] {
+  --surface: oklch(0.2 0.008 260);
+  --panel: oklch(0.25 0.01 260);
+  --line: oklch(0.36 0.012 260);
+  --muted: oklch(0.72 0.01 260);
+  --accent: oklch(0.76 0.11 350);
+
+  background: var(--surface);
+  color: oklch(0.9 0.005 80);
+}
+
+.configuredArticle {
+  :global(.markdown-reader h1) {
+    font-size: 2em;
+  }
+
+  :global(.markdown-reader h2) {
+    font-size: 1.267em;
+  }
+
+  :global(.markdown-reader :is(h3, h4, h5, h6)) {
+    font-size: 1.067em;
+  }
+
+  :global(.markdown-reader pre code) {
+    font-size: 0.8em;
+  }
+}
+
+.previewScroll[data-reading-theme='dark'] {
+  :global(.hljs-comment),
+  :global(.hljs-quote) {
+    color: oklch(0.72 0.025 250);
+  }
+
+  :global(.hljs-keyword),
+  :global(.hljs-selector-tag),
+  :global(.hljs-literal),
+  :global(.hljs-doctag),
+  :global(.hljs-formula) {
+    color: oklch(0.76 0.13 325);
+  }
+
+  :global(.hljs-string),
+  :global(.hljs-regexp),
+  :global(.hljs-addition),
+  :global(.hljs-attribute),
+  :global(.hljs-template-tag) {
+    color: oklch(0.77 0.1 155);
+  }
+
+  :global(.hljs-number),
+  :global(.hljs-built_in),
+  :global(.hljs-type),
+  :global(.hljs-attr),
+  :global(.hljs-symbol),
+  :global(.hljs-bullet) {
+    color: oklch(0.79 0.11 75);
+  }
+
+  :global(.hljs-title),
+  :global(.hljs-section),
+  :global(.hljs-name),
+  :global(.hljs-selector-id),
+  :global(.hljs-selector-class) {
+    color: oklch(0.78 0.1 255);
+  }
+
+  :global(.hljs-variable),
+  :global(.hljs-template-variable),
+  :global(.hljs-params),
+  :global(.hljs-property) {
+    color: oklch(0.78 0.08 205);
+  }
+
+  :global(.hljs-meta),
+  :global(.hljs-operator),
+  :global(.hljs-punctuation) {
+    color: oklch(0.74 0.025 285);
+  }
+
+  :global(.hljs-deletion) {
+    color: oklch(0.72 0.14 25);
+  }
 }
 
 @container (min-width: 960px) {
@@ -100,6 +215,26 @@
     :global(.markdown-reader :is(h4, h5, h6)) {
       font-size: 16px;
     }
+  }
+
+  .reader .configuredArticle {
+    :global(.markdown-reader h1) {
+      font-size: 2em;
+    }
+
+    :global(.markdown-reader h2) {
+      font-size: 1.267em;
+    }
+
+    :global(.markdown-reader :is(h3, h4, h5, h6)) {
+      font-size: 1.067em;
+    }
+  }
+
+  .reader .configuredArticle[data-reading-width='full'] {
+    grid-template-columns:
+      [wide-start prose-start] minmax(0, 1fr)
+      [prose-end wide-end];
   }
 }
 

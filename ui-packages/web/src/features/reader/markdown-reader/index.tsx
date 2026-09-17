@@ -1,5 +1,5 @@
 import { PanelLeft } from 'lucide-react'
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Markdown, type MarkdownExtensions } from '../../../components/markdown'
 import { normalizeMath } from '../../../core/markdown-math'
 import { useReaderBinding } from '../../../shell/workspace-context'
@@ -8,9 +8,15 @@ import { readViewport } from '../reader-viewport'
 import type { TextReaderProps } from '../text-file-reader'
 import { parseMarkdownHeadings } from './heading-model'
 import { MarkdownOutline } from './outline'
+import type { MarkdownReadingPreferences } from './reading-preferences'
 import styles from './style.module.scss'
 
 const embeddedOutlineMinimumWidth = 640
+
+type MarkdownAppearance = {
+  preferences: MarkdownReadingPreferences
+  controls: ReactNode
+}
 
 const activeHeadingFrom = (elements: readonly HTMLElement[], scroll: HTMLElement) => {
   const threshold = scroll.getBoundingClientRect().top + 24
@@ -28,7 +34,8 @@ export const MarkdownReader = ({
   active,
   scrollPositions,
   markdownOptions,
-}: TextReaderProps & { markdownOptions?: MarkdownExtensions }) => {
+  appearance,
+}: TextReaderProps & { markdownOptions?: MarkdownExtensions; appearance?: MarkdownAppearance }) => {
   const markdown = document.previewKind === 'markdown'
   const rootRef = useRef<HTMLDivElement>(null)
   const previewScrollRef = useRef<HTMLDivElement>(null)
@@ -139,6 +146,7 @@ export const MarkdownReader = ({
             <PanelLeft size={16} />
           </button>
         )}
+        {appearance?.controls}
       </div>
       <div className={styles.stage}>
         {outlineVisible && (
@@ -151,6 +159,7 @@ export const MarkdownReader = ({
         )}
         <div
           className={`document-scroll ${styles.previewScroll}`}
+          data-reading-theme={appearance?.preferences.theme}
           ref={previewScrollRef}
           onScroll={event => {
             if (!active) return
@@ -158,7 +167,19 @@ export const MarkdownReader = ({
             setActiveHeadingId(activeHeadingFrom(headingElements.current, event.currentTarget))
           }}
         >
-          <article className={`markdown-body ${styles.article}`} ref={articleRef}>
+          <article
+            className={`markdown-body ${styles.article} ${appearance ? styles.configuredArticle : ''}`}
+            data-reading-width={appearance?.preferences.width}
+            ref={articleRef}
+            style={
+              appearance
+                ? {
+                    fontSize: `${appearance.preferences.fontSize}px`,
+                    maxWidth: appearance.preferences.width === 'focused' ? '74ch' : 'none',
+                  }
+                : undefined
+            }
+          >
             <Markdown text={content} variant="reader" images={images} {...markdownOptions} />
           </article>
         </div>

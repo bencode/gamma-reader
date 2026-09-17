@@ -11,6 +11,7 @@ import type { PdfSourceCacheEntry } from './file-preview'
 import { HtmlReader } from './html-reader'
 import { SvgReader } from './image-reader'
 import { MarkdownReader } from './markdown-reader'
+import { StandardMarkdownReader } from './markdown-reader/standard-reader'
 import { isP5SourceName } from './p5-file'
 import type { TextReaderDefinition } from './text-file-reader'
 import { UnsavedSourceDialog } from './unsaved-source-dialog'
@@ -29,7 +30,10 @@ const labReader: TextReaderDefinition = {
   sourceLanguage: 'markdown',
 }
 
-const markdownReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage: 'markdown' }
+const markdownReader: TextReaderDefinition = {
+  Preview: StandardMarkdownReader,
+  sourceLanguage: 'markdown',
+}
 const plainReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage: 'plain' }
 const jsReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage: 'javascript' }
 const tsReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage: 'typescript' }

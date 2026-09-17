@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StoredFileMetadata } from '../../../core/files'
 import { parseMarkdownHeadings } from './heading-model'
 import { MarkdownReader } from './index'
+import { StandardMarkdownReader } from './standard-reader'
 
 vi.mock('../../../shell/workspace-context', () => ({ useReaderBinding: vi.fn() }))
 
@@ -65,5 +66,52 @@ describe('Markdown file reader', () => {
     renderReader('A paragraph without headings.')
 
     expect(screen.queryByRole('button', { name: 'Show table of contents' })).not.toBeInTheDocument()
+  })
+
+  it('keeps reading preferences on ordinary Markdown without changing the base reader', async () => {
+    const user = userEvent.setup()
+    const props = {
+      document,
+      content: '# Guide\n\nRead at your own pace.',
+      files: [document],
+      active: true,
+      scrollPositions: { current: new Map<string, number>() },
+    }
+    const base = render(<MarkdownReader {...props} />)
+    expect(screen.queryByRole('button', { name: 'Reading appearance' })).not.toBeInTheDocument()
+    base.unmount()
+
+    const standard = render(<StandardMarkdownReader {...props} />)
+    await user.click(screen.getByRole('button', { name: 'Reading appearance' }))
+    fireEvent.change(screen.getByRole('slider', { name: 'Text size' }), {
+      target: { value: '18' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Full width' }))
+    await user.click(screen.getByRole('radio', { name: 'Paper' }))
+
+    expect(screen.getByRole('article')).toHaveStyle({ fontSize: '18px', maxWidth: 'none' })
+    expect(screen.getByRole('article')).toHaveAttribute('data-reading-width', 'full')
+    expect(screen.getByRole('article').parentElement).toHaveAttribute('data-reading-theme', 'paper')
+    expect(localStorage.getItem('gamma-reader.markdown-reading-preferences')).toBe(
+      JSON.stringify({ fontSize: 18, width: 'full', theme: 'paper' }),
+    )
+
+    const second = render(
+      <StandardMarkdownReader
+        {...props}
+        document={{ ...document, id: 'second', name: 'Second.md' }}
+      />,
+    )
+    expect(screen.getAllByRole('article')[1]).toHaveStyle({ fontSize: '18px', maxWidth: 'none' })
+    expect(screen.getAllByRole('article')[1]?.parentElement).toHaveAttribute(
+      'data-reading-theme',
+      'paper',
+    )
+    second.unmount()
+    standard.unmount()
+
+    render(<StandardMarkdownReader {...props} />)
+    expect(screen.getByRole('article')).toHaveStyle({ fontSize: '18px', maxWidth: 'none' })
+    expect(screen.getByRole('article').parentElement).toHaveAttribute('data-reading-theme', 'paper')
   })
 })

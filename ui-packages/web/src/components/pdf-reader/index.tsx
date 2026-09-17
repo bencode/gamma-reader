@@ -20,11 +20,23 @@ export type PdfReaderHandle = {
   getRenderedPage: () => PdfRenderedPage | null
 }
 
+export type PdfReadingTheme = 'original' | 'paper' | 'dark'
+
+const pageColors: Record<
+  Exclude<PdfReadingTheme, 'original'>,
+  { background: string; foreground: string }
+> = {
+  paper: { background: '#f3ead2', foreground: '#302b26' },
+  dark: { background: '#1d1f20', foreground: '#e7e2d8' },
+}
+
 export type PdfReaderProps = {
   source: string
   name: string
   pageNumber: number
+  theme: PdfReadingTheme
   onPageChange: (pageNumber: number) => void
+  onThemeChange: (theme: PdfReadingTheme) => void
 }
 
 const clamp = (value: number, minimum: number, maximum: number) =>
@@ -33,7 +45,7 @@ const clamp = (value: number, minimum: number, maximum: number) =>
 const embeddedOutlineMinimumWidth = 640
 
 export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function PdfReader(
-  { source, name, pageNumber, onPageChange },
+  { source, name, pageNumber, theme, onPageChange, onThemeChange },
   ref,
 ) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -118,10 +130,12 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
         outlineOpen={outlineOpen}
         panAvailable={zoom > 1}
         panActive={panActive}
+        theme={theme}
         onPageChange={navigate}
         onZoomChange={changeZoom}
         onToggleOutline={() => setOutlineOpen(open => !open)}
         onPanActiveChange={setPanActive}
+        onThemeChange={onThemeChange}
       />
       <div className={styles.stage}>
         {outlineVisible && (
@@ -134,6 +148,7 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
         )}
         <div
           className={`${styles.scroll} ${panActive ? styles.pan : ''} ${pan.dragging ? styles.dragging : ''}`}
+          data-reading-theme={theme}
           ref={scrollRef}
           role="document"
           aria-label={`${name} page ${pageNumber}`}
@@ -178,6 +193,7 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
                     <div className={styles.page} ref={pageRef}>
                       <Page
                         pageNumber={pageNumber}
+                        pageColors={theme === 'original' ? undefined : pageColors[theme]}
                         onRenderTextLayerSuccess={() => setTextReadyPage(pageNumber)}
                         width={Math.max(240, pageViewportWidth - 48) * zoom}
                       />
