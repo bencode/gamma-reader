@@ -42,6 +42,67 @@
   min-height: 0;
 }
 
+@container (min-width: 960px) {
+  .reader .article {
+    display: grid;
+    width: 100%;
+    max-width: 1184px;
+    grid-template-columns:
+      [wide-start] minmax(0, 1fr)
+      [prose-start] minmax(0, 760px)
+      [prose-end] minmax(0, 1fr)
+      [wide-end];
+    padding: 64px 72px 104px;
+    font-size: 17px;
+    line-height: 1.82;
+
+    > :global(.markdown-reader) {
+      display: contents;
+    }
+
+    :global(.markdown-reader) {
+      --prose-gap: 17px;
+      --prose-heading-gap: 36px;
+    }
+
+    :global(.markdown-reader > *) {
+      min-width: 0;
+      grid-column: prose;
+    }
+
+    :global(
+      .markdown-reader
+        > :is(
+          pre,
+          table,
+          .mermaid-diagram,
+          .math-node[data-math-display='true'],
+          [data-lab-cell],
+          p:has(> .markdown-local-image)
+        )
+    ) {
+      grid-column: prose-start / wide-end;
+    }
+
+    :global(.markdown-reader h1) {
+      font-size: 36px;
+      line-height: 1.2;
+    }
+
+    :global(.markdown-reader h2) {
+      font-size: 23px;
+    }
+
+    :global(.markdown-reader h3) {
+      font-size: 18px;
+    }
+
+    :global(.markdown-reader :is(h4, h5, h6)) {
+      font-size: 16px;
+    }
+  }
+}
+
 .outlineLayer {
   position: relative;
   flex: 0 0 var(--markdown-outline-width);

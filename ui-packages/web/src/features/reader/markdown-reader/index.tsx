@@ -158,7 +158,7 @@ export const MarkdownReader = ({
             setActiveHeadingId(activeHeadingFrom(headingElements.current, event.currentTarget))
           }}
         >
-          <article className="markdown-body" ref={articleRef}>
+          <article className={`markdown-body ${styles.article}`} ref={articleRef}>
             <Markdown text={content} variant="reader" images={images} {...markdownOptions} />
           </article>
         </div>
