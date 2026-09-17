@@ -66,6 +66,38 @@ $$\int_0^1 x\,dx = \frac12$$
     expect(container.querySelector('.language-text')).toHaveTextContent('$$unfinished code')
   })
 
+  it.each([
+    ['clojure', '(defn greet [name] (str "Hello " name))'],
+    ['clj', '(defn greet [name] (str "Hello " name))'],
+    ['scheme', '(define (square x) (* x x))'],
+    ['scm', '(define (square x) (* x x))'],
+    ['dockerfile', 'FROM node:24'],
+    ['docker', 'FROM node:24'],
+    ['powershell', '$name = "reader"'],
+    ['ps1', '$name = "reader"'],
+  ])('highlights the additional %s language fence', (language, source) => {
+    const { container } = render(
+      <Markdown variant="reader" text={`\`\`\`${language}\n${source}\n\`\`\``} />,
+    )
+    const code = container.querySelector('pre code')
+
+    expect(code).toHaveClass('hljs', `language-${language}`)
+    expect(code?.querySelector('[class^="hljs-"]')).not.toBeNull()
+  })
+
+  it.each(['', 'text', 'txt', 'plaintext', 'unknown-language'])(
+    'keeps the %s language fence as plain text',
+    language => {
+      const { container } = render(
+        <Markdown variant="chat" text={`\`\`\`${language}\nconst untyped = "plain"\n\`\`\``} />,
+      )
+      const code = container.querySelector('pre code')
+
+      expect(code).toHaveTextContent('const untyped = "plain"')
+      expect(code?.querySelector('[class^="hljs-"]')).toBeNull()
+    },
+  )
+
   it('keeps incomplete formulas readable and renders completed streamed content', () => {
     const view = render(<Markdown variant="chat" text={'Before\n\n$$\n\\frac{1}'} />)
     expect(view.container.querySelector('.katex')).toBeNull()

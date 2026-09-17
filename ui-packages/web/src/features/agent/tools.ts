@@ -9,8 +9,9 @@ import {
   withAbortSignal,
 } from '@earendil-works/pi-agent-core'
 import { type Static, type TSchema, Type } from '@earendil-works/pi-ai'
-import type { LocalTools } from '../local-tools'
-import type { ImageAnalyzer } from './vision'
+import type { createDocumentTools } from './document-tools'
+import type { LocalTools } from './local-tools'
+import { bind } from './tool'
 import { createWorkspaceWriteEnv } from './workspace-write-env'
 
 const cursor = Type.Optional(
@@ -21,25 +22,6 @@ const range = Type.Object({
   unit: Type.Union([Type.Literal('line'), Type.Literal('page')]),
   start: Type.Integer({ minimum: 1 }),
   end: Type.Integer({ minimum: 1 }),
-})
-
-const bind = <P extends TSchema>(
-  name: string,
-  description: string,
-  parameters: P,
-  execute: (input: Static<P>, signal?: AbortSignal) => unknown | Promise<unknown>,
-): AgentTool<P, undefined> => ({
-  name,
-  label: name,
-  description,
-  parameters,
-  executionMode: 'sequential',
-  execute: async (_id, input, signal) => {
-    signal?.throwIfAborted()
-    const result = await execute(input, signal)
-    signal?.throwIfAborted()
-    return { content: [{ type: 'text', text: JSON.stringify(result) }], details: undefined }
-  },
 })
 
 const bindHarnessTool = <P extends TSchema, D>(
@@ -77,7 +59,10 @@ const bindHarnessTool = <P extends TSchema, D>(
   },
 })
 
-export const createReaderTools = (local: LocalTools, analyzeImage?: ImageAnalyzer) => {
+export const createReaderTools = (
+  local: LocalTools,
+  documents: ReturnType<typeof createDocumentTools>,
+) => {
   const piWrite = bindHarnessTool(createWriteTool(), {
     env: createWorkspaceWriteEnv(local.writeTextFile),
   })
@@ -91,19 +76,19 @@ export const createReaderTools = (local: LocalTools, analyzeImage?: ImageAnalyze
       'list',
       'List workspace files and chat attachments, including whether their text is readable. Follow next to continue.',
       Type.Object({ name: Type.Optional(Type.String()), cursor }),
-      local.list,
+      documents.list,
     ),
     bind(
       'search',
-      'Find literal text, ignoring case and whitespace differences. Search one file or all files. Results include excerpts and one-based inclusive ranges for read. Follow next to continue; issues report unreadable files.',
+      'Find literal text, ignoring case and whitespace differences. Search one file or all files. Results include excerpts and one-based inclusive ranges for read. Follow next even when matches is empty: searching is incomplete until next is null. Issues report unreadable files.',
       Type.Object({ query: Type.String({ minLength: 1 }), fileId: Type.Optional(fileId), cursor }),
-      local.search,
+      documents.search,
     ),
     bind(
       'read',
       'Read file text using an optional one-based inclusive line or PDF page range. Markdown lines refer to extracted readable text, not Markdown source. Follow next unchanged for remaining content.',
       Type.Object({ fileId, range: Type.Optional(range), cursor }),
-      local.read,
+      documents.read,
     ),
     bind(
       'get_reader_state',
@@ -139,18 +124,5 @@ export const createReaderTools = (local: LocalTools, analyzeImage?: ImageAnalyze
     ),
     write,
   ]
-  return analyzeImage
-    ? [
-        ...tools,
-        bind(
-          'analyze_image',
-          'Analyze one local image with a vision model. Provide a focused question when possible; omit it for a general description and transcription.',
-          Type.Object({
-            fileId,
-            question: Type.Optional(Type.String({ maxLength: 2000 })),
-          }),
-          analyzeImage,
-        ),
-      ]
-    : tools
+  return tools
 }

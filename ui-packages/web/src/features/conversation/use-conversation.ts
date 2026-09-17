@@ -6,7 +6,7 @@ import {
   createReaderUserMessage,
   isReaderUserMessage,
 } from '../../core/agent/reader-message'
-import { createReaderAgent, loadAgentConfig } from '../../core/agent/runtime'
+import { loadAgentConfig } from '../../core/agent/runtime'
 import {
   type ConversationDraft,
   type ConversationId,
@@ -14,7 +14,6 @@ import {
   emptyConversationDraft,
   type StoredConversation,
 } from '../../core/conversations'
-import type { LocalTools } from '../../core/local-tools'
 import {
   appendStoredConversationMessages,
   getStoredConversation,
@@ -23,6 +22,8 @@ import {
   saveStoredConversationDraft,
   touchStoredConversation,
 } from '../../data/conversation-store'
+import { createReaderAgent } from '../agent/create-reader-agent'
+import type { LocalTools } from '../agent/local-tools'
 import type { FileLibrary } from '../resources/use-file-library'
 import { useDraftAttachments } from './use-draft-attachments'
 

@@ -1,15 +1,14 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist'
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Document, Page, pdfjs } from 'react-pdf'
+import { forwardRef, Suspense, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { Document, Page } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
+import { pdfDocumentOptions } from '../../pdfjs'
+import { PdfErrorBoundary } from './pdf-error-boundary'
 import { PdfOutline, usePdfOutline } from './pdf-outline'
 import { PdfToolbar } from './pdf-toolbar'
 import styles from './style.module.scss'
 import { usePdfPan } from './use-pdf-pan'
-
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 export type PdfRenderedPage = {
   textLayer: HTMLElement
@@ -140,40 +139,54 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
           aria-label={`${name} page ${pageNumber}`}
           {...pan.bindings}
         >
-          <Document
-            file={source}
-            loading={<div className="preview-state">Opening {name}…</div>}
-            error={
+          <PdfErrorBoundary
+            source={source}
+            fallback={
               <div className="preview-state error-state">
                 <h1>Preview unavailable</h1>
                 <p>This PDF could not be opened.</p>
               </div>
             }
-            onLoadSuccess={loadedPdf => {
-              setPdf(loadedPdf)
-              setPageCount(loadedPdf.numPages)
-              if (pageNumber > loadedPdf.numPages) onPageChange(loadedPdf.numPages)
-            }}
-            onLoadError={error => {
-              console.error('Unable to open PDF', error)
+            onError={() => {
               setPdf(undefined)
               setPageCount(0)
+              setTextReadyPage(undefined)
               setOutlineOpen(false)
             }}
           >
-            <div className={styles.page} ref={pageRef}>
-              <Page
-                pageNumber={pageNumber}
-                onRenderTextLayerSuccess={() => setTextReadyPage(pageNumber)}
-                width={Math.max(240, pageViewportWidth - 48) * zoom}
-                loading={<div className="preview-state">Rendering page…</div>}
-                error={
-                  <div className="preview-state error-state">This page could not be rendered.</div>
-                }
-                onRenderError={error => console.error('Unable to render PDF page', error)}
-              />
-            </div>
-          </Document>
+            <Suspense fallback={<div className="preview-state">Opening {name}…</div>}>
+              <Document
+                file={source}
+                options={pdfDocumentOptions}
+                onLoadSuccess={loadedPdf => {
+                  setPdf(loadedPdf)
+                  setPageCount(loadedPdf.numPages)
+                  if (pageNumber > loadedPdf.numPages) onPageChange(loadedPdf.numPages)
+                }}
+              >
+                <PdfErrorBoundary
+                  source={source}
+                  pageNumber={pageNumber}
+                  fallback={
+                    <div className="preview-state error-state">
+                      This page could not be rendered.
+                    </div>
+                  }
+                  onError={() => setTextReadyPage(undefined)}
+                >
+                  <Suspense fallback={<div className="preview-state">Rendering page…</div>}>
+                    <div className={styles.page} ref={pageRef}>
+                      <Page
+                        pageNumber={pageNumber}
+                        onRenderTextLayerSuccess={() => setTextReadyPage(pageNumber)}
+                        width={Math.max(240, pageViewportWidth - 48) * zoom}
+                      />
+                    </div>
+                  </Suspense>
+                </PdfErrorBoundary>
+              </Document>
+            </Suspense>
+          </PdfErrorBoundary>
         </div>
       </div>
     </div>

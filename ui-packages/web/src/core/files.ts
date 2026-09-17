@@ -1,5 +1,5 @@
-export const maximumFileBytes = 50 * 1024 * 1024
-export const maximumLibraryBytes = 500 * 1024 * 1024
+export const maximumFileBytes = 200 * 1024 * 1024
+export const maximumLibraryBytes = 1024 * 1024 * 1024
 export const maximumTextPreviewBytes = 5 * 1024 * 1024
 
 export type PreviewKind = 'markdown' | 'text' | 'pdf' | 'html' | 'image' | 'unsupported'

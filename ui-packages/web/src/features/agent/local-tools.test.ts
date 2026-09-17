@@ -1,35 +1,43 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  getStoredFile,
   importStoredFiles,
   listStoredFiles,
   removeStoredFile,
   writeStoredTextFile,
-} from '../data/file-store'
-import type { ListInput, ReadInput, SearchInput, SearchMatch } from './local-tool-types'
+} from '../../data/file-store'
+import { createReaderDocumentAccess } from './create-reader-agent'
+import { createDocumentTools } from './document-tools'
 import { type ActiveSourceSnapshot, createLocalTools } from './local-tools'
+import { createPdfRuntime } from './pdf/runtime'
+import type { ListInput, ReadInput, SearchInput, SearchMatch } from './tool-types'
 
 const pdf = vi.hoisted(() => ({
   pages: ['Opening context.\nA shared phrase.', 'Ending context.\nA shared phrase.'],
   close: vi.fn(),
   failPage: 0,
 }))
-vi.mock('./pdf-source', () => ({
-  openPdfSource: async () => ({
-    pageCount: pdf.pages.length,
-    readPage: async (page: number) => {
-      if (page === pdf.failPage) throw new Error('Damaged PDF page')
-      return pdf.pages[page - 1] ?? ''
-    },
-    close: async () => {
-      pdf.close()
-    },
-  }),
-}))
+const access = createReaderDocumentAccess(createPdfRuntime(getStoredFile))
+const tools = createDocumentTools({
+  ...access,
+  open: async (fileId, signal) => {
+    const stored = await getStoredFile(fileId)
+    if (stored?.metadata.previewKind !== 'pdf') return access.open(fileId, signal)
+    return {
+      file: stored.metadata,
+      unit: 'page',
+      pageCount: pdf.pages.length,
+      readPage: async page => {
+        if (page === pdf.failPage) throw new Error('Damaged PDF page')
+        return pdf.pages[page - 1] ?? ''
+      },
+      close: async () => {
+        pdf.close()
+      },
+    }
+  },
+})
 
-const tools = createLocalTools(
-  () => ({ openFiles: [], activeFile: null, viewport: null }),
-  writeStoredTextFile,
-)
 const add = async (name: string, text: string, type = 'text/plain') => {
   const result = await importStoredFiles([new File([text], name, { type })], 'keep')
   const id = result.addedIds[0]
@@ -237,6 +245,45 @@ describe('local reader tools', () => {
 })
 
 describe('active source tools', () => {
+  it('continues no-match searches by page budget and preserves earlier text evidence', async () => {
+    const original = pdf.pages
+    pdf.pages = ['Earlier text', ...Array.from({ length: 44 }, () => '')]
+    try {
+      const id = await add('Long.pdf', 'fixture', 'application/pdf')
+      const first = await tools.search({ fileId: id, query: 'absent' })
+      expect(first.matches).toEqual([])
+      expect(first.next).not.toBeNull()
+      if (!first.next) throw new Error('Expected continuation')
+      const second = await tools.search(first.next)
+      expect(second.next).not.toBeNull()
+      if (!second.next) throw new Error('Expected continuation')
+      const last = await tools.search(second.next)
+      expect(last).toEqual({ matches: [], issues: [], next: null })
+    } finally {
+      pdf.pages = original
+    }
+  })
+
+  it('does not skip matches at search batch boundaries', async () => {
+    const original = pdf.pages
+    pdf.pages = Array.from({ length: 41 }, (_, index) =>
+      index === 19 || index === 20 || index === 40 ? 'target' : 'other',
+    )
+    try {
+      const id = await add('Boundaries.pdf', 'fixture', 'application/pdf')
+      const found: number[] = []
+      let next: SearchInput | null = { fileId: id, query: 'target' }
+      while (next) {
+        const result = await tools.search(next)
+        found.push(...result.matches.map(match => match.range.start))
+        next = result.next
+      }
+      expect(found).toEqual([20, 21, 41])
+    } finally {
+      pdf.pages = original
+    }
+  })
+
   it('reads raw source with lossless bounded pagination and detects changes', () => {
     let source: ActiveSourceSnapshot = {
       fileId: 'a',

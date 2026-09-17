@@ -9,7 +9,7 @@ import {
   toError,
 } from '@earendil-works/pi-agent-core'
 import { listStoredFiles } from '../../data/file-store'
-import type { WorkspaceTextWriter } from '../local-tools'
+import type { WorkspaceTextWriter } from './local-tools'
 
 const root = '/workspace'
 

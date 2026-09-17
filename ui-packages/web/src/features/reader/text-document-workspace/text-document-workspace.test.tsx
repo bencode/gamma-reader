@@ -6,7 +6,6 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SourceEditor } from '../../../components/source-editor'
 import type { StoredFileMetadata } from '../../../core/files'
-import type { LocalTools } from '../../../core/local-tools'
 import {
   getStoredFile,
   getStoredFileContent,
@@ -19,6 +18,7 @@ import {
   useWorkspaceSourceActions,
   WorkspaceProvider,
 } from '../../../shell/workspace-context'
+import type { LocalTools } from '../../agent/local-tools'
 import { MarkdownReader } from '../markdown-reader'
 import { TextFileReader, type TextReaderDefinition } from '../text-file-reader'
 

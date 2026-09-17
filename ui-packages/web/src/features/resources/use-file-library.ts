@@ -17,8 +17,8 @@ const rejectionMessage = (result: ImportResult) => {
   const libraryFull = result.rejected.filter(item => item.reason === 'library-full').length
   const unavailable = result.rejected.filter(item => item.reason === 'storage-unavailable').length
   return [
-    tooLarge > 0 ? `${tooLarge} over 50 MB` : '',
-    libraryFull > 0 ? `${libraryFull} over the 500 MB library limit` : '',
+    tooLarge > 0 ? `${tooLarge} over 200 MiB` : '',
+    libraryFull > 0 ? `${libraryFull} over the 1 GiB library limit` : '',
     unavailable > 0 ? `${unavailable} could not fit in browser storage` : '',
   ]
     .filter(Boolean)

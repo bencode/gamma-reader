@@ -1,14 +1,39 @@
+import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { describe, expect, it, vi } from 'vitest'
+import { createReaderUserMessage } from '../../core/agent/reader-message'
+import type { ReaderState } from '../../core/reader-state'
 import {
   getStoredFileContent,
   importStoredFiles,
   listStoredFiles,
   writeStoredTextFile,
 } from '../../data/file-store'
-import type { ReaderState } from '../local-tool-types'
-import { createLocalTools } from '../local-tools'
-import { createReaderUserMessage } from './reader-message'
-import { createReaderAgent } from './runtime'
+import { createReaderAgent } from './create-reader-agent'
+import { createLocalTools } from './local-tools'
+
+const pdfTools = vi.hoisted(() => ({ destroy: vi.fn(), render: vi.fn(), read: vi.fn() }))
+vi.mock('./pdf/source', () => ({
+  openPdfSource: async () => ({
+    pageCount: 3,
+    destroyed: false,
+    destroy: async () => {
+      pdfTools.destroy()
+    },
+    readPage: async (number: number) => {
+      pdfTools.read(number)
+      return `Text from page ${number}`
+    },
+    renderPage: async (number: number) => {
+      pdfTools.render(number)
+      return new Blob(['pdf-page-image'], { type: 'image/png' })
+    },
+    withDocument: async <T>(read: (pdf: PDFDocumentProxy) => Promise<T>) =>
+      read({
+        numPages: 3,
+        getMetadata: async () => ({ info: { Title: 'PDF sample' } }),
+      } as unknown as PDFDocumentProxy),
+  }),
+}))
 
 const config = {
   enabled: true,
@@ -254,7 +279,6 @@ describe('reader agent', () => {
 
   it('aborts generation and skips later queued tools', async () => {
     const local = localTools()
-    const search = vi.spyOn(local, 'search')
     const toolsResponse = new Response(
       `${event(
         {
@@ -274,12 +298,72 @@ describe('reader agent', () => {
     )
     const fetchModel = vi.spyOn(globalThis, 'fetch').mockResolvedValue(toolsResponse)
     const agent = createReaderAgent(config, local, session)
+    const searchTool = agent.state.tools.find(tool => tool.name === 'search')
+    if (!searchTool) throw new Error('Missing search tool')
+    const search = vi.spyOn(searchTool, 'execute')
     agent.subscribe(event => {
       if (event.type === 'tool_execution_start') agent.abort()
     })
     await agent.prompt('Search the files')
     expect(search).not.toHaveBeenCalled()
     expect(fetchModel).toHaveBeenCalledTimes(1)
+  })
+
+  it('loads PDF guidance on demand and combines page text and vision within one run', async () => {
+    pdfTools.destroy.mockClear()
+    pdfTools.render.mockClear()
+    pdfTools.read.mockClear()
+    const imported = await importStoredFiles(
+      [new File(['pdf'], 'Study.pdf', { type: 'application/pdf' })],
+      'keep',
+    )
+    const fileId = imported.addedIds[0]
+    if (!fileId) throw new Error('Missing PDF fixture')
+    const previous = globalThis.createImageBitmap
+    globalThis.createImageBitmap = vi.fn(
+      async () => ({ width: 2, height: 2, close: vi.fn() }) as ImageBitmap,
+    )
+    const mainRequests: string[] = []
+    const visionRequests: string[] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      const body = String(init?.body)
+      if (String(url).includes('/vision/')) {
+        visionRequests.push(body)
+        return reply('A chart comparing two quantities.')
+      }
+      mainRequests.push(body)
+      if (mainRequests.length === 1) return call('read_skill', { name: 'pdf' })
+      if (mainRequests.length === 2) return call('pdf_info', { fileId })
+      if (mainRequests.length === 3)
+        return call('read', { fileId, range: { unit: 'page', start: 2, end: 2 } })
+      if (mainRequests.length === 4)
+        return call('analyze_pdf_page', { fileId, pageNumber: 2, question: 'Explain the chart.' })
+      return reply('The chart compares two quantities.')
+    })
+    try {
+      const agent = createReaderAgent(config, localTools(), session)
+      await agent.prompt('Explain the second page of this PDF')
+      expect(mainRequests[0]).not.toContain('# Reading PDFs')
+      expect(mainRequests[1]).toContain('# Reading PDFs')
+      expect(pdfTools.read).toHaveBeenCalledWith(2)
+      expect(pdfTools.render).toHaveBeenCalledWith(2)
+      expect(pdfTools.destroy).toHaveBeenCalledOnce()
+      expect(visionRequests).toHaveLength(1)
+      expect(visionRequests[0]).toContain('data:image/png;base64,')
+      expect(mainRequests.at(-1)).toContain('A chart comparing two quantities.')
+      expect(mainRequests.join('')).not.toContain('data:image/png;base64,')
+    } finally {
+      globalThis.createImageBitmap = previous
+    }
+  })
+
+  it('keeps PDF text tools available without a vision model', () => {
+    const agent = createReaderAgent({ ...config, visionModelId: undefined }, localTools(), session)
+    const names = agent.state.tools.map(tool => tool.name)
+    expect(names).toEqual(
+      expect.arrayContaining(['read', 'search', 'pdf_info', 'pdf_outline', 'read_skill']),
+    )
+    expect(names).not.toContain('analyze_pdf_page')
   })
 
   it('does not automatically retry provider errors and can accept a later question', async () => {

@@ -49,7 +49,7 @@ Browser storage belongs to this site and browser profile. Export work you want t
 | UTF-8 text | Text preview and editable Source | Search, read, and edit source |
 | Other formats, including Word | Stored in Files | No preview or text reading yet |
 
-Limits: 50 MiB per file, 500 MiB per browser library, and 5 MiB for text preview and reading. Python and Clojure require runtime downloads on first use. Folder export requires desktop Chrome or Edge; individual files can also be downloaded.
+Limits: 200 MiB per file, 1 GiB per browser library (including attachments), and 5 MiB for text preview and reading. Available storage also depends on the browser's quota and device space. Python and Clojure require runtime downloads on first use. Folder export requires desktop Chrome or Edge; individual files can also be downloaded.
 
 ## Run locally
 

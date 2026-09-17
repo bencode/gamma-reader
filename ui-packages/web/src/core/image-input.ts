@@ -1,5 +1,4 @@
 import type { ImageContent } from '@earendil-works/pi-ai'
-import { LocalToolError } from './local-tool-types'
 
 export const maximumVisionImageBytes = 8 * 1024 * 1024
 export const maximumVisionImageSide = 4096
@@ -16,7 +15,7 @@ const encodeBase64 = async (blob: Blob) => {
 const encodeCanvas = (canvas: HTMLCanvasElement) =>
   new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
-      blob => (blob ? resolve(blob) : reject(new LocalToolError('Unable to encode this image.'))),
+      blob => (blob ? resolve(blob) : reject(new Error('Unable to encode this image.'))),
       'image/jpeg',
       0.9,
     )
@@ -32,7 +31,7 @@ const rasterize = async (bitmap: ImageBitmap, initialScale: number, signal?: Abo
     canvas.width = width
     canvas.height = height
     const context = canvas.getContext('2d')
-    if (!context) throw new LocalToolError('Image conversion is unavailable in this browser.')
+    if (!context) throw new Error('Image conversion is unavailable in this browser.')
     context.fillStyle = '#ffffff'
     context.fillRect(0, 0, width, height)
     context.drawImage(bitmap, 0, 0, width, height)
@@ -40,7 +39,7 @@ const rasterize = async (bitmap: ImageBitmap, initialScale: number, signal?: Abo
     signal?.throwIfAborted()
     if (blob.size <= maximumVisionImageBytes) return { blob, width, height, mimeType: 'image/jpeg' }
     if (width === 1 && height === 1)
-      throw new LocalToolError('This image cannot be reduced to the vision input limit.')
+      throw new Error('This image cannot be reduced to the vision input limit.')
     scale *= Math.min(0.9, Math.sqrt(maximumVisionImageBytes / blob.size) * 0.9)
   }
 }
@@ -58,7 +57,7 @@ export const prepareImage = async (
     bitmap = await createImageBitmap(blob)
   } catch (cause) {
     signal?.throwIfAborted()
-    throw new LocalToolError('This image could not be decoded in the browser.', { cause })
+    throw new Error('This image could not be decoded in the browser.', { cause })
   }
   try {
     signal?.throwIfAborted()
