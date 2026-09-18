@@ -71,6 +71,7 @@ Open [http://localhost:5302](http://localhost:5302). Reading, editing, and exper
 | `PORT` | `3302` | Node service port |
 | `HOST` | `127.0.0.1` | Node service host |
 | `GAMMA_BACKEND` | `http://127.0.0.1:3302` | Vite proxy target |
+| `ALLOWED_ORIGINS` | _empty_ | Extra origins allowed to call the agent API cross-site |
 
 ## Production
 

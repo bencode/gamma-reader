@@ -1,6 +1,12 @@
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import { type AgentServerConfig, publicAgentConfig } from './config.js'
+import {
+  type AgentServerConfig,
+  type GuardConfig,
+  publicAgentConfig,
+  readGuardConfig,
+} from './config.js'
+import { createOriginGuard } from './origin.js'
 
 const endpoint = 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions'
 const fail = (status: number, message: string) =>
@@ -61,8 +67,12 @@ const forward = async (
   }
 }
 
-export const createAgentRoutes = (config: AgentServerConfig) => {
+export const createAgentRoutes = (
+  config: AgentServerConfig,
+  guardConfig: GuardConfig = readGuardConfig(process.env),
+) => {
   const app = new Hono()
+  app.use('*', createOriginGuard(guardConfig))
   app.get('/config', c => {
     c.header('Cache-Control', 'no-store')
     return c.json(publicAgentConfig(config))
