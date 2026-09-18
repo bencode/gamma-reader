@@ -26,10 +26,43 @@ const validBody = (body: unknown, modelId: string): body is Record<string, unkno
   'stream' in body &&
   body.stream === true
 
+/** Force a hard ceiling on the output size: inject the cap when absent, clamp
+ * large values, and reject anything that is not a positive integer. */
+const clampOutputTokens = (
+  body: Record<string, unknown>,
+  maxOutputTokens: number,
+): Record<string, unknown> | null => {
+  if (body.max_tokens === undefined) return { ...body, max_tokens: maxOutputTokens }
+  const requested = body.max_tokens
+  if (typeof requested !== 'number' || !Number.isInteger(requested) || requested < 1) return null
+  return { ...body, max_tokens: Math.min(requested, maxOutputTokens) }
+}
+
+/** Stop a runaway stream from streaming forever: error the response once it
+ * passes the byte cap. The client then disconnects, which cancels the upstream
+ * request through the abort signal. */
+const capStream = (stream: ReadableStream<Uint8Array>, maxBytes: number) => {
+  let seen = 0
+  return stream.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        seen += chunk.byteLength
+        if (seen > maxBytes) {
+          console.warn('Capped an oversized model stream', { maxBytes })
+          controller.error(new Error('The model stream exceeded the size limit.'))
+          return
+        }
+        controller.enqueue(chunk)
+      },
+    }),
+  )
+}
+
 const forward = async (
   body: Record<string, unknown>,
   config: AgentServerConfig,
   client: AbortSignal,
+  maxStreamBytes: number,
 ) => {
   const timeout = AbortSignal.timeout(300_000)
   try {
@@ -54,7 +87,7 @@ const forward = async (
       console.warn('Model response was not an event stream')
       return fail(502, 'The model provider returned an invalid response.')
     }
-    return new Response(response.body, {
+    return new Response(capStream(response.body, maxStreamBytes), {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-store',
@@ -102,22 +135,22 @@ export const createAgentRoutes = (
         }
         if (!validBody(body, modelId))
           return fail(400, 'Use the configured model, messages and stream: true.')
+        const prepared = clampOutputTokens(body, guardConfig.maxOutputTokens)
+        if (!prepared) return fail(400, 'max_tokens must be a positive integer.')
         const ip = clientIp(c, guardConfig.trustProxy)
-        const tokens = estimateTokens(body)
+        const tokens = estimateTokens(prepared)
         if (guardConfig.rateLimiting) {
           const verdict = guard.check(ip, tokens)
           if (!verdict.allowed) {
             return fail(
               verdict.status,
               verdict.message,
-              verdict.retryAfterSeconds
-                ? { 'Retry-After': String(verdict.retryAfterSeconds) }
-                : {},
+              verdict.retryAfterSeconds ? { 'Retry-After': String(verdict.retryAfterSeconds) } : {},
             )
           }
         }
         console.info('Agent request accepted', { ip, model: modelId, estimatedTokens: tokens })
-        return forward(body, config, c.req.raw.signal)
+        return forward(prepared, config, c.req.raw.signal, guardConfig.maxStreamBytes)
       },
     )
   }

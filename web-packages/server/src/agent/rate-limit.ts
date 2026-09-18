@@ -18,7 +18,7 @@ const globalBudgetMessage =
 
 export const createTokenGuard = (config: GuardConfig, now: () => number = Date.now) => {
   const dayKey = () => Math.floor(now() / DAY_MS)
-  let global: DayAccount = { dayKey: dayKey(), dayTokens: 0 }
+  const global: DayAccount = { dayKey: dayKey(), dayTokens: 0 }
   const perIp = new Map<string, IpAccount>()
 
   const roll = (account: DayAccount) => {
@@ -90,9 +90,8 @@ export const clientIp = (c: Context, trustProxy: boolean): string => {
     const first = forwarded?.split(',')[0]?.trim()
     if (first) return first
   }
-  const remote = (
-    c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined
-  )?.incoming?.socket?.remoteAddress
+  const remote = (c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined)
+    ?.incoming?.socket?.remoteAddress
   return remote ?? 'unknown'
 }
 

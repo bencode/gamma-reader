@@ -34,10 +34,7 @@ export const createOriginGuard = (config: GuardConfig): MiddlewareHandler => {
       sameHost(parsed, c.req.header('host')) ||
       (config.allowLocalhost && localhostHostnames.has(parsed.hostname.toLowerCase()))
     if (!allowed) {
-      return c.json(
-        { error: { message: 'This endpoint only serves the Gamma Reader site.' } },
-        403,
-      )
+      return c.json({ error: { message: 'This endpoint only serves the Gamma Reader site.' } }, 403)
     }
     return next()
   }

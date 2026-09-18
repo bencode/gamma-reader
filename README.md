@@ -76,6 +76,8 @@ Open [http://localhost:5302](http://localhost:5302). Reading, editing, and exper
 | `RATE_LIMIT_PER_MINUTE` | `20` | Agent requests per client address per minute |
 | `RATE_LIMIT_DAILY_TOKENS_PER_IP` | `2000000` | Estimated tokens per client address per day |
 | `RATE_LIMIT_DAILY_GLOBAL_TOKENS` | `40000000` | Estimated tokens across all clients per day; exceeding returns a self-host notice |
+| `MAX_OUTPUT_TOKENS` | `16384` | Hard cap on `max_tokens` sent upstream (injected when absent) |
+| `MAX_STREAM_BYTES` | `8388608` | Hard cap in bytes on one streamed model response |
 | `TRUST_PROXY` | `0` | Set to `1` behind a reverse proxy you control, so client IPs come from `X-Forwarded-For` |
 
 ## Production

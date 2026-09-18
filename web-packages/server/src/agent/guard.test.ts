@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Hono } from 'hono'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from '../app.js'
-import { readAgentConfig, readGuardConfig, type GuardConfig } from './config.js'
+import { type GuardConfig, readAgentConfig, readGuardConfig } from './config.js'
 import { createTokenGuard } from './rate-limit.js'
 
 const agentConfig = readAgentConfig({ GLM_API_KEY: 'server-secret' })
@@ -28,9 +28,12 @@ const post = (guard: GuardConfig, headers: Record<string, string>, body = makeBo
 const withApp = (guard: GuardConfig) => createApp(undefined, agentConfig, guard)
 
 const streamOnce = () =>
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response('data: ok\n\n', { headers: { 'Content-Type': 'text/event-stream' } }),
-  )
+  vi
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(
+      async () =>
+        new Response('data: ok\n\n', { headers: { 'Content-Type': 'text/event-stream' } }),
+    )
 
 const silenceLogs = () => vi.spyOn(console, 'info').mockImplementation(() => {})
 
@@ -58,7 +61,10 @@ describe('origin guard', () => {
     } satisfies GuardConfig
     expect(
       (
-        await post(productionGuard, { Origin: 'https://reader.upivot.io', Host: 'reader.upivot.io' })
+        await post(productionGuard, {
+          Origin: 'https://reader.upivot.io',
+          Host: 'reader.upivot.io',
+        })
       ).status,
     ).toBe(200)
     expect((await post(allowEmbed, { Origin: 'https://partner.example' })).status).toBe(200)
