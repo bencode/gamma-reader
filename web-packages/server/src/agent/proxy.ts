@@ -7,10 +7,14 @@ import {
   readGuardConfig,
 } from './config.js'
 import { createOriginGuard } from './origin.js'
+import { clientIp, createTokenGuard, estimateTokens } from './rate-limit.js'
 
 const endpoint = 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions'
-const fail = (status: number, message: string) =>
-  Response.json({ error: { message } }, { status, headers: { 'Cache-Control': 'no-store' } })
+const fail = (status: number, message: string, headers: Record<string, string> = {}) =>
+  Response.json(
+    { error: { message } },
+    { status, headers: { 'Cache-Control': 'no-store', ...headers } },
+  )
 
 const validBody = (body: unknown, modelId: string): body is Record<string, unknown> =>
   typeof body === 'object' &&
@@ -73,6 +77,7 @@ export const createAgentRoutes = (
 ) => {
   const app = new Hono()
   app.use('*', createOriginGuard(guardConfig))
+  const guard = createTokenGuard(guardConfig)
   app.get('/config', c => {
     c.header('Cache-Control', 'no-store')
     return c.json(publicAgentConfig(config))
@@ -97,6 +102,21 @@ export const createAgentRoutes = (
         }
         if (!validBody(body, modelId))
           return fail(400, 'Use the configured model, messages and stream: true.')
+        const ip = clientIp(c, guardConfig.trustProxy)
+        const tokens = estimateTokens(body)
+        if (guardConfig.rateLimiting) {
+          const verdict = guard.check(ip, tokens)
+          if (!verdict.allowed) {
+            return fail(
+              verdict.status,
+              verdict.message,
+              verdict.retryAfterSeconds
+                ? { 'Retry-After': String(verdict.retryAfterSeconds) }
+                : {},
+            )
+          }
+        }
+        console.info('Agent request accepted', { ip, model: modelId, estimatedTokens: tokens })
         return forward(body, config, c.req.raw.signal)
       },
     )
