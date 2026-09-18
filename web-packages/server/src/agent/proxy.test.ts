@@ -2,7 +2,7 @@ import { request } from 'node:http'
 import { serve } from '@hono/node-server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from '../app.js'
-import { readAgentConfig } from './config.js'
+import { readAgentConfig, readGuardConfig } from './config.js'
 
 const config = readAgentConfig({ GLM_API_KEY: 'server-secret' })
 const app = createApp(undefined, config)
@@ -38,6 +38,7 @@ describe('model proxy', () => {
     })
     expect(JSON.parse(String(fetchModel.mock.calls[0]?.[1]?.body))).toEqual({
       ...body,
+      max_tokens: 16_384,
       thinking: { type: 'enabled' },
     })
   })
@@ -123,6 +124,53 @@ describe('model proxy', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('injects and clamps the output token ceiling', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    const fetchModel = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(
+        async () =>
+          new Response('data: done\n\n', { headers: { 'Content-Type': 'text/event-stream' } }),
+      )
+    await post({ ...body, max_tokens: 999_999 })
+    await post()
+    await post({ ...body, max_tokens: 512 })
+    const sent = fetchModel.mock.calls.map(
+      call => JSON.parse(String(call[1]?.body)).max_tokens as number,
+    )
+    expect(sent).toEqual([16_384, 16_384, 512])
+  })
+
+  it('rejects requests whose max_tokens is not a positive integer', async () => {
+    const fetchModel = vi.spyOn(globalThis, 'fetch')
+    for (const maxTokens of ['many', 0, -1, 1.5]) {
+      expect((await post({ ...body, max_tokens: maxTokens })).status).toBe(400)
+    }
+    expect(fetchModel).not.toHaveBeenCalled()
+  })
+
+  it('caps oversized model streams', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          pull(controller) {
+            controller.enqueue(new TextEncoder().encode(`data: ${'x'.repeat(64)}\n\n`))
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+    )
+    const capped = createApp(undefined, config, { ...readGuardConfig({}), maxStreamBytes: 128 })
+    const response = await capped.request('/api/agent/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    await expect(response.text()).rejects.toThrow()
+    expect(warn).toHaveBeenCalledWith('Capped an oversized model stream', { maxBytes: 128 })
   })
 
   it('cancels the upstream stream when an HTTP client disconnects', async () => {

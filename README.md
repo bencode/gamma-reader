@@ -71,6 +71,14 @@ Open [http://localhost:5302](http://localhost:5302). Reading, editing, and exper
 | `PORT` | `3302` | Node service port |
 | `HOST` | `127.0.0.1` | Node service host |
 | `GAMMA_BACKEND` | `http://127.0.0.1:3302` | Vite proxy target |
+| `ALLOWED_ORIGINS` | _empty_ | Extra origins allowed to call the agent API cross-site |
+| `RATE_LIMIT` | `1` | Set to `0` to disable the token budgets (self-hosting with your own key) |
+| `RATE_LIMIT_PER_MINUTE` | `20` | Agent requests per client address per minute |
+| `RATE_LIMIT_DAILY_TOKENS_PER_IP` | `2000000` | Estimated tokens per client address per day |
+| `RATE_LIMIT_DAILY_GLOBAL_TOKENS` | `40000000` | Estimated tokens across all clients per day; exceeding returns a self-host notice |
+| `MAX_OUTPUT_TOKENS` | `16384` | Hard cap on `max_tokens` sent upstream (injected when absent) |
+| `MAX_STREAM_BYTES` | `8388608` | Hard cap in bytes on one streamed model response |
+| `TRUST_PROXY` | `0` | Set to `1` behind a reverse proxy you control, so client IPs come from `X-Forwarded-For` |
 
 ## Production
 
@@ -81,6 +89,16 @@ docker compose -f compose.production.yml up -d --build --wait
 ```
 
 The container serves the web app and Node proxy on port `3302` and exposes `/api/health`.
+
+### Protecting a public demo
+
+The proxy holds the model credential, so a public deployment needs guardrails. Requests from
+other sites are rejected (same-host origins always pass; `ALLOWED_ORIGINS` adds exceptions).
+Behind that, three budgets cap abuse: a per-minute burst limit, a per-address daily token
+budget, and a global daily budget whose exhaustion returns a notice inviting visitors to
+self-host — estimates are heuristics (~4 characters per token, a flat cost per image), good
+enough for budgeting, never billed. Behind a reverse proxy you control, set `TRUST_PROXY=1`
+so client addresses come from `X-Forwarded-For`. Self-hosters can set `RATE_LIMIT=0`.
 
 ## Development
 
