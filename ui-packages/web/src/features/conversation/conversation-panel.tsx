@@ -124,6 +124,8 @@ export const ConversationPanel = ({
               </div>
             )}
             <ConversationComposer
+              modelConfiguration={conversation.modelConfiguration}
+              onConfigureModel={conversation.configureModel}
               inputRef={inputRef}
               draft={draft}
               phase={phase}

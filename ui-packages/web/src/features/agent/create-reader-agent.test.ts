@@ -38,6 +38,9 @@ vi.mock('./pdf/source', () => ({
 const config = {
   enabled: true,
   provider: 'zai-coding-cn',
+  models: [
+    { id: 'glm-5.3', label: 'GLM-5.3', efforts: ['low', 'high', 'max'], defaultEffort: 'low' },
+  ],
   modelId: 'glm-5.3',
   visionModelId: 'glm-5.3-flash',
 } as const

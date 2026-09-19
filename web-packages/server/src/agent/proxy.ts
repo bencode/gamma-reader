@@ -1,16 +1,18 @@
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { type AgentServerConfig, publicAgentConfig } from './config.js'
+import { configuredModels } from './providers.js'
 
 const endpoint = 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions'
 const fail = (status: number, message: string) =>
   Response.json({ error: { message } }, { status, headers: { 'Cache-Control': 'no-store' } })
 
-const validBody = (body: unknown, modelId: string): body is Record<string, unknown> =>
+const validBody = (body: unknown, modelIds: readonly string[]): body is Record<string, unknown> =>
   typeof body === 'object' &&
   body !== null &&
   'model' in body &&
-  body.model === modelId &&
+  typeof body.model === 'string' &&
+  modelIds.includes(body.model) &&
   'messages' in body &&
   Array.isArray(body.messages) &&
   'stream' in body &&
@@ -67,7 +69,12 @@ export const createAgentRoutes = (config: AgentServerConfig) => {
     c.header('Cache-Control', 'no-store')
     return c.json(publicAgentConfig(config))
   })
-  const register = (path: string, modelId: string, maximumBytes: number, label: string) => {
+  const register = (
+    path: string,
+    modelIds: readonly string[],
+    maximumBytes: number,
+    label: string,
+  ) => {
     app.post(
       path,
       bodyLimit({
@@ -85,13 +92,18 @@ export const createAgentRoutes = (config: AgentServerConfig) => {
           if (!(cause instanceof SyntaxError)) throw cause
           return fail(400, 'The request is not valid JSON.')
         }
-        if (!validBody(body, modelId))
+        if (!validBody(body, modelIds))
           return fail(400, 'Use the configured model, messages and stream: true.')
         return forward(body, config, c.req.raw.signal)
       },
     )
   }
-  register('/chat/completions', config.modelId, 2 * 1024 * 1024, 'conversation')
-  register('/vision/chat/completions', config.visionModelId, 12 * 1024 * 1024, 'image analysis')
+  register(
+    '/chat/completions',
+    configuredModels(config.modelId).map(model => model.id),
+    2 * 1024 * 1024,
+    'conversation',
+  )
+  register('/vision/chat/completions', [config.visionModelId], 12 * 1024 * 1024, 'image analysis')
   return app
 }

@@ -45,7 +45,19 @@ describe('reading workspace', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
       const url = String(input)
       if (url === '/api/agent/config')
-        return Response.json({ enabled: true, provider: 'zai-coding-cn', modelId: 'glm-5.3' })
+        return Response.json({
+          enabled: true,
+          provider: 'zai-coding-cn',
+          models: [
+            {
+              id: 'glm-5.3',
+              label: 'GLM-5.3',
+              efforts: ['low', 'high', 'max'],
+              defaultEffort: 'low',
+            },
+          ],
+          modelId: 'glm-5.3',
+        })
       if (url.endsWith('/api/agent/chat/completions')) {
         modelRequests += 1
         if (modelRequests === 1)

@@ -8,7 +8,15 @@ import { DraftAttachmentTray, MessageAttachments } from './conversation-attachme
 
 const event = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'answer', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
-const config = { enabled: true, provider: 'zai-coding-cn', modelId: 'glm-5.3' }
+const config = {
+  enabled: true,
+  provider: 'zai-coding-cn',
+  models: [
+    { id: 'glm-5.3', label: 'GLM-5.3', efforts: ['low', 'high', 'max'], defaultEffort: 'low' },
+    { id: 'glm-5.2', label: 'GLM-5.2', efforts: ['off', 'high', 'max'], defaultEffort: 'high' },
+  ],
+  modelId: 'glm-5.3',
+}
 const open = () =>
   render(
     <MemoryRouter initialEntries={['/files/getting-started']}>
@@ -23,6 +31,55 @@ const complete = (text: string) =>
   })
 
 describe('conversation', () => {
+  it('applies model-specific effort to requests and restores it with the conversation', async () => {
+    const user = userEvent.setup()
+    const requests: Record<string, unknown>[] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      requests.push(JSON.parse(String(init?.body)))
+      return complete('A reply')
+    })
+    const page = open()
+    const model = await screen.findByRole('combobox', { name: 'Chat model' })
+    const effort = screen.getByRole('combobox', { name: 'Reasoning effort' })
+    expect(
+      within(effort)
+        .getAllByRole('option')
+        .map(option => option.getAttribute('value')),
+    ).toEqual(['low', 'high', 'max'])
+    await user.selectOptions(effort, 'max')
+    await user.type(question(), 'Think carefully')
+    await user.click(send())
+    await waitFor(() => expect(model).toBeEnabled())
+    expect(requests[0]).toMatchObject({
+      model: 'glm-5.3',
+      reasoning_effort: 'max',
+      thinking: { type: 'enabled' },
+    })
+
+    await user.selectOptions(model, 'glm-5.2')
+    expect(effort).toHaveValue('max')
+    await user.selectOptions(effort, 'off')
+    await user.type(question(), 'Answer directly')
+    await user.click(send())
+    await waitFor(() => expect(model).toBeEnabled())
+    expect(requests[1]).toMatchObject({ model: 'glm-5.2', thinking: { type: 'disabled' } })
+    expect(requests[1]).not.toHaveProperty('reasoning_effort')
+    page.unmount()
+
+    open()
+    const restored = await screen.findByRole('combobox', { name: 'Chat model' })
+    expect(restored).toHaveValue('glm-5.2')
+    expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('off')
+    await user.selectOptions(restored, 'glm-5.3')
+    expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('low')
+    await user.selectOptions(restored, 'glm-5.2')
+    expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('high')
+    await user.click(screen.getByRole('button', { name: 'New conversation' }))
+    await waitFor(() => expect(restored).toHaveValue('glm-5.3'))
+    expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('low')
+  })
+
   it('previews unsent images and keeps image navigation inside the attachment group', async () => {
     const user = userEvent.setup()
     const onOpen = vi.fn()
@@ -116,6 +173,8 @@ describe('conversation', () => {
     expect(question()).toHaveValue('Explain this\n')
     await user.keyboard('{Enter}')
     await waitFor(() => expect(requests).toHaveLength(1))
+    expect(screen.getByRole('combobox', { name: 'Chat model' })).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toBeDisabled()
     expect(
       JSON.parse(String(requests[0]?.body)).messages.filter(
         (message: { role: string }) => message.role !== 'system',
