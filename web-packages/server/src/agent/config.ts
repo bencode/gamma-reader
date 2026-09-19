@@ -1,4 +1,5 @@
 import type { AgentConfig } from './contract.js'
+import { configuredModels } from './providers.js'
 
 export type AgentServerConfig = { apiKey: string; modelId: string; visionModelId: string }
 
@@ -13,4 +14,12 @@ export const publicAgentConfig = ({
   modelId,
   visionModelId,
 }: AgentServerConfig): AgentConfig =>
-  apiKey ? { enabled: true, provider: 'zai-coding-cn', modelId, visionModelId } : { enabled: false }
+  apiKey
+    ? {
+        enabled: true,
+        provider: 'zai-coding-cn',
+        modelId,
+        models: configuredModels(modelId),
+        visionModelId,
+      }
+    : { enabled: false }

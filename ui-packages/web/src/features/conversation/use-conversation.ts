@@ -1,12 +1,13 @@
 import type { Agent, AgentMessage } from '@earendil-works/pi-agent-core'
-import type { AgentConfig } from '@gamma-reader/server/agent-contract'
+import type { AgentConfig, AgentSelection } from '@gamma-reader/server/agent-contract'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { resolveAgentSelection } from '../../core/agent/model-settings'
 import {
   type ConversationAttachment,
   createReaderUserMessage,
   isReaderUserMessage,
 } from '../../core/agent/reader-message'
-import { loadAgentConfig } from '../../core/agent/runtime'
+import { agentModelState, loadAgentConfig } from '../../core/agent/runtime'
 import {
   type ConversationDraft,
   type ConversationId,
@@ -205,7 +206,9 @@ export const useConversation = (
   const queueDraft = useCallback(
     (conversation: StoredConversation) => {
       const hasDraft = Boolean(
-        conversation.draft.text.trim() || conversation.draft.attachments.length,
+        conversation.draft.text.trim() ||
+          conversation.draft.attachments.length ||
+          conversation.selection,
       )
       if (!persistedIds.current.has(conversation.id) && !hasDraft) return Promise.resolve()
       draftQueue.current.pending = conversation
@@ -342,6 +345,7 @@ export const useConversation = (
       const agent = createReaderAgent(configState.config, tools, {
         id: conversation.id,
         messages: storedMessages,
+        selection: conversation.selection,
       })
       agentRef.current = agent
       unsubscribeRef.current = agent.subscribe(async (event, signal) => {
@@ -625,6 +629,32 @@ export const useConversation = (
     }
   }
 
+  const configureModel = (selection: AgentSelection) => {
+    const config = configRef.current
+    const agent = agentRef.current
+    if (
+      !agent ||
+      phase !== 'ready' ||
+      busy.current ||
+      switching.current ||
+      config.kind !== 'enabled'
+    )
+      return
+    const next = {
+      ...activeRef.current,
+      selection: resolveAgentSelection(config.config, selection),
+      lastActiveAt: nextActivityTime(activeRef.current),
+    }
+    const state = agentModelState(config.config, next.selection)
+    agent.state.model = state.model
+    agent.state.thinkingLevel = state.thinkingLevel
+    activeRef.current = next
+    setActive(next)
+    void queueDraft(next)
+  }
+
+  const enabledConfig = configRef.current.kind === 'enabled' ? configRef.current.config : null
+
   const stop = () => {
     if (!busy.current) return
     setPhase('stopping')
@@ -655,5 +685,12 @@ export const useConversation = (
     send,
     stop,
     draftAttachments,
+    modelConfiguration: enabledConfig
+      ? {
+          models: enabledConfig.models,
+          selection: resolveAgentSelection(enabledConfig, active.selection),
+        }
+      : null,
+    configureModel,
   }
 }

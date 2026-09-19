@@ -603,6 +603,42 @@ svg {
   color: var(--muted);
   font-size: 10px;
 }
+.composer-model-controls {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: 4px;
+  margin-inline: 4px;
+}
+.composer-model-controls select {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 28px;
+  border: 0;
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.composer-model-controls select:hover:not(:disabled) {
+  background: var(--selected);
+  color: var(--accent);
+}
+.composer-model-controls select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.composer-model-controls select:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.composer-bottom > button {
+  flex-shrink: 0;
+}
 .attachment-picker {
   width: 28px;
   height: 28px;

@@ -22,6 +22,10 @@ describe('model proxy', () => {
       enabled: true,
       provider: 'zai-coding-cn',
       modelId: 'glm-5.3',
+      models: [
+        { id: 'glm-5.3', label: 'GLM-5.3', efforts: ['low', 'high', 'max'], defaultEffort: 'low' },
+        { id: 'glm-5.2', label: 'GLM-5.2', efforts: ['off', 'high', 'max'], defaultEffort: 'high' },
+      ],
       visionModelId: 'glm-5.3-flash',
     })
     expect(publicConfig.headers.get('cache-control')).toBe('no-store')
@@ -40,6 +44,25 @@ describe('model proxy', () => {
       ...body,
       thinking: { type: 'enabled' },
     })
+  })
+
+  it('forwards configured chat models and their effort while rejecting models outside the catalog', async () => {
+    const fetchModel = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(
+        async () =>
+          new Response('data: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } }),
+      )
+    const selected = {
+      ...body,
+      model: 'glm-5.2',
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'max',
+    }
+    expect((await post(selected)).status).toBe(200)
+    expect(JSON.parse(String(fetchModel.mock.calls[0]?.[1]?.body))).toEqual(selected)
+    expect((await post({ ...selected, model: 'unconfigured-model' })).status).toBe(400)
+    expect(fetchModel).toHaveBeenCalledTimes(1)
   })
 
   it('isolates the main and vision models on endpoints with separate limits', async () => {

@@ -1,4 +1,5 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
+import type { AgentSelection } from '@gamma-reader/server/agent-contract'
 import type { ConversationAttachment } from './agent/reader-message'
 
 export type ConversationId = string
@@ -11,6 +12,7 @@ export type ConversationDraft = {
 export type StoredConversation = {
   id: ConversationId
   title: string | null
+  selection?: AgentSelection
   draft: ConversationDraft
   createdAt: number
   lastActiveAt: number

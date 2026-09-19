@@ -1,5 +1,5 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
-import type { AgentConfig } from '@gamma-reader/server/agent-contract'
+import type { AgentConfig, AgentSelection } from '@gamma-reader/server/agent-contract'
 import { createAgent } from '../../core/agent/runtime'
 import { createVisionAnalyzer } from '../../core/agent/vision'
 import { markdownText } from '../../core/document-text'
@@ -57,7 +57,7 @@ const skills: SkillDefinition[] = [
 export const createReaderAgent = (
   config: Extract<AgentConfig, { enabled: true }>,
   local: LocalTools,
-  session: { id: string; messages: readonly AgentMessage[] },
+  session: { id: string; messages: readonly AgentMessage[]; selection?: AgentSelection },
 ) => {
   const pdf = createPdfRuntime(getStoredFile)
   const documents = createDocumentTools(createReaderDocumentAccess(pdf))

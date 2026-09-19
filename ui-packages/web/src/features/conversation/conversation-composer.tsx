@@ -1,10 +1,14 @@
+import type { AgentSelection } from '@gamma-reader/server/agent-contract'
 import { ArrowUp, Paperclip, Square } from 'lucide-react'
 import { type DragEvent, type RefObject, useLayoutEffect, useRef, useState } from 'react'
 import { DraftAttachmentTray } from './conversation-attachments'
+import { ConversationModelControl, type ModelConfiguration } from './conversation-model-control'
 import type { ConversationPhase } from './use-conversation'
 import type { DraftAttachment } from './use-draft-attachments'
 
 type ComposerProps = {
+  modelConfiguration: ModelConfiguration | null
+  onConfigureModel: (selection: AgentSelection) => void
   inputRef: RefObject<HTMLTextAreaElement | null>
   draft: string
   phase: ConversationPhase
@@ -28,6 +32,8 @@ const resizeTextarea = (textarea: HTMLTextAreaElement) => {
 
 export const ConversationComposer = ({
   inputRef,
+  modelConfiguration,
+  onConfigureModel,
   draft,
   phase,
   attachments,
@@ -148,6 +154,13 @@ export const ConversationComposer = ({
             event.currentTarget.value = ''
           }}
         />
+        {modelConfiguration && (
+          <ConversationModelControl
+            configuration={modelConfiguration}
+            disabled={phase !== 'ready'}
+            onChange={onConfigureModel}
+          />
+        )}
         {limitReached && <span className="attachment-limit">10 attachments maximum</span>}
         <button
           type="button"
