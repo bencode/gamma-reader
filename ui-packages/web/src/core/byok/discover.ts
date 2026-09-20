@@ -60,6 +60,12 @@ export const listModels = async (
   if (response.status === 401 || response.status === 403) return { ok: false, reason: 'key' }
   if (response.status === 404) return { ok: false, reason: 'endpoint' }
   if (!response.ok) return { ok: false, reason: 'unknown' }
-  const models = modelIds(await response.json())
+  const payload: unknown = await response.json().catch((cause: unknown) => {
+    // A reply that is not JSON at all is an address that is not this API: a
+    // website answering 200, most often a base URL that lost its /v1.
+    if (cause instanceof SyntaxError) return undefined
+    throw cause
+  })
+  const models = modelIds(payload)
   return models.length > 0 ? { ok: true, models } : { ok: false, reason: 'endpoint' }
 }

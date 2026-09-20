@@ -91,7 +91,15 @@ export const registerUserProviders = async (
       ? aliased(await preset.load(), id, entry.baseUrl)
       : entry.baseUrl
         ? customProvider(entry, id, entry.baseUrl)
-        : await Promise.reject(unknown(entry.id))
+        : undefined
+    if (!provider) {
+      // Names neither a vendor pi knows nor an address of its own — what a
+      // catalog that has since dropped that vendor leaves behind. Skipping
+      // costs the reader that provider; refusing would cost them the free
+      // models too, since one runtime carries both.
+      console.error('Skipping a model provider that can no longer be built', entry.id)
+      continue
+    }
     models.setProvider(provider)
     const chosen = provider.getModels().filter(model => entry.models.includes(model.id))
     if (chosen.length === 0) continue
@@ -104,5 +112,3 @@ export const registerUserProviders = async (
   }
   return registered
 }
-
-const unknown = (id: string) => new Error(`Unsupported model provider: ${id}`)

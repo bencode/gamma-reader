@@ -170,7 +170,9 @@ export const ConversationPanel = ({
             // Models added while this was open only reach the list once the
             // runtime is rebuilt; without this a reader configures a key and
             // sees nothing change until they reload.
-            void conversation.refreshProviders()
+            conversation.refreshProviders().catch((cause: unknown) => {
+              console.error('Unable to pick up the configured model providers', cause)
+            })
           }}
         />
       )}

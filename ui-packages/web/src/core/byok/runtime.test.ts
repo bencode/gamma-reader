@@ -90,6 +90,17 @@ describe('registerUserProviders', () => {
     expect(providers[0]?.models[0]?.baseUrl).toBe('https://llm.example.com/v1')
   })
 
+  // One runtime carries the free models and the reader's own, so a stored
+  // entry nothing can build must not be allowed to take the others down.
+  it('skips an entry it can no longer build rather than refusing them all', async () => {
+    const { providers } = await register([
+      { id: 'a-vendor-that-was-dropped', apiKey: 'a-key', models: ['some-model'] },
+      { id: 'deepseek', apiKey: 'a-key', models: ['deepseek-v4-pro'] },
+    ])
+
+    expect(providers.map(provider => provider.id)).toEqual([userProviderId('deepseek')])
+  })
+
   it('skips a provider whose chosen models no longer exist', async () => {
     const { providers } = await register([
       { id: 'deepseek', apiKey: 'a-key', models: ['a-model-that-was-retired'] },
