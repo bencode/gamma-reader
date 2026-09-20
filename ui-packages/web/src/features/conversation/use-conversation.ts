@@ -3,6 +3,7 @@ import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelReference } from '@gamma-reader/shared/model-config'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadModelConfig } from '../../config/model-config'
+import { readableProxyError } from '../../core/agent/proxy-error'
 import {
   type ConversationAttachment,
   createReaderUserMessage,
@@ -117,7 +118,8 @@ const snapshot = (
     message.stopReason === 'aborted'
       ? 'Generation stopped.'
       : message.stopReason === 'error'
-        ? message.errorMessage || 'Could not generate a reply. Send a message to try again.'
+        ? readableProxyError(message.errorMessage) ||
+          'Could not generate a reply. Send a message to try again.'
         : message.stopReason === 'length'
           ? 'The response reached its output limit.'
           : undefined

@@ -70,12 +70,23 @@ Create an untracked root `.env` with `GLM_API_KEY`, `DEEPSEEK_API_KEY`, or both.
 | `PORT` | `3302` | Node service port |
 | `HOST` | `127.0.0.1` | Node service host |
 | `GAMMA_BACKEND` | `http://127.0.0.1:3302` | Vite proxy target |
+| `GAMMA_DAILY_TOKENS` | `200000` | Tokens one network may spend per day |
+| `GAMMA_DATA_DIR` | `data` | Directory holding the usage database |
+| `GAMMA_TRUST_PROXY` | Unset | Set to `1` when a reverse proxy sets `X-Forwarded-For` |
 
 Configure enabled providers, chat models, the default chat model, and the independent vision model in [`providers.json`](web-packages/server/src/model-proxy/providers.json). Credentials stay in the environment; the JSON references their variable names. Model names, supported thinking levels, upstream API addresses, and request mappings come from pi's native provider definitions. There are no model environment overrides or application-defined effort lists.
 
 The initial configuration enables GLM-5.3 / GLM-5.2 and DeepSeek V4 Flash / V4 Pro, with GLM-5.3 as the default and GLM-5.3-Flash for vision. Providers without a key are omitted from the selector. If the default provider is unavailable, the first available model in configuration order is used. If the vision provider is unavailable, text chat remains usable without vision tools.
 
 Model choices and thinking levels persist with each conversation. Thinking levels are normalized with pi's `clampThinkingLevel`; new conversations start from pi Agent's `off` level, normalized for the selected model. For example, GLM-5.3 starts at `low`, while DeepSeek starts at `off`.
+
+## Chat limits
+
+The server holds the model credentials, so it also caps what they can spend. Fetching `/api/agent/config` sets a signed, HTTP-only cookie, and the chat routes refuse requests without it. Pointing an OpenAI-compatible client at the proxy address therefore does not work; anyone determined enough can still read the cookie first, which is why a limit backs it up rather than replaces it.
+
+Each network gets `GAMMA_DAILY_TOKENS` tokens per day, counted from the usage the provider reports on its final response chunk, and resets at 00:00 UTC. Requests over the limit are refused with `429` and the reader sees the reason in the conversation. A network is identified by its address, so people behind one office or campus connection share a single allowance. Counts live in a SQLite file under `GAMMA_DATA_DIR`, which also keeps the cookie signing secret so a restart does not sign readers out; days older than a week are dropped at startup.
+
+Set `GAMMA_TRUST_PROXY=1` only when a reverse proxy sets `X-Forwarded-For`, as `compose.production.yml` assumes: the last entry of that header is then treated as the caller. Without a proxy in front, leave it unset so the header cannot be forged.
 
 `packages/shared` exports only the public configuration types. UI and Server import these types independently; neither package imports the other. The browser requests `/api/agent/config` and sends pi-generated requests through `/api/agent/providers/:provider/chat/completions` (or the provider's `/vision/chat/completions` route). The server injects the corresponding credential.
 
@@ -89,7 +100,7 @@ docker compose -f compose.production.yml up -d --build --wait
 
 The container serves the web app and Node proxy on port `3302` and exposes `/api/health`.
 
-JSON configuration ships with the server build; rebuild and restart after changing it. Deploy the frontend and server together, and refresh already-open pages after this update because the chat proxy routes have changed. Saved conversations remain compatible.
+The `quota` volume holds the usage database; removing it resets every allowance and signs readers out. JSON configuration ships with the server build; rebuild and restart after changing it. Deploy the frontend and server together, and refresh already-open pages after this update because the chat proxy routes have changed. Saved conversations remain compatible.
 
 ## Development
 

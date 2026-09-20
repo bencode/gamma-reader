@@ -31,6 +31,12 @@ WORKDIR /app
 COPY --from=build --chown=node:node /prod/server ./web-packages/server
 COPY --from=build --chown=node:node /app/ui-packages/web/dist ./ui-packages/web/dist
 
+# The quota database lives on a mounted volume, which Docker creates owned by
+# root unless the image already carries the directory.
+RUN mkdir -p /data && chown node:node /data
+ENV GAMMA_DATA_DIR=/data
+VOLUME ["/data"]
+
 USER node
 
 EXPOSE 3302

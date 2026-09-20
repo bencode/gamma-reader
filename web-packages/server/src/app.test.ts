@@ -3,6 +3,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from './app.js'
+import { createQuotaGuard } from './quota/guard.js'
+import { openQuotaStore } from './quota/store.js'
+
+const guard = createQuotaGuard(
+  openQuotaStore(':memory:'),
+  { databaseFile: ':memory:', dailyTokens: 1, maximumConcurrent: 1, trustProxy: false },
+  () => '127.0.0.1',
+)
+const build = (webRoot?: string) => createApp(guard, webRoot)
 
 describe('application HTTP boundaries', () => {
   let webRoot: string
@@ -21,7 +30,7 @@ describe('application HTTP boundaries', () => {
   })
 
   it('provides health without frontend assets or external configuration', async () => {
-    const response = await createApp().request('/api/health')
+    const response = await build().request('/api/health')
 
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toContain('application/json')
@@ -31,7 +40,7 @@ describe('application HTTP boundaries', () => {
   it.each(['/api', '/api/unknown', '/api/health/unknown'])(
     'returns a JSON 404 for %s even with frontend assets',
     async path => {
-      const response = await createApp(webRoot).request(path)
+      const response = await build(webRoot).request(path)
 
       expect(response.status).toBe(404)
       expect(response.headers.get('content-type')).toContain('application/json')
@@ -40,7 +49,7 @@ describe('application HTTP boundaries', () => {
   )
 
   it('serves the built entry page and its JavaScript', async () => {
-    const app = createApp(webRoot)
+    const app = build(webRoot)
     const response = await app.request('/')
     const asset = await app.request('/assets/app.js')
 
@@ -55,7 +64,7 @@ describe('application HTTP boundaries', () => {
   it.each(['/files', '/files/getting-started', '/files/reading-notes'])(
     'serves the application entry for direct navigation to %s',
     async path => {
-      const response = await createApp(webRoot).request(path)
+      const response = await build(webRoot).request(path)
       expect(response.status).toBe(200)
       expect(response.headers.get('content-type')).toContain('text/html')
       expect(await response.text()).toBe(page)
@@ -65,7 +74,7 @@ describe('application HTTP boundaries', () => {
   it.each(['/assets/missing.js', '/missing-page', '/files/reading-notes/missing.js'])(
     'returns 404 instead of the welcome page for %s',
     async path => {
-      const response = await createApp(webRoot).request(path, {
+      const response = await build(webRoot).request(path, {
         headers: { Accept: 'text/html' },
       })
 

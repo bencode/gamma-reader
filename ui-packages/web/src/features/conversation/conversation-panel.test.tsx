@@ -25,6 +25,22 @@ const complete = (text: string) =>
   })
 
 describe('conversation', () => {
+  it('shows the sentence a refused request carries instead of its status body', async () => {
+    const user = userEvent.setup()
+    const limit = 'The daily chat limit for this network is used up. It resets at 00:00 UTC.'
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async url =>
+      url === '/api/agent/config'
+        ? Response.json(config)
+        : Response.json({ error: { message: limit } }, { status: 429 }),
+    )
+    open()
+    await screen.findByRole('combobox', { name: 'Chat model' })
+    await user.type(question(), 'Anything at all')
+    await user.click(send())
+
+    expect(await screen.findByText(limit)).toBeInTheDocument()
+  })
+
   it('persists the initial model so changing deployment defaults does not change an existing chat', async () => {
     const user = userEvent.setup()
     const network = vi
