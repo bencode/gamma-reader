@@ -34,7 +34,7 @@ Files are copied directly into IndexedDB. Built-in document previewing, parsing,
 
 AI inference runs at the model provider. On the free allowance, questions, conversation context, and text or images supplied by tools pass through a small Node proxy that holds the model credentials; it has no file library or conversation database. With a key you configured yourself, the browser calls the provider directly and nothing about that conversation reaches this application's server. Code runtimes may download dependencies and executed code can make network requests.
 
-![Browser storage, local tools, and the model proxy data boundary](ui-packages/web/src/assets/samples/how-gamma-reader-works.svg)
+![Browser storage, local tools, and the two routes to a model provider](ui-packages/web/src/assets/samples/how-gamma-reader-works.svg)
 
 Files, attachments, and conversations persist in **IndexedDB**; tabs, the last active file, and any model keys you configure use **localStorage**. Unsaved Source drafts and code execution state stay in memory. **Save** (⌘/Ctrl+S) saves a Source draft to the browser; **Save as…** and folder export write saved copies to your computer. Lab outputs are not included in the exported Markdown.
 
