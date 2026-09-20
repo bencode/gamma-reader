@@ -8,6 +8,15 @@ import type { ModelProxyConfig } from './config.js'
 
 type Granted = Extract<Admission, { ok: true }>
 
+// A text body's byte count tracks its token count closely enough to charge by;
+// a base64 image's does not, and the provider bills an image by its pixels, so
+// an image request that ends without a reported total is charged what one
+// analysis costs at the current input ceiling instead of its payload size.
+const visionCancelTokens = 16_000
+
+const fallbackTokens = (payload: string, vision: boolean) =>
+  vision ? visionCancelTokens : Math.ceil(Buffer.byteLength(payload) / 4)
+
 const fail = (status: number, message: string) =>
   Response.json({ error: { message } }, { status, headers: { 'Cache-Control': 'no-store' } })
 
@@ -27,11 +36,15 @@ const forward = async (
   config: ModelProxyConfig['providers'][string],
   client: AbortSignal,
   granted: Granted,
+  vision: boolean,
 ) => {
   const payload = JSON.stringify(body)
   // Charged when the provider reports no usage, which happens when the reader
   // stops an answer the model has already processed.
-  const estimate = Math.ceil(Buffer.byteLength(payload) / 4)
+  const estimate = fallbackTokens(payload, vision)
+  // A response body that is never read reaches neither the sniffer's flush nor
+  // its cancel, so settle on the client going away as well; `done` runs once.
+  client.addEventListener('abort', () => granted.done(estimate), { once: true })
   const timeout = AbortSignal.timeout(300_000)
   try {
     const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -87,8 +100,11 @@ export const createModelProxyRoutes = (config: ModelProxyConfig, guard: QuotaGua
       httpOnly: true,
       sameSite: 'Strict',
       maxAge: passLifetimeMs / 1000,
+      // The forwarded protocol is as caller-supplied as the forwarded address,
+      // so it is read under the same switch.
       secure:
-        c.req.header('x-forwarded-proto') === 'https' || new URL(c.req.url).protocol === 'https:',
+        (guard.trustProxy && c.req.header('x-forwarded-proto') === 'https') ||
+        new URL(c.req.url).protocol === 'https:',
     })
     return c.json(config.publicConfig)
   })
@@ -129,7 +145,7 @@ export const createModelProxyRoutes = (config: ModelProxyConfig, guard: QuotaGua
         // slot that only `done` releases, so nothing may return early after it.
         const admission = guard.admit(c)
         if (!admission.ok) return fail(admission.status, admission.message)
-        return forward(body, provider, c.req.raw.signal, admission)
+        return forward(body, provider, c.req.raw.signal, admission, vision)
       },
     )
   }

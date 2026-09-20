@@ -76,10 +76,19 @@ export const openQuotaStore = (file: string): QuotaStore => {
       return stored
     },
     tokensToday: (subject, day) => count(readTokens.get(subject, day), 'tokens'),
+    // One transaction: a counter charged without its matching record would make
+    // the permanent totals disagree with what readers were actually charged.
     addUsage: ({ subject, day, at, burst, tokens }) => {
       if (tokens <= 0) return
-      recordDay.run(subject, day, tokens)
-      recordRequest.run(at, burst, tokens)
+      database.exec('BEGIN IMMEDIATE')
+      try {
+        recordDay.run(subject, day, tokens)
+        recordRequest.run(at, burst, tokens)
+        database.exec('COMMIT')
+      } catch (cause) {
+        database.exec('ROLLBACK')
+        throw cause
+      }
     },
     prune: before => {
       deleteBefore.run(before)

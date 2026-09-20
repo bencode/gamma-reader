@@ -17,13 +17,18 @@ const config = resolveModelProxyConfig(settings, {
   DEEPSEEK_API_KEY: 'deepseek-secret',
 })
 const directory = mkdtempSync(join(tmpdir(), 'gamma-reader-routes-'))
-afterAll(() => rmSync(directory, { recursive: true, force: true }))
+const opened: { close: () => void }[] = []
+afterAll(() => {
+  for (const handle of opened) handle.close()
+  rmSync(directory, { recursive: true, force: true })
+})
 
 // Charged tokens are read back from the address-free record, so the assertions
 // do not depend on how a subject key is derived.
 const quotaFor = (dailyTokens: number, address: string, maximumConcurrent: number) => {
   const databaseFile = join(directory, `${address}.db`)
   const store = openQuotaStore(databaseFile)
+  opened.push(store)
   const guard = createQuotaGuard(
     store,
     { databaseFile, dailyTokens, maximumConcurrent, trustProxy: false },
@@ -38,7 +43,7 @@ const quotaFor = (dailyTokens: number, address: string, maximumConcurrent: numbe
       reader.close()
     }
   }
-  return { store, guard, charged, cookie: `${passCookieName}=${guard.pass()}` }
+  return { guard, charged, cookie: `${passCookieName}=${guard.pass()}` }
 }
 // The shared app leaves most responses undrained, which legitimately holds a
 // concurrency slot open, so give it more room than any single test needs.
@@ -103,6 +108,49 @@ describe('model proxy', () => {
       },
     })
     expect(fetchModel).toHaveBeenCalledTimes(1)
+  })
+
+  it('charges a stopped image analysis by what one costs, not by its payload', async () => {
+    const { charged, guard, cookie } = quotaFor(Number.MAX_SAFE_INTEGER, '203.0.113.9', 4)
+    const vision = createApp(guard, undefined, config)
+    // A megabyte of base64 image would be charged ~250,000 tokens if the payload
+    // size were used, which alone exceeds a day's allowance.
+    const image = 'A'.repeat(1024 * 1024)
+    const client = new AbortController()
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async (_url, init) =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('data: first\n\n'))
+              init?.signal?.addEventListener(
+                'abort',
+                () => controller.error(new DOMException('Aborted', 'AbortError')),
+                { once: true },
+              )
+            },
+          }),
+          { headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    )
+
+    const response = await vision.request(
+      '/api/agent/providers/zai-coding-cn/vision/chat/completions',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({
+          ...body,
+          model: settings.visionModel.modelId,
+          messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: image } }] }],
+        }),
+        signal: client.signal,
+      },
+    )
+    expect(response.status).toBe(200)
+    client.abort()
+
+    await vi.waitFor(() => expect(charged()).toBe(16_000))
   })
 
   it('releases its concurrency slot after streamed, rejected and unusable responses', async () => {

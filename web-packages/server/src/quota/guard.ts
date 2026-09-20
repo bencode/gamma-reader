@@ -20,6 +20,32 @@ export type Admission =
 export type QuotaGuard = {
   pass: () => string
   admit: (c: Context) => Admission
+  // Whether forwarded headers may be believed, which the routes also need when
+  // deciding if the pass cookie is being issued over a secure connection.
+  trustProxy: boolean
+}
+
+const ipv4Mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i
+
+// IPv6 hands a single subscriber a whole /64 to spend as it likes, and privacy
+// extensions rotate the interface half on their own, so counting whole
+// addresses would hand out a fresh allowance every few hours.
+export const networkOf = (address: string) => {
+  const plain = address.toLowerCase().split('%')[0] ?? address
+  const mapped = ipv4Mapped.exec(plain)?.[1]
+  if (mapped) return mapped
+  if (!plain.includes(':')) return plain
+  const [head = '', tail = ''] = plain.split('::')
+  const leading = head ? head.split(':') : []
+  const trailing = tail ? tail.split(':') : []
+  const groups = plain.includes('::')
+    ? [
+        ...leading,
+        ...Array(Math.max(0, 8 - leading.length - trailing.length)).fill('0'),
+        ...trailing,
+      ]
+    : leading
+  return `${groups.slice(0, 4).join(':')}::/64`
 }
 
 // Token spend is only known once a response completes, so a burst admitted
@@ -66,7 +92,7 @@ export const createQuotaGuard = (
         : undefined) ||
       remoteAddress(c) ||
       'unknown'
-    return createHash('sha256').update(salt).update(address).digest('hex')
+    return createHash('sha256').update(salt).update(networkOf(address)).digest('hex')
   }
 
   // Yesterday's rows answer nothing the quota asks, so drop them the first time
@@ -74,8 +100,10 @@ export const createQuotaGuard = (
   // that runs for weeks accumulate weeks of addresses.
   const rollOver = (day: string, at: number) => {
     if (day === prunedDay) return
-    prunedDay = day
+    // Recorded only once the delete succeeds: a transient failure here must be
+    // retried by the next request, not silently skipped for the rest of the day.
     store.prune(day)
+    prunedDay = day
     bursts.sweep(at - burstLifetimeMs)
   }
 
@@ -86,6 +114,7 @@ export const createQuotaGuard = (
   }
 
   return {
+    trustProxy: config.trustProxy,
     pass: () => issuePass(secret),
     admit: c => {
       if (!verifyPass(secret, getCookie(c, passCookieName)))
@@ -117,7 +146,13 @@ export const createQuotaGuard = (
           settled = true
           release(subject)
           const settledAt = Date.now()
-          store.addUsage({ subject, day: utcDay(settledAt), at: settledAt, burst, tokens })
+          try {
+            store.addUsage({ subject, day: utcDay(settledAt), at: settledAt, burst, tokens })
+          } catch (cause) {
+            // This runs inside the response stream's callbacks, so a failure to
+            // record must not tear down an answer the reader is already reading.
+            console.error('Could not record usage', cause)
+          }
         },
       }
     },
