@@ -1,16 +1,16 @@
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
-import { type AgentServerConfig, readAgentConfig } from './agent/config.js'
-import { createAgentRoutes } from './agent/proxy.js'
+import type { ModelProxyConfig } from './model-proxy/config.js'
+import { createModelProxyRoutes } from './model-proxy/routes.js'
 
 export const createApp = (
   webRoot?: string,
-  agentConfig: AgentServerConfig = readAgentConfig({}),
+  modelConfig: ModelProxyConfig = { providers: {}, publicConfig: { enabled: false } },
 ) => {
   const app = new Hono()
 
   app.get('/api/health', c => c.json({ status: 'ok', service: 'gamma-reader' }))
-  app.route('/api/agent', createAgentRoutes(agentConfig))
+  app.route('/api/agent', createModelProxyRoutes(modelConfig))
   app.all('/api', c => c.json({ error: 'Not found' }, 404))
   app.all('/api/*', c => c.json({ error: 'Not found' }, 404))
 

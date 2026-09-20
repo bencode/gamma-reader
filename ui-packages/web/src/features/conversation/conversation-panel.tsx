@@ -1,6 +1,6 @@
 import { History, MessageSquare, Plus, X } from 'lucide-react'
 import { Activity, type RefObject } from 'react'
-import { ConversationComposer } from './conversation-composer'
+import { ConversationComposer } from './composer'
 import { useReaderConversation } from './conversation-context'
 import { ConversationHistory } from './conversation-history'
 import { ConversationMessages } from './conversation-messages'
@@ -124,6 +124,9 @@ export const ConversationPanel = ({
               </div>
             )}
             <ConversationComposer
+              modelConfiguration={conversation.modelConfiguration}
+              onModelChange={conversation.selectModel}
+              onEffortChange={conversation.selectEffort}
               inputRef={inputRef}
               draft={draft}
               phase={phase}

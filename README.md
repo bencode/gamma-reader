@@ -58,29 +58,38 @@ Use Node 24 and pnpm 10.14.0.
 ```sh
 corepack enable
 pnpm install
-GLM_API_KEY=your-key pnpm dev
+pnpm dev
 ```
 
-Open [http://localhost:5302](http://localhost:5302). Reading, editing, and experiments work without a model key; chat is disabled.
+Create an untracked root `.env` with `GLM_API_KEY`, `DEEPSEEK_API_KEY`, or both. The Node server loads this file for local development and `pnpm start`; existing process environment variables take precedence. Open [http://localhost:5302](http://localhost:5302). Reading, editing, and experiments work without keys; chat requires at least one configured provider.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `GLM_API_KEY` | Required for chat | Server-side model credential |
-| `GLM_MODEL` | `glm-5.3` | Main reading model |
-| `GLM_VISION_MODEL` | `glm-5.3-flash` | Image analysis model |
+| `GLM_API_KEY` | Unset | Server-side credential for Z.AI Coding CN |
+| `DEEPSEEK_API_KEY` | Unset | Server-side credential for DeepSeek |
 | `PORT` | `3302` | Node service port |
 | `HOST` | `127.0.0.1` | Node service host |
 | `GAMMA_BACKEND` | `http://127.0.0.1:3302` | Vite proxy target |
 
+Configure enabled providers, chat models, the default chat model, and the independent vision model in [`providers.json`](web-packages/server/src/model-proxy/providers.json). Credentials stay in the environment; the JSON references their variable names. Model names, supported thinking levels, upstream API addresses, and request mappings come from pi's native provider definitions. There are no model environment overrides or application-defined effort lists.
+
+The initial configuration enables GLM-5.3 / GLM-5.2 and DeepSeek V4 Flash / V4 Pro, with GLM-5.3 as the default and GLM-5.3-Flash for vision. Providers without a key are omitted from the selector. If the default provider is unavailable, the first available model in configuration order is used. If the vision provider is unavailable, text chat remains usable without vision tools.
+
+Model choices and thinking levels persist with each conversation. Thinking levels are normalized with pi's `clampThinkingLevel`; new conversations start from pi Agent's `off` level, normalized for the selected model. For example, GLM-5.3 starts at `low`, while DeepSeek starts at `off`.
+
+`packages/shared` exports only the public configuration types. UI and Server import these types independently; neither package imports the other. The browser requests `/api/agent/config` and sends pi-generated requests through `/api/agent/providers/:provider/chat/completions` (or the provider's `/vision/chat/completions` route). The server injects the corresponding credential.
+
 ## Production
 
-Create an untracked `.env` containing `GLM_API_KEY`, then run:
+Create an untracked `.env` containing either or both provider keys, then run:
 
 ```sh
 docker compose -f compose.production.yml up -d --build --wait
 ```
 
 The container serves the web app and Node proxy on port `3302` and exposes `/api/health`.
+
+JSON configuration ships with the server build; rebuild and restart after changing it. Deploy the frontend and server together, and refresh already-open pages after this update because the chat proxy routes have changed. Saved conversations remain compatible.
 
 ## Development
 

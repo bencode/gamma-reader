@@ -1,8 +1,9 @@
 import { access } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { serve } from '@hono/node-server'
-import { readAgentConfig } from './agent/config.js'
 import { createApp } from './app.js'
+import { resolveModelProxyConfig } from './model-proxy/config.js'
+import providers from './model-proxy/providers.json' with { type: 'json' }
 
 const port = Number(process.env.PORT ?? 3302)
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -25,6 +26,7 @@ if (webRoot) {
 }
 
 const hostname = process.env.HOST ?? '127.0.0.1'
-serve({ fetch: createApp(webRoot, readAgentConfig(process.env)).fetch, port, hostname }, info => {
+const config = resolveModelProxyConfig(providers, process.env)
+serve({ fetch: createApp(webRoot, config).fetch, port, hostname }, info => {
   console.info(`Gamma Reader: http://${hostname}:${info.port}`)
 })

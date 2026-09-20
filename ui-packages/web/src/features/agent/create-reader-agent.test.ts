@@ -8,8 +8,11 @@ import {
   listStoredFiles,
   writeStoredTextFile,
 } from '../../data/file-store'
+import { modelConfig } from '../../test/model-config'
+import { resolveModelSelection } from '../conversation/model-selection'
 import { createReaderAgent } from './create-reader-agent'
 import { createLocalTools } from './local-tools'
+import { createModelRuntime } from './model-runtime'
 
 const pdfTools = vi.hoisted(() => ({ destroy: vi.fn(), render: vi.fn(), read: vi.fn() }))
 vi.mock('./pdf/source', () => ({
@@ -35,12 +38,7 @@ vi.mock('./pdf/source', () => ({
   }),
 }))
 
-const config = {
-  enabled: true,
-  provider: 'zai-coding-cn',
-  modelId: 'glm-5.3',
-  visionModelId: 'glm-5.3-flash',
-} as const
+const config = createModelRuntime(modelConfig)
 const event = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'reply', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
 const reply = (text: string) =>
@@ -66,12 +64,13 @@ const call = (name: string, args: unknown) =>
   )
 const emptyState = (): ReaderState => ({ openFiles: [], activeFile: null, viewport: null })
 const localTools = () => createLocalTools(emptyState, writeStoredTextFile)
-const session = { id: 'test-conversation', messages: [] }
+const session = { id: 'test-conversation', messages: [], ...resolveModelSelection(config) }
 
 describe('reader agent', () => {
   it('restores the transcript under the selected conversation id', () => {
     const message = createReaderUserMessage('Earlier question', [])
     const agent = createReaderAgent(config, localTools(), {
+      ...session,
       id: 'restored-conversation',
       messages: [message],
     })
@@ -87,11 +86,13 @@ describe('reader agent', () => {
       return reply(requests.length === 1 ? 'Earlier answer' : 'Follow-up answer')
     })
     const first = createReaderAgent(config, localTools(), {
+      ...session,
       id: 'restored-context',
       messages: [],
     })
     await first.prompt(createReaderUserMessage('Earlier question', []))
     const restored = createReaderAgent(config, localTools(), {
+      ...session,
       id: 'restored-context',
       messages: first.state.messages,
     })
@@ -180,7 +181,9 @@ describe('reader agent', () => {
         .map(message => message.tool_call_id),
     ).toEqual(['call-get_reader_state', 'call-list', 'call-search', 'call-read'])
     expect(requests[4]?.messages.at(-1)?.content).toContain('The fox reads quietly.')
-    expect(fetchModel.mock.calls[0]?.[0].toString()).toContain('/api/agent/chat/completions')
+    expect(fetchModel.mock.calls[0]?.[0].toString()).toContain(
+      '/api/agent/providers/zai-coding-cn/chat/completions',
+    )
     state.activeFile = null
     fetchModel
       .mockResolvedValueOnce(call('get_reader_state', {}))
@@ -358,7 +361,7 @@ describe('reader agent', () => {
   })
 
   it('keeps PDF text tools available without a vision model', () => {
-    const agent = createReaderAgent({ ...config, visionModelId: undefined }, localTools(), session)
+    const agent = createReaderAgent({ ...config, visionModel: undefined }, localTools(), session)
     const names = agent.state.tools.map(tool => tool.name)
     expect(names).toEqual(
       expect.arrayContaining(['read', 'search', 'pdf_info', 'pdf_outline', 'read_skill']),

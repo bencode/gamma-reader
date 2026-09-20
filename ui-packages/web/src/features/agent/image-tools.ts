@@ -1,9 +1,9 @@
 import { Type } from '@earendil-works/pi-ai'
-import type { VisionAnalyzer } from '../../core/agent/vision'
 import { prepareImage } from '../../core/image-input'
 import type { getStoredFile } from '../../data/file-store'
 import { bind } from './tool'
 import { LocalToolError } from './tool-types'
+import type { VisionAnalyzer } from './vision'
 
 export const createImageTools = (loadFile: typeof getStoredFile, analyze: VisionAnalyzer) => [
   bind(

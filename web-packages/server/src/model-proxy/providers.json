@@ -1,0 +1,14 @@
+{
+  "providers": {
+    "zai-coding-cn": {
+      "apiKeyEnv": "GLM_API_KEY",
+      "chatModels": ["glm-5.3", "glm-5.2"]
+    },
+    "deepseek": {
+      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "chatModels": ["deepseek-v4-flash", "deepseek-v4-pro"]
+    }
+  },
+  "defaultModel": { "provider": "zai-coding-cn", "modelId": "glm-5.3" },
+  "visionModel": { "provider": "zai-coding-cn", "modelId": "glm-5.3-flash" }
+}

@@ -1,16 +1,16 @@
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import { type AgentServerConfig, publicAgentConfig } from './config.js'
+import type { ModelProxyConfig } from './config.js'
 
-const endpoint = 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions'
 const fail = (status: number, message: string) =>
   Response.json({ error: { message } }, { status, headers: { 'Cache-Control': 'no-store' } })
 
-const validBody = (body: unknown, modelId: string): body is Record<string, unknown> =>
+const validBody = (body: unknown, modelIds: readonly string[]): body is Record<string, unknown> =>
   typeof body === 'object' &&
   body !== null &&
   'model' in body &&
-  body.model === modelId &&
+  typeof body.model === 'string' &&
+  modelIds.includes(body.model) &&
   'messages' in body &&
   Array.isArray(body.messages) &&
   'stream' in body &&
@@ -18,12 +18,12 @@ const validBody = (body: unknown, modelId: string): body is Record<string, unkno
 
 const forward = async (
   body: Record<string, unknown>,
-  config: AgentServerConfig,
+  config: ModelProxyConfig['providers'][string],
   client: AbortSignal,
 ) => {
   const timeout = AbortSignal.timeout(300_000)
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
       redirect: 'error',
       signal: AbortSignal.any([client, timeout]),
@@ -61,13 +61,13 @@ const forward = async (
   }
 }
 
-export const createAgentRoutes = (config: AgentServerConfig) => {
+export const createModelProxyRoutes = (config: ModelProxyConfig) => {
   const app = new Hono()
   app.get('/config', c => {
     c.header('Cache-Control', 'no-store')
-    return c.json(publicAgentConfig(config))
+    return c.json(config.publicConfig)
   })
-  const register = (path: string, modelId: string, maximumBytes: number, label: string) => {
+  const register = (path: string, vision: boolean, maximumBytes: number, label: string) => {
     app.post(
       path,
       bodyLimit({
@@ -75,7 +75,20 @@ export const createAgentRoutes = (config: AgentServerConfig) => {
         onError: () => fail(413, `The ${label} exceeds the request limit.`),
       }),
       async c => {
-        if (!config.apiKey) return fail(503, 'Chat is currently unavailable.')
+        const id = c.req.param('provider')
+        const provider =
+          id && Object.hasOwn(config.providers, id) ? config.providers[id] : undefined
+        if (!provider) return fail(404, 'Unknown model provider.')
+        if (!provider.apiKey) return fail(503, 'The model provider is currently unavailable.')
+        const visionModel = config.publicConfig.enabled
+          ? config.publicConfig.visionModel
+          : undefined
+        if (vision && !visionModel) return fail(503, 'Image analysis is currently unavailable.')
+        const modelIds = vision
+          ? visionModel && visionModel.provider === id
+            ? [visionModel.modelId]
+            : []
+          : provider.chatModels
         if (c.req.header('content-type')?.split(';')[0]?.trim() !== 'application/json')
           return fail(400, 'Use application/json.')
         let body: unknown
@@ -85,13 +98,13 @@ export const createAgentRoutes = (config: AgentServerConfig) => {
           if (!(cause instanceof SyntaxError)) throw cause
           return fail(400, 'The request is not valid JSON.')
         }
-        if (!validBody(body, modelId))
+        if (!validBody(body, modelIds))
           return fail(400, 'Use the configured model, messages and stream: true.')
-        return forward(body, config, c.req.raw.signal)
+        return forward(body, provider, c.req.raw.signal)
       },
     )
   }
-  register('/chat/completions', config.modelId, 2 * 1024 * 1024, 'conversation')
-  register('/vision/chat/completions', config.visionModelId, 12 * 1024 * 1024, 'image analysis')
+  register('/providers/:provider/chat/completions', false, 2 * 1024 * 1024, 'conversation')
+  register('/providers/:provider/vision/chat/completions', true, 12 * 1024 * 1024, 'image analysis')
   return app
 }

@@ -1,17 +1,19 @@
-import type { Agent, AgentMessage } from '@earendil-works/pi-agent-core'
-import type { AgentConfig } from '@gamma-reader/server/agent-contract'
+import type { Agent, AgentMessage, AgentState } from '@earendil-works/pi-agent-core'
+import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
+import type { ModelReference } from '@gamma-reader/shared/model-config'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { loadModelConfig } from '../../config/model-config'
 import {
   type ConversationAttachment,
   createReaderUserMessage,
   isReaderUserMessage,
 } from '../../core/agent/reader-message'
-import { loadAgentConfig } from '../../core/agent/runtime'
 import {
   type ConversationDraft,
   type ConversationId,
   conversationTitle,
   emptyConversationDraft,
+  type ModelSelection,
   type StoredConversation,
 } from '../../core/conversations'
 import {
@@ -24,7 +26,9 @@ import {
 } from '../../data/conversation-store'
 import { createReaderAgent } from '../agent/create-reader-agent'
 import type { LocalTools } from '../agent/local-tools'
+import { createModelRuntime, type ModelRuntime } from '../agent/model-runtime'
 import type { FileLibrary } from '../resources/use-file-library'
+import { resolveModelSelection } from './model-selection'
 import { useDraftAttachments } from './use-draft-attachments'
 
 type ToolStatus = 'Pending' | 'Running' | 'Completed' | 'Failed' | 'Stopped'
@@ -49,10 +53,9 @@ export type ConversationPhase =
   | 'switching'
 export type ConversationView = 'chat' | 'history'
 
-type EnabledConfig = Extract<AgentConfig, { enabled: true }>
 type ConfigState =
   | { kind: 'loading' }
-  | { kind: 'enabled'; config: EnabledConfig }
+  | { kind: 'enabled'; runtime: ModelRuntime }
   | { kind: 'unavailable' }
   | { kind: 'error'; message: string }
 
@@ -140,6 +143,15 @@ const displayMessages = (
 const nextActivityTime = (conversation: StoredConversation) =>
   Math.max(Date.now(), conversation.lastActiveAt + 1)
 
+const selectionFromState = ({
+  model,
+  thinkingLevel,
+}: Pick<AgentState, 'model' | 'thinkingLevel'>): ModelSelection => ({
+  provider: model.provider,
+  modelId: model.id,
+  effort: thinkingLevel,
+})
+
 export const useConversation = (
   tools: LocalTools,
   addWorkspaceAttachments: FileLibrary['addAttachments'],
@@ -203,11 +215,12 @@ export const useConversation = (
   }, [placeFirst, reportStorageError])
 
   const queueDraft = useCallback(
-    (conversation: StoredConversation) => {
+    (conversation: StoredConversation, saveEmpty = false) => {
       const hasDraft = Boolean(
         conversation.draft.text.trim() || conversation.draft.attachments.length,
       )
-      if (!persistedIds.current.has(conversation.id) && !hasDraft) return Promise.resolve()
+      if (!persistedIds.current.has(conversation.id) && !hasDraft && !saveEmpty)
+        return Promise.resolve()
       draftQueue.current.pending = conversation
       draftQueue.current.running ??= drainDrafts().finally(() => {
         draftQueue.current.running = undefined
@@ -339,10 +352,23 @@ export const useConversation = (
         setPhase('error')
         return
       }
-      const agent = createReaderAgent(configState.config, tools, {
-        id: conversation.id,
-        messages: storedMessages,
-      })
+      let agent: Agent
+      try {
+        const state = resolveModelSelection(configState.runtime, conversation.selection)
+        agent = createReaderAgent(configState.runtime, tools, {
+          id: conversation.id,
+          messages: storedMessages,
+          ...state,
+        })
+        const next = { ...conversation, selection: selectionFromState(state) }
+        activeRef.current = next
+        setActive(next)
+      } catch (cause) {
+        console.error('Unable to initialize chat', cause)
+        setError(cause instanceof Error ? cause.message : 'Could not initialize chat.')
+        setPhase('error')
+        return
+      }
       agentRef.current = agent
       unsubscribeRef.current = agent.subscribe(async (event, signal) => {
         if (event.type === 'tool_execution_start') statuses.current.set(event.toolCallId, 'Running')
@@ -390,9 +416,11 @@ export const useConversation = (
 
   useEffect(() => {
     const controller = new AbortController()
-    const configPromise = loadAgentConfig(controller.signal)
+    const configPromise = loadModelConfig(controller.signal)
       .then<ConfigState>(config =>
-        config.enabled ? { kind: 'enabled', config } : { kind: 'unavailable' },
+        config.enabled
+          ? { kind: 'enabled', runtime: createModelRuntime(config) }
+          : { kind: 'unavailable' },
       )
       .catch(
         (cause): ConfigState => ({
@@ -625,6 +653,33 @@ export const useConversation = (
     }
   }
 
+  const configureModel = (selection: ModelSelection) => {
+    const config = configRef.current
+    const agent = agentRef.current
+    if (
+      !agent ||
+      phase !== 'ready' ||
+      busy.current ||
+      switching.current ||
+      config.kind !== 'enabled'
+    )
+      return
+    const state = resolveModelSelection(config.runtime, selection)
+    const next = {
+      ...activeRef.current,
+      selection: selectionFromState(state),
+      lastActiveAt: nextActivityTime(activeRef.current),
+    }
+    agent.state.model = state.model
+    agent.state.thinkingLevel = state.thinkingLevel
+    activeRef.current = next
+    setActive(next)
+    void queueDraft(next, true)
+  }
+
+  const runtime = configRef.current.kind === 'enabled' ? configRef.current.runtime : null
+  const agent = agentRef.current
+
   const stop = () => {
     if (!busy.current) return
     setPhase('stopping')
@@ -655,5 +710,18 @@ export const useConversation = (
     send,
     stop,
     draftAttachments,
+    modelConfiguration:
+      runtime && agent
+        ? {
+            providers: runtime.providers,
+            selection: selectionFromState(agent.state),
+          }
+        : null,
+    selectModel: (model: ModelReference) => {
+      if (agent) configureModel({ ...model, effort: agent.state.thinkingLevel })
+    },
+    selectEffort: (effort: ModelThinkingLevel) => {
+      if (agent) configureModel({ ...selectionFromState(agent.state), effort })
+    },
   }
 }
