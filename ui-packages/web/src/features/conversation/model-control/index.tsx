@@ -1,5 +1,6 @@
 import { getSupportedThinkingLevels, type ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelReference } from '@gamma-reader/shared/model-config'
+import { isUserProvider } from '../../../core/byok/runtime'
 import type { ModelSelection } from '../../../core/conversations'
 import type { ModelRuntime } from '../../agent/model-runtime'
 import styles from './style.module.scss'
@@ -10,7 +11,11 @@ export type ModelControlProps = {
   disabled: boolean
   onModelChange: (model: ModelReference) => void
   onEffortChange: (effort: ModelThinkingLevel) => void
+  onConfigure: () => void
 }
+
+// Distinct from every index this select otherwise carries.
+const configureValue = 'configure'
 
 export const ConversationModelControl = ({
   providers,
@@ -18,8 +23,12 @@ export const ConversationModelControl = ({
   disabled,
   onModelChange,
   onEffortChange,
+  onConfigure,
 }: ModelControlProps) => {
   const available = providers.flatMap(provider => provider.models)
+  // Saying which allowance a model runs on only means something once a reader
+  // has both kinds; before that it is a label with nothing to distinguish.
+  const mixed = providers.some(provider => isUserProvider(provider.id))
   const selectedIndex = available.findIndex(
     model => model.provider === selection.provider && model.id === selection.modelId,
   )
@@ -33,12 +42,20 @@ export const ConversationModelControl = ({
         value={selectedIndex}
         disabled={disabled}
         onChange={event => {
+          if (event.target.value === configureValue) return onConfigure()
           const next = available[Number(event.target.value)]
           if (next) onModelChange({ provider: next.provider, modelId: next.id })
         }}
       >
         {providers.map(provider => (
-          <optgroup key={provider.id} label={provider.name}>
+          <optgroup
+            key={provider.id}
+            label={
+              mixed
+                ? `${provider.name} ${isUserProvider(provider.id) ? '(your key)' : '(free)'}`
+                : provider.name
+            }
+          >
             {provider.models.map(candidate => (
               <option key={candidate.id} value={available.indexOf(candidate)}>
                 {candidate.name}
@@ -46,6 +63,7 @@ export const ConversationModelControl = ({
             ))}
           </optgroup>
         ))}
+        <option value={configureValue}>Add your own model…</option>
       </select>
       {efforts.length > 1 && (
         <select

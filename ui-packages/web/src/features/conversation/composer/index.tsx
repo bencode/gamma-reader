@@ -10,6 +10,7 @@ type ComposerProps = {
   modelConfiguration: Pick<ModelControlProps, 'providers' | 'selection'> | null
   onModelChange: ModelControlProps['onModelChange']
   onEffortChange: ModelControlProps['onEffortChange']
+  onConfigureModels: ModelControlProps['onConfigure']
   inputRef: RefObject<HTMLTextAreaElement | null>
   draft: string
   phase: ConversationPhase
@@ -36,6 +37,7 @@ export const ConversationComposer = ({
   modelConfiguration,
   onModelChange,
   onEffortChange,
+  onConfigureModels,
   draft,
   phase,
   attachments,
@@ -162,6 +164,7 @@ export const ConversationComposer = ({
             disabled={phase !== 'ready'}
             onModelChange={onModelChange}
             onEffortChange={onEffortChange}
+            onConfigure={onConfigureModels}
           />
         )}
         {limitReached && <span className={styles.attachmentLimit}>10 attachments maximum</span>}

@@ -1,6 +1,6 @@
 import type { Agent, AgentMessage, AgentState } from '@earendil-works/pi-agent-core'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
-import type { ModelReference } from '@gamma-reader/shared/model-config'
+import type { ModelReference, PublicModelConfig } from '@gamma-reader/shared/model-config'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadModelConfig } from '../../config/model-config'
 import { readableProxyError } from '../../core/agent/proxy-error'
@@ -56,7 +56,11 @@ export type ConversationView = 'chat' | 'history'
 
 type ConfigState =
   | { kind: 'loading' }
-  | { kind: 'enabled'; runtime: ModelRuntime }
+  | {
+      kind: 'enabled'
+      runtime: ModelRuntime
+      config: Extract<PublicModelConfig, { enabled: true }>
+    }
   | { kind: 'unavailable' }
   | { kind: 'error'; message: string }
 
@@ -419,9 +423,9 @@ export const useConversation = (
   useEffect(() => {
     const controller = new AbortController()
     const configPromise = loadModelConfig(controller.signal)
-      .then<ConfigState>(config =>
+      .then<ConfigState>(async config =>
         config.enabled
-          ? { kind: 'enabled', runtime: createModelRuntime(config) }
+          ? { kind: 'enabled', runtime: await createModelRuntime(config), config }
           : { kind: 'unavailable' },
       )
       .catch(
@@ -679,6 +683,17 @@ export const useConversation = (
     void queueDraft(next, true)
   }
 
+  const refreshProviders = useCallback(async () => {
+    const current = configRef.current
+    if (current.kind !== 'enabled') return
+    configRef.current = {
+      kind: 'enabled',
+      runtime: await createModelRuntime(current.config),
+      config: current.config,
+    }
+    attachAgent(activeRef.current, rawMessages.current)
+  }, [attachAgent])
+
   const runtime = configRef.current.kind === 'enabled' ? configRef.current.runtime : null
   const selection = active.selection
 
@@ -716,6 +731,7 @@ export const useConversation = (
     selectModel: (model: ModelReference) => {
       if (selection) configureModel({ ...model, effort: selection.effort })
     },
+    refreshProviders,
     selectEffort: (effort: ModelThinkingLevel) => {
       if (selection) configureModel({ ...selection, effort })
     },

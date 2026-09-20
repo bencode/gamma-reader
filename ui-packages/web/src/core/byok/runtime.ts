@@ -1,0 +1,120 @@
+import {
+  type Api,
+  createProvider,
+  envApiKeyAuth,
+  type Model,
+  type MutableModels,
+  type Provider,
+} from '@earendil-works/pi-ai'
+import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
+import { catalogEntry } from './catalog'
+import type { UserProvider } from './store'
+
+/**
+ * A reader's own provider is registered separately from the same vendor on the
+ * free allowance, so both can appear at once and a request carries the key
+ * belonging to the one it was sent through.
+ */
+export const userProviderPrefix = 'user:'
+
+export const userProviderId = (id: string) => `${userProviderPrefix}${id}`
+
+export const isUserProvider = (provider: string) => provider.startsWith(userProviderPrefix)
+
+/**
+ * Re-registers a provider pi already implements under a second id, keeping its
+ * address, catalog and stream behaviour. Models are restamped so the collection
+ * routes them here, and restamped back on the way into the implementation.
+ */
+const aliased = (provider: Provider, id: string, baseUrl?: string): Provider => ({
+  ...provider,
+  id,
+  getModels: () =>
+    provider
+      .getModels()
+      .map(model => ({ ...model, provider: id, ...(baseUrl ? { baseUrl } : {}) })),
+  stream: (model, context, options) =>
+    provider.stream({ ...model, provider: provider.id }, context, options),
+  streamSimple: (model, context, options) =>
+    provider.streamSimple({ ...model, provider: provider.id }, context, options),
+})
+
+const customModel = (id: string, provider: string, baseUrl: string): Model<Api> => ({
+  id,
+  name: id,
+  api: 'openai-completions',
+  provider,
+  baseUrl,
+  reasoning: false,
+  // Nothing states what a reader's own endpoint can read, so images stay on the
+  // table and the reader names the model that handles them.
+  input: ['text', 'image'],
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  contextWindow: 128_000,
+  maxTokens: 4_096,
+})
+
+/**
+ * The auth method names no environment variables, and a browser has none to
+ * name. It is here because pi accepts a key supplied per request only from a
+ * provider that declares an api-key method at all — the reader's key arrives
+ * through `apiKeyFor`, never from an environment.
+ */
+const customProvider = (configured: UserProvider, id: string, baseUrl: string) =>
+  createProvider({
+    id,
+    name: configured.label?.trim() || baseUrl,
+    baseUrl,
+    auth: { apiKey: envApiKeyAuth(configured.label?.trim() || id, []) },
+    models: configured.models.map(model => customModel(model, id, baseUrl)),
+    api: openAICompletionsApi(),
+  })
+
+export type RegisteredProvider = {
+  id: string
+  name: string
+  models: readonly Model<Api>[]
+  /** The model the reader named for images, when they named one. */
+  visionModel?: Model<Api>
+}
+
+/**
+ * Registers every configured provider and reports what each one offers. Only
+ * the models a reader chose are reported, so a vendor with hundreds of them
+ * does not flood the conversation's model list.
+ */
+export const registerUserProviders = async (
+  models: MutableModels,
+  configured: readonly UserProvider[],
+): Promise<RegisteredProvider[]> => {
+  const registered: RegisteredProvider[] = []
+  for (const entry of configured) {
+    const id = userProviderId(entry.id)
+    // A preset keeps pi's catalogue even when the reader points it at a mirror;
+    // only an endpoint pi does not know has to describe its own models.
+    const preset = catalogEntry(entry.id)
+    const provider = preset
+      ? aliased(await preset.load(), id, entry.baseUrl)
+      : entry.baseUrl
+        ? customProvider(entry, id, entry.baseUrl)
+        : undefined
+    if (!provider) {
+      // Names neither a vendor pi knows nor an address of its own — what a
+      // catalog that has since dropped that vendor leaves behind. Skipping
+      // costs the reader that provider; refusing would cost them the free
+      // models too, since one runtime carries both.
+      console.error('Skipping a model provider that can no longer be built', entry.id)
+      continue
+    }
+    models.setProvider(provider)
+    const chosen = provider.getModels().filter(model => entry.models.includes(model.id))
+    if (chosen.length === 0) continue
+    registered.push({
+      id,
+      name: provider.name,
+      models: chosen,
+      visionModel: chosen.find(model => model.id === entry.visionModel),
+    })
+  }
+  return registered
+}
