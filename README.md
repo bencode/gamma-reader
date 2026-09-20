@@ -84,7 +84,14 @@ Model choices and thinking levels persist with each conversation. Thinking level
 
 The server holds the model credentials, so it also caps what they can spend. Fetching `/api/agent/config` sets a signed, HTTP-only cookie, and the chat routes refuse requests without it. Pointing an OpenAI-compatible client at the proxy address therefore does not work; anyone determined enough can still read the cookie first, which is why a limit backs it up rather than replaces it.
 
-Each network gets `GAMMA_DAILY_TOKENS` tokens per day, counted from the usage the provider reports on its final response chunk, and resets at 00:00 UTC. Requests over the limit are refused with `429` and the reader sees the reason in the conversation. A network is identified by its address, so people behind one office or campus connection share a single allowance. Counts live in a SQLite file under `GAMMA_DATA_DIR`, which also keeps the cookie signing secret so a restart does not sign readers out; days older than a week are dropped at startup.
+Each network gets `GAMMA_DAILY_TOKENS` tokens per day, counted from the usage the provider reports on its final response chunk, and resets at 00:00 UTC. Requests over the limit are refused with `429` and the reader sees the reason in the conversation. A network is identified by its address, so people behind one office or campus connection share a single allowance.
+
+Two records are kept in a SQLite file under `GAMMA_DATA_DIR`, deliberately separated:
+
+- **The day's counter** stores a salted hash of the network address against the tokens it has spent. This is what the limit reads, and it is the only record that relates to a person, so it holds **today only** — the previous day is dropped the first time a request arrives on a new one. The hash keeps the file from reading as a list of visitors, but an address is short enough to recover from a hash, so it is the short retention rather than the hash that does the protecting.
+- **The request log** stores, for every charged request, its timestamp, its token count, and a grouping number that ties together the several requests one question makes. It carries no address, hashed or otherwise, and the grouping number is assigned in memory and never linked to anything, so it is kept indefinitely. Daily and monthly totals come from here.
+
+The same file also keeps the cookie signing secret and the hashing salt, so a restart neither signs readers out nor resets anyone's allowance.
 
 Set `GAMMA_TRUST_PROXY=1` only when a reverse proxy sets `X-Forwarded-For`, as `compose.production.yml` assumes: the last entry of that header is then treated as the caller. Without a proxy in front, leave it unset so the header cannot be forged.
 
@@ -100,7 +107,7 @@ docker compose -f compose.production.yml up -d --build --wait
 
 The container serves the web app and Node proxy on port `3302` and exposes `/api/health`.
 
-The `quota` volume holds the usage database; removing it resets every allowance and signs readers out. JSON configuration ships with the server build; rebuild and restart after changing it. Deploy the frontend and server together, and refresh already-open pages after this update because the chat proxy routes have changed. Saved conversations remain compatible.
+The `quota` volume holds the usage database; removing it (`docker compose down -v`) resets every allowance, signs readers out, and discards the request log. JSON configuration ships with the server build; rebuild and restart after changing it. Deploy the frontend and server together, and refresh already-open pages after this update because the chat proxy routes have changed. Saved conversations remain compatible.
 
 ## Development
 

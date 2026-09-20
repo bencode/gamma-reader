@@ -1,12 +1,10 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHmac, timingSafeEqual } from 'node:crypto'
 
 export const passCookieName = 'gamma_pass'
 export const passLifetimeMs = 30 * 24 * 60 * 60 * 1000
 
 const sign = (secret: string, expiry: string) =>
   createHmac('sha256', secret).update(expiry).digest('base64url')
-
-export const createPassSecret = () => randomBytes(32).toString('base64url')
 
 export const issuePass = (secret: string, now = Date.now()) => {
   const expiry = String(now + passLifetimeMs)

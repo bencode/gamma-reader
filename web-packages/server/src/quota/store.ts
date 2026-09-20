@@ -1,21 +1,25 @@
+import { randomBytes } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { createPassSecret } from './pass.js'
+
+export type UsageEntry = {
+  subject: string
+  day: string
+  at: number
+  burst: number
+  tokens: number
+}
 
 export type QuotaStore = {
-  passSecret: () => string
+  secret: (key: string) => string
   tokensToday: (subject: string, day: string) => number
-  addTokens: (subject: string, day: string, tokens: number) => void
+  addUsage: (entry: UsageEntry) => void
   prune: (before: string) => void
   close: () => void
 }
 
-const dayMs = 24 * 60 * 60 * 1000
-
 export const utcDay = (at: number) => new Date(at).toISOString().slice(0, 10)
-
-export const retentionCutoff = (at: number, days: number) => utcDay(at - days * dayMs)
 
 const text = (row: Record<string, unknown> | undefined, column: string) => {
   const value = row?.[column]
@@ -41,6 +45,11 @@ export const openQuotaStore = (file: string): QuotaStore => {
       tokens  INTEGER NOT NULL,
       PRIMARY KEY (subject, day)
     ) STRICT;
+    CREATE TABLE IF NOT EXISTS usage_request (
+      at     INTEGER NOT NULL,
+      burst  INTEGER NOT NULL,
+      tokens INTEGER NOT NULL
+    ) STRICT;
   `)
 
   const readMeta = database.prepare('SELECT value FROM meta WHERE key = ?')
@@ -48,24 +57,29 @@ export const openQuotaStore = (file: string): QuotaStore => {
     'INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING',
   )
   const readTokens = database.prepare('SELECT tokens FROM usage_day WHERE subject = ? AND day = ?')
-  const recordTokens = database.prepare(
+  const recordDay = database.prepare(
     `INSERT INTO usage_day (subject, day, tokens) VALUES (?, ?, ?)
        ON CONFLICT(subject, day) DO UPDATE SET tokens = tokens + excluded.tokens`,
+  )
+  const recordRequest = database.prepare(
+    'INSERT INTO usage_request (at, burst, tokens) VALUES (?, ?, ?)',
   )
   const deleteBefore = database.prepare('DELETE FROM usage_day WHERE day < ?')
 
   return {
-    passSecret: () => {
-      const existing = text(readMeta.get('pass_secret'), 'value')
+    secret: key => {
+      const existing = text(readMeta.get(key), 'value')
       if (existing) return existing
-      claimMeta.run('pass_secret', createPassSecret())
-      const stored = text(readMeta.get('pass_secret'), 'value')
-      if (!stored) throw new Error('Could not persist the admission secret.')
+      claimMeta.run(key, randomBytes(32).toString('base64url'))
+      const stored = text(readMeta.get(key), 'value')
+      if (!stored) throw new Error(`Could not persist the ${key} secret.`)
       return stored
     },
     tokensToday: (subject, day) => count(readTokens.get(subject, day), 'tokens'),
-    addTokens: (subject, day, tokens) => {
-      if (tokens > 0) recordTokens.run(subject, day, tokens)
+    addUsage: ({ subject, day, at, burst, tokens }) => {
+      if (tokens <= 0) return
+      recordDay.run(subject, day, tokens)
+      recordRequest.run(at, burst, tokens)
     },
     prune: before => {
       deleteBefore.run(before)
