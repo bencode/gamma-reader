@@ -32,4 +32,11 @@ export const catalog: readonly CatalogEntry[] = [
 /** Marks a reader-supplied endpoint, which carries its own address and models. */
 export const customProviderId = 'custom'
 
+/**
+ * Namespaces the name a reader gave their own endpoint. Storing it bare would
+ * let one called "deepseek" overwrite the preset of that name and then be read
+ * back as the preset, against pi's catalogue instead of its own models.
+ */
+export const customProviderKey = (name: string) => `${customProviderId}:${name}`
+
 export const catalogEntry = (id: string) => catalog.find(candidate => candidate.id === id)

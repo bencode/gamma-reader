@@ -1,6 +1,11 @@
 import { useEffect, useId, useState } from 'react'
 import { ConfirmationDialog } from '../../../components/confirmation-dialog'
-import { catalog, catalogEntry, customProviderId } from '../../../core/byok/catalog'
+import {
+  catalog,
+  catalogEntry,
+  customProviderId,
+  customProviderKey,
+} from '../../../core/byok/catalog'
 import { type DiscoveryFailure, listModels } from '../../../core/byok/discover'
 import { removeUserProvider, saveUserProvider, useUserProviders } from '../../../core/byok/store'
 import { visionCandidates } from '../../../core/byok/vision-models'
@@ -59,23 +64,29 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
   // lookup.
   useEffect(() => {
     let live = true
-    void Promise.all(
+    Promise.all(
       catalog.map(async entry => {
         const provider = await entry.load()
         return [entry.id, { name: provider.name, baseUrl: provider.baseUrl ?? '' }] as const
       }),
-    ).then(loaded => {
-      if (!live) return
-      const byId = new Map(loaded)
-      setPresets(byId)
-      // Whoever is selected by now, not whoever was first: a reader can pick a
-      // vendor before this resolves.
-      setDraft(current =>
-        current.baseUrl
-          ? current
-          : { ...current, baseUrl: byId.get(current.provider)?.baseUrl ?? '' },
-      )
-    })
+    )
+      .then(loaded => {
+        if (!live) return
+        const byId = new Map(loaded)
+        setPresets(byId)
+        // Whoever is selected by now, not whoever was first: a reader can pick
+        // a vendor before this resolves.
+        setDraft(current =>
+          current.baseUrl
+            ? current
+            : { ...current, baseUrl: byId.get(current.provider)?.baseUrl ?? '' },
+        )
+      })
+      .catch((cause: unknown) => {
+        // The form still works typed out by hand, so this degrades rather than
+        // blocks — but silently would leave a blank Address looking like a bug.
+        console.error('Unable to load the built-in model providers', cause)
+      })
     return () => {
       live = false
     }
@@ -94,7 +105,17 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
   const check = async () => {
     setPhase({ step: 'checking' })
     try {
-      await attempt()
+      const preset = custom ? undefined : catalogEntry(draft.provider)
+      if (!custom && !preset) return setPhase({ step: 'failed', reason: 'endpoint' })
+      // One request both proves the key and, for an endpoint pi does not know,
+      // reports what it offers.
+      const found = await listModels(draft.baseUrl, draft.apiKey)
+      if (!found.ok) return setPhase({ step: 'failed', reason: found.reason })
+      offer(
+        preset
+          ? (await preset.load()).getModels()
+          : found.models.map(id => ({ id, name: id, input: ['text', 'image'] })),
+      )
     } catch (cause) {
       // Leaving the phase on `checking` would disable the form for good.
       console.error('Could not reach that model provider', cause)
@@ -102,23 +123,9 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
     }
   }
 
-  const attempt = async () => {
-    if (custom) {
-      const found = await listModels(draft.baseUrl, draft.apiKey)
-      if (!found.ok) return setPhase({ step: 'failed', reason: found.reason })
-      return offer(found.models.map(id => ({ id, name: id, input: ['text', 'image'] })))
-    }
-    const entry = catalogEntry(draft.provider)
-    if (!entry) return setPhase({ step: 'failed', reason: 'endpoint' })
-    const provider = await entry.load()
-    const found = await listModels(draft.baseUrl, draft.apiKey)
-    if (!found.ok) return setPhase({ step: 'failed', reason: found.reason })
-    offer(provider.getModels())
-  }
-
   const save = () => {
     saveUserProvider({
-      id: custom ? draft.label.trim() : draft.provider,
+      id: custom ? customProviderKey(draft.label.trim()) : draft.provider,
       apiKey: draft.apiKey.trim(),
       models: draft.models,
       ...(draft.visionModel ? { visionModel: draft.visionModel } : {}),

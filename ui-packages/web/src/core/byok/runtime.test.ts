@@ -1,5 +1,6 @@
 import { createModels } from '@earendil-works/pi-ai'
 import { describe, expect, it } from 'vitest'
+import { customProviderKey } from './catalog'
 import { registerUserProviders, userProviderId } from './runtime'
 import { visionCandidates } from './vision-models'
 
@@ -69,6 +70,24 @@ describe('registerUserProviders', () => {
 
     expect(providers[0]?.models.map(model => model.id)).toEqual(['deepseek-v4-pro'])
     expect(providers[0]?.models[0]?.baseUrl).toBe('https://mirror.example.com/v1')
+  })
+
+  // A reader names their own endpoint freely, and nothing stops them naming it
+  // after a vendor pi ships. Read back as that preset, it would be asked for
+  // pi's catalogue and lose every model they actually chose.
+  it("keeps an endpoint of the reader's own even when they named it after a vendor", async () => {
+    const { providers } = await register([
+      {
+        id: customProviderKey('deepseek'),
+        apiKey: 'a-key',
+        baseUrl: 'https://llm.example.com/v1',
+        label: 'deepseek',
+        models: ['house-model'],
+      },
+    ])
+
+    expect(providers[0]?.models.map(model => model.id)).toEqual(['house-model'])
+    expect(providers[0]?.models[0]?.baseUrl).toBe('https://llm.example.com/v1')
   })
 
   it('skips a provider whose chosen models no longer exist', async () => {
