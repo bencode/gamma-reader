@@ -15,7 +15,7 @@ export type ConversationDraft = {
 export type StoredConversation = {
   id: ConversationId
   title: string | null
-  selection?: Omit<ModelSelection, 'provider'> & { provider?: string }
+  selection?: ModelSelection
   draft: ConversationDraft
   createdAt: number
   lastActiveAt: number

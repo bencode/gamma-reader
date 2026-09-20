@@ -678,7 +678,7 @@ export const useConversation = (
   }
 
   const runtime = configRef.current.kind === 'enabled' ? configRef.current.runtime : null
-  const agent = agentRef.current
+  const selection = active.selection
 
   const stop = () => {
     if (!busy.current) return
@@ -710,18 +710,12 @@ export const useConversation = (
     send,
     stop,
     draftAttachments,
-    modelConfiguration:
-      runtime && agent
-        ? {
-            providers: runtime.providers,
-            selection: selectionFromState(agent.state),
-          }
-        : null,
+    modelConfiguration: runtime && selection ? { providers: runtime.providers, selection } : null,
     selectModel: (model: ModelReference) => {
-      if (agent) configureModel({ ...model, effort: agent.state.thinkingLevel })
+      if (selection) configureModel({ ...model, effort: selection.effort })
     },
     selectEffort: (effort: ModelThinkingLevel) => {
-      if (agent) configureModel({ ...selectionFromState(agent.state), effort })
+      if (selection) configureModel({ ...selection, effort })
     },
   }
 }

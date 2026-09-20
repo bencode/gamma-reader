@@ -1,17 +1,19 @@
 import type { AgentState } from '@earendil-works/pi-agent-core'
 import { clampThinkingLevel } from '@earendil-works/pi-ai'
-import type { StoredConversation } from '../../core/conversations'
+import type { ModelSelection } from '../../core/conversations'
 import type { ModelRuntime } from '../agent/model-runtime'
 
 export const resolveModelSelection = (
   runtime: ModelRuntime,
-  requested?: StoredConversation['selection'],
+  requested?: ModelSelection,
 ): Pick<AgentState, 'model' | 'thinkingLevel'> => {
   const available = runtime.providers.flatMap(provider => provider.models)
-  const provider = requested?.provider ?? 'zai-coding-cn'
   const model =
     available.find(
-      candidate => candidate.provider === provider && candidate.id === requested?.modelId,
+      candidate =>
+        requested !== undefined &&
+        candidate.provider === requested.provider &&
+        candidate.id === requested.modelId,
     ) ??
     available.find(
       candidate =>
