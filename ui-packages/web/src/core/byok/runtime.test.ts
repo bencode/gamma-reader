@@ -1,5 +1,5 @@
 import { createModels } from '@earendil-works/pi-ai'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { customProviderKey } from './catalog'
 import { registerUserProviders, userProviderId } from './runtime'
 import { visionCandidates } from './vision-models'
@@ -107,6 +107,79 @@ describe('registerUserProviders', () => {
     ])
 
     expect(providers).toEqual([])
+  })
+})
+
+/**
+ * Where a request actually goes, which is not what `getModels` reports. pi
+ * replaces a model's address with the one its auth resolves, and refuses
+ * outright unless the provider declares an api-key method — two ways for a
+ * registration that looks right to send somewhere else or nowhere at all.
+ */
+const sseReply = () => {
+  const frame = (delta: unknown, finish: string | null) =>
+    `data: ${JSON.stringify({ id: 'a', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
+  return new Response(
+    `${frame({ role: 'assistant', content: 'hi' }, null)}${frame({}, 'stop')}data: [DONE]\n\n`,
+    { headers: { 'Content-Type': 'text/event-stream' } },
+  )
+}
+
+const requestFor = async (configured: Parameters<typeof registerUserProviders>[1]) => {
+  const sent: { url: string; authorization: string | null }[] = []
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+    sent.push({
+      url: String(url),
+      authorization: new Headers(init?.headers).get('authorization'),
+    })
+    return sseReply()
+  })
+  const { models, providers } = await register(configured)
+  const model = providers[0]?.models[0]
+  if (!model) throw new Error('nothing was registered')
+  await models
+    .streamSimple(
+      model,
+      { messages: [{ role: 'user', content: 'hi', timestamp: Date.now() }] },
+      { apiKey: 'sk-the-readers-own' },
+    )
+    .result()
+  return sent[0]
+}
+
+describe('the request a registered provider sends', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("goes to the mirror when the reader moved a known vendor's address", async () => {
+    const request = await requestFor([
+      {
+        id: 'deepseek',
+        apiKey: 'a-key',
+        baseUrl: 'https://mirror.example.com/v1',
+        models: ['deepseek-v4-pro'],
+      },
+    ])
+
+    expect(request?.url).toContain('https://mirror.example.com/v1')
+    expect(request?.url).not.toContain('api.deepseek.com')
+  })
+
+  // The whole custom half of this feature; nothing else exercises its request.
+  it("goes to the reader's own endpoint, with the key they gave it", async () => {
+    const request = await requestFor([
+      {
+        id: 'custom:mine',
+        apiKey: 'a-key',
+        baseUrl: 'https://llm.example.com/v1',
+        label: 'Mine',
+        models: ['house-model'],
+      },
+    ])
+
+    expect(request?.url).toContain('https://llm.example.com/v1')
+    expect(request?.authorization).toBe('Bearer sk-the-readers-own')
   })
 })
 

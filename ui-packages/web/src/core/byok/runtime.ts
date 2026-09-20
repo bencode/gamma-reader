@@ -54,6 +54,12 @@ const customModel = (id: string, provider: string, baseUrl: string): Model<Api> 
   maxTokens: 4_096,
 })
 
+/**
+ * The auth method names no environment variables, and a browser has none to
+ * name. It is here because pi accepts a key supplied per request only from a
+ * provider that declares an api-key method at all — the reader's key arrives
+ * through `apiKeyFor`, never from an environment.
+ */
 const customProvider = (configured: UserProvider, id: string, baseUrl: string) =>
   createProvider({
     id,
