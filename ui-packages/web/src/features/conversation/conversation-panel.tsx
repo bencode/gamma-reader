@@ -1,5 +1,6 @@
 import { History, MessageSquare, Plus, X } from 'lucide-react'
-import { Activity, type RefObject } from 'react'
+import { Activity, type RefObject, useState } from 'react'
+import { ModelProviderDialog } from '../settings/model-providers'
 import { ConversationComposer } from './composer'
 import { useReaderConversation } from './conversation-context'
 import { ConversationHistory } from './conversation-history'
@@ -17,6 +18,7 @@ export const ConversationPanel = ({
   availableFileIds: ReadonlySet<string>
 }) => {
   const conversation = useReaderConversation()
+  const [configuringModels, setConfiguringModels] = useState(false)
   const {
     active,
     draft,
@@ -127,6 +129,7 @@ export const ConversationPanel = ({
               modelConfiguration={conversation.modelConfiguration}
               onModelChange={conversation.selectModel}
               onEffortChange={conversation.selectEffort}
+              onConfigureModels={() => setConfiguringModels(true)}
               inputRef={inputRef}
               draft={draft}
               phase={phase}
@@ -160,6 +163,17 @@ export const ConversationPanel = ({
           onDelete={deleteConversation}
         />
       </Activity>
+      {configuringModels && (
+        <ModelProviderDialog
+          onClose={() => {
+            setConfiguringModels(false)
+            // Models added while this was open only reach the list once the
+            // runtime is rebuilt; without this a reader configures a key and
+            // sees nothing change until they reload.
+            void conversation.refreshProviders()
+          }}
+        />
+      )}
     </aside>
   )
 }

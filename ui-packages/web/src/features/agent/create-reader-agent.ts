@@ -5,7 +5,13 @@ import { getStoredFile, listStoredFiles } from '../../data/file-store'
 import { createDocumentTools, type DocumentAccess } from './document-tools'
 import { createImageTools } from './image-tools'
 import type { LocalTools } from './local-tools'
-import { type ModelRuntime, models, proxyRequestOptions } from './model-runtime'
+import {
+  apiKeyFor,
+  type ModelRuntime,
+  models,
+  proxyRequestOptions,
+  visionModelFor,
+} from './model-runtime'
 import { createPdfRuntime, type PdfRuntime } from './pdf/runtime'
 import { createPdfTools } from './pdf/tools'
 import { createSkillTools, type SkillDefinition, skillCatalog } from './skills'
@@ -63,7 +69,8 @@ export const createReaderAgent = (
 ) => {
   const pdf = createPdfRuntime(getStoredFile)
   const documents = createDocumentTools(createReaderDocumentAccess(pdf))
-  const analyze = runtime.visionModel ? createVisionAnalyzer(runtime.visionModel) : undefined
+  const vision = visionModelFor(runtime, session.model)
+  const analyze = vision ? createVisionAnalyzer(vision) : undefined
   const agent = new Agent({
     sessionId: session.id,
     toolExecution: 'sequential',
@@ -80,7 +87,11 @@ export const createReaderAgent = (
       ],
     },
     streamFn: (model, context, options) =>
-      models.streamSimple(model, context, { ...options, ...proxyRequestOptions }),
+      models.streamSimple(model, context, {
+        ...options,
+        ...proxyRequestOptions,
+        apiKey: apiKeyFor(model),
+      }),
   })
   agent.subscribe(async event => {
     if (event.type === 'agent_end') await pdf.dispose()

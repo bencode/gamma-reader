@@ -38,7 +38,7 @@ vi.mock('./pdf/source', () => ({
   }),
 }))
 
-const config = createModelRuntime(modelConfig)
+const config = await createModelRuntime(modelConfig)
 const event = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'reply', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
 const reply = (text: string) =>

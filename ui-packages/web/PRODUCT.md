@@ -6,9 +6,11 @@ product
 
 ## Users
 
-Gamma Reader is for ordinary readers who want help understanding local documents without setting
-up model keys, accounts, or a technical workspace. They may begin with one file and add more context
-as their questions develop.
+Gamma Reader is for ordinary readers who want help understanding local documents without an account
+or a technical workspace, and without having to arrange a model key before they can begin. They may
+start with one file and add more context as their questions develop. Readers who do hold their own
+keys can configure them and run on their own allowance; that path is open, not hidden, but it is
+never a step on the way in.
 
 ## Product Purpose
 
@@ -35,6 +37,8 @@ added by the user should share one clear interaction model.
 - Keep document data local by default and explain the few actions that affect persistence.
 - Delay write access until the user explicitly saves something to their file system.
 - Prefer familiar controls, compact layout, and reversible actions for ordinary users.
+- Keep the first run free of configuration, while leaving configuration reachable for those who want
+  it.
 
 ## Accessibility & Inclusion
 
