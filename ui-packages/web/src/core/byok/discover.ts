@@ -27,9 +27,9 @@ const modelIds = (payload: unknown) => {
  * safelisted headers and the reply is never read. It answers the one question
  * the failed request cannot: is anything listening there at all?
  */
-const reachable = async (baseUrl: string, signal?: AbortSignal) => {
+const reachable = async (baseUrl: string) => {
   try {
-    await fetch(modelsUrl(baseUrl), { mode: 'no-cors', signal })
+    await fetch(modelsUrl(baseUrl), { mode: 'no-cors' })
     return true
   } catch {
     return false
@@ -41,21 +41,15 @@ const reachable = async (baseUrl: string, signal?: AbortSignal) => {
  * works — a reader should learn a key is wrong while typing it, not midway
  * through an answer.
  */
-export const listModels = async (
-  baseUrl: string,
-  apiKey: string,
-  signal?: AbortSignal,
-): Promise<Discovery> => {
+export const listModels = async (baseUrl: string, apiKey: string): Promise<Discovery> => {
   let response: Response
   try {
     response = await fetch(modelsUrl(baseUrl), {
       headers: { Authorization: `Bearer ${apiKey}` },
-      signal,
     })
   } catch (cause) {
-    if (signal?.aborted) throw cause
     if (!(cause instanceof TypeError)) throw cause
-    return { ok: false, reason: (await reachable(baseUrl, signal)) ? 'blocked' : 'unreachable' }
+    return { ok: false, reason: (await reachable(baseUrl)) ? 'blocked' : 'unreachable' }
   }
   if (response.status === 401 || response.status === 403) return { ok: false, reason: 'key' }
   if (response.status === 404) return { ok: false, reason: 'endpoint' }

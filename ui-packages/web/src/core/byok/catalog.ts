@@ -8,25 +8,52 @@ import type { Provider } from '@earendil-works/pi-ai'
  */
 export type CatalogEntry = { id: string; load: () => Promise<Provider> }
 
-const entry = (id: string, load: () => Promise<{ [key: string]: unknown }>): CatalogEntry => ({
-  id,
-  load: async () => {
-    const module = await load()
-    const factory = Object.values(module).find(value => typeof value === 'function')
-    if (typeof factory !== 'function') throw new Error(`Unsupported pi provider: ${id}`)
-    return factory() as Provider
-  },
-})
-
 export const catalog: readonly CatalogEntry[] = [
-  entry('deepseek', () => import('@earendil-works/pi-ai/providers/deepseek')),
-  entry('zai-coding-cn', () => import('@earendil-works/pi-ai/providers/zai-coding-cn')),
-  entry('moonshotai-cn', () => import('@earendil-works/pi-ai/providers/moonshotai-cn')),
-  entry('openai', () => import('@earendil-works/pi-ai/providers/openai')),
-  entry('openrouter', () => import('@earendil-works/pi-ai/providers/openrouter')),
-  entry('xai', () => import('@earendil-works/pi-ai/providers/xai')),
-  entry('groq', () => import('@earendil-works/pi-ai/providers/groq')),
-  entry('mistral', () => import('@earendil-works/pi-ai/providers/mistral')),
+  {
+    id: 'deepseek',
+    load: () =>
+      import('@earendil-works/pi-ai/providers/deepseek').then(module => module.deepseekProvider()),
+  },
+  {
+    id: 'zai-coding-cn',
+    load: () =>
+      import('@earendil-works/pi-ai/providers/zai-coding-cn').then(module =>
+        module.zaiCodingCnProvider(),
+      ),
+  },
+  {
+    id: 'moonshotai-cn',
+    load: () =>
+      import('@earendil-works/pi-ai/providers/moonshotai-cn').then(module =>
+        module.moonshotaiCnProvider(),
+      ),
+  },
+  {
+    id: 'openai',
+    load: () =>
+      import('@earendil-works/pi-ai/providers/openai').then(module => module.openaiProvider()),
+  },
+  {
+    id: 'openrouter',
+    load: () =>
+      import('@earendil-works/pi-ai/providers/openrouter').then(module =>
+        module.openrouterProvider(),
+      ),
+  },
+  {
+    id: 'xai',
+    load: () => import('@earendil-works/pi-ai/providers/xai').then(module => module.xaiProvider()),
+  },
+  {
+    id: 'groq',
+    load: () =>
+      import('@earendil-works/pi-ai/providers/groq').then(module => module.groqProvider()),
+  },
+  {
+    id: 'mistral',
+    load: () =>
+      import('@earendil-works/pi-ai/providers/mistral').then(module => module.mistralProvider()),
+  },
 ]
 
 /** Marks a reader-supplied endpoint, which carries its own address and models. */

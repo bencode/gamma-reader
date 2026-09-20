@@ -23,16 +23,22 @@ export const apiKeyFor = (model: Model<Api>) => {
 }
 
 export type ModelRuntime = {
-  providers: readonly { id: string; name: string; models: readonly Model<Api>[] }[]
+  providers: readonly {
+    id: string
+    name: string
+    models: readonly Model<Api>[]
+    /** Set only for a provider the reader configured, and only if they named one. */
+    visionModel?: Model<Api>
+  }[]
   defaultModel: ModelReference
   visionModel?: Model<Api>
-  /** Vision models for providers the reader configured, keyed by provider id. */
-  ownVisionModels: ReadonlyMap<string, Model<Api>>
 }
 
 /** The model that answers questions about images while this chat model is in use. */
 export const visionModelFor = (runtime: ModelRuntime, chat: Model<Api>) =>
-  isUserProvider(chat.provider) ? runtime.ownVisionModels.get(chat.provider) : runtime.visionModel
+  isUserProvider(chat.provider)
+    ? runtime.providers.find(provider => provider.id === chat.provider)?.visionModel
+    : runtime.visionModel
 
 const proxyModel = ({ provider, modelId }: ModelReference, vision = false): Model<Api> => {
   const model = models.getModel(provider, modelId)
@@ -65,8 +71,5 @@ export const createModelRuntime = async (
     providers: [...free, ...own],
     defaultModel: config.defaultModel,
     visionModel: config.visionModel ? proxyModel(config.visionModel, true) : undefined,
-    ownVisionModels: new Map(
-      own.flatMap(provider => (provider.visionModel ? [[provider.id, provider.visionModel]] : [])),
-    ),
   }
 }

@@ -57,12 +57,4 @@ describe('listModels', () => {
 
     expect(await listModels(endpoint, 'a-key')).toEqual({ ok: false, reason: 'unreachable' })
   })
-
-  it('lets an abort through rather than reporting it as a failed endpoint', async () => {
-    const controller = new AbortController()
-    controller.abort()
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new DOMException('Aborted', 'AbortError'))
-
-    await expect(listModels(endpoint, 'a-key', controller.signal)).rejects.toThrow('Aborted')
-  })
 })

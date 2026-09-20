@@ -8,7 +8,6 @@ import {
 } from '../../../core/byok/catalog'
 import { type DiscoveryFailure, listModels } from '../../../core/byok/discover'
 import { removeUserProvider, saveUserProvider, useUserProviders } from '../../../core/byok/store'
-import { visionCandidates } from '../../../core/byok/vision-models'
 import styles from './style.module.scss'
 
 const failureText: Record<DiscoveryFailure, string> = {
@@ -146,7 +145,7 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
     `${model.id} ${model.name}`.toLowerCase().includes(search.trim().toLowerCase()),
   )
   const chosen = offered.filter(model => draft.models.includes(model.id))
-  const visionOptions = visionCandidates(chosen)
+  const visionOptions = chosen.filter(model => model.input.includes('image'))
 
   return (
     <ConfirmationDialog label="Model providers" onCancel={onClose} className={styles.shell}>

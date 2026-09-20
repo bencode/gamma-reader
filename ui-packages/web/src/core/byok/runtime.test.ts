@@ -2,7 +2,6 @@ import { createModels } from '@earendil-works/pi-ai'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { customProviderKey } from './catalog'
 import { registerUserProviders, userProviderId } from './runtime'
-import { visionCandidates } from './vision-models'
 
 const register = (configured: Parameters<typeof registerUserProviders>[1]) => {
   const models = createModels()
@@ -180,21 +179,5 @@ describe('the request a registered provider sends', () => {
 
     expect(request?.url).toContain('https://llm.example.com/v1')
     expect(request?.authorization).toBe('Bearer sk-the-readers-own')
-  })
-})
-
-describe('visionCandidates', () => {
-  it('offers only the models that read images', async () => {
-    const { providers } = await register([
-      {
-        id: 'deepseek',
-        apiKey: 'a-key',
-        models: ['deepseek-v4-pro', 'deepseek-v4-flash-vision-exp'],
-      },
-    ])
-
-    expect(visionCandidates(providers[0]?.models ?? []).map(model => model.id)).toEqual([
-      'deepseek-v4-flash-vision-exp',
-    ])
   })
 })
