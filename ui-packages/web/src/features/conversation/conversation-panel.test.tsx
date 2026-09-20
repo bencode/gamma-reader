@@ -106,14 +106,18 @@ describe('conversation', () => {
   })
 
   it.each([
-    { selection: { modelId: 'glm-5.2', effort: 'max' as const }, model: 'GLM-5.2', effort: 'max' },
+    {
+      selection: { provider: 'zai-coding-cn', modelId: 'glm-5.2', effort: 'max' as const },
+      model: 'GLM-5.2',
+      effort: 'max',
+    },
     {
       selection: { provider: 'removed', modelId: 'missing', effort: 'off' as const },
       model: 'GLM-5.3',
       effort: 'low',
     },
   ])(
-    'restores legacy or unavailable model selections: $model',
+    'restores saved or unavailable model selections: $model',
     async ({ selection, model, effort }) => {
       await saveStoredConversationDraft({
         id: 'saved-selection',
