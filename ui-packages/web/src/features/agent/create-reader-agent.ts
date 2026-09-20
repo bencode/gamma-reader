@@ -1,13 +1,11 @@
-import type { AgentMessage } from '@earendil-works/pi-agent-core'
-import type { AgentConfig, AgentSelection } from '@gamma-reader/server/agent-contract'
-import { createAgent } from '../../core/agent/runtime'
-import { createVisionAnalyzer } from '../../core/agent/vision'
+import { Agent, type AgentMessage, type AgentState } from '@earendil-works/pi-agent-core'
 import { markdownText } from '../../core/document-text'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
 import { getStoredFile, listStoredFiles } from '../../data/file-store'
 import { createDocumentTools, type DocumentAccess } from './document-tools'
 import { createImageTools } from './image-tools'
 import type { LocalTools } from './local-tools'
+import { type ModelRuntime, models, proxyRequestOptions } from './model-runtime'
 import { createPdfRuntime, type PdfRuntime } from './pdf/runtime'
 import { createPdfTools } from './pdf/tools'
 import { createSkillTools, type SkillDefinition, skillCatalog } from './skills'
@@ -15,6 +13,7 @@ import { systemPrompt } from './system-prompt'
 import { openTextSource } from './text-source'
 import { LocalToolError } from './tool-types'
 import { createReaderTools } from './tools'
+import { createVisionAnalyzer } from './vision'
 
 const getReadability = (file: StoredFileMetadata) => {
   if (file.previewKind === 'pdf') return { textReadable: true }
@@ -55,18 +54,23 @@ const skills: SkillDefinition[] = [
 ]
 
 export const createReaderAgent = (
-  config: Extract<AgentConfig, { enabled: true }>,
+  runtime: ModelRuntime,
   local: LocalTools,
-  session: { id: string; messages: readonly AgentMessage[]; selection?: AgentSelection },
+  session: { id: string; messages: readonly AgentMessage[] } & Pick<
+    AgentState,
+    'model' | 'thinkingLevel'
+  >,
 ) => {
   const pdf = createPdfRuntime(getStoredFile)
   const documents = createDocumentTools(createReaderDocumentAccess(pdf))
-  const analyze = config.visionModelId
-    ? createVisionAnalyzer({ ...config, visionModelId: config.visionModelId })
-    : undefined
-  const agent = createAgent(
-    config,
-    {
+  const analyze = runtime.visionModel ? createVisionAnalyzer(runtime.visionModel) : undefined
+  const agent = new Agent({
+    sessionId: session.id,
+    toolExecution: 'sequential',
+    initialState: {
+      model: session.model,
+      thinkingLevel: session.thinkingLevel,
+      messages: [...session.messages],
       systemPrompt: `${systemPrompt}\n\n${skillCatalog(skills)}`,
       tools: [
         ...createReaderTools(local, documents),
@@ -75,8 +79,9 @@ export const createReaderAgent = (
         ...createSkillTools(skills),
       ],
     },
-    session,
-  )
+    streamFn: (model, context, options) =>
+      models.streamSimple(model, context, { ...options, ...proxyRequestOptions }),
+  })
   agent.subscribe(async event => {
     if (event.type === 'agent_end') await pdf.dispose()
   })

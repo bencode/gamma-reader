@@ -3,20 +3,14 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { ConversationAttachment } from '../../core/agent/reader-message'
+import { emptyConversationDraft } from '../../core/conversations'
+import { getStoredConversation, saveStoredConversationDraft } from '../../data/conversation-store'
 import { Workbench } from '../../shell/workbench'
+import { modelConfig as config } from '../../test/model-config'
 import { DraftAttachmentTray, MessageAttachments } from './conversation-attachments'
 
 const event = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'answer', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
-const config = {
-  enabled: true,
-  provider: 'zai-coding-cn',
-  models: [
-    { id: 'glm-5.3', label: 'GLM-5.3', efforts: ['low', 'high', 'max'], defaultEffort: 'low' },
-    { id: 'glm-5.2', label: 'GLM-5.2', efforts: ['off', 'high', 'max'], defaultEffort: 'high' },
-  ],
-  modelId: 'glm-5.3',
-}
 const open = () =>
   render(
     <MemoryRouter initialEntries={['/files/getting-started']}>
@@ -31,6 +25,139 @@ const complete = (text: string) =>
   })
 
 describe('conversation', () => {
+  it('persists the initial model so changing deployment defaults does not change an existing chat', async () => {
+    const user = userEvent.setup()
+    const network = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async url =>
+        url === '/api/agent/config' ? Response.json(config) : complete('A reply'),
+      )
+    const page = open()
+    await screen.findByRole('combobox', { name: 'Chat model' })
+    await user.type(question(), 'Keep the original model')
+    await user.click(send())
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Chat model' })).toBeEnabled())
+    page.unmount()
+    network.mockResolvedValue(
+      Response.json({
+        ...config,
+        defaultModel: { provider: 'deepseek', modelId: 'deepseek-v4-flash' },
+      }),
+    )
+    open()
+    expect(await screen.findByRole('combobox', { name: 'Chat model' })).toHaveDisplayValue(
+      'GLM-5.3',
+    )
+    await user.click(screen.getByRole('button', { name: 'New conversation' }))
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Chat model' })).toHaveDisplayValue(
+        'DeepSeek V4 Flash',
+      ),
+    )
+    expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('off')
+  })
+
+  it('uses native DeepSeek options, routes the selected model and restores its provider', async () => {
+    const user = userEvent.setup()
+    const requests: { url: string; body: Record<string, unknown> }[] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+      return complete('A reply')
+    })
+    const page = open()
+    const model = await screen.findByRole('combobox', { name: 'Chat model' })
+    expect(within(model).getByRole('group', { name: 'DeepSeek' })).toBeInTheDocument()
+    await user.selectOptions(model, 'DeepSeek V4 Flash')
+    const effort = screen.getByRole('combobox', { name: 'Reasoning effort' })
+    expect(
+      within(effort)
+        .getAllByRole('option')
+        .map(option => option.textContent),
+    ).toEqual(['off', 'low', 'high', 'max'])
+    expect(effort).toHaveValue('low')
+    await user.selectOptions(effort, 'off')
+    await user.type(question(), 'Answer directly')
+    await user.click(send())
+    await waitFor(() => expect(model).toBeEnabled())
+    expect(requests[0]?.url).toContain('/api/agent/providers/deepseek/chat/completions')
+    expect(requests[0]?.body).toMatchObject({
+      model: 'deepseek-v4-flash',
+      thinking: { type: 'disabled' },
+    })
+    expect(requests[0]?.body).not.toHaveProperty('reasoning_effort')
+    page.unmount()
+
+    open()
+    const restored = await screen.findByRole('combobox', { name: 'Chat model' })
+    expect(restored).toHaveDisplayValue('DeepSeek V4 Flash')
+    expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('off')
+    await user.selectOptions(restored, 'DeepSeek V4 Pro')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Reasoning effort' }), 'max')
+    await user.type(question(), 'Explain further')
+    await user.click(send())
+    await waitFor(() => expect(restored).toBeEnabled())
+    expect(requests[1]?.body).toMatchObject({
+      model: 'deepseek-v4-pro',
+      reasoning_effort: 'max',
+      thinking: { type: 'enabled' },
+    })
+    expect(JSON.stringify(requests[1]?.body.messages)).toContain('Answer directly')
+  })
+
+  it.each([
+    { selection: { modelId: 'glm-5.2', effort: 'max' as const }, model: 'GLM-5.2', effort: 'max' },
+    {
+      selection: { provider: 'removed', modelId: 'missing', effort: 'off' as const },
+      model: 'GLM-5.3',
+      effort: 'low',
+    },
+  ])(
+    'restores legacy or unavailable model selections: $model',
+    async ({ selection, model, effort }) => {
+      await saveStoredConversationDraft({
+        id: 'saved-selection',
+        title: 'Saved chat',
+        selection,
+        draft: emptyConversationDraft(),
+        createdAt: 1,
+        lastActiveAt: 1,
+      })
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(config))
+      open()
+      expect(await screen.findByRole('combobox', { name: 'Chat model' })).toHaveDisplayValue(model)
+      expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue(effort)
+      await userEvent.type(question(), 'Keep this selection')
+      await waitFor(async () => {
+        expect(
+          (await getStoredConversation('saved-selection'))?.conversation.selection,
+        ).toMatchObject({ provider: 'zai-coding-cn', effort })
+      })
+    },
+  )
+
+  it('shows SDK configuration errors while keeping saved conversation history', async () => {
+    await saveStoredConversationDraft({
+      id: 'existing',
+      title: 'Existing chat',
+      draft: emptyConversationDraft(),
+      createdAt: 1,
+      lastActiveAt: 1,
+    })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        ...config,
+        providers: [{ id: 'deepseek', chatModels: ['unknown-model'] }],
+      }),
+    )
+    open()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Unsupported pi model: deepseek/unknown-model',
+    )
+    expect((await getStoredConversation('existing'))?.conversation.title).toBe('Existing chat')
+    expect(send()).toBeDisabled()
+  })
+
   it('applies model-specific effort to requests and restores it with the conversation', async () => {
     const user = userEvent.setup()
     const requests: Record<string, unknown>[] = []
@@ -57,7 +184,7 @@ describe('conversation', () => {
       thinking: { type: 'enabled' },
     })
 
-    await user.selectOptions(model, 'glm-5.2')
+    await user.selectOptions(model, 'GLM-5.2')
     expect(effort).toHaveValue('max')
     await user.selectOptions(effort, 'off')
     await user.type(question(), 'Answer directly')
@@ -69,14 +196,14 @@ describe('conversation', () => {
 
     open()
     const restored = await screen.findByRole('combobox', { name: 'Chat model' })
-    expect(restored).toHaveValue('glm-5.2')
+    expect(restored).toHaveDisplayValue('GLM-5.2')
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('off')
-    await user.selectOptions(restored, 'glm-5.3')
+    await user.selectOptions(restored, 'GLM-5.3')
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('low')
-    await user.selectOptions(restored, 'glm-5.2')
+    await user.selectOptions(restored, 'GLM-5.2')
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('high')
     await user.click(screen.getByRole('button', { name: 'New conversation' }))
-    await waitFor(() => expect(restored).toHaveValue('glm-5.3'))
+    await waitFor(() => expect(restored).toHaveDisplayValue('GLM-5.3'))
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('low')
   })
 

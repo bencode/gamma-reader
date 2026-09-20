@@ -2,12 +2,23 @@ import { request } from 'node:http'
 import { serve } from '@hono/node-server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from '../app.js'
-import { readAgentConfig } from './config.js'
+import { resolveModelProxyConfig } from './config.js'
+import settings from './providers.json' with { type: 'json' }
 
-const config = readAgentConfig({ GLM_API_KEY: 'server-secret' })
+const config = resolveModelProxyConfig(settings, {
+  GLM_API_KEY: 'server-secret',
+  DEEPSEEK_API_KEY: 'deepseek-secret',
+})
 const app = createApp(undefined, config)
-const body = { model: config.modelId, messages: [{ role: 'user', content: 'Hello' }], stream: true }
-const post = (input: unknown = body, path = '/api/agent/chat/completions') =>
+const body = {
+  model: settings.defaultModel.modelId,
+  messages: [{ role: 'user', content: 'Hello' }],
+  stream: true,
+}
+const post = (
+  input: unknown = body,
+  path = '/api/agent/providers/zai-coding-cn/chat/completions',
+) =>
   app.request(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer browser-placeholder' },
@@ -16,17 +27,43 @@ const post = (input: unknown = body, path = '/api/agent/chat/completions') =>
 afterEach(() => vi.restoreAllMocks())
 
 describe('model proxy', () => {
+  it('routes each provider to its own upstream and credential', async () => {
+    const upstream = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(
+        async () =>
+          new Response('data: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } }),
+      )
+    const path = '/api/agent/providers/deepseek/chat/completions'
+    expect((await post({ ...body, model: 'deepseek-v4-pro' }, path)).status).toBe(200)
+    expect(upstream.mock.calls[0]?.[0]).toBe('https://api.deepseek.com/chat/completions')
+    expect(upstream.mock.calls[0]?.[1]?.headers).toMatchObject({
+      Authorization: 'Bearer deepseek-secret',
+    })
+    expect((await post()).status).toBe(200)
+    expect(upstream.mock.calls[1]?.[0]).toBe(
+      'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
+    )
+    expect(upstream.mock.calls[1]?.[1]?.headers).toMatchObject({
+      Authorization: 'Bearer server-secret',
+    })
+    expect((await post(body, path)).status).toBe(400)
+    expect((await post({ ...body, model: 'deepseek-v4-pro' })).status).toBe(400)
+    expect((await post(body, '/api/agent/providers/unknown/chat/completions')).status).toBe(404)
+    expect((await post(body, '/api/agent/providers/toString/chat/completions')).status).toBe(404)
+    expect(upstream).toHaveBeenCalledTimes(2)
+  })
+
   it('publishes only model configuration and injects the server key while preserving SSE', async () => {
     const publicConfig = await app.request('/api/agent/config')
     expect(await publicConfig.json()).toEqual({
       enabled: true,
-      provider: 'zai-coding-cn',
-      modelId: 'glm-5.3',
-      models: [
-        { id: 'glm-5.3', label: 'GLM-5.3', efforts: ['low', 'high', 'max'], defaultEffort: 'low' },
-        { id: 'glm-5.2', label: 'GLM-5.2', efforts: ['off', 'high', 'max'], defaultEffort: 'high' },
+      providers: [
+        { id: 'zai-coding-cn', chatModels: ['glm-5.3', 'glm-5.2'] },
+        { id: 'deepseek', chatModels: ['deepseek-v4-flash', 'deepseek-v4-pro'] },
       ],
-      visionModelId: 'glm-5.3-flash',
+      defaultModel: { provider: 'zai-coding-cn', modelId: 'glm-5.3' },
+      visionModel: { provider: 'zai-coding-cn', modelId: 'glm-5.3-flash' },
     })
     expect(publicConfig.headers.get('cache-control')).toBe('no-store')
     const fetchModel = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -71,10 +108,14 @@ describe('model proxy', () => {
       .mockResolvedValue(
         new Response('data: done\n\n', { headers: { 'Content-Type': 'text/event-stream' } }),
       )
-    const visionBody = { ...body, model: config.visionModelId }
+    const visionBody = { ...body, model: settings.visionModel.modelId }
     expect((await post(visionBody)).status).toBe(400)
-    expect((await post(body, '/api/agent/vision/chat/completions')).status).toBe(400)
-    expect((await post(visionBody, '/api/agent/vision/chat/completions')).status).toBe(200)
+    expect(
+      (await post(body, '/api/agent/providers/zai-coding-cn/vision/chat/completions')).status,
+    ).toBe(400)
+    expect(
+      (await post(visionBody, '/api/agent/providers/zai-coding-cn/vision/chat/completions')).status,
+    ).toBe(200)
     expect(fetchModel).toHaveBeenCalledTimes(1)
   })
 
@@ -85,13 +126,18 @@ describe('model proxy', () => {
       enabled: false,
     })
     expect(
-      (await createApp().request('/api/agent/chat/completions', { method: 'POST' })).status,
+      (
+        await createApp(undefined, resolveModelProxyConfig(settings, {})).request(
+          '/api/agent/providers/zai-coding-cn/chat/completions',
+          { method: 'POST' },
+        )
+      ).status,
     ).toBe(503)
     expect((await post({ ...body, model: 'other' })).status).toBe(400)
     expect((await post({ ...body, stream: false })).status).toBe(400)
     expect(
       (
-        await app.request('/api/agent/chat/completions', {
+        await app.request('/api/agent/providers/zai-coding-cn/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: '{',
@@ -176,7 +222,7 @@ describe('model proxy', () => {
           {
             hostname: '127.0.0.1',
             port: address.port,
-            path: '/api/agent/chat/completions',
+            path: '/api/agent/providers/zai-coding-cn/chat/completions',
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
           },

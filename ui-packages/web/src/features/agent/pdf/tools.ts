@@ -1,8 +1,8 @@
 import { Type } from '@earendil-works/pi-ai'
-import type { VisionAnalyzer } from '../../../core/agent/vision'
 import { prepareImage } from '../../../core/image-input'
 import { bind } from '../tool'
 import { LocalToolError } from '../tool-types'
+import type { VisionAnalyzer } from '../vision'
 import type { PdfRuntime } from './runtime'
 import type { AnalyzePdfPageResult } from './types'
 

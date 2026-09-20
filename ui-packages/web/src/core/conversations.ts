@@ -1,8 +1,11 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
-import type { AgentSelection } from '@gamma-reader/server/agent-contract'
+import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
+import type { ModelReference } from '@gamma-reader/shared/model-config'
 import type { ConversationAttachment } from './agent/reader-message'
 
 export type ConversationId = string
+
+export type ModelSelection = ModelReference & { effort: ModelThinkingLevel }
 
 export type ConversationDraft = {
   text: string
@@ -12,7 +15,7 @@ export type ConversationDraft = {
 export type StoredConversation = {
   id: ConversationId
   title: string | null
-  selection?: AgentSelection
+  selection?: Omit<ModelSelection, 'provider'> & { provider?: string }
   draft: ConversationDraft
   createdAt: number
   lastActiveAt: number

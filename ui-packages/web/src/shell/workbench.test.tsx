@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getStoredFileContent, listStoredFiles } from '../data/file-store'
+import { modelConfig } from '../test/model-config'
 import { usePanelWidths } from './use-panel-widths'
 import { Workbench } from './workbench'
 
@@ -44,21 +45,8 @@ describe('reading workspace', () => {
     let modelRequests = 0
     vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
       const url = String(input)
-      if (url === '/api/agent/config')
-        return Response.json({
-          enabled: true,
-          provider: 'zai-coding-cn',
-          models: [
-            {
-              id: 'glm-5.3',
-              label: 'GLM-5.3',
-              efforts: ['low', 'high', 'max'],
-              defaultEffort: 'low',
-            },
-          ],
-          modelId: 'glm-5.3',
-        })
-      if (url.endsWith('/api/agent/chat/completions')) {
+      if (url === '/api/agent/config') return Response.json(modelConfig)
+      if (url.endsWith('/api/agent/providers/zai-coding-cn/chat/completions')) {
         modelRequests += 1
         if (modelRequests === 1)
           return writeCall('Saved notes.md', '# Saved\n\nA durable conclusion.')

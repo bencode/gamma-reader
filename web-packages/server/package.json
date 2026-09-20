@@ -4,25 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "node --env-file-if-exists=../../.env --import tsx --watch src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "build": "tsc -p tsconfig.build.json",
-    "start": "NODE_ENV=production node dist/main.js"
+    "start": "NODE_ENV=production node --env-file-if-exists=../../.env dist/main.js"
   },
   "dependencies": {
+    "@earendil-works/pi-ai": "^0.85.1",
     "@hono/node-server": "^2.1.1",
-    "hono": "^4.13.8"
+    "hono": "^4.13.8",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@gamma-reader/shared": "workspace:*",
     "@types/node": "^24.13.4",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0"
-  },
-  "exports": {
-    "./agent-contract": {
-      "types": "./src/agent/contract.ts"
-    }
   }
 }

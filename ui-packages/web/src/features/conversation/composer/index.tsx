@@ -1,14 +1,15 @@
-import type { AgentSelection } from '@gamma-reader/server/agent-contract'
 import { ArrowUp, Paperclip, Square } from 'lucide-react'
 import { type DragEvent, type RefObject, useLayoutEffect, useRef, useState } from 'react'
-import { DraftAttachmentTray } from './conversation-attachments'
-import { ConversationModelControl, type ModelConfiguration } from './conversation-model-control'
-import type { ConversationPhase } from './use-conversation'
-import type { DraftAttachment } from './use-draft-attachments'
+import { DraftAttachmentTray } from '../conversation-attachments'
+import { ConversationModelControl, type ModelControlProps } from '../model-control'
+import type { ConversationPhase } from '../use-conversation'
+import type { DraftAttachment } from '../use-draft-attachments'
+import styles from './style.module.scss'
 
 type ComposerProps = {
-  modelConfiguration: ModelConfiguration | null
-  onConfigureModel: (selection: AgentSelection) => void
+  modelConfiguration: Pick<ModelControlProps, 'providers' | 'selection'> | null
+  onModelChange: ModelControlProps['onModelChange']
+  onEffortChange: ModelControlProps['onEffortChange']
   inputRef: RefObject<HTMLTextAreaElement | null>
   draft: string
   phase: ConversationPhase
@@ -33,7 +34,8 @@ const resizeTextarea = (textarea: HTMLTextAreaElement) => {
 export const ConversationComposer = ({
   inputRef,
   modelConfiguration,
-  onConfigureModel,
+  onModelChange,
+  onEffortChange,
   draft,
   phase,
   attachments,
@@ -80,7 +82,7 @@ export const ConversationComposer = ({
     <fieldset
       disabled={phase === 'loading' || phase === 'switching'}
       aria-label="Message composer"
-      className={dragging ? 'composer drop-active' : 'composer'}
+      className={`${styles.composer}${dragging ? ` ${styles.dropActive}` : ''}`}
       onDragEnter={event => {
         if (event.dataTransfer.types.includes('Files')) {
           event.preventDefault()
@@ -132,10 +134,10 @@ export const ConversationComposer = ({
           if (canSend) onSend()
         }}
       />
-      <div className="composer-bottom">
+      <div className={styles.bottom}>
         <button
           type="button"
-          className="icon-button attachment-picker"
+          className={`icon-button ${styles.attachmentPicker}`}
           aria-label="Attach files"
           title={limitReached ? 'Remove an attachment before adding another' : 'Attach files'}
           disabled={limitReached || attachments.some(item => item.status === 'adding')}
@@ -156,15 +158,16 @@ export const ConversationComposer = ({
         />
         {modelConfiguration && (
           <ConversationModelControl
-            configuration={modelConfiguration}
+            {...modelConfiguration}
             disabled={phase !== 'ready'}
-            onChange={onConfigureModel}
+            onModelChange={onModelChange}
+            onEffortChange={onEffortChange}
           />
         )}
-        {limitReached && <span className="attachment-limit">10 attachments maximum</span>}
+        {limitReached && <span className={styles.attachmentLimit}>10 attachments maximum</span>}
         <button
           type="button"
-          className="send-button"
+          className={styles.sendButton}
           aria-label={running ? 'Stop generation' : 'Send question'}
           title={running ? 'Stop generation' : 'Send question'}
           disabled={phase === 'stopping' || (!running && !canSend)}
@@ -173,7 +176,7 @@ export const ConversationComposer = ({
           {running ? <Square size={13} /> : <ArrowUp size={17} />}
         </button>
       </div>
-      {dragging && <span className="drop-hint">Drop files to attach</span>}
+      {dragging && <span className={styles.dropHint}>Drop files to attach</span>}
     </fieldset>
   )
 }

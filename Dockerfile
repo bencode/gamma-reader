@@ -10,6 +10,7 @@ RUN corepack enable
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/shared/package.json packages/shared/package.json
 COPY ui-packages/code-lab/package.json ui-packages/code-lab/package.json
 COPY ui-packages/web/package.json ui-packages/web/package.json
 COPY web-packages/server/package.json web-packages/server/package.json
