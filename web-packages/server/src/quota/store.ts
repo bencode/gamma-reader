@@ -7,7 +7,6 @@ export type UsageEntry = {
   subject: string
   day: string
   at: number
-  burst: number
   tokens: number
 }
 
@@ -47,7 +46,6 @@ export const openQuotaStore = (file: string): QuotaStore => {
     ) STRICT;
     CREATE TABLE IF NOT EXISTS usage_request (
       at     INTEGER NOT NULL,
-      burst  INTEGER NOT NULL,
       tokens INTEGER NOT NULL
     ) STRICT;
   `)
@@ -61,9 +59,7 @@ export const openQuotaStore = (file: string): QuotaStore => {
     `INSERT INTO usage_day (subject, day, tokens) VALUES (?, ?, ?)
        ON CONFLICT(subject, day) DO UPDATE SET tokens = tokens + excluded.tokens`,
   )
-  const recordRequest = database.prepare(
-    'INSERT INTO usage_request (at, burst, tokens) VALUES (?, ?, ?)',
-  )
+  const recordRequest = database.prepare('INSERT INTO usage_request (at, tokens) VALUES (?, ?)')
   const deleteBefore = database.prepare('DELETE FROM usage_day WHERE day < ?')
 
   return {
@@ -78,12 +74,12 @@ export const openQuotaStore = (file: string): QuotaStore => {
     tokensToday: (subject, day) => count(readTokens.get(subject, day), 'tokens'),
     // One transaction: a counter charged without its matching record would make
     // the permanent totals disagree with what readers were actually charged.
-    addUsage: ({ subject, day, at, burst, tokens }) => {
+    addUsage: ({ subject, day, at, tokens }) => {
       if (tokens <= 0) return
       database.exec('BEGIN IMMEDIATE')
       try {
         recordDay.run(subject, day, tokens)
-        recordRequest.run(at, burst, tokens)
+        recordRequest.run(at, tokens)
         database.exec('COMMIT')
       } catch (cause) {
         database.exec('ROLLBACK')

@@ -20,11 +20,10 @@ describe('quota store', () => {
     if (directory) await rm(directory, { recursive: true, force: true })
   })
 
-  const entry = (subject: string, at: number, burst: number, tokens: number) => ({
+  const entry = (subject: string, at: number, tokens: number) => ({
     subject,
     day: utcDay(at),
     at,
-    burst,
     tokens,
   })
 
@@ -33,11 +32,11 @@ describe('quota store', () => {
     const today = utcDay(noon)
     const tomorrow = utcDay(noon + dayMs)
 
-    store.addUsage(entry('aaa', noon, 1, 120))
-    store.addUsage(entry('aaa', noon + 60_000, 1, 80))
-    store.addUsage(entry('bbb', noon, 2, 5))
-    store.addUsage(entry('aaa', noon + dayMs, 3, 7))
-    store.addUsage(entry('aaa', noon, 4, 0))
+    store.addUsage(entry('aaa', noon, 120))
+    store.addUsage(entry('aaa', noon + 60_000, 80))
+    store.addUsage(entry('bbb', noon, 5))
+    store.addUsage(entry('aaa', noon + dayMs, 7))
+    store.addUsage(entry('aaa', noon, 0))
 
     expect(store.tokensToday('aaa', today)).toBe(200)
     expect(store.tokensToday('bbb', today)).toBe(5)
@@ -50,8 +49,8 @@ describe('quota store', () => {
     const store = openQuotaStore(':memory:')
     const today = utcDay(noon)
 
-    store.addUsage(entry('aaa', noon - dayMs, 1, 10))
-    store.addUsage(entry('aaa', noon, 2, 10))
+    store.addUsage(entry('aaa', noon - dayMs, 10))
+    store.addUsage(entry('aaa', noon, 10))
     store.prune(today)
 
     expect(store.tokensToday('aaa', utcDay(noon - dayMs))).toBe(0)
@@ -59,32 +58,27 @@ describe('quota store', () => {
     store.close()
   })
 
-  it('records every charged request without an address, grouped by burst', () => {
+  it('records every charged request without an address', () => {
     const file = fileIn('requests.db')
     const store = openQuotaStore(file)
 
-    store.addUsage(entry('aaa', noon, 11, 2480))
-    store.addUsage(entry('aaa', noon + 9_000, 11, 5120))
-    store.addUsage(entry('bbb', noon + 3_000, 22, 640))
-    store.addUsage(entry('aaa', noon + 20_000, 11, 0))
+    store.addUsage(entry('aaa', noon, 2480))
+    store.addUsage(entry('aaa', noon + 9_000, 5120))
+    store.addUsage(entry('bbb', noon + 3_000, 640))
+    store.addUsage(entry('aaa', noon + 20_000, 0))
     store.prune(utcDay(noon))
     store.close()
 
     const database = new DatabaseSync(file)
     expect(database.prepare('SELECT * FROM usage_request ORDER BY at').all()).toEqual([
-      { at: noon, burst: 11, tokens: 2480 },
-      { at: noon + 3_000, burst: 22, tokens: 640 },
-      { at: noon + 9_000, burst: 11, tokens: 5120 },
+      { at: noon, tokens: 2480 },
+      { at: noon + 3_000, tokens: 640 },
+      { at: noon + 9_000, tokens: 5120 },
     ])
     // Pruning the day counter must not touch the permanent record.
-    expect(
-      database
-        .prepare('SELECT burst, SUM(tokens) AS total FROM usage_request GROUP BY burst ORDER BY 1')
-        .all(),
-    ).toEqual([
-      { burst: 11, total: 7600 },
-      { burst: 22, total: 640 },
-    ])
+    expect(database.prepare('SELECT SUM(tokens) AS total FROM usage_request').get()).toEqual({
+      total: 8240,
+    })
     database.close()
   })
 

@@ -110,13 +110,7 @@ describe('model proxy', () => {
     expect(fetchModel).toHaveBeenCalledTimes(1)
   })
 
-  it('charges a stopped image analysis by what one costs, not by its payload', async () => {
-    const { charged, guard, cookie } = quotaFor(Number.MAX_SAFE_INTEGER, '203.0.113.9', 4)
-    const vision = createApp(guard, undefined, config)
-    // A megabyte of base64 image would be charged ~250,000 tokens if the payload
-    // size were used, which alone exceeds a day's allowance.
-    const image = 'A'.repeat(1024 * 1024)
-    const client = new AbortController()
+  const stalling = () =>
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       async (_url, init) =>
         new Response(
@@ -134,23 +128,61 @@ describe('model proxy', () => {
         ),
     )
 
-    const response = await vision.request(
+  const stopMidAnswer = async (
+    app: ReturnType<typeof createApp>,
+    cookie: string,
+    sent: unknown,
+  ) => {
+    const client = new AbortController()
+    const response = await app.request(
       '/api/agent/providers/zai-coding-cn/vision/chat/completions',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
-        body: JSON.stringify({
-          ...body,
-          model: settings.visionModel.modelId,
-          messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: image } }] }],
-        }),
+        body: JSON.stringify(sent),
         signal: client.signal,
       },
     )
     expect(response.status).toBe(200)
     client.abort()
+  }
 
-    await vi.waitFor(() => expect(charged()).toBe(6_000))
+  it('charges a stopped image analysis per image and for the answer it asked for', async () => {
+    const { charged, guard, cookie } = quotaFor(Number.MAX_SAFE_INTEGER, '203.0.113.9', 4)
+    const vision = createApp(guard, undefined, config)
+    stalling()
+    // A megabyte of base64 would be ~262,000 tokens priced by size, which alone
+    // exceeds a day's allowance; the provider prices an image by its pixels.
+    const image = `data:image/jpeg;base64,${'A'.repeat(1024 * 1024)}`
+
+    await stopMidAnswer(vision, cookie, {
+      ...body,
+      model: settings.visionModel.modelId,
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: image } }] }],
+    })
+
+    // One image plus the output ceiling the caller asked for, and little else:
+    // leaving the output out is what made this charge wrong three times over.
+    await vi.waitFor(() => expect(charged()).toBeGreaterThanOrEqual(6_000 + 4_096))
+    expect(charged()).toBeLessThan(6_000 + 4_096 + 1_000)
+  })
+
+  it('charges text sent to the image route by its size, leaving no cheaper way in', async () => {
+    const { charged, guard, cookie } = quotaFor(Number.MAX_SAFE_INTEGER, '203.0.113.10', 4)
+    const vision = createApp(guard, undefined, config)
+    stalling()
+    // Nothing requires an image here, so a flat per-image charge would have made
+    // this route a discount on the same text sent to the conversation one.
+    const prose = 'x'.repeat(1024 * 1024)
+
+    await stopMidAnswer(vision, cookie, {
+      ...body,
+      model: settings.visionModel.modelId,
+      messages: [{ role: 'user', content: prose }],
+    })
+
+    await vi.waitFor(() => expect(charged()).toBeGreaterThan(250_000))
   })
 
   it('releases its concurrency slot after streamed, rejected and unusable responses', async () => {

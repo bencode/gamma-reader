@@ -4,8 +4,9 @@ import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
 import { resolveModelProxyConfig } from './model-proxy/config.js'
 import providers from './model-proxy/providers.json' with { type: 'json' }
-import { createQuotaGuard, readQuotaConfig } from './quota/guard.js'
-import { openQuotaStore, utcDay } from './quota/store.js'
+import { readQuotaConfig } from './quota/config.js'
+import { createQuotaGuard } from './quota/guard.js'
+import { openQuotaStore } from './quota/store.js'
 
 const port = Number(process.env.PORT ?? 3302)
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -31,7 +32,6 @@ const hostname = process.env.HOST ?? '127.0.0.1'
 const config = resolveModelProxyConfig(providers, process.env)
 const quota = readQuotaConfig(process.env)
 const store = openQuotaStore(quota.databaseFile)
-store.prune(utcDay(Date.now()))
 const guard = createQuotaGuard(store, quota)
 
 serve({ fetch: createApp(guard, webRoot, config).fetch, port, hostname }, info => {

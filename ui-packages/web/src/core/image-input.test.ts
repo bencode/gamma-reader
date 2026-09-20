@@ -55,6 +55,10 @@ describe('vision image preparation', () => {
     expect(result.width * result.height).toBeLessThanOrEqual(readerImagePixels)
     expect(result.width * result.height).toBeGreaterThan(readerImagePixels * 0.95)
     expect(result.width / result.height).toBeCloseTo(2, 2)
+    // A PNG may carry transparency, so it is not flattened onto white as a JPEG.
+    expect(result.mimeType).toBe('image/png')
+    expect(result.data).toBe(btoa('converted'))
+    expect(context.fillRect).not.toHaveBeenCalled()
     expect(context.drawImage).toHaveBeenCalledWith(decoded, 0, 0, result.width, result.height)
     expect(decoded.close).toHaveBeenCalled()
   })
@@ -86,7 +90,7 @@ describe('vision image preparation', () => {
   })
 
   it('gives a rendered document page its own budget, not the reader image one', async () => {
-    const decoded = bitmap(2000, 1500)
+    const decoded = bitmap(3000, 2000)
     globalThis.createImageBitmap = vi.fn(async () => decoded)
     const context = {
       fillStyle: '',
@@ -99,15 +103,16 @@ describe('vision image preparation', () => {
     })
     const source = () => new Blob(['page'], { type: 'image/png' })
 
-    // Three megapixels: within what a scanned page may keep, twice what an
-    // upload is worth. Lowering the latter must not quietly shrink the former.
+    // Six megapixels is over both budgets, so each one has to do the clamping
+    // and neither can borrow the other's number.
     const page = await prepareImage(source(), 'image/png', documentPagePixels)
     const upload = await prepareImage(source(), 'image/png', readerImagePixels)
 
-    expect(page.width * page.height).toBe(2000 * 1500)
-    // Each dimension is rounded, so the budget is a target rather than an exact ceiling.
-    expect((upload.width * upload.height) / readerImagePixels).toBeCloseTo(1, 2)
-    expect(upload.width / upload.height).toBeCloseTo(2000 / 1500, 2)
+    expect(page.width * page.height).toBeLessThanOrEqual(documentPagePixels)
+    expect(page.width * page.height).toBeGreaterThan(documentPagePixels * 0.95)
+    expect(upload.width * upload.height).toBeLessThanOrEqual(readerImagePixels)
+    expect(upload.width * upload.height).toBeGreaterThan(readerImagePixels * 0.95)
+    expect(page.width / page.height).toBeCloseTo(3000 / 2000, 2)
   })
 
   it('reports decoding failures and honors cancellation', async () => {

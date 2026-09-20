@@ -1,5 +1,6 @@
 import { getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy } from 'pdfjs-dist'
 import type { TextContent } from 'pdfjs-dist/types/src/display/api'
+import { documentPagePixels, fitScale } from '../../../core/image-input'
 import { pdfDocumentOptions } from '../../../pdfjs'
 
 const maximumPageTextBytes = 8 * 1024 * 1024
@@ -120,12 +121,7 @@ export const openPdfSource = async (blob: Blob, signal?: AbortSignal) => {
       try {
         failure.signal.throwIfAborted()
         const base = page.getViewport({ scale: 2 })
-        const ratio = Math.min(
-          1,
-          4096 / base.width,
-          4096 / base.height,
-          Math.sqrt(4_000_000 / (base.width * base.height)),
-        )
+        const ratio = fitScale(base.width, base.height, documentPagePixels)
         const viewport = page.getViewport({ scale: 2 * ratio })
         canvas.width = Math.max(1, Math.floor(viewport.width))
         canvas.height = Math.max(1, Math.floor(viewport.height))
