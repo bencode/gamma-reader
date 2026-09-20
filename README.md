@@ -2,17 +2,21 @@
 
 A browser-native, local-first workspace for reading, experimenting, and creating with AI — powered by [pi](https://github.com/earendil-works/pi).
 
-[Try Gamma Reader](https://reader.upivot.io) — no account, desktop app, or personal API key required.
+[Try Gamma Reader](https://reader.upivot.io) — your documents stay in your browser, and there is no account to create.
+
+The shared key comes with a daily allowance. [Add a key of your own](#chat-models-and-limits) and it no longer applies.
 
 [![Gamma Reader with an executable Markdown article, local files, and the reading assistant](.github/assets/reader.png)](https://reader.upivot.io)
 
-## Read. Experiment. Create.
+## Features
 
-**Read** local documents in tabs. Ask the assistant to find a passage, explain an image, or compare sources. Keep separate conversations for different questions.
-
-**Experiment** inside `.lab.md` articles with runnable Scheme, Clojure, Python, and TypeScript cells, or explore interactive `.p5.js` sketches. Edit the code and run it yourself; language runtimes load on demand.
-
-**Create** notes, diagrams, and experiments with the agent, or edit text files in the Source panel. Save your work in the browser and export it to your computer.
+- **Read** PDF, Markdown, HTML, images, and text in tabs. PDF and Markdown carry an outline and a reading theme; Markdown also takes a text size and page width. [Document support](#document-support) lists what each format offers.
+- **Run code inside documents** — `.lab.md` articles carry executable Scheme, Clojure, Python, and TypeScript cells, and `.p5.js` sketches are interactive. Language runtimes load on demand.
+- **Ask about what you are reading.** The assistant searches and reads your open documents, explains images, and compares sources; its agent loop runs in the browser, not on a server.
+- **Keep questions apart.** Conversations are separate, each with its own history, chat model, and thinking level.
+- **Write, not just read.** Edit any text document in the Source panel, or let the assistant draft into it. Save to the browser with ⌘/Ctrl+S, and write copies back to your computer with **Save as…** or folder export.
+- **Bring your own model key** and run outside the shared allowance — see [Chat models and limits](#chat-models-and-limits).
+- **Keep your files local.** Documents are stored in the browser and are never uploaded to an application server.
 
 A Lab is ordinary Markdown with executable fences:
 
@@ -28,11 +32,11 @@ New workspaces include **Start here.md**, a PDF, a wave Lab, an orbit sketch, an
 
 Files are copied directly into IndexedDB. Built-in document previewing, parsing, and searching happen in the browser, so adding a large document does not require a file upload to the application server. The pi agent loop and document tools also run in the browser.
 
-AI inference runs at the model provider: questions, conversation context, and text or images supplied by tools pass through a small Node proxy. The server holds model credentials but has no file library or conversation database. Code runtimes may download dependencies and executed code can make network requests.
+AI inference runs at the model provider. On the free allowance, questions, conversation context, and text or images supplied by tools pass through a small Node proxy that holds the model credentials; it has no file library or conversation database. With a key you configured yourself, the browser calls the provider directly and nothing about that conversation reaches this application's server. Code runtimes may download dependencies and executed code can make network requests.
 
 ![Browser storage, local tools, and the model proxy data boundary](ui-packages/web/src/assets/samples/how-gamma-reader-works.svg)
 
-Files, attachments, and conversations persist in **IndexedDB**; tabs and the last active file use **localStorage**. Unsaved Source drafts and code execution state stay in memory. **Save** (⌘/Ctrl+S) saves a Source draft to the browser; **Save as…** and folder export write saved copies to your computer. Lab outputs are not included in the exported Markdown.
+Files, attachments, and conversations persist in **IndexedDB**; tabs, the last active file, and any model keys you configure use **localStorage**. Unsaved Source drafts and code execution state stay in memory. **Save** (⌘/Ctrl+S) saves a Source draft to the browser; **Save as…** and folder export write saved copies to your computer. Lab outputs are not included in the exported Markdown.
 
 Browser storage belongs to this site and browser profile. Export work you want to keep beyond it. Removing a file deletes only the browser copy, leaving your original unchanged.
 
@@ -40,8 +44,8 @@ Browser storage belongs to this site and browser profile. Export work you want t
 
 | Format | Experience | Agent support |
 | --- | --- | --- |
-| PDF | Outline, page navigation, progress, zoom, and pan | Search and read extracted text; no OCR |
-| Markdown | Math, Mermaid, outline, local images, and editable Source | Search, read, and edit source drafts |
+| PDF | Outline, page navigation, progress, zoom, pan, and reading theme | Search and read extracted text; no OCR |
+| Markdown | Math, Mermaid, outline, local images, editable Source, and adjustable text size, width, and theme | Search, read, and edit source drafts |
 | `.lab.md` | Markdown with editable code cells and Run controls | Read and edit source; execution stays user-controlled |
 | `.p5.js` | Interactive sketches, Source, and Run changes | Read and edit source |
 | HTML | Sandboxed preview and editable Source | Active source tools; no text search |
@@ -50,6 +54,16 @@ Browser storage belongs to this site and browser profile. Export work you want t
 | Other formats, including Word | Stored in Files | No preview or text reading yet |
 
 Limits: 200 MiB per file, 1 GiB per browser library (including attachments), and 5 MiB for text preview and reading. Available storage also depends on the browser's quota and device space. Python and Clojure require runtime downloads on first use. Folder export requires desktop Chrome or Edge; individual files can also be downloaded.
+
+## Chat models and limits
+
+Model choices and thinking levels persist with each conversation.
+
+The shared key carries a daily allowance. Each network gets `GAMMA_DAILY_TOKENS` tokens per day, counted from the usage the provider reports on its final response chunk, and resets at 00:00 UTC. Requests over the limit are refused with `429` and the reader sees the reason in the conversation. A network is identified by its address, so people behind one office or campus connection share a single allowance.
+
+**Add your own model…** at the end of the model selector takes a key for one of the providers pi ships, or for any OpenAI-compatible address. Those requests go from the browser straight to the provider, so they never reach this server and the allowance does not apply.
+
+Keys are kept in `localStorage`, not the workspace database: Code Lab runs reader-supplied TypeScript in a same-origin worker that can reach `indexedDB`, and `localStorage` does not exist in worker scope.
 
 ## Run locally
 
@@ -78,13 +92,11 @@ Configure enabled providers, chat models, the default chat model, and the indepe
 
 The initial configuration enables GLM-5.3 / GLM-5.2 and DeepSeek V4 Flash / V4 Pro, with GLM-5.3 as the default and GLM-5.3-Flash for vision. Providers without a key are omitted from the selector. If the default provider is unavailable, the first available model in configuration order is used. If the vision provider is unavailable, text chat remains usable without vision tools.
 
-Model choices and thinking levels persist with each conversation. Thinking levels are normalized with pi's `clampThinkingLevel`; new conversations start from pi Agent's `off` level, normalized for the selected model. For example, GLM-5.3 starts at `low`, while DeepSeek starts at `off`.
+Thinking levels are normalized with pi's `clampThinkingLevel`; new conversations start from pi Agent's `off` level, normalized for the selected model. For example, GLM-5.3 starts at `low`, while DeepSeek starts at `off`.
 
-## Chat limits
+## Operating the proxy
 
 The server holds the model credentials, so it also caps what they can spend. Fetching `/api/agent/config` sets a signed, HTTP-only cookie, and the chat routes refuse requests without it. Pointing an OpenAI-compatible client at the proxy address therefore does not work; anyone determined enough can still read the cookie first, which is why a limit backs it up rather than replaces it.
-
-Each network gets `GAMMA_DAILY_TOKENS` tokens per day, counted from the usage the provider reports on its final response chunk, and resets at 00:00 UTC. Requests over the limit are refused with `429` and the reader sees the reason in the conversation. A network is identified by its address, so people behind one office or campus connection share a single allowance.
 
 Two records are kept in a SQLite file under `GAMMA_DATA_DIR`, deliberately separated:
 
@@ -107,7 +119,7 @@ docker compose -f compose.production.yml up -d --build --wait
 
 The container serves the web app and Node proxy on port `3302` and exposes `/api/health`.
 
-The `quota` volume holds the usage database; removing it (`docker compose down -v`) resets every allowance, signs readers out, and discards the request log. JSON configuration ships with the server build; rebuild and restart after changing it. Deploy the frontend and server together, and refresh already-open pages after this update because the chat proxy routes have changed. Saved conversations remain compatible.
+The `quota` volume holds the usage database; removing it (`docker compose down -v`) resets every allowance, signs readers out, and discards the request log. JSON configuration ships with the server build; rebuild and restart after changing it. Deploy the frontend and server together. Saved conversations remain compatible across updates; refresh already-open pages after one.
 
 ## Development
 
