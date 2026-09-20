@@ -150,7 +150,7 @@ describe('model proxy', () => {
     expect(response.status).toBe(200)
     client.abort()
 
-    await vi.waitFor(() => expect(charged()).toBe(16_000))
+    await vi.waitFor(() => expect(charged()).toBe(6_000))
   })
 
   it('releases its concurrency slot after streamed, rejected and unusable responses', async () => {

@@ -1,5 +1,5 @@
 import { Type } from '@earendil-works/pi-ai'
-import { prepareImage } from '../../core/image-input'
+import { prepareImage, readerImagePixels } from '../../core/image-input'
 import type { getStoredFile } from '../../data/file-store'
 import { bind } from './tool'
 import { LocalToolError } from './tool-types'
@@ -22,6 +22,7 @@ export const createImageTools = (loadFile: typeof getStoredFile, analyze: Vision
       const image = await prepareImage(
         stored.blob,
         stored.blob.type || stored.metadata.mediaType,
+        readerImagePixels,
         signal,
       )
       const analysis = await analyze(

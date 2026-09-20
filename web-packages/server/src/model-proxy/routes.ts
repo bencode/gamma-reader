@@ -11,8 +11,9 @@ type Granted = Extract<Admission, { ok: true }>
 // A text body's byte count tracks its token count closely enough to charge by;
 // a base64 image's does not, and the provider bills an image by its pixels, so
 // an image request that ends without a reported total is charged what one
-// analysis costs at the current input ceiling instead of its payload size.
-const visionCancelTokens = 16_000
+// analysis costs at the highest input budget any caller uses — a rendered
+// document page — instead of its payload size.
+const visionCancelTokens = 6_000
 
 const fallbackTokens = (payload: string, vision: boolean) =>
   vision ? visionCancelTokens : Math.ceil(Buffer.byteLength(payload) / 4)

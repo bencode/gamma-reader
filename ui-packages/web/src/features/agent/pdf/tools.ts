@@ -1,5 +1,5 @@
 import { Type } from '@earendil-works/pi-ai'
-import { prepareImage } from '../../../core/image-input'
+import { documentPagePixels, prepareImage } from '../../../core/image-input'
 import { bind } from '../tool'
 import { LocalToolError } from '../tool-types'
 import type { VisionAnalyzer } from '../vision'
@@ -36,7 +36,7 @@ export const createPdfTools = (pdf: PdfRuntime, analyze?: VisionAnalyzer) => {
             if (!input.question.trim())
               throw new LocalToolError('Provide a focused question for the PDF page.')
             const blob = await pdf.renderPage(input.fileId, input.pageNumber, signal)
-            const image = await prepareImage(blob, blob.type, signal)
+            const image = await prepareImage(blob, blob.type, documentPagePixels, signal)
             const analysis = await analyze(image, input.question, signal)
             return { fileId: input.fileId, pageNumber: input.pageNumber, analysis }
           },

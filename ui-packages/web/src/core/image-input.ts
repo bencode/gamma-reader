@@ -2,6 +2,16 @@ import type { ImageContent } from '@earendil-works/pi-ai'
 
 export const maximumVisionImageBytes = 8 * 1024 * 1024
 export const maximumVisionImageSide = 4096
+
+// Measured against the vision model: Chinese body text is read reliably at this
+// size and falls off a cliff below roughly a megapixel, while the provider
+// charges by the pixel until a ceiling far above anything reading needs.
+export const readerImagePixels = 1_500_000
+
+// A scanned page is the hardest thing the vision model is asked to read, so it
+// keeps whatever the page renderer already decided to produce.
+export const documentPagePixels = 4_000_000
+
 const directMediaTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 const encodeBase64 = async (blob: Blob) => {
@@ -49,6 +59,7 @@ export type PreparedImage = ImageContent & { width: number; height: number }
 export const prepareImage = async (
   blob: Blob,
   mediaType: string,
+  maximumPixels: number,
   signal?: AbortSignal,
 ): Promise<PreparedImage> => {
   signal?.throwIfAborted()
@@ -65,6 +76,7 @@ export const prepareImage = async (
       1,
       maximumVisionImageSide / bitmap.width,
       maximumVisionImageSide / bitmap.height,
+      Math.sqrt(maximumPixels / (bitmap.width * bitmap.height)),
     )
     if (directMediaTypes.has(mediaType) && blob.size <= maximumVisionImageBytes && scale === 1) {
       const data = await encodeBase64(blob)
