@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { networkOf } from './guard.js'
+import { networkOf } from './network.js'
 
 describe('networkOf', () => {
   it.each([

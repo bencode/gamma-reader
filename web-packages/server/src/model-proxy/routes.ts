@@ -1,21 +1,13 @@
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { setCookie } from 'hono/cookie'
+import { fallbackTokens } from '../quota/charge.js'
 import type { Admission, QuotaGuard } from '../quota/guard.js'
 import { passCookieName, passLifetimeMs } from '../quota/pass.js'
 import { createUsageSniffer } from '../quota/usage.js'
 import type { ModelProxyConfig } from './config.js'
 
 type Granted = Extract<Admission, { ok: true }>
-
-// A text body's byte count tracks its token count closely enough to charge by;
-// a base64 image's does not, and the provider bills an image by its pixels, so
-// an image request that ends without a reported total is charged what one
-// analysis costs at the current input ceiling instead of its payload size.
-const visionCancelTokens = 16_000
-
-const fallbackTokens = (payload: string, vision: boolean) =>
-  vision ? visionCancelTokens : Math.ceil(Buffer.byteLength(payload) / 4)
 
 const fail = (status: number, message: string) =>
   Response.json({ error: { message } }, { status, headers: { 'Cache-Control': 'no-store' } })
@@ -36,12 +28,11 @@ const forward = async (
   config: ModelProxyConfig['providers'][string],
   client: AbortSignal,
   granted: Granted,
-  vision: boolean,
 ) => {
   const payload = JSON.stringify(body)
   // Charged when the provider reports no usage, which happens when the reader
   // stops an answer the model has already processed.
-  const estimate = fallbackTokens(payload, vision)
+  const estimate = fallbackTokens(body, Buffer.byteLength(payload))
   // A response body that is never read reaches neither the sniffer's flush nor
   // its cancel, so settle on the client going away as well; `done` runs once.
   client.addEventListener('abort', () => granted.done(estimate), { once: true })
@@ -145,7 +136,7 @@ export const createModelProxyRoutes = (config: ModelProxyConfig, guard: QuotaGua
         // slot that only `done` releases, so nothing may return early after it.
         const admission = guard.admit(c)
         if (!admission.ok) return fail(admission.status, admission.message)
-        return forward(body, provider, c.req.raw.signal, admission, vision)
+        return forward(body, provider, c.req.raw.signal, admission)
       },
     )
   }
