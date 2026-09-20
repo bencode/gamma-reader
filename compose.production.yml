@@ -12,6 +12,11 @@ services:
       PORT: 3302
       GLM_API_KEY: ${GLM_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      GAMMA_DATA_DIR: /data
+      GAMMA_DAILY_TOKENS: ${GAMMA_DAILY_TOKENS:-1000000}
+      GAMMA_TRUST_PROXY: "1"
+    volumes:
+      - quota:/data
     ports:
       - "172.17.0.1:3302:3302"
     healthcheck:
@@ -26,3 +31,6 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
+
+volumes:
+  quota:

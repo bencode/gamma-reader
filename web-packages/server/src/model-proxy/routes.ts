@@ -1,6 +1,21 @@
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
+import { setCookie } from 'hono/cookie'
+import type { Admission, QuotaGuard } from '../quota/guard.js'
+import { passCookieName, passLifetimeMs } from '../quota/pass.js'
+import { createUsageSniffer } from '../quota/usage.js'
 import type { ModelProxyConfig } from './config.js'
+
+type Granted = Extract<Admission, { ok: true }>
+
+// A text body's byte count tracks its token count closely enough to charge by;
+// a base64 image's does not, and the provider bills an image by its pixels, so
+// an image request that ends without a reported total is charged what one
+// analysis costs at the current input ceiling instead of its payload size.
+const visionCancelTokens = 16_000
+
+const fallbackTokens = (payload: string, vision: boolean) =>
+  vision ? visionCancelTokens : Math.ceil(Buffer.byteLength(payload) / 4)
 
 const fail = (status: number, message: string) =>
   Response.json({ error: { message } }, { status, headers: { 'Cache-Control': 'no-store' } })
@@ -20,7 +35,16 @@ const forward = async (
   body: Record<string, unknown>,
   config: ModelProxyConfig['providers'][string],
   client: AbortSignal,
+  granted: Granted,
+  vision: boolean,
 ) => {
+  const payload = JSON.stringify(body)
+  // Charged when the provider reports no usage, which happens when the reader
+  // stops an answer the model has already processed.
+  const estimate = fallbackTokens(payload, vision)
+  // A response body that is never read reaches neither the sniffer's flush nor
+  // its cancel, so settle on the client going away as well; `done` runs once.
+  client.addEventListener('abort', () => granted.done(estimate), { once: true })
   const timeout = AbortSignal.timeout(300_000)
   try {
     const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -32,19 +56,24 @@ const forward = async (
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
       },
-      body: JSON.stringify(body),
+      body: payload,
     })
     if (!response.ok) {
       await response.body?.cancel()
+      granted.done(0)
       console.warn('Model request rejected', { status: response.status })
       return fail(response.status, `The model provider returned HTTP ${response.status}.`)
     }
     if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
       await response.body?.cancel()
+      granted.done(0)
       console.warn('Model response was not an event stream')
       return fail(502, 'The model provider returned an invalid response.')
     }
-    return new Response(response.body, {
+    const metered = response.body.pipeThrough(
+      createUsageSniffer(total => granted.done(total ?? estimate)),
+    )
+    return new Response(metered, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-store',
@@ -52,6 +81,7 @@ const forward = async (
       },
     })
   } catch (cause) {
+    granted.done(0)
     if (client.aborted) return fail(499, 'The request was cancelled.')
     if (timeout.aborted) return fail(504, 'The model request timed out.')
     console.error('Model connection failed', {
@@ -61,10 +91,21 @@ const forward = async (
   }
 }
 
-export const createModelProxyRoutes = (config: ModelProxyConfig) => {
+export const createModelProxyRoutes = (config: ModelProxyConfig, guard: QuotaGuard) => {
   const app = new Hono()
   app.get('/config', c => {
     c.header('Cache-Control', 'no-store')
+    setCookie(c, passCookieName, guard.pass(), {
+      path: '/api/agent',
+      httpOnly: true,
+      sameSite: 'Strict',
+      maxAge: passLifetimeMs / 1000,
+      // The forwarded protocol is as caller-supplied as the forwarded address,
+      // so it is read under the same switch.
+      secure:
+        (guard.trustProxy && c.req.header('x-forwarded-proto') === 'https') ||
+        new URL(c.req.url).protocol === 'https:',
+    })
     return c.json(config.publicConfig)
   })
   const register = (path: string, vision: boolean, maximumBytes: number, label: string) => {
@@ -100,7 +141,11 @@ export const createModelProxyRoutes = (config: ModelProxyConfig) => {
         }
         if (!validBody(body, modelIds))
           return fail(400, 'Use the configured model, messages and stream: true.')
-        return forward(body, provider, c.req.raw.signal)
+        // Last check before forwarding: a granted admission holds a concurrency
+        // slot that only `done` releases, so nothing may return early after it.
+        const admission = guard.admit(c)
+        if (!admission.ok) return fail(admission.status, admission.message)
+        return forward(body, provider, c.req.raw.signal, admission, vision)
       },
     )
   }

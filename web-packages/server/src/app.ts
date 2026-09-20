@@ -2,15 +2,17 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import type { ModelProxyConfig } from './model-proxy/config.js'
 import { createModelProxyRoutes } from './model-proxy/routes.js'
+import type { QuotaGuard } from './quota/guard.js'
 
 export const createApp = (
+  guard: QuotaGuard,
   webRoot?: string,
   modelConfig: ModelProxyConfig = { providers: {}, publicConfig: { enabled: false } },
 ) => {
   const app = new Hono()
 
   app.get('/api/health', c => c.json({ status: 'ok', service: 'gamma-reader' }))
-  app.route('/api/agent', createModelProxyRoutes(modelConfig))
+  app.route('/api/agent', createModelProxyRoutes(modelConfig, guard))
   app.all('/api', c => c.json({ error: 'Not found' }, 404))
   app.all('/api/*', c => c.json({ error: 'Not found' }, 404))
 

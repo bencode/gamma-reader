@@ -1,7 +1,14 @@
+import { mkdtempSync, rmSync } from 'node:fs'
 import { request } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { serve } from '@hono/node-server'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from '../app.js'
+import { createQuotaGuard } from '../quota/guard.js'
+import { passCookieName } from '../quota/pass.js'
+import { openQuotaStore } from '../quota/store.js'
 import { resolveModelProxyConfig } from './config.js'
 import settings from './providers.json' with { type: 'json' }
 
@@ -9,7 +16,39 @@ const config = resolveModelProxyConfig(settings, {
   GLM_API_KEY: 'server-secret',
   DEEPSEEK_API_KEY: 'deepseek-secret',
 })
-const app = createApp(undefined, config)
+const directory = mkdtempSync(join(tmpdir(), 'gamma-reader-routes-'))
+const opened: { close: () => void }[] = []
+afterAll(() => {
+  for (const handle of opened) handle.close()
+  rmSync(directory, { recursive: true, force: true })
+})
+
+// Charged tokens are read back from the address-free record, so the assertions
+// do not depend on how a subject key is derived.
+const quotaFor = (dailyTokens: number, address: string, maximumConcurrent: number) => {
+  const databaseFile = join(directory, `${address}.db`)
+  const store = openQuotaStore(databaseFile)
+  opened.push(store)
+  const guard = createQuotaGuard(
+    store,
+    { databaseFile, dailyTokens, maximumConcurrent, trustProxy: false },
+    () => address,
+  )
+  const charged = () => {
+    const reader = new DatabaseSync(databaseFile)
+    try {
+      const rows = reader.prepare('SELECT tokens FROM usage_request').all()
+      return rows.reduce((total, row) => total + Number(row.tokens), 0)
+    } finally {
+      reader.close()
+    }
+  }
+  return { guard, charged, cookie: `${passCookieName}=${guard.pass()}` }
+}
+// The shared app leaves most responses undrained, which legitimately holds a
+// concurrency slot open, so give it more room than any single test needs.
+const unlimited = quotaFor(Number.MAX_SAFE_INTEGER, '198.51.100.4', 64)
+const app = createApp(unlimited.guard, undefined, config)
 const body = {
   model: settings.defaultModel.modelId,
   messages: [{ role: 'user', content: 'Hello' }],
@@ -21,12 +60,126 @@ const post = (
 ) =>
   app.request(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer browser-placeholder' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer browser-placeholder',
+      Cookie: unlimited.cookie,
+    },
     body: JSON.stringify(input),
   })
 afterEach(() => vi.restoreAllMocks())
 
 describe('model proxy', () => {
+  const eventStream = (payload: string) =>
+    new Response(payload, { headers: { 'Content-Type': 'text/event-stream' } })
+  const finalChunk = (total: number) =>
+    `data: {"choices":[{"index":0,"finish_reason":"stop","delta":{}}],"usage":{"total_tokens":${total}}}\n\ndata: [DONE]\n\n`
+
+  it('admits only callers that fetched the configuration and charges reported usage', async () => {
+    const { charged, guard, cookie } = quotaFor(10, '203.0.113.7', 4)
+    const limited = createApp(guard, undefined, config)
+    const fetchModel = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => eventStream(finalChunk(14)))
+    const send = (headers: Record<string, string> = {}) =>
+      limited.request('/api/agent/providers/zai-coding-cn/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify(body),
+      })
+
+    const anonymous = await send()
+    expect(anonymous.status).toBe(401)
+    expect(await anonymous.json()).toEqual({
+      error: { message: 'Reload Gamma Reader to continue chatting.' },
+    })
+    expect(fetchModel).not.toHaveBeenCalled()
+
+    const allowed = await send({ Cookie: cookie })
+    expect(allowed.status).toBe(200)
+    expect(await allowed.text()).toBe(finalChunk(14))
+    await vi.waitFor(() => expect(charged()).toBe(14))
+
+    const exhausted = await send({ Cookie: cookie })
+    expect(exhausted.status).toBe(429)
+    expect(await exhausted.json()).toEqual({
+      error: {
+        message: 'The daily chat limit for this network is used up. It resets at 00:00 UTC.',
+      },
+    })
+    expect(fetchModel).toHaveBeenCalledTimes(1)
+  })
+
+  it('charges a stopped image analysis by what one costs, not by its payload', async () => {
+    const { charged, guard, cookie } = quotaFor(Number.MAX_SAFE_INTEGER, '203.0.113.9', 4)
+    const vision = createApp(guard, undefined, config)
+    // A megabyte of base64 image would be charged ~250,000 tokens if the payload
+    // size were used, which alone exceeds a day's allowance.
+    const image = 'A'.repeat(1024 * 1024)
+    const client = new AbortController()
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async (_url, init) =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('data: first\n\n'))
+              init?.signal?.addEventListener(
+                'abort',
+                () => controller.error(new DOMException('Aborted', 'AbortError')),
+                { once: true },
+              )
+            },
+          }),
+          { headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+    )
+
+    const response = await vision.request(
+      '/api/agent/providers/zai-coding-cn/vision/chat/completions',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({
+          ...body,
+          model: settings.visionModel.modelId,
+          messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: image } }] }],
+        }),
+        signal: client.signal,
+      },
+    )
+    expect(response.status).toBe(200)
+    client.abort()
+
+    await vi.waitFor(() => expect(charged()).toBe(16_000))
+  })
+
+  it('releases its concurrency slot after streamed, rejected and unusable responses', async () => {
+    const { charged, guard, cookie } = quotaFor(Number.MAX_SAFE_INTEGER, '203.0.113.8', 4)
+    const generous = createApp(guard, undefined, config)
+    const send = () =>
+      generous.request('/api/agent/providers/zai-coding-cn/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify(body),
+      })
+    const drain = async (outcome: () => Response) => {
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async () => outcome())
+      const response = await send()
+      await response.text()
+      return response.status
+    }
+
+    // More attempts than the concurrency allowance: a slot that outlives its
+    // request would make the later ones fail with 429 instead.
+    for (let attempt = 0; attempt < 6; attempt++) {
+      expect(await drain(() => eventStream(finalChunk(3)))).toBe(200)
+      expect(await drain(() => new Response('nope', { status: 500 }))).toBe(500)
+      expect(await drain(() => Response.json({ not: 'a stream' }))).toBe(502)
+    }
+    // Only the six streamed responses are charged; failed upstreams cost nothing.
+    expect(charged()).toBe(18)
+  })
+
   it('routes each provider to its own upstream and credential', async () => {
     const upstream = vi
       .spyOn(globalThis, 'fetch')
@@ -121,13 +274,13 @@ describe('model proxy', () => {
 
   it('rejects unavailable, oversized and invalid requests without contacting the provider', async () => {
     const fetchModel = vi.spyOn(globalThis, 'fetch')
-    expect((await createApp().request('/api/agent/config')).status).toBe(200)
-    expect(await (await createApp().request('/api/agent/config')).json()).toEqual({
+    expect((await createApp(unlimited.guard).request('/api/agent/config')).status).toBe(200)
+    expect(await (await createApp(unlimited.guard).request('/api/agent/config')).json()).toEqual({
       enabled: false,
     })
     expect(
       (
-        await createApp(undefined, resolveModelProxyConfig(settings, {})).request(
+        await createApp(unlimited.guard, undefined, resolveModelProxyConfig(settings, {})).request(
           '/api/agent/providers/zai-coding-cn/chat/completions',
           { method: 'POST' },
         )
@@ -224,7 +377,7 @@ describe('model proxy', () => {
             port: address.port,
             path: '/api/agent/providers/zai-coding-cn/chat/completions',
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Cookie: unlimited.cookie },
           },
           response => {
             response.once('data', () => {
