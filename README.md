@@ -70,7 +70,7 @@ Create an untracked root `.env` with `GLM_API_KEY`, `DEEPSEEK_API_KEY`, or both.
 | `PORT` | `3302` | Node service port |
 | `HOST` | `127.0.0.1` | Node service host |
 | `GAMMA_BACKEND` | `http://127.0.0.1:3302` | Vite proxy target |
-| `GAMMA_DAILY_TOKENS` | `200000` | Tokens one network may spend per day |
+| `GAMMA_DAILY_TOKENS` | `1000000` | Tokens one network may spend per day |
 | `GAMMA_DATA_DIR` | `data` | Directory holding the usage database |
 | `GAMMA_TRUST_PROXY` | Unset | Set to `1` when a reverse proxy sets `X-Forwarded-For` |
 

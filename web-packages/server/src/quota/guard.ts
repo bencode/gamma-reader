@@ -24,7 +24,7 @@ export type QuotaGuard = {
 // together would all pass the daily check before any of them is recorded.
 const defaultMaximumConcurrent = 4
 
-const defaultDailyTokens = 200_000
+const defaultDailyTokens = 1_000_000
 
 const dailyTokensFrom = (raw: string | undefined) => {
   if (raw === undefined || raw.trim() === '') return defaultDailyTokens
