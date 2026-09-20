@@ -55,6 +55,22 @@ describe('registerUserProviders', () => {
     expect(providers[0]?.models[0]?.provider).toBe('user:deepseek')
   })
 
+  // Pointing a known vendor at a mirror is why the address is editable; losing
+  // pi's catalogue in exchange would defeat it.
+  it("keeps a known vendor's models when the reader points it elsewhere", async () => {
+    const { providers } = await register([
+      {
+        id: 'deepseek',
+        apiKey: 'a-key',
+        baseUrl: 'https://mirror.example.com/v1',
+        models: ['deepseek-v4-pro'],
+      },
+    ])
+
+    expect(providers[0]?.models.map(model => model.id)).toEqual(['deepseek-v4-pro'])
+    expect(providers[0]?.models[0]?.baseUrl).toBe('https://mirror.example.com/v1')
+  })
+
   it('skips a provider whose chosen models no longer exist', async () => {
     const { providers } = await register([
       { id: 'deepseek', apiKey: 'a-key', models: ['a-model-that-was-retired'] },

@@ -1,4 +1,3 @@
-import type { Api, Model } from '@earendil-works/pi-ai'
 import { useEffect, useId, useState } from 'react'
 import { ConfirmationDialog } from '../../../components/confirmation-dialog'
 import { catalog, catalogEntry, customProviderId } from '../../../core/byok/catalog'
@@ -37,26 +36,52 @@ const emptyDraft: Draft = {
   visionModel: '',
 }
 
+/** All a chosen model is asked for here; a full pi model would be a pretence. */
+type OfferedModel = { id: string; name: string; input: readonly string[] }
+
 type Phase =
   | { step: 'editing' }
   | { step: 'checking' }
   | { step: 'failed'; reason: DiscoveryFailure }
-  | { step: 'choosing'; offered: readonly Model<Api>[] }
+  | { step: 'choosing'; offered: readonly OfferedModel[] }
 
 export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
   const configured = useUserProviders()
   const [draft, setDraft] = useState(emptyDraft)
   const [phase, setPhase] = useState<Phase>({ step: 'editing' })
   const [search, setSearch] = useState('')
+  const [presets, setPresets] = useState<Map<string, { name: string; baseUrl: string }>>(new Map())
   const fieldId = useId()
   const custom = draft.provider === customProviderId
 
+  // pi states each vendor's name and address, so neither is repeated here. They
+  // arrive with the provider module, which is why this is a load rather than a
+  // lookup.
   useEffect(() => {
-    setPhase({ step: 'editing' })
-    setSearch('')
+    let live = true
+    void Promise.all(
+      catalog.map(async entry => {
+        const provider = await entry.load()
+        return [entry.id, { name: provider.name, baseUrl: provider.baseUrl ?? '' }] as const
+      }),
+    ).then(loaded => {
+      if (!live) return
+      const byId = new Map(loaded)
+      setPresets(byId)
+      // Whoever is selected by now, not whoever was first: a reader can pick a
+      // vendor before this resolves.
+      setDraft(current =>
+        current.baseUrl
+          ? current
+          : { ...current, baseUrl: byId.get(current.provider)?.baseUrl ?? '' },
+      )
+    })
+    return () => {
+      live = false
+    }
   }, [])
 
-  const offer = (models: readonly Model<Api>[]) => {
+  const offer = (models: readonly OfferedModel[]) => {
     setPhase({ step: 'choosing', offered: models })
     setDraft(current => ({
       ...current,
@@ -68,28 +93,42 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
 
   const check = async () => {
     setPhase({ step: 'checking' })
+    try {
+      await attempt()
+    } catch (cause) {
+      // Leaving the phase on `checking` would disable the form for good.
+      console.error('Could not reach that model provider', cause)
+      setPhase({ step: 'failed', reason: 'unknown' })
+    }
+  }
+
+  const attempt = async () => {
     if (custom) {
       const found = await listModels(draft.baseUrl, draft.apiKey)
       if (!found.ok) return setPhase({ step: 'failed', reason: found.reason })
-      return offer(
-        found.models.map(id => ({ id, name: id, input: ['text', 'image'] }) as Model<Api>),
-      )
+      return offer(found.models.map(id => ({ id, name: id, input: ['text', 'image'] })))
     }
     const entry = catalogEntry(draft.provider)
     if (!entry) return setPhase({ step: 'failed', reason: 'endpoint' })
     const provider = await entry.load()
-    const found = await listModels(provider.baseUrl ?? '', draft.apiKey)
+    const found = await listModels(draft.baseUrl, draft.apiKey)
     if (!found.ok) return setPhase({ step: 'failed', reason: found.reason })
     offer(provider.getModels())
   }
 
   const save = () => {
     saveUserProvider({
-      id: custom ? draft.label.trim() || draft.baseUrl : draft.provider,
+      id: custom ? draft.label.trim() : draft.provider,
       apiKey: draft.apiKey.trim(),
       models: draft.models,
       ...(draft.visionModel ? { visionModel: draft.visionModel } : {}),
-      ...(custom ? { baseUrl: draft.baseUrl.trim(), label: draft.label.trim() } : {}),
+      ...(custom
+        ? { baseUrl: draft.baseUrl.trim(), label: draft.label.trim() }
+        : // Only when it differs from what pi states, so a preset left alone
+          // keeps following pi if that address ever changes.
+          draft.baseUrl.trim() !== presets.get(draft.provider)?.baseUrl
+          ? { baseUrl: draft.baseUrl.trim() }
+          : {}),
     })
     setDraft(emptyDraft)
     setPhase({ step: 'editing' })
@@ -103,7 +142,7 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
   const visionOptions = visionCandidates(chosen)
 
   return (
-    <ConfirmationDialog label="Model providers" onCancel={onClose}>
+    <ConfirmationDialog label="Model providers" onCancel={onClose} className={styles.shell}>
       <div className={styles.dialog}>
         <header className={styles.header}>
           <h2>Your models</h2>
@@ -117,7 +156,9 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
           <ul className={styles.configured}>
             {configured.map(provider => (
               <li key={provider.id}>
-                <span className={styles.name}>{provider.label || provider.id}</span>
+                <span className={styles.name}>
+                  {provider.label || presets.get(provider.id)?.name || provider.id}
+                </span>
                 <span className={styles.count}>{provider.models.length} models</span>
                 <button type="button" onClick={() => removeUserProvider(provider.id)}>
                   Remove
@@ -135,13 +176,18 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
             id={`${fieldId}-provider`}
             value={draft.provider}
             onChange={event => {
-              setDraft({ ...emptyDraft, provider: event.target.value })
+              const chosen = event.target.value
+              setDraft({
+                ...emptyDraft,
+                provider: chosen,
+                baseUrl: presets.get(chosen)?.baseUrl ?? '',
+              })
               setPhase({ step: 'editing' })
             }}
           >
             {catalog.map(entry => (
               <option key={entry.id} value={entry.id}>
-                {entry.id}
+                {presets.get(entry.id)?.name ?? entry.id}
               </option>
             ))}
             <option value={customProviderId}>Another OpenAI-compatible service…</option>
@@ -156,16 +202,17 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
                 placeholder="What to call it"
                 onChange={event => setDraft({ ...draft, label: event.target.value })}
               />
-              <label htmlFor={`${fieldId}-url`}>Address</label>
-              <input
-                id={`${fieldId}-url`}
-                value={draft.baseUrl}
-                placeholder="https://example.com/v1"
-                inputMode="url"
-                onChange={event => setDraft({ ...draft, baseUrl: event.target.value })}
-              />
             </>
           )}
+
+          <label htmlFor={`${fieldId}-url`}>Address</label>
+          <input
+            id={`${fieldId}-url`}
+            value={draft.baseUrl}
+            placeholder="https://example.com/v1"
+            inputMode="url"
+            onChange={event => setDraft({ ...draft, baseUrl: event.target.value })}
+          />
 
           <label htmlFor={`${fieldId}-key`}>API key</label>
           <input
@@ -205,6 +252,10 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
                             models: event.target.checked
                               ? [...draft.models, model.id]
                               : draft.models.filter(id => id !== model.id),
+                            visionModel:
+                              !event.target.checked && draft.visionModel === model.id
+                                ? ''
+                                : draft.visionModel,
                           })
                         }
                       />
@@ -242,7 +293,9 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
               <button
                 type="button"
                 onClick={() => void check()}
-                disabled={!draft.apiKey.trim() || (custom && !draft.baseUrl.trim())}
+                disabled={
+                  !draft.apiKey.trim() || !draft.baseUrl.trim() || (custom && !draft.label.trim())
+                }
               >
                 {phase.step === 'checking' ? 'Checking…' : 'Check key'}
               </button>

@@ -1,9 +1,17 @@
+// A form with an address, a key and a catalogue of models needs more room than
+// the prompt this shape was drawn for.
+.shell {
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+}
+
 .dialog {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-width: min(440px, 88vw);
-  max-width: 88vw;
+  min-height: 0;
   font-size: 13px;
 }
 
@@ -15,6 +23,7 @@
 
 .note {
   margin: 0;
+  overflow-wrap: anywhere;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.6;
@@ -54,6 +63,7 @@
 .form {
   display: grid;
   gap: 6px;
+  min-height: 0;
   margin: 0;
   border: 0;
   padding: 0;
@@ -72,6 +82,7 @@
 
   input,
   select {
+    min-width: 0;
     min-height: 30px;
     border: 1px solid oklch(0.84 0 0);
     border-radius: 5px;
@@ -112,7 +123,8 @@
   margin: 0;
   padding: 4px;
   list-style: none;
-  max-height: 180px;
+  min-height: 180px;
+  max-height: 320px;
   overflow-y: auto;
   border: 1px solid oklch(0.9 0 0);
   border-radius: 5px;
@@ -131,6 +143,7 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;

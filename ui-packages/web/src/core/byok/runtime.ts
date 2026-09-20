@@ -26,10 +26,13 @@ export const isUserProvider = (provider: string) => provider.startsWith(userProv
  * address, catalog and stream behaviour. Models are restamped so the collection
  * routes them here, and restamped back on the way into the implementation.
  */
-const aliased = (provider: Provider, id: string): Provider => ({
+const aliased = (provider: Provider, id: string, baseUrl?: string): Provider => ({
   ...provider,
   id,
-  getModels: () => provider.getModels().map(model => ({ ...model, provider: id })),
+  getModels: () =>
+    provider
+      .getModels()
+      .map(model => ({ ...model, provider: id, ...(baseUrl ? { baseUrl } : {}) })),
   stream: (model, context, options) =>
     provider.stream({ ...model, provider: provider.id }, context, options),
   streamSimple: (model, context, options) =>
@@ -81,9 +84,14 @@ export const registerUserProviders = async (
   const registered: RegisteredProvider[] = []
   for (const entry of configured) {
     const id = userProviderId(entry.id)
-    const provider = entry.baseUrl
-      ? customProvider(entry, id, entry.baseUrl)
-      : aliased(await (catalogEntry(entry.id)?.load() ?? Promise.reject(unknown(entry.id))), id)
+    // A preset keeps pi's catalogue even when the reader points it at a mirror;
+    // only an endpoint pi does not know has to describe its own models.
+    const preset = catalogEntry(entry.id)
+    const provider = preset
+      ? aliased(await preset.load(), id, entry.baseUrl)
+      : entry.baseUrl
+        ? customProvider(entry, id, entry.baseUrl)
+        : await Promise.reject(unknown(entry.id))
     models.setProvider(provider)
     const chosen = provider.getModels().filter(model => entry.models.includes(model.id))
     if (chosen.length === 0) continue
