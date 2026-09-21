@@ -9,6 +9,9 @@ const PdfReader = lazy(() => import('./pdf-reader').then(module => ({ default: m
 const DocxReader = lazy(() =>
   import('./docx-reader').then(module => ({ default: module.DocxReader })),
 )
+const XlsxReader = lazy(() =>
+  import('./xlsx-reader').then(module => ({ default: module.XlsxReader })),
+)
 
 type FilePreviewProps = {
   document: StoredFileMetadata
@@ -115,6 +118,17 @@ export const FilePreview = ({
           document={document}
           blob={state.blob}
           files={files}
+          active={active}
+          scrollPositions={scrollPositions}
+        />
+      </Suspense>
+    )
+  if (document.previewKind === 'xlsx')
+    return (
+      <Suspense fallback={<div className="preview-state">Preparing spreadsheet preview…</div>}>
+        <XlsxReader
+          document={document}
+          blob={state.blob}
           active={active}
           scrollPositions={scrollPositions}
         />

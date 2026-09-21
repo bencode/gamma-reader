@@ -48,6 +48,9 @@ vi.mock('mammoth', () => ({
   },
 }))
 
+const xlsx = vi.hoisted(() => ({ read: vi.fn() }))
+vi.mock('read-excel-file/browser', () => ({ default: xlsx.read }))
+
 const config = await createModelRuntime(modelConfig)
 const event = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'reply', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
@@ -410,5 +413,34 @@ describe('reader agent', () => {
     expect(await source.readPage(1)).toBe('季度报告\n\n营收增长了两成。')
     await access.open(fileId)
     expect(docx.convertToHtml).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads a spreadsheet one sheet per page and parses it once per agent run', async () => {
+    xlsx.read.mockResolvedValue([
+      {
+        sheet: '数据',
+        data: [
+          ['项目', '人日'],
+          ['A', 3],
+        ],
+      },
+      { sheet: '汇总', data: [['合计', 3]] },
+    ])
+    const imported = await importStoredFiles([new File(['xlsx bytes'], 'effort.xlsx')], 'keep')
+    const fileId = imported.addedIds[0]
+    if (!fileId) throw new Error('Missing fixture')
+    const stored = await getStoredFile(fileId)
+    if (!stored) throw new Error('Missing fixture')
+    expect(stored.metadata.previewKind).toBe('xlsx')
+
+    const access = createReaderDocumentAccess(createPdfRuntime(getStoredFile))
+    expect(access.getReadability(stored.metadata)).toEqual({ textReadable: true })
+    const source = await access.open(fileId)
+    expect(source.unit).toBe('page')
+    expect(source.pageCount).toBe(2)
+    // Each page carries the sheet name and the coordinates the reader shows.
+    expect(await source.readPage(2)).toBe('# 汇总 (1 rows × 2 columns)\n\tA\tB\n1\t合计\t3')
+    await access.open(fileId)
+    expect(xlsx.read).toHaveBeenCalledTimes(1)
   })
 })

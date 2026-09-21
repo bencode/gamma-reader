@@ -1,0 +1,115 @@
+.reader {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.notice {
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 10px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  scrollbar-width: thin;
+}
+
+.tab {
+  flex: none;
+  padding: 5px 12px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  cursor: pointer;
+
+  &:hover {
+    color: inherit;
+    background: var(--panel);
+  }
+
+  &[aria-selected='true'] {
+    color: inherit;
+    background: var(--surface);
+    border-color: var(--line);
+    font-weight: 600;
+  }
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface);
+}
+
+// Collapsed borders vanish under sticky cells, so each cell draws its own right and bottom edge.
+.sheet {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    height: var(--row-height);
+    box-sizing: border-box;
+    padding: 0 10px;
+    width: 160px;
+    max-width: 160px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-align: left;
+    font-weight: normal;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    width: auto;
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    background: var(--panel);
+  }
+
+  .rowNumber {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    width: 56px;
+    max-width: 56px;
+    text-align: right;
+    color: var(--muted);
+    font-size: 11px;
+    background: var(--panel);
+  }
+
+  thead .rowNumber {
+    z-index: 3;
+  }
+}
+
+.empty {
+  padding: 24px;
+  color: var(--muted);
+}

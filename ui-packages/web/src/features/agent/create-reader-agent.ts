@@ -25,15 +25,17 @@ import { openTextSource } from './text-source'
 import { LocalToolError } from './tool-types'
 import { createReaderTools } from './tools'
 import { createVisionAnalyzer } from './vision'
+import { createXlsxRuntime, type XlsxRuntime } from './xlsx/runtime'
 
-const textReadableKinds = new Set<PreviewKind>(['markdown', 'text', 'docx'])
+const textReadableKinds = new Set<PreviewKind>(['markdown', 'text', 'docx', 'xlsx'])
+// A converted format is not decoded into memory, so the text budget does not describe its cost.
+const convertedKinds = new Set<PreviewKind>(['docx', 'xlsx'])
 
 const getReadability = (file: StoredFileMetadata) => {
   if (file.previewKind === 'pdf') return { textReadable: true }
   if (!textReadableKinds.has(file.previewKind))
     return { textReadable: false, reason: 'Text reading is not supported for this format yet.' }
-  // Word documents are converted rather than decoded, so the text budget does not apply.
-  if (file.previewKind !== 'docx' && file.size > maximumTextPreviewBytes)
+  if (!convertedKinds.has(file.previewKind) && file.size > maximumTextPreviewBytes)
     return { textReadable: false, reason: 'Text reading is limited to files of 5 MiB or less.' }
   return { textReadable: true }
 }
@@ -41,6 +43,7 @@ const getReadability = (file: StoredFileMetadata) => {
 export const createReaderDocumentAccess = (
   pdf: PdfRuntime,
   docx: DocxRuntime = createDocxRuntime(),
+  xlsx: XlsxRuntime = createXlsxRuntime(),
 ): DocumentAccess => ({
   listFiles: listStoredFiles,
   getReadability,
@@ -53,6 +56,7 @@ export const createReaderDocumentAccess = (
     if (reason) throw new LocalToolError(reason)
     if (stored.metadata.previewKind === 'pdf') return pdf.openDocument(stored, signal)
     if (stored.metadata.previewKind === 'docx') return docx.openDocument(stored, signal)
+    if (stored.metadata.previewKind === 'xlsx') return xlsx.openDocument(stored, signal)
     return openTextSource(
       stored.metadata,
       stored.blob,
@@ -81,7 +85,8 @@ export const createReaderAgent = (
 ) => {
   const pdf = createPdfRuntime(getStoredFile)
   const docx = createDocxRuntime()
-  const documents = createDocumentTools(createReaderDocumentAccess(pdf, docx))
+  const xlsx = createXlsxRuntime()
+  const documents = createDocumentTools(createReaderDocumentAccess(pdf, docx, xlsx))
   const vision = visionModelFor(runtime, session.model)
   const analyze = vision ? createVisionAnalyzer(vision) : undefined
   const agent = new Agent({
@@ -109,6 +114,7 @@ export const createReaderAgent = (
   agent.subscribe(async event => {
     if (event.type !== 'agent_end') return
     docx.dispose()
+    xlsx.dispose()
     await pdf.dispose()
   })
   return agent
