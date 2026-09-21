@@ -100,16 +100,16 @@ describe('file library', () => {
     await user.click(editor)
     await user.keyboard('changed')
     await user.click(screen.getByRole('button', { name: 'Close Close.md' }))
-    expect(screen.getByRole('dialog', { name: 'Save changes to Close.md' })).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(await screen.findByRole('dialog', { name: 'Save changes to Close.md' })).toBeVisible()
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }))
     expect(screen.getByRole('textbox', { name: 'Close.md source' })).toHaveTextContent('changed')
     await user.click(screen.getByRole('button', { name: 'Remove Close.md from Files' }))
-    expect(screen.getByRole('dialog', { name: 'Remove Close.md' })).toHaveTextContent(
+    expect(await screen.findByRole('dialog', { name: 'Remove Close.md' })).toHaveTextContent(
       'Unsaved source changes',
     )
-    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }))
     await user.click(screen.getByRole('button', { name: 'Close Close.md' }))
-    await user.click(screen.getByRole('button', { name: 'Save and close' }))
+    await user.click(await screen.findByRole('button', { name: 'Save and close' }))
     await waitFor(() =>
       expect(screen.queryByRole('tab', { name: /Close.md/ })).not.toBeInTheDocument(),
     )
@@ -183,9 +183,9 @@ describe('file library', () => {
       await waitForFiles()
       await user.click(screen.getByRole('button', { name: 'Save files to folder' }))
 
-      expect(screen.getByRole('dialog', { name: 'Replace existing files' })).toBeVisible()
+      expect(await screen.findByRole('dialog', { name: 'Replace existing files' })).toBeVisible()
       expect(target.writes).toEqual([])
-      await user.click(screen.getByRole('button', { name: 'Replace files' }))
+      await user.click(await screen.findByRole('button', { name: 'Replace files' }))
       await waitFor(() =>
         expect(screen.getByRole('button', { name: 'Save files to Reading exports' })).toBeEnabled(),
       )
