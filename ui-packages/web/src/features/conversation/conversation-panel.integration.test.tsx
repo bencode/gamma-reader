@@ -26,7 +26,7 @@ const complete = (text: string) =>
 
 describe('conversation', () => {
   it('shows the sentence a refused request carries instead of its status body', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const limit = 'The daily chat limit for this network is used up. It resets at 00:00 UTC.'
     vi.spyOn(globalThis, 'fetch').mockImplementation(async url =>
       url === '/api/agent/config'
@@ -42,7 +42,7 @@ describe('conversation', () => {
   })
 
   it('persists the initial model so changing deployment defaults does not change an existing chat', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const network = vi
       .spyOn(globalThis, 'fetch')
       .mockImplementation(async url =>
@@ -74,7 +74,7 @@ describe('conversation', () => {
   })
 
   it('uses native DeepSeek options, routes the selected model and restores its provider', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const requests: { url: string; body: Record<string, unknown> }[] = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
       if (url === '/api/agent/config') return Response.json(config)
@@ -179,7 +179,7 @@ describe('conversation', () => {
   })
 
   it('applies model-specific effort to requests and restores it with the conversation', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const requests: Record<string, unknown>[] = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
       if (url === '/api/agent/config') return Response.json(config)
@@ -228,7 +228,7 @@ describe('conversation', () => {
   })
 
   it('previews unsent images and keeps image navigation inside the attachment group', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onOpen = vi.fn()
     render(
       <DraftAttachmentTray
@@ -268,7 +268,7 @@ describe('conversation', () => {
   })
 
   it('offers the reader action when a sent image has a stable file id', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onOpen = vi.fn()
     const attachment: ConversationAttachment = {
       id: 'stored-image',
@@ -295,7 +295,7 @@ describe('conversation', () => {
   })
 
   it('streams Markdown, preserves messages when panels remount, and sends only the question', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     let controller: ReadableStreamDefaultController<Uint8Array> | undefined
     const requests: RequestInit[] = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
@@ -351,7 +351,7 @@ describe('conversation', () => {
   })
 
   it('shows tool activity without raw results and allows another question after stopping', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     let signal: AbortSignal | null | undefined
     let calls = 0
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
@@ -409,7 +409,7 @@ describe('conversation', () => {
   })
 
   it('switches between isolated conversations and restores the active transcript', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const requests: Array<{ messages: Array<{ role: string; content: unknown }> }> = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
       if (url === '/api/agent/config') return Response.json(config)
@@ -473,7 +473,7 @@ describe('conversation', () => {
   })
 
   it('stores attached files in the workspace and sends only stable attachment metadata', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const requests: RequestInit[] = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
       if (url === '/api/agent/config') return Response.json(config)

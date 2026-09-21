@@ -2,7 +2,7 @@ export const maximumFileBytes = 200 * 1024 * 1024
 export const maximumLibraryBytes = 1024 * 1024 * 1024
 export const maximumTextPreviewBytes = 5 * 1024 * 1024
 
-export type PreviewKind = 'markdown' | 'text' | 'pdf' | 'html' | 'image' | 'unsupported'
+export type PreviewKind = 'markdown' | 'text' | 'pdf' | 'html' | 'image' | 'docx' | 'unsupported'
 export type FileCollection = 'files' | 'attachments'
 
 export type StoredFileMetadata = {
@@ -51,6 +51,7 @@ const textExtensions = new Set([
   'yaml',
   'yml',
 ])
+const docxMediaType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 const textMediaTypes = new Set([
   'application/json',
   'application/toml',
@@ -64,6 +65,7 @@ export const previewKindFor = (name: string, mediaType: string): PreviewKind => 
     return 'markdown'
   if (textExtensions.has(extension) || textMediaTypes.has(mediaType)) return 'text'
   if (extension === 'pdf' || mediaType === 'application/pdf') return 'pdf'
+  if (extension === 'docx' || mediaType === docxMediaType) return 'docx'
   if (extension === 'html' || extension === 'htm' || mediaType === 'text/html') return 'html'
   if (imageExtensions.has(extension) || mediaType.startsWith('image/')) return 'image'
   if (mediaType.startsWith('text/')) return 'text'

@@ -47,7 +47,7 @@ const exportDirectory = (name: string, initial: Record<string, Blob> = {}) => {
 
 describe('file library', () => {
   it('adds multiple local files and previews Markdown and sandboxed HTML', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter>
         <Workbench />
@@ -83,7 +83,7 @@ describe('file library', () => {
 
   it('confirms dirty tab closure and saves the draft before closing', async () => {
     Range.prototype.getClientRects = () => [new DOMRect(0, 0, 100, 20)] as unknown as DOMRectList
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter>
         <Workbench />
@@ -120,7 +120,7 @@ describe('file library', () => {
   })
 
   it('resolves duplicate names and removes the active browser copy', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter>
         <Workbench />
@@ -162,7 +162,7 @@ describe('file library', () => {
   })
 
   it('confirms new name conflicts before saving Files to a remembered folder', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const existing = new Blob(['external'])
     const target = exportDirectory('Reading exports', { 'Start here.md': existing })
     const anotherTarget = exportDirectory('Other exports')
@@ -237,7 +237,7 @@ describe('file library', () => {
   })
 
   it('saves one file without opening it in the reader', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const writes: Blob[] = []
     Object.defineProperty(window, 'showSaveFilePicker', {
       configurable: true,

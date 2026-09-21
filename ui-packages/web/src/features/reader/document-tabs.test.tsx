@@ -177,7 +177,7 @@ describe('document tab controls', () => {
   })
 
   it('searches open files and selects a result without closing any documents', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const current = workspace('pdf')
     render(<TestTabs workspace={current} />)
     await user.click(screen.getByRole('button', { name: 'Show open documents' }))
@@ -193,7 +193,7 @@ describe('document tab controls', () => {
   })
 
   it('keeps inactive right-click targets inactive and disables empty close operations', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const current = workspace('pdf')
     render(<TestTabs workspace={current} />)
     fireEvent.contextMenu(screen.getByRole('tab', { name: 'Figure.png' }))
@@ -207,7 +207,7 @@ describe('document tab controls', () => {
   })
 
   it('opens the context menu from the keyboard and restores focus on Escape', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(<TestTabs workspace={workspace('pdf')} />)
     const tab = screen.getByRole('tab', { name: 'Guide.pdf' })
     await user.click(tab)
@@ -221,7 +221,7 @@ describe('document tab controls', () => {
   it.each(['conflict', 'missing'] as const)(
     'retains all tabs after a partial save ends with %s',
     async status => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ delay: null })
       const current = workspace('pdf')
       current.tabs.forEach(id => {
         current.actions.synchronizeSource(id, { revision: 1, content: 'original' })
@@ -248,7 +248,7 @@ describe('document tab controls', () => {
   )
 
   it('cancels or discards a dirty batch without saving', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const current = workspace('pdf')
     current.actions.synchronizeSource('pdf', { revision: 1, content: 'original' })
     current.actions.updateSource('pdf', 'changed')

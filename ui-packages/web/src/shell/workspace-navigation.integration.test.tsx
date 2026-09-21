@@ -49,7 +49,7 @@ const openReader = (path = '/') =>
 
 describe('local workspace navigation', () => {
   it('restores tab order, the active document, and the conversation draft', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const page = openReader()
     await waitForWorkspace()
     await waitFor(() => expect(screen.getByLabelText('Current route')).toHaveTextContent('/files'))
@@ -103,7 +103,7 @@ describe('local workspace navigation', () => {
   })
 
   it('navigates history without undoing the local tab list or adding duplicate active entries', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     openReader()
     await waitForWorkspace()
     await user.click(file('Start here.md'))
@@ -158,7 +158,7 @@ describe('local workspace navigation', () => {
   })
 
   it('starts empty and restores an intentionally empty workspace', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const page = openReader()
     await waitForWorkspace()
     await screen.findByRole('heading', { name: 'Start with a document' })
@@ -199,7 +199,7 @@ describe('local workspace navigation', () => {
   })
 
   it('still opens and closes documents when storage is blocked', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const blocked = new DOMException('Storage is blocked', 'SecurityError')
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw blocked
@@ -222,7 +222,7 @@ describe('local workspace navigation', () => {
   })
 
   it('restores an Activity document position without adding a selection toolbar', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     openReader()
     await waitForWorkspace()
     await user.click(file('Start here.md'))
@@ -273,7 +273,7 @@ describe('bulk tab navigation', () => {
   ])(
     '$command preserves the correct selection and stored tab list',
     async ({ command, target, remaining, active }) => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ delay: null })
       openReader()
       await waitForWorkspace()
       await user.click(file('Start here.md'))

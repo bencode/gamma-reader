@@ -11,7 +11,8 @@
     "dev": "pnpm --parallel --filter @gamma-reader/web --filter @gamma-reader/server dev",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "check": "biome check . && pnpm typecheck && pnpm test",
+    "test:integration": "pnpm -r --if-present test:integration",
+    "check": "biome check . && pnpm typecheck && pnpm test && pnpm test:integration",
     "build": "pnpm -r build",
     "start": "pnpm --filter @gamma-reader/server start"
   },

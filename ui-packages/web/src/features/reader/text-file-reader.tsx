@@ -1,4 +1,5 @@
 import { type ComponentType, type ReactNode, useEffect, useRef, useState } from 'react'
+import type { MarkdownImageResolver } from '../../components/markdown-image'
 import type { SourceLanguage } from '../../components/source-editor'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
@@ -19,6 +20,8 @@ export type TextReaderProps = {
   files: readonly StoredFileMetadata[]
   active: boolean
   scrollPositions: Workspace['scrollPositions']
+  // Formats converted to Markdown carry their own images rather than workspace files.
+  imageResolver?: MarkdownImageResolver
 }
 
 export type TextReaderComponent = ComponentType<TextReaderProps>

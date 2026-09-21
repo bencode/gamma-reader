@@ -38,7 +38,7 @@ const PanSurface = ({ enabled }: { enabled: boolean }) => {
 
 describe('PDF reader controls', () => {
   it('navigates with buttons, a page number, and the page range', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const { onPageChange } = toolbar()
 
     await user.click(screen.getByRole('button', { name: 'Previous page' }))
@@ -54,7 +54,7 @@ describe('PDF reader controls', () => {
   })
 
   it('makes the page number easy to replace and exposes pan mode when zoomed', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const select = vi.spyOn(HTMLInputElement.prototype, 'select')
     const { onPanActiveChange } = toolbar({ zoom: 1.2, panAvailable: true })
 
@@ -67,7 +67,7 @@ describe('PDF reader controls', () => {
   })
 
   it('rejects an invalid page and only offers contents when the PDF has an outline', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const { onPageChange } = toolbar()
     const pageInput = screen.getByRole('textbox', { name: 'Page number' })
 
@@ -102,7 +102,7 @@ describe('PDF reader controls', () => {
   })
 
   it('uses one stable control to show and hide the outline', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const { onToggleOutline } = toolbar({ outlineOpen: true })
     const toggle = screen.getByRole('button', { name: 'Hide table of contents' })
 
@@ -112,7 +112,7 @@ describe('PDF reader controls', () => {
   })
 
   it('changes the PDF reading theme from the appearance menu', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const { onThemeChange } = toolbar()
 
     await user.click(screen.getByRole('button', { name: 'Reading appearance' }))
@@ -160,7 +160,7 @@ describe('PDF reader controls', () => {
   })
 
   it('opens outline destinations without deciding whether the parent closes the outline', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onPageChange = vi.fn()
     const onClose = vi.fn()
     render(

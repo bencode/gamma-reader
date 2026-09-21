@@ -33,10 +33,11 @@ export const MarkdownReader = ({
   files,
   active,
   scrollPositions,
+  imageResolver,
   markdownOptions,
   appearance,
 }: TextReaderProps & { markdownOptions?: MarkdownExtensions; appearance?: MarkdownAppearance }) => {
-  const markdown = document.previewKind === 'markdown'
+  const markdown = document.previewKind === 'markdown' || document.previewKind === 'docx'
   const rootRef = useRef<HTMLDivElement>(null)
   const previewScrollRef = useRef<HTMLDivElement>(null)
   const articleRef = useRef<HTMLElement>(null)
@@ -50,8 +51,11 @@ export const MarkdownReader = ({
     [content, markdown],
   )
   const images = useMemo(
-    () => ({ basePath: workspacePathFor(document), resolve: createMarkdownImageResolver(files) }),
-    [document, files],
+    () => ({
+      basePath: workspacePathFor(document),
+      resolve: imageResolver ?? createMarkdownImageResolver(files),
+    }),
+    [document, files, imageResolver],
   )
   const closeOutline = useCallback(() => setOutlineOpen(false), [])
   const binding = useMemo(

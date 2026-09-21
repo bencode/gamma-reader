@@ -6,6 +6,9 @@ import { ImageReader } from './image-reader'
 import { TextFileReader, type TextReaderDefinition } from './text-file-reader'
 
 const PdfReader = lazy(() => import('./pdf-reader').then(module => ({ default: module.PdfReader })))
+const DocxReader = lazy(() =>
+  import('./docx-reader').then(module => ({ default: module.DocxReader })),
+)
 
 type FilePreviewProps = {
   document: StoredFileMetadata
@@ -105,6 +108,18 @@ export const FilePreview = ({
       />
     )
   if (document.previewKind === 'image') return <ImageReader document={document} blob={state.blob} />
+  if (document.previewKind === 'docx')
+    return (
+      <Suspense fallback={<div className="preview-state">Preparing Word preview…</div>}>
+        <DocxReader
+          document={document}
+          blob={state.blob}
+          files={files}
+          active={active}
+          scrollPositions={scrollPositions}
+        />
+      </Suspense>
+    )
   if (document.previewKind === 'pdf') {
     const source = pdfSources.current.get(document.id)
     if (!source || source.revision !== document.revision)

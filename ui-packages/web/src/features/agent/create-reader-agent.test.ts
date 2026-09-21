@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createReaderUserMessage } from '../../core/agent/reader-message'
 import type { ReaderState } from '../../core/reader-state'
 import {
+  getStoredFile,
   getStoredFileContent,
   importStoredFiles,
   listStoredFiles,
@@ -10,9 +11,10 @@ import {
 } from '../../data/file-store'
 import { modelConfig } from '../../test/model-config'
 import { resolveModelSelection } from '../conversation/model-selection'
-import { createReaderAgent } from './create-reader-agent'
+import { createReaderAgent, createReaderDocumentAccess } from './create-reader-agent'
 import { createLocalTools } from './local-tools'
 import { createModelRuntime } from './model-runtime'
+import { createPdfRuntime } from './pdf/runtime'
 
 const pdfTools = vi.hoisted(() => ({ destroy: vi.fn(), render: vi.fn(), read: vi.fn() }))
 vi.mock('./pdf/source', () => ({
@@ -36,6 +38,14 @@ vi.mock('./pdf/source', () => ({
         getMetadata: async () => ({ info: { Title: 'PDF sample' } }),
       } as unknown as PDFDocumentProxy),
   }),
+}))
+
+const docx = vi.hoisted(() => ({ convertToHtml: vi.fn() }))
+vi.mock('mammoth', () => ({
+  default: {
+    convertToHtml: docx.convertToHtml,
+    images: { imgElement: (handler: unknown) => handler },
+  },
 }))
 
 const config = await createModelRuntime(modelConfig)
@@ -380,5 +390,25 @@ describe('reader agent', () => {
     expect(agent.state.messages.at(-1)).toMatchObject({ role: 'assistant', stopReason: 'error' })
     await agent.prompt('Try again')
     expect(agent.state.messages.at(-1)).toMatchObject({ role: 'assistant', stopReason: 'stop' })
+  })
+
+  it('reads a Word document as text and converts it once per agent run', async () => {
+    docx.convertToHtml.mockResolvedValue({
+      value: '<h1>季度报告</h1><p>营收增长了两成。</p>',
+      messages: [],
+    })
+    const imported = await importStoredFiles([new File(['docx bytes'], 'report.docx')], 'keep')
+    const fileId = imported.addedIds[0]
+    if (!fileId) throw new Error('Missing fixture')
+    const stored = await getStoredFile(fileId)
+    if (!stored) throw new Error('Missing fixture')
+    expect(stored.metadata.previewKind).toBe('docx')
+
+    const access = createReaderDocumentAccess(createPdfRuntime(getStoredFile))
+    expect(access.getReadability(stored.metadata)).toEqual({ textReadable: true })
+    const source = await access.open(fileId)
+    expect(await source.readPage(1)).toBe('季度报告\n\n营收增长了两成。')
+    await access.open(fileId)
+    expect(docx.convertToHtml).toHaveBeenCalledTimes(1)
   })
 })

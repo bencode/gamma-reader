@@ -41,7 +41,7 @@ const writeCall = (path: string, content: string) =>
 
 describe('reading workspace', () => {
   it('shows an agent-written file without changing the active document', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     let modelRequests = 0
     vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
       const url = String(input)
@@ -109,10 +109,10 @@ describe('reading workspace', () => {
     )
     expect(await screen.findByRole('heading', { name: 'Revised' }, { timeout: 3000 })).toBeVisible()
     expect(screen.getAllByRole('tab', { name: 'saved NOTES.md' })).toHaveLength(1)
-  }, 10000)
+  })
 
   it('opens unique tabs, chooses the right neighbor on close, and reopens from empty', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const network = vi.spyOn(globalThis, 'fetch')
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
@@ -147,7 +147,7 @@ describe('reading workspace', () => {
   })
 
   it('keeps each tab scroll position and supports keyboard tab switching', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
@@ -172,7 +172,7 @@ describe('reading workspace', () => {
   })
 
   it('keeps keyboard navigation in the reader after closing tabs', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
@@ -198,7 +198,7 @@ describe('reading workspace', () => {
   })
 
   it('preserves a question across document and panel changes', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
@@ -233,7 +233,7 @@ describe('reading workspace', () => {
       removeListener: vi.fn(),
       dispatchEvent: vi.fn(),
     }))
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />
@@ -315,7 +315,7 @@ describe('panel width preferences', () => {
   })
 
   it('saves keyboard resizing but does not overwrite preferences on panel remount', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const page = render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
         <Workbench />

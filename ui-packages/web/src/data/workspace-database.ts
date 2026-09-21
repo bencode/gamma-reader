@@ -28,7 +28,7 @@ const databaseName = 'gamma-reader-files'
 let databasePromise: Promise<IDBPDatabase<WorkspaceDatabase>> | undefined
 
 export const openWorkspaceDatabase = () => {
-  databasePromise ??= openDB<WorkspaceDatabase>(databaseName, 4, {
+  databasePromise ??= openDB<WorkspaceDatabase>(databaseName, 5, {
     upgrade(database, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         const files = database.createObjectStore('files', { keyPath: 'id' })
@@ -72,6 +72,22 @@ export const openWorkspaceDatabase = () => {
         messages.createIndex('by-conversation', 'conversationId')
       }
       if (oldVersion < 4) database.createObjectStore('folderExports', { keyPath: 'id' })
+      // Files imported before a format was supported still carry the old preview kind.
+      if (oldVersion > 0 && oldVersion < 5) {
+        const files = transaction.objectStore('files')
+        void (async () => {
+          let cursor = await files.openCursor()
+          while (cursor) {
+            const previewKind = previewKindFor(cursor.value.name, cursor.value.mediaType)
+            if (previewKind !== cursor.value.previewKind)
+              await cursor.update({ ...cursor.value, previewKind })
+            cursor = await cursor.continue()
+          }
+        })().catch(error => {
+          console.error('Unable to refresh stored preview kinds', error)
+          transaction.abort()
+        })
+      }
     },
   }).catch(error => {
     databasePromise = undefined

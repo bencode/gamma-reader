@@ -75,7 +75,7 @@ const Harness = ({
 
 describe('reader state tools', () => {
   it('reads the latest route, tabs and page from a retained tool reference', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const handles: LocalTools[] = []
     render(
       <MemoryRouter initialEntries={['/files/first']}>

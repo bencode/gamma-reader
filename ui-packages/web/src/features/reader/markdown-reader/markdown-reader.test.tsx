@@ -54,7 +54,7 @@ describe('Markdown file reader', () => {
   })
 
   it('opens the outline and navigates rendered headings', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     renderReader('# Introduction\n\n## Details\n\nBody')
     await user.click(screen.getByRole('button', { name: 'Show table of contents' }))
     expect(screen.getByRole('complementary', { name: 'Markdown contents' })).toBeInTheDocument()
@@ -69,7 +69,7 @@ describe('Markdown file reader', () => {
   })
 
   it('keeps reading preferences on ordinary Markdown without changing the base reader', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const props = {
       document,
       content: '# Guide\n\nRead at your own pace.',

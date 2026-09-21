@@ -206,7 +206,7 @@ describe('text source workspace', () => {
     if (!handles) throw new Error('Tools not available')
     act(() => handles?.actions.setSourceOpen(file.id, true))
     const editor = await screen.findByRole('textbox', { name: 'Editor.txt source' })
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     await user.click(editor)
     await user.keyboard('{Control>}a{/Control}changed')
     await waitFor(() => expect(handles?.tools.read_active_source().content).toContain('changed'))

@@ -17,7 +17,7 @@ export type ReaderUserMessage = UserMessage & {
 
 const recommendedTool = (kind: PreviewKind) => {
   if (kind === 'image') return 'analyze_image'
-  if (kind === 'markdown' || kind === 'text' || kind === 'pdf') return 'read'
+  if (kind === 'markdown' || kind === 'text' || kind === 'pdf' || kind === 'docx') return 'read'
   return 'unavailable'
 }
 

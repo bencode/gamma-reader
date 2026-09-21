@@ -29,7 +29,7 @@ afterEach(() => {
 
 describe('a reader who brought their own key', () => {
   it('sends to the vendor with that key and never through our proxy', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const sent: { url: string; authorization: unknown }[] = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
       const address = String(url)
