@@ -1,4 +1,5 @@
 import { Pause, Play, RotateCcw } from 'lucide-react'
+import { nanoid } from 'nanoid'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   createP5FrameDocument,
@@ -21,7 +22,7 @@ type RuntimeState = 'loading' | 'ready' | 'error'
 export const P5Reader = ({ name, source, active }: P5ReaderProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [runningSource, setRunningSource] = useState(source)
-  const [runId, setRunId] = useState(() => crypto.randomUUID())
+  const [runId, setRunId] = useState(() => nanoid())
   const [runtimeState, setRuntimeState] = useState<RuntimeState>('loading')
   const [userPaused, setUserPaused] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,7 +71,7 @@ export const P5Reader = ({ name, source, active }: P5ReaderProps) => {
     setError(null)
     setUserPaused(false)
     setRuntimeState('loading')
-    setRunId(crypto.randomUUID())
+    setRunId(nanoid())
   }
 
   return (

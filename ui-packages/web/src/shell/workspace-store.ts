@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid'
 import { createStore } from 'zustand/vanilla'
 
 export type PersistedSource = {
@@ -87,7 +88,7 @@ export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions 
               [fileId]: {
                 base: persisted,
                 content: persisted.content,
-                version: crypto.randomUUID(),
+                version: nanoid(),
                 sourceOpen: false,
                 incoming: null,
                 savePhase: 'idle',
@@ -104,7 +105,7 @@ export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions 
                 ...current,
                 base: persisted,
                 content: persisted.content,
-                version: crypto.randomUUID(),
+                version: nanoid(),
                 incoming: null,
                 savePhase: 'idle',
                 saveError: null,
@@ -134,7 +135,7 @@ export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions 
         sourceDrafts: updateDraft(state.sourceDrafts, fileId, draft =>
           draft.content === content
             ? draft
-            : { ...draft, content, version: crypto.randomUUID(), saveError: null },
+            : { ...draft, content, version: nanoid(), saveError: null },
         ),
       })),
     beginSourceSave: fileId =>
@@ -173,7 +174,7 @@ export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions 
             ...draft,
             base: draft.incoming,
             content: draft.incoming.content,
-            version: crypto.randomUUID(),
+            version: nanoid(),
             incoming: null,
             savePhase: 'idle',
             saveError: null,

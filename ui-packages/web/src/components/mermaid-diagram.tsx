@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid'
 import { useEffect, useMemo, useState } from 'react'
 
 export const MermaidDiagram = ({ source, complete }: { source: string; complete: boolean }) => {
@@ -21,7 +22,7 @@ export const MermaidDiagram = ({ source, complete }: { source: string; complete:
           fontFamily: 'system-ui, sans-serif',
         })
         document.body.append(container)
-        const result = await mermaid.render(`diagram-${crypto.randomUUID()}`, source, container)
+        const result = await mermaid.render(`diagram-${nanoid()}`, source, container)
         if (!cancelled) setRendered({ source, svg: result.svg })
       } catch (error) {
         if (!cancelled) console.warn('Unable to render Mermaid diagram', error)
