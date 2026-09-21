@@ -4,11 +4,20 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { normalizePath } from 'vite'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 const require = createRequire(import.meta.url)
 const pdfjsDistPath = path.dirname(require.resolve('pdfjs-dist/package.json'))
 const pdfWasmDirectory = normalizePath(path.join(pdfjsDistPath, 'wasm'))
+
+// Driving the whole Workbench costs about a second per test. Those files form their own project
+// so an edit-and-run loop stays quick; `pnpm check` runs both projects before anything ships.
+const integrationTests = ['**/*.integration.test.?(c|m)[jt]s?(x)']
+const testDefaults = {
+  environment: 'jsdom',
+  setupFiles: ['./src/test/setup.ts'],
+  testTimeout: 15000,
+}
 
 export default defineConfig({
   plugins: [
@@ -31,9 +40,20 @@ export default defineConfig({
     format: 'es',
   },
   test: {
-    environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    testTimeout: 15000,
+    projects: [
+      {
+        extends: true,
+        test: {
+          ...testDefaults,
+          name: 'unit',
+          exclude: [...configDefaults.exclude, ...integrationTests],
+        },
+      },
+      {
+        extends: true,
+        test: { ...testDefaults, name: 'integration', include: integrationTests },
+      },
+    ],
   },
   server: {
     port: 5302,
