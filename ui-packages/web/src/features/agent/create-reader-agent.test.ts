@@ -159,8 +159,8 @@ describe('reader agent', () => {
     const fileId = imported.addedIds[0]
     if (!fileId) throw new Error('Missing fixture')
     const state: ReaderState = {
-      openFiles: [{ id: fileId, name: 'private.md' }],
-      activeFile: { id: fileId, name: 'private.md' },
+      openFiles: [{ id: fileId, name: 'private.md', type: 'markdown' }],
+      activeFile: { id: fileId, name: 'private.md', type: 'markdown' },
       viewport: { startText: 'The fox', endText: 'quietly.' },
     }
     const requests: { messages: { role: string; content: string; tool_call_id?: string }[] }[] = []
@@ -415,7 +415,7 @@ describe('reader agent', () => {
     expect(docx.convertToHtml).toHaveBeenCalledTimes(1)
   })
 
-  it('reads a spreadsheet one sheet per page and parses it once per agent run', async () => {
+  it('reads a spreadsheet by row and parses it once per agent run', async () => {
     xlsx.read.mockResolvedValue([
       {
         sheet: '数据',
@@ -436,10 +436,18 @@ describe('reader agent', () => {
     const access = createReaderDocumentAccess(createPdfRuntime(getStoredFile))
     expect(access.getReadability(stored.metadata)).toEqual({ textReadable: true })
     const source = await access.open(fileId)
-    expect(source.unit).toBe('page')
-    expect(source.pageCount).toBe(2)
-    // Each page carries the sheet name and the coordinates the reader shows.
-    expect(await source.readPage(2)).toBe('# 汇总 (1 rows × 2 columns)\n\tA\tB\n1\t合计\t3')
+    // Rows are lines, so a later row is reachable without paging through the earlier ones.
+    expect(source.unit).toBe('line')
+    expect((await source.readPage(1)).split('\n')).toEqual([
+      '# 数据 (2 rows × 2 columns)',
+      '\tA\tB',
+      '1\t项目\t人日',
+      '2\tA\t3',
+      '',
+      '# 汇总 (1 rows × 2 columns)',
+      '\tA\tB',
+      '1\t合计\t3',
+    ])
     await access.open(fileId)
     expect(xlsx.read).toHaveBeenCalledTimes(1)
   })

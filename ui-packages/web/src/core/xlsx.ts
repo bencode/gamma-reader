@@ -11,6 +11,45 @@ export const columnLabel = (index: number): string => {
   return index < 26 ? letter : columnLabel(Math.floor(index / 26) - 1) + letter
 }
 
+// The inverse of columnLabel, one-based the way a spreadsheet counts: A is 1, AA is 27.
+export const columnNumber = (letters: string) =>
+  [...letters.toUpperCase()].reduce((total, letter) => total * 26 + letter.charCodeAt(0) - 64, 0)
+
+// Rows and columns are both one-based here, matching the coordinates the preview shows.
+export type CellRange = {
+  startRow: number
+  endRow: number
+  startColumn: number
+  endColumn: number
+}
+
+const reference = (text: string) => {
+  const match = /^([a-z]+)?([0-9]+)?$/i.exec(text.trim())
+  if (!match || (!match[1] && !match[2])) return null
+  return {
+    column: match[1] ? columnNumber(match[1]) : null,
+    row: match[2] ? Number(match[2]) : null,
+  }
+}
+
+// A1 notation, the language the sheet itself uses: 'A1:F50', a whole band of columns 'A:F',
+// a band of rows '1:50', or one cell 'B3'. An open side reaches the edge of the sheet.
+export const parseRange = (text: string): CellRange | null => {
+  const parts = text.trim().split(':')
+  if (parts.length > 2 || !parts[0]) return null
+  const start = reference(parts[0])
+  const end = reference(parts[1] ?? parts[0])
+  if (!start || !end) return null
+  const rows = [start.row ?? 1, end.row ?? Number.MAX_SAFE_INTEGER]
+  const columns = [start.column ?? 1, end.column ?? Number.MAX_SAFE_INTEGER]
+  return {
+    startRow: Math.min(...rows),
+    endRow: Math.max(...rows),
+    startColumn: Math.min(...columns),
+    endColumn: Math.max(...columns),
+  }
+}
+
 export const columnCount = (rows: readonly SheetRow[]) =>
   rows.reduce((widest, row) => Math.max(widest, row.length), 0)
 
@@ -51,6 +90,36 @@ export const sheetText = (sheet: Worksheet) => {
   )
   return [heading, letters.join('\t'), ...body].join('\n')
 }
+
+export const sheetExtent = (sheet: Worksheet) => {
+  const columns = columnCount(sheet.rows)
+  return columns && sheet.rows.length ? `A1:${columnLabel(columns - 1)}${sheet.rows.length}` : null
+}
+
+export type CellSelection = {
+  columns: readonly string[]
+  rows: readonly (readonly string[])[]
+  startRow: number
+  endRow: number
+}
+
+// A request may reach past the sheet; the answer is what the sheet actually holds.
+export const selectCells = (sheet: Worksheet, range: CellRange): CellSelection => {
+  const startColumn = Math.max(1, range.startColumn)
+  const endColumn = Math.min(columnCount(sheet.rows), range.endColumn)
+  const startRow = Math.max(1, range.startRow)
+  const endRow = Math.min(sheet.rows.length, range.endRow)
+  const columns = Array.from({ length: Math.max(0, endColumn - startColumn + 1) }, (_, index) =>
+    columnLabel(startColumn - 1 + index),
+  )
+  const rows = sheet.rows
+    .slice(startRow - 1, endRow)
+    .map(row => columns.map((_, index) => cellText(row[startColumn - 1 + index] ?? null)))
+  return { columns, rows, startRow, endRow: startRow + rows.length - 1 }
+}
+
+// The line-addressable view of the whole workbook, used by the generic read and search tools.
+export const workbookText = (sheets: readonly Worksheet[]) => sheets.map(sheetText).join('\n\n')
 
 export const readSpreadsheet = async (blob: Blob): Promise<Worksheet[]> => {
   const { default: readXlsxFile } = await import('read-excel-file/browser')

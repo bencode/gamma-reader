@@ -52,7 +52,7 @@ Browser storage belongs to this site and browser profile. Export work you want t
 | Images / SVG | Image preview and zoom; SVG also has editable Source | Vision analysis; SVG active source tools |
 | UTF-8 text | Text preview and editable Source | Search, read, and edit source |
 | Word (`.docx`) | Read-only preview converted to Markdown, with outline and adjustable text size, width, and theme | Search and read converted text |
-| Excel (`.xlsx`) | Read-only sheet view with sheet tabs, column letters, and row numbers | Search and read, one sheet per page |
+| Excel (`.xlsx`) | Read-only sheet view with sheet tabs, column letters, and row numbers | Search, and read any sheet and A1 range |
 | Other formats | Stored in Files | No preview or text reading yet |
 
 Word support covers `.docx` only; the older binary `.doc` format is stored but not read. Conversion keeps structure — headings, lists, tables, and images — and drops page layout, fonts, headers and footers, tracked changes, and equations. A Word document is converted rather than decoded, so the 5 MiB text limit does not apply to it; a large illustrated document takes a few seconds to open.

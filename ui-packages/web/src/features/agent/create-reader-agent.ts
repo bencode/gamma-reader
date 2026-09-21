@@ -26,6 +26,7 @@ import { LocalToolError } from './tool-types'
 import { createReaderTools } from './tools'
 import { createVisionAnalyzer } from './vision'
 import { createXlsxRuntime, type XlsxRuntime } from './xlsx/runtime'
+import { createXlsxTools } from './xlsx/tools'
 
 const textReadableKinds = new Set<PreviewKind>(['markdown', 'text', 'docx', 'xlsx'])
 // A converted format is not decoded into memory, so the text budget does not describe its cost.
@@ -43,7 +44,7 @@ const getReadability = (file: StoredFileMetadata) => {
 export const createReaderDocumentAccess = (
   pdf: PdfRuntime,
   docx: DocxRuntime = createDocxRuntime(),
-  xlsx: XlsxRuntime = createXlsxRuntime(),
+  xlsx: XlsxRuntime = createXlsxRuntime(getStoredFile),
 ): DocumentAccess => ({
   listFiles: listStoredFiles,
   getReadability,
@@ -73,6 +74,12 @@ const skills: SkillDefinition[] = [
       'Read and understand PDFs using outlines, text search, page reading and visual analysis. Includes guidance for large documents and scanned pages.',
     load: async () => (await import('./pdf/SKILL.md?raw')).default,
   },
+  {
+    name: 'spreadsheet',
+    description:
+      'Read and understand spreadsheets by sheet and A1 range, with guidance on locating values, merged and empty cells, and formulas.',
+    load: async () => (await import('./xlsx/SKILL.md?raw')).default,
+  },
 ]
 
 export const createReaderAgent = (
@@ -85,7 +92,7 @@ export const createReaderAgent = (
 ) => {
   const pdf = createPdfRuntime(getStoredFile)
   const docx = createDocxRuntime()
-  const xlsx = createXlsxRuntime()
+  const xlsx = createXlsxRuntime(getStoredFile)
   const documents = createDocumentTools(createReaderDocumentAccess(pdf, docx, xlsx))
   const vision = visionModelFor(runtime, session.model)
   const analyze = vision ? createVisionAnalyzer(vision) : undefined
@@ -101,6 +108,7 @@ export const createReaderAgent = (
         ...createReaderTools(local, documents),
         ...(analyze ? createImageTools(getStoredFile, analyze) : []),
         ...createPdfTools(pdf, analyze),
+        ...createXlsxTools(xlsx),
         ...createSkillTools(skills),
       ],
     },

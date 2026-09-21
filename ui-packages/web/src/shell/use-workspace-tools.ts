@@ -69,7 +69,7 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
           const latest = current.current
           const openFiles = latest.store.getState().tabs.flatMap(id => {
             const file = latest.files.find(file => file.id === id)
-            return file ? [{ id: file.id, name: file.name }] : []
+            return file ? [{ id: file.id, name: file.name, type: file.previewKind }] : []
           })
           const file = latest.files.find(file => file.id === latest.activeId)
           const binding = file ? readers.current.get(file.id) : undefined
@@ -82,6 +82,7 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
               ? {
                   id: file.id,
                   name: file.name,
+                  type: file.previewKind,
                   ...(pageNumber !== undefined ? { pageNumber } : {}),
                   ...(draft ? { source: { dirty: sourceDirty(draft) } } : {}),
                 }

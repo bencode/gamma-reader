@@ -1,5 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
-import { cellText, clampColumns, columnLabel, readSpreadsheet, sheetText } from './xlsx'
+import {
+  cellText,
+  clampColumns,
+  columnLabel,
+  columnNumber,
+  parseRange,
+  readSpreadsheet,
+  selectCells,
+  sheetExtent,
+  sheetText,
+  workbookText,
+} from './xlsx'
 
 const mocks = vi.hoisted(() => ({ read: vi.fn() }))
 vi.mock('read-excel-file/browser', () => ({ default: mocks.read }))
@@ -66,5 +77,79 @@ describe('reading a workbook', () => {
       { name: 'Sheet2', rows: [] },
     ])
     expect(mocks.read).toHaveBeenCalledWith(blob)
+  })
+})
+
+describe('A1 notation', () => {
+  it('round-trips a column between its letters and its number', () => {
+    for (const letters of ['A', 'Z', 'AA', 'CV', 'RA'])
+      expect(columnLabel(columnNumber(letters) - 1)).toBe(letters)
+  })
+
+  it('reads every shape a spreadsheet uses to name a region', () => {
+    expect(parseRange('A1:F50')).toEqual({ startRow: 1, endRow: 50, startColumn: 1, endColumn: 6 })
+    expect(parseRange('B3')).toEqual({ startRow: 3, endRow: 3, startColumn: 2, endColumn: 2 })
+    // An open side reaches the edge of the sheet.
+    expect(parseRange('A:F')).toMatchObject({ startRow: 1, startColumn: 1, endColumn: 6 })
+    expect(parseRange('A:F')?.endRow).toBe(Number.MAX_SAFE_INTEGER)
+    expect(parseRange('1:50')).toMatchObject({ startRow: 1, endRow: 50, startColumn: 1 })
+    expect(parseRange('1:50')?.endColumn).toBe(Number.MAX_SAFE_INTEGER)
+    expect(parseRange('f50:a1')).toEqual(parseRange('A1:F50'))
+  })
+
+  it('refuses what is not a reference rather than guessing', () => {
+    for (const text of ['', ':', 'A1:B2:C3', 'sheet1!A1', '?']) expect(parseRange(text)).toBeNull()
+  })
+})
+
+describe('selecting cells', () => {
+  const sheet = {
+    name: 'S',
+    rows: [
+      ['a', 'b', 'c'],
+      [1, 2, 3],
+      ['x', 'y', 'z'],
+    ],
+  }
+
+  it('returns the region with the column letters it sits under', () => {
+    expect(selectCells(sheet, parseRange('B2:C3') as never)).toEqual({
+      columns: ['B', 'C'],
+      rows: [
+        ['2', '3'],
+        ['y', 'z'],
+      ],
+      startRow: 2,
+      endRow: 3,
+    })
+  })
+
+  it('answers with what the sheet holds when the request reaches past it', () => {
+    const selection = selectCells(sheet, parseRange('A1:ZZ9999') as never)
+    expect(selection.columns).toEqual(['A', 'B', 'C'])
+    expect(selection.endRow).toBe(3)
+  })
+
+  it('describes a sheet by the extent an agent can ask for', () => {
+    expect(sheetExtent(sheet)).toBe('A1:C3')
+    expect(sheetExtent({ name: 'empty', rows: [] })).toBeNull()
+  })
+})
+
+describe('workbook text', () => {
+  it('separates sheets so line numbers stay continuous across them', () => {
+    const text = workbookText([
+      { name: 'One', rows: [['a']] },
+      { name: 'Two', rows: [['b']] },
+    ])
+    expect(text.split('\n')).toEqual([
+      '# One (1 rows × 1 columns)',
+      '\tA',
+      '1\ta',
+      '',
+      '# Two (1 rows × 1 columns)',
+      '\tA',
+      '1\tb',
+    ])
   })
 })

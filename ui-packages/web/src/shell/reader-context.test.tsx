@@ -84,7 +84,7 @@ describe('reader state tools', () => {
     )
     await waitFor(() =>
       expect(handles[0]?.get_reader_state().openFiles).toEqual([
-        { id: 'first', name: 'first.pdf' },
+        { id: 'first', name: 'first.pdf', type: 'pdf' },
       ]),
     )
     const tools = handles[0]
@@ -98,10 +98,10 @@ describe('reader state tools', () => {
     await user.click(screen.getByRole('button', { name: 'Open second' }))
     expect(tools.get_reader_state()).toEqual({
       openFiles: [
-        { id: 'first', name: 'first.pdf' },
-        { id: 'second', name: 'second.pdf' },
+        { id: 'first', name: 'first.pdf', type: 'pdf' },
+        { id: 'second', name: 'second.pdf', type: 'pdf' },
       ],
-      activeFile: { id: 'second', name: 'second.pdf', pageNumber: 1 },
+      activeFile: { id: 'second', name: 'second.pdf', type: 'pdf', pageNumber: 1 },
       viewport,
     })
   })
@@ -157,7 +157,11 @@ describe('reader state tools', () => {
       )
     })
     expect(handles).toHaveLength(2)
-    expect(handles[0]?.get_reader_state().openFiles).toEqual([{ id: 'first', name: 'first.pdf' }])
-    expect(handles[1]?.get_reader_state().openFiles).toEqual([{ id: 'second', name: 'second.pdf' }])
+    expect(handles[0]?.get_reader_state().openFiles).toEqual([
+      { id: 'first', name: 'first.pdf', type: 'pdf' },
+    ])
+    expect(handles[1]?.get_reader_state().openFiles).toEqual([
+      { id: 'second', name: 'second.pdf', type: 'pdf' },
+    ])
   })
 })

@@ -92,8 +92,8 @@ describe('formula and diagram source context', () => {
     })
     const tools = createLocalTools(
       () => ({
-        openFiles: [{ id: fileId, name: 'formulas.md' }],
-        activeFile: { id: fileId, name: 'formulas.md' },
+        openFiles: [{ id: fileId, name: 'formulas.md', type: 'markdown' }],
+        activeFile: { id: fileId, name: 'formulas.md', type: 'markdown' },
         viewport: readViewport(container, container),
       }),
       writeStoredTextFile,
