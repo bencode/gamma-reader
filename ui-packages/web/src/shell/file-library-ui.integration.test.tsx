@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
@@ -264,5 +264,37 @@ describe('file library', () => {
     } finally {
       Reflect.deleteProperty(window, 'showSaveFilePicker')
     }
+  })
+
+  it('adds files dropped onto the panel and leaves a dropped folder alone', async () => {
+    render(
+      <MemoryRouter>
+        <Workbench />
+      </MemoryRouter>,
+    )
+    await waitForFiles()
+    const panel = screen.getByRole('complementary', { name: 'Files' })
+
+    const note = new File(['# Dropped\n\nArrived by drag.'], 'Dropped.md', {
+      type: 'text/markdown',
+    })
+    // A folder reaches the drop as a File that cannot be read; only its entry says so.
+    const folder = new File([], 'Notes')
+    const dataTransfer = {
+      types: ['Files'],
+      files: [note, folder],
+      items: [
+        { webkitGetAsEntry: () => ({ isDirectory: false, name: note.name }) },
+        { webkitGetAsEntry: () => ({ isDirectory: true, name: folder.name }) },
+      ],
+    }
+
+    fireEvent.dragEnter(panel, { dataTransfer })
+    expect(screen.getByText('Drop files to add them')).toBeVisible()
+    fireEvent.drop(panel, { dataTransfer })
+
+    expect(await filesList().findByRole('button', { name: 'Dropped.md' })).toBeVisible()
+    expect(filesList().queryByRole('button', { name: 'Notes' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Drop files to add them')).not.toBeInTheDocument()
   })
 })
