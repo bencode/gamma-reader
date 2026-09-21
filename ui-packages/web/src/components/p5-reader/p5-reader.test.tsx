@@ -30,7 +30,7 @@ describe('p5 reader', () => {
   })
 
   it('runs in a sandbox and reports frame errors', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(<P5Reader name="scene.p5.js" source="function setup() {}" active />)
 
     const frame = screen.getByTitle('scene.p5.js p5 preview')
@@ -54,7 +54,7 @@ describe('p5 reader', () => {
   })
 
   it('runs edited source only on explicit request', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const view = render(<P5Reader name="scene.p5.js" source="function setup() {}" active />)
     const original = screen.getByTitle('scene.p5.js p5 preview').getAttribute('srcdoc')
     view.rerender(
@@ -66,7 +66,7 @@ describe('p5 reader', () => {
   })
 
   it('recovers frame state and separates lifecycle suspension from user controls', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const view = render(<P5Reader name="scene.p5.js" source="function draw() {}" active />)
     const frame = screen.getByTitle<HTMLIFrameElement>('scene.p5.js p5 preview')
     const postMessage = vi.spyOn(frame.contentWindow as Window, 'postMessage')

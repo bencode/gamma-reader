@@ -14,7 +14,7 @@ const item = (id: string, title: string): StoredConversation => ({
 
 describe('conversation history', () => {
   it('selects, loads, and confirms deletion inside the history panel', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSelect = vi.fn()
     const onLoadMore = vi.fn()
     const onDelete = vi.fn().mockResolvedValue(undefined)
