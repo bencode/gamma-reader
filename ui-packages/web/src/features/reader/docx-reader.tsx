@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MarkdownImageResolver } from '../../components/markdown-image'
 import { convertDocxToMarkdown } from '../../core/docx'
-import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
+import type { StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
 import { StandardMarkdownReader } from './markdown-reader/standard-reader'
 
@@ -46,13 +46,6 @@ export const DocxReader = ({ document, blob, files, active, scrollPositions }: D
   const [state, setState] = useState<ConversionState>({ status: 'loading' })
 
   useEffect(() => {
-    if (document.size > maximumTextPreviewBytes) {
-      setState({
-        status: 'error',
-        message: 'Word documents over 5 MB are stored but not previewed.',
-      })
-      return
-    }
     const cached = conversion.current
     const pending =
       cached?.id === document.id && cached.revision === document.revision
@@ -73,7 +66,7 @@ export const DocxReader = ({ document, blob, files, active, scrollPositions }: D
     return () => {
       current = false
     }
-  }, [blob, document.id, document.name, document.revision, document.size])
+  }, [blob, document.id, document.name, document.revision])
 
   if (state.status === 'loading')
     return <div className="preview-state">Opening {document.name}…</div>

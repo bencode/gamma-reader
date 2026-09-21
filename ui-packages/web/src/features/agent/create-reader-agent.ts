@@ -32,7 +32,8 @@ const getReadability = (file: StoredFileMetadata) => {
   if (file.previewKind === 'pdf') return { textReadable: true }
   if (!textReadableKinds.has(file.previewKind))
     return { textReadable: false, reason: 'Text reading is not supported for this format yet.' }
-  if (file.size > maximumTextPreviewBytes)
+  // Word documents are converted rather than decoded, so the text budget does not apply.
+  if (file.previewKind !== 'docx' && file.size > maximumTextPreviewBytes)
     return { textReadable: false, reason: 'Text reading is limited to files of 5 MiB or less.' }
   return { textReadable: true }
 }

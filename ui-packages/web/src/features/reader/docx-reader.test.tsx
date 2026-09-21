@@ -64,21 +64,4 @@ describe('Word reader', () => {
       'blob:gamma-reader-preview',
     )
   })
-
-  it('stores oversized documents without converting them', () => {
-    converts({ markdown: '# 不该出现' })
-    render(
-      <StrictMode>
-        <DocxReader
-          document={{ ...file, size: 6 * 1024 * 1024 }}
-          blob={new Blob(['docx bytes'])}
-          files={[file]}
-          active
-          scrollPositions={{ current: new Map() }}
-        />
-      </StrictMode>,
-    )
-    expect(screen.getByText(/stored but not previewed/)).toBeInTheDocument()
-    expect(mocks.convert).not.toHaveBeenCalled()
-  })
 })

@@ -54,7 +54,7 @@ Browser storage belongs to this site and browser profile. Export work you want t
 | Word (`.docx`) | Read-only preview converted to Markdown, with outline and adjustable text size, width, and theme | Search and read converted text |
 | Other formats | Stored in Files | No preview or text reading yet |
 
-Word support covers `.docx` only; the older binary `.doc` format is stored but not read. Conversion keeps structure — headings, lists, tables, and images — and drops page layout, fonts, headers and footers, tracked changes, and equations.
+Word support covers `.docx` only; the older binary `.doc` format is stored but not read. Conversion keeps structure — headings, lists, tables, and images — and drops page layout, fonts, headers and footers, tracked changes, and equations. A Word document is converted rather than decoded, so the 5 MiB text limit does not apply to it; a large illustrated document takes a few seconds to open.
 
 Limits: 200 MiB per file, 1 GiB per browser library (including attachments), and 5 MiB for text preview and reading. Available storage also depends on the browser's quota and device space. Python and Clojure require runtime downloads on first use. Folder export requires desktop Chrome or Edge; individual files can also be downloaded.
 
