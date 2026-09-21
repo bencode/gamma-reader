@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid'
 import { useCallback, useRef, useState } from 'react'
 import type { ConversationAttachment } from '../../core/agent/reader-message'
 import type { ImportResult } from '../../core/files'
@@ -49,7 +50,7 @@ export const useDraftAttachments = (importFiles: AddWorkspaceAttachments) => {
           const accepted = selected.slice(0, maximumDraftAttachments - current.length)
           if (!accepted.length) return
           const pending = accepted.map(file => ({
-            key: crypto.randomUUID(),
+            key: nanoid(),
             file,
             status: 'adding' as const,
           }))
@@ -155,9 +156,7 @@ export const useDraftAttachments = (importFiles: AddWorkspaceAttachments) => {
 
   const replaceReady = useCallback(
     (items: readonly ConversationAttachment[]) =>
-      update(() =>
-        items.map(metadata => ({ key: crypto.randomUUID(), metadata, status: 'ready' })),
-      ),
+      update(() => items.map(metadata => ({ key: nanoid(), metadata, status: 'ready' }))),
     [update],
   )
 

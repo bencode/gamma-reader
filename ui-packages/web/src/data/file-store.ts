@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid'
 import {
   type FileCollection,
   type ImportResult,
@@ -121,7 +122,7 @@ export const importStoredFiles = async (
         ? nextName(file.name, new Set(planned.keys()))
         : file.name
     const replaced = duplicate !== undefined && duplicateMode === 'replace'
-    const id = replaced ? duplicate.id : crypto.randomUUID()
+    const id = replaced ? duplicate.id : nanoid()
     const previousSize = replaced ? duplicate.size : 0
     if (totalBytes - previousSize + file.size > maximumLibraryBytes) {
       rejected.push({ sourceIndex: index, name: file.name, reason: 'library-full' })

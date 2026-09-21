@@ -1,4 +1,5 @@
 import type { UserMessage } from '@earendil-works/pi-ai'
+import { nanoid } from 'nanoid'
 import type { PreviewKind, StoredFileMetadata } from '../files'
 
 export type ConversationAttachment = Pick<
@@ -24,7 +25,7 @@ export const createReaderUserMessage = (
   text: string,
   attachments: readonly ConversationAttachment[],
 ): ReaderUserMessage => {
-  const reader = { id: crypto.randomUUID(), text, attachments: [...attachments] }
+  const reader = { id: nanoid(), text, attachments: [...attachments] }
   const request = text || 'Review the attached workspace files.'
   const metadata = attachments.map(attachment => ({
     fileId: attachment.id,

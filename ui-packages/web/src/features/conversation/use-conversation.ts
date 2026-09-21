@@ -1,6 +1,7 @@
 import type { Agent, AgentMessage, AgentState } from '@earendil-works/pi-agent-core'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelReference, PublicModelConfig } from '@gamma-reader/shared/model-config'
+import { nanoid } from 'nanoid'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadModelConfig } from '../../config/model-config'
 import { readableProxyError } from '../../core/agent/proxy-error'
@@ -69,7 +70,7 @@ const activeConversationKey = 'gamma-reader.active-conversation'
 const createConversation = (): StoredConversation => {
   const now = Date.now()
   return {
-    id: crypto.randomUUID(),
+    id: nanoid(),
     title: null,
     draft: emptyConversationDraft(),
     createdAt: now,
