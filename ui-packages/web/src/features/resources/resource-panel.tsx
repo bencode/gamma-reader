@@ -11,7 +11,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { type DragEvent, useRef, useState } from 'react'
 import { formatBytes, type PreviewKind, type StoredFileMetadata } from '../../core/files'
 import { useSourceDrafts } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
@@ -98,6 +98,17 @@ const ResourceList = ({
   </ul>
 )
 
+// A dropped folder arrives as a File whose contents cannot be read, and importing it would
+// leave an entry in the library that never opens. The Add files button cannot reach one.
+const droppedFiles = (transfer: DataTransfer) => {
+  const files = Array.from(transfer.files)
+  // files holds exactly the items whose kind is file, in the same order, so the entry that
+  // says whether something is a folder is the one at the same index.
+  const entries = Array.from(transfer.items).filter(item => item.kind === 'file')
+  if (entries.length !== files.length) return files
+  return files.filter((_, index) => !entries[index]?.webkitGetAsEntry?.()?.isDirectory)
+}
+
 export const ResourcePanel = ({
   activeId,
   library,
@@ -109,11 +120,35 @@ export const ResourcePanel = ({
   const drafts = useSourceDrafts()
   const inputRef = useRef<HTMLInputElement>(null)
   const [removeCandidate, setRemoveCandidate] = useState<StoredFileMetadata | null>(null)
+  const [dropping, setDropping] = useState(false)
   const files = library.files.filter(file => (file.collection ?? 'files') === 'files')
   const attachments = library.files.filter(file => file.collection === 'attachments')
 
+  const dropFiles = (event: DragEvent<HTMLElement>) => {
+    event.preventDefault()
+    setDropping(false)
+    library.addFiles(droppedFiles(event.dataTransfer))
+  }
+
   return (
-    <aside className="resource-panel panel-surface" aria-label="Files">
+    <aside
+      className={`resource-panel panel-surface${dropping ? ' drop-active' : ''}`}
+      aria-label="Files"
+      onDragEnter={event => {
+        if (!event.dataTransfer.types.includes('Files')) return
+        event.preventDefault()
+        setDropping(true)
+      }}
+      onDragOver={event => {
+        if (event.dataTransfer.types.includes('Files')) event.preventDefault()
+      }}
+      onDragLeave={event => {
+        // Moving between the panel's own children fires leave; only a real exit counts.
+        const next = event.relatedTarget
+        if (!(next instanceof Node) || !event.currentTarget.contains(next)) setDropping(false)
+      }}
+      onDrop={dropFiles}
+    >
       <header className="panel-header brand-header">
         <span className="brand" title="Gamma Reader">
           <BookOpen size={18} strokeWidth={1.8} /> <span>Gamma Reader</span>
@@ -249,6 +284,7 @@ export const ResourcePanel = ({
           }}
         />
       )}
+      {dropping && <span className="resource-drop-hint">Drop files to add them</span>}
     </aside>
   )
 }
