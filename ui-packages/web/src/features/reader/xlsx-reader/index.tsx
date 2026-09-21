@@ -97,9 +97,10 @@ export const XlsxReader = ({ document, blob, active, scrollPositions }: XlsxRead
   const after = virtualizer.getTotalSize() - (items[items.length - 1]?.end ?? 0)
 
   useEffect(() => {
-    if (!active || !scrollRef.current) return
+    // The table only exists once the workbook has parsed, so there is nothing to scroll before.
+    if (!active || state.status !== 'ready' || !scrollRef.current) return
     scrollRef.current.scrollTop = scrollPositions.current.get(document.id) ?? 0
-  }, [active, document.id, scrollPositions])
+  }, [active, document.id, scrollPositions, state.status])
 
   if (state.status === 'loading')
     return <div className="preview-state">Opening {document.name}…</div>

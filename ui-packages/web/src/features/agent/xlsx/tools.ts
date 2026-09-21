@@ -22,14 +22,18 @@ const wholeSheet: CellRange = {
 }
 
 // A sheet named "2" is meant before the second sheet is.
-const pickSheet = (sheets: readonly Worksheet[], wanted?: string) => {
-  if (wanted === undefined) return { number: 1, sheet: sheets[0] as Worksheet }
+const sheetNumber = (sheets: readonly Worksheet[], wanted?: string) => {
+  if (wanted === undefined) return 1
   const named = sheets.findIndex(sheet => sheet.name === wanted)
-  if (named >= 0) return { number: named + 1, sheet: sheets[named] as Worksheet }
-  const number = Number(wanted)
-  if (Number.isInteger(number) && number >= 1 && number <= sheets.length)
-    return { number, sheet: sheets[number - 1] as Worksheet }
-  throw new LocalToolError(`This workbook has no sheet "${wanted}". Use sheet_info to list them.`)
+  return named >= 0 ? named + 1 : Number(wanted)
+}
+
+const pickSheet = (sheets: readonly Worksheet[], wanted?: string) => {
+  const number = sheetNumber(sheets, wanted)
+  const sheet = Number.isInteger(number) ? sheets[number - 1] : undefined
+  if (!sheet)
+    throw new LocalToolError(`This workbook has no sheet "${wanted}". Use sheet_info to list them.`)
+  return { number, sheet }
 }
 
 export const createXlsxTools = (xlsx: XlsxRuntime) => [

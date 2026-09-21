@@ -26,8 +26,10 @@ describe('spreadsheet cells', () => {
     expect(cellText(null)).toBe('')
     expect(cellText(0)).toBe('0')
     expect(cellText(true)).toBe('TRUE')
-    expect(cellText(new Date('2026-04-01T00:00:00Z'))).toBe('2026-04-01')
-    expect(cellText(new Date('2026-04-01T09:30:00Z'))).toBe('2026-04-01 09:30:00')
+    // Serial 46085 in a real sheet is the plain date 2026-03-04, and the parser puts it at
+    // midnight UTC; a date must therefore read the same whatever zone the reader is in.
+    expect(cellText(new Date('2026-03-04T00:00:00Z'))).toBe('2026-03-04')
+    expect(cellText(new Date('2026-03-04T09:30:00Z'))).toBe('2026-03-04 09:30:00')
     // A cell holding several lines would otherwise break the row apart.
     expect(cellText('第一行\n第二行\t尾')).toBe('第一行 第二行 尾')
   })

@@ -4,7 +4,7 @@ export type Worksheet = { name: string; rows: readonly SheetRow[] }
 
 // A wide sheet is rare — nine in ten stay under 35 columns — and rendering hundreds of them
 // costs far more than it shows. The agent still reads every column.
-export const maximumPreviewColumns = 100
+const maximumPreviewColumns = 100
 
 export const columnLabel = (index: number): string => {
   const letter = String.fromCharCode(65 + (index % 26))
@@ -61,6 +61,9 @@ export const clampColumns = (rows: readonly SheetRow[]) => {
   return { columns: visible, hidden: columns - visible }
 }
 
+// A date cell stores a day count, which the parser turns into midnight UTC, so a pure date
+// reads back exactly there. Reading these through local time would append an invented time
+// and, east of Greenwich, move the day.
 const dateText = (value: Date) => {
   const iso = value.toISOString()
   return iso.endsWith('T00:00:00.000Z') ? iso.slice(0, 10) : iso.slice(0, 19).replace('T', ' ')
@@ -96,7 +99,7 @@ export const sheetExtent = (sheet: Worksheet) => {
   return columns && sheet.rows.length ? `A1:${columnLabel(columns - 1)}${sheet.rows.length}` : null
 }
 
-export type CellSelection = {
+type CellSelection = {
   columns: readonly string[]
   rows: readonly (readonly string[])[]
   startRow: number
