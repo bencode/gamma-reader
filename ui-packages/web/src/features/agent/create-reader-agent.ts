@@ -1,8 +1,13 @@
 import { Agent, type AgentMessage, type AgentState } from '@earendil-works/pi-agent-core'
 import { markdownText } from '../../core/document-text'
-import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
+import {
+  maximumTextPreviewBytes,
+  type PreviewKind,
+  type StoredFileMetadata,
+} from '../../core/files'
 import { getStoredFile, listStoredFiles } from '../../data/file-store'
 import { createDocumentTools, type DocumentAccess } from './document-tools'
+import { createDocxRuntime, type DocxRuntime } from './docx/runtime'
 import { createImageTools } from './image-tools'
 import type { LocalTools } from './local-tools'
 import {
@@ -21,16 +26,21 @@ import { LocalToolError } from './tool-types'
 import { createReaderTools } from './tools'
 import { createVisionAnalyzer } from './vision'
 
+const textReadableKinds = new Set<PreviewKind>(['markdown', 'text', 'docx'])
+
 const getReadability = (file: StoredFileMetadata) => {
   if (file.previewKind === 'pdf') return { textReadable: true }
-  if (file.previewKind !== 'markdown' && file.previewKind !== 'text')
+  if (!textReadableKinds.has(file.previewKind))
     return { textReadable: false, reason: 'Text reading is not supported for this format yet.' }
   if (file.size > maximumTextPreviewBytes)
     return { textReadable: false, reason: 'Text reading is limited to files of 5 MiB or less.' }
   return { textReadable: true }
 }
 
-export const createReaderDocumentAccess = (pdf: PdfRuntime): DocumentAccess => ({
+export const createReaderDocumentAccess = (
+  pdf: PdfRuntime,
+  docx: DocxRuntime = createDocxRuntime(),
+): DocumentAccess => ({
   listFiles: listStoredFiles,
   getReadability,
   open: async (fileId, signal) => {
@@ -41,6 +51,7 @@ export const createReaderDocumentAccess = (pdf: PdfRuntime): DocumentAccess => (
     const { reason } = getReadability(stored.metadata)
     if (reason) throw new LocalToolError(reason)
     if (stored.metadata.previewKind === 'pdf') return pdf.openDocument(stored, signal)
+    if (stored.metadata.previewKind === 'docx') return docx.openDocument(stored, signal)
     return openTextSource(
       stored.metadata,
       stored.blob,
@@ -68,7 +79,8 @@ export const createReaderAgent = (
   >,
 ) => {
   const pdf = createPdfRuntime(getStoredFile)
-  const documents = createDocumentTools(createReaderDocumentAccess(pdf))
+  const docx = createDocxRuntime()
+  const documents = createDocumentTools(createReaderDocumentAccess(pdf, docx))
   const vision = visionModelFor(runtime, session.model)
   const analyze = vision ? createVisionAnalyzer(vision) : undefined
   const agent = new Agent({
@@ -94,7 +106,9 @@ export const createReaderAgent = (
       }),
   })
   agent.subscribe(async event => {
-    if (event.type === 'agent_end') await pdf.dispose()
+    if (event.type !== 'agent_end') return
+    docx.dispose()
+    await pdf.dispose()
   })
   return agent
 }

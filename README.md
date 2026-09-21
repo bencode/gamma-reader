@@ -10,7 +10,7 @@ The shared key comes with a daily allowance. [Add a key of your own](#chat-model
 
 ## Features
 
-- **Read** PDF, Markdown, HTML, images, and text in tabs. PDF and Markdown carry an outline and a reading theme; Markdown also takes a text size and page width. [Document support](#document-support) lists what each format offers.
+- **Read** PDF, Word, Markdown, HTML, images, and text in tabs. PDF, Word, and Markdown carry an outline and a reading theme; Word and Markdown also take a text size and page width. [Document support](#document-support) lists what each format offers.
 - **Run code inside documents** — `.lab.md` articles carry executable Scheme, Clojure, Python, and TypeScript cells, and `.p5.js` sketches are interactive. Language runtimes load on demand.
 - **Ask about what you are reading.** The assistant searches and reads your open documents, explains images, and compares sources; its agent loop runs in the browser, not on a server.
 - **Keep questions apart.** Conversations are separate, each with its own history, chat model, and thinking level.
@@ -51,7 +51,10 @@ Browser storage belongs to this site and browser profile. Export work you want t
 | HTML | Sandboxed preview and editable Source | Active source tools; no text search |
 | Images / SVG | Image preview and zoom; SVG also has editable Source | Vision analysis; SVG active source tools |
 | UTF-8 text | Text preview and editable Source | Search, read, and edit source |
-| Other formats, including Word | Stored in Files | No preview or text reading yet |
+| Word (`.docx`) | Read-only preview converted to Markdown, with outline and adjustable text size, width, and theme | Search and read converted text |
+| Other formats | Stored in Files | No preview or text reading yet |
+
+Word support covers `.docx` only; the older binary `.doc` format is stored but not read. Conversion keeps structure — headings, lists, tables, and images — and drops page layout, fonts, headers and footers, tracked changes, and equations.
 
 Limits: 200 MiB per file, 1 GiB per browser library (including attachments), and 5 MiB for text preview and reading. Available storage also depends on the browser's quota and device space. Python and Clojure require runtime downloads on first use. Folder export requires desktop Chrome or Edge; individual files can also be downloaded.
 
