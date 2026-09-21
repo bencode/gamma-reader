@@ -1,5 +1,5 @@
 import { markdownText } from '../../../core/document-text'
-import { convertDocxToMarkdown } from '../../../core/docx'
+import { convertDocxToMarkdown, reportDocxMessages } from '../../../core/docx'
 import type { StoredFileMetadata } from '../../../core/files'
 import type { DocumentSource } from '../document-tools'
 import { LocalToolError } from '../tool-types'
@@ -20,9 +20,9 @@ export const createDocxRuntime = () => {
     const file = stored.metadata
     if (file.previewKind !== 'docx') throw new LocalToolError('This file is not a Word document.')
     if (current?.id !== file.id || current.revision !== file.revision) {
-      const { markdown, warnings } = await convertDocxToMarkdown(stored.blob, { images: false })
+      const { markdown, messages } = await convertDocxToMarkdown(stored.blob, { images: false })
       signal?.throwIfAborted()
-      if (warnings.length) console.warn(`Unconverted content in ${file.name}`, warnings)
+      reportDocxMessages(file.name, messages)
       current = { id: file.id, revision: file.revision, text: markdownText(markdown) }
     }
     const { text } = current

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MarkdownImageResolver } from '../../components/markdown-image'
-import { convertDocxToMarkdown } from '../../core/docx'
+import { convertDocxToMarkdown, reportDocxMessages } from '../../core/docx'
 import type { StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
 import { StandardMarkdownReader } from './markdown-reader/standard-reader'
@@ -21,8 +21,8 @@ type ConversionState =
 // Settling into a single state object keeps the image resolver stable across re-runs.
 const convertDocument = (blob: Blob, name: string): Promise<ConversionState> =>
   convertDocxToMarkdown(blob).then(
-    ({ markdown, images, warnings }) => {
-      if (warnings.length) console.warn(`Unconverted content in ${name}`, warnings)
+    ({ markdown, images, messages }) => {
+      reportDocxMessages(name, messages)
       return {
         status: 'ready',
         content: markdown,

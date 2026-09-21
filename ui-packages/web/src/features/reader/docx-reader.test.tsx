@@ -8,14 +8,18 @@ import { DocxReader } from './docx-reader'
 vi.mock('../../shell/workspace-context', () => ({ useReaderBinding: vi.fn() }))
 
 const mocks = vi.hoisted(() => ({ convert: vi.fn() }))
-vi.mock('../../core/docx', () => ({ convertDocxToMarkdown: mocks.convert }))
+// Only the conversion is stubbed, so adding an export to the module cannot break this file.
+vi.mock('../../core/docx', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../core/docx')>()),
+  convertDocxToMarkdown: mocks.convert,
+}))
 
 const converts = (conversion: Partial<DocxConversion>) => {
   mocks.convert.mockReset()
   mocks.convert.mockResolvedValue({
     markdown: '',
     images: new Map(),
-    warnings: [],
+    messages: [],
     ...conversion,
   })
 }

@@ -1,7 +1,19 @@
+export type DocxMessage = { type: 'warning' | 'error'; message: string }
+
 export type DocxConversion = {
   markdown: string
   images: Map<string, Blob>
-  warnings: readonly string[]
+  messages: readonly DocxMessage[]
+}
+
+// Mammoth reports what it could not convert; every reader surfaces it the same way.
+export const reportDocxMessages = (name: string, messages: readonly DocxMessage[]) => {
+  const of = (type: DocxMessage['type']) =>
+    messages.filter(message => message.type === type).map(message => message.message)
+  const failures = of('error')
+  const skipped = of('warning')
+  if (failures.length) console.error(`Unreadable content in ${name}`, failures)
+  if (skipped.length) console.warn(`Unconverted content in ${name}`, skipped)
 }
 
 export type DocxConversionOptions = {
@@ -18,6 +30,8 @@ const withinTableCell = (node: Node) => {
 }
 
 // Mammoth wraps cell content in <p>, but a Markdown table row has to stay on one line.
+// The <br> marks the paragraph boundary; the tableCellLineBreak rule below collapses it,
+// along with any line break the author typed, into a space.
 const flattenTableCells = (root: Document) => {
   for (const cell of root.querySelectorAll('td, th')) {
     const paragraphs = [...cell.children].filter(child => child.tagName === 'P')
@@ -94,6 +108,6 @@ export const convertDocxToMarkdown = async (
   return {
     markdown: turndown.turndown(parsed.body),
     images,
-    warnings: messages.map(message => message.message),
+    messages: messages.map(({ type, message }) => ({ type, message })),
   }
 }

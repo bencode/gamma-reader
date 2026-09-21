@@ -14,7 +14,7 @@ vi.mock('mammoth', () => ({
   },
 }))
 
-const respond = (html: string, messages: Array<{ message: string }> = []) => {
+const respond = (html: string, messages: Array<{ type: string; message: string }> = []) => {
   mocks.convertToHtml.mockResolvedValue({ value: html, messages })
 }
 const convert = (options?: { images?: boolean }) =>
@@ -63,13 +63,20 @@ describe('docx conversion', () => {
       await options.convertImage({ contentType: 'image/png', readAsArrayBuffer })
       return {
         value: '<p>正文</p>',
-        messages: [{ message: "Unrecognised paragraph style: '标题 1'" }],
+        messages: [
+          { type: 'warning', message: "Unrecognised paragraph style: '标题 1'" },
+          { type: 'error', message: 'could not open external image' },
+        ],
       }
     })
-    const { markdown, images, warnings } = await convert({ images: false })
+    const { markdown, images, messages } = await convert({ images: false })
     expect(readAsArrayBuffer).not.toHaveBeenCalled()
     expect(images.size).toBe(0)
     expect(markdown).toBe('正文')
-    expect(warnings).toEqual(["Unrecognised paragraph style: '标题 1'"])
+    // The reader tells an unreadable image apart from a style it merely ignored.
+    expect(messages).toEqual([
+      { type: 'warning', message: "Unrecognised paragraph style: '标题 1'" },
+      { type: 'error', message: 'could not open external image' },
+    ])
   })
 })
