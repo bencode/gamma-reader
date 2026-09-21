@@ -60,6 +60,9 @@ export const convertDocxToMarkdown = async (
   const { value, messages } = await mammoth.convertToHtml(
     { arrayBuffer: await blob.arrayBuffer() },
     {
+      // A manual page break is the author separating sections; Mammoth drops it otherwise.
+      // This is added to the default style map, not a replacement for it.
+      styleMap: ["br[type='page'] => hr"],
       convertImage: mammoth.images.imgElement(async image => {
         if (!withImages) return { src: '' }
         const reference = imageReference(images.size + 1)
