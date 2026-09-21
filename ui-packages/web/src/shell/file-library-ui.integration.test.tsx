@@ -284,8 +284,8 @@ describe('file library', () => {
       types: ['Files'],
       files: [note, folder],
       items: [
-        { webkitGetAsEntry: () => ({ isDirectory: false, name: note.name }) },
-        { webkitGetAsEntry: () => ({ isDirectory: true, name: folder.name }) },
+        { kind: 'file', webkitGetAsEntry: () => ({ isDirectory: false }) },
+        { kind: 'file', webkitGetAsEntry: () => ({ isDirectory: true }) },
       ],
     }
 

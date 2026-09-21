@@ -98,6 +98,17 @@ const ResourceList = ({
   </ul>
 )
 
+// A dropped folder arrives as a File whose contents cannot be read, and importing it would
+// leave an entry in the library that never opens. The Add files button cannot reach one.
+const droppedFiles = (transfer: DataTransfer) => {
+  const files = Array.from(transfer.files)
+  // files holds exactly the items whose kind is file, in the same order, so the entry that
+  // says whether something is a folder is the one at the same index.
+  const entries = Array.from(transfer.items).filter(item => item.kind === 'file')
+  if (entries.length !== files.length) return files
+  return files.filter((_, index) => !entries[index]?.webkitGetAsEntry?.()?.isDirectory)
+}
+
 export const ResourcePanel = ({
   activeId,
   library,
@@ -112,17 +123,6 @@ export const ResourcePanel = ({
   const [dropping, setDropping] = useState(false)
   const files = library.files.filter(file => (file.collection ?? 'files') === 'files')
   const attachments = library.files.filter(file => file.collection === 'attachments')
-
-  // A dropped folder arrives as a File that cannot be read, and importing it would leave a
-  // broken entry in the library. The Add files button cannot reach one at all.
-  const droppedFiles = (transfer: DataTransfer) => {
-    const directories = new Set(
-      Array.from(transfer.items)
-        .map(item => item.webkitGetAsEntry?.())
-        .flatMap(entry => (entry?.isDirectory ? [entry.name] : [])),
-    )
-    return Array.from(transfer.files).filter(file => !directories.has(file.name))
-  }
 
   const dropFiles = (event: DragEvent<HTMLElement>) => {
     event.preventDefault()
