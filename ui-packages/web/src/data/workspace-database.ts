@@ -28,7 +28,7 @@ const databaseName = 'gamma-reader-files'
 let databasePromise: Promise<IDBPDatabase<WorkspaceDatabase>> | undefined
 
 export const openWorkspaceDatabase = () => {
-  databasePromise ??= openDB<WorkspaceDatabase>(databaseName, 5, {
+  databasePromise ??= openDB<WorkspaceDatabase>(databaseName, 6, {
     upgrade(database, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         const files = database.createObjectStore('files', { keyPath: 'id' })
@@ -73,7 +73,7 @@ export const openWorkspaceDatabase = () => {
       }
       if (oldVersion < 4) database.createObjectStore('folderExports', { keyPath: 'id' })
       // Files imported before a format was supported still carry the old preview kind.
-      if (oldVersion > 0 && oldVersion < 5) {
+      if (oldVersion > 0 && oldVersion < 6) {
         const files = transaction.objectStore('files')
         void (async () => {
           let cursor = await files.openCursor()

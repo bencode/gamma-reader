@@ -15,9 +15,11 @@ export type ReaderUserMessage = UserMessage & {
   }
 }
 
+const textReadableKinds = new Set<PreviewKind>(['markdown', 'text', 'pdf', 'docx', 'xlsx'])
+
 const recommendedTool = (kind: PreviewKind) => {
   if (kind === 'image') return 'analyze_image'
-  if (kind === 'markdown' || kind === 'text' || kind === 'pdf' || kind === 'docx') return 'read'
+  if (textReadableKinds.has(kind)) return 'read'
   return 'unavailable'
 }
 

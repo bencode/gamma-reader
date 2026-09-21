@@ -48,6 +48,9 @@ vi.mock('mammoth', () => ({
   },
 }))
 
+const xlsx = vi.hoisted(() => ({ read: vi.fn() }))
+vi.mock('read-excel-file/browser', () => ({ default: xlsx.read }))
+
 const config = await createModelRuntime(modelConfig)
 const event = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'reply', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
@@ -156,8 +159,8 @@ describe('reader agent', () => {
     const fileId = imported.addedIds[0]
     if (!fileId) throw new Error('Missing fixture')
     const state: ReaderState = {
-      openFiles: [{ id: fileId, name: 'private.md' }],
-      activeFile: { id: fileId, name: 'private.md' },
+      openFiles: [{ id: fileId, name: 'private.md', type: 'markdown' }],
+      activeFile: { id: fileId, name: 'private.md', type: 'markdown' },
       viewport: { startText: 'The fox', endText: 'quietly.' },
     }
     const requests: { messages: { role: string; content: string; tool_call_id?: string }[] }[] = []
@@ -410,5 +413,42 @@ describe('reader agent', () => {
     expect(await source.readPage(1)).toBe('季度报告\n\n营收增长了两成。')
     await access.open(fileId)
     expect(docx.convertToHtml).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads a spreadsheet by row and parses it once per agent run', async () => {
+    xlsx.read.mockResolvedValue([
+      {
+        sheet: '数据',
+        data: [
+          ['项目', '人日'],
+          ['A', 3],
+        ],
+      },
+      { sheet: '汇总', data: [['合计', 3]] },
+    ])
+    const imported = await importStoredFiles([new File(['xlsx bytes'], 'effort.xlsx')], 'keep')
+    const fileId = imported.addedIds[0]
+    if (!fileId) throw new Error('Missing fixture')
+    const stored = await getStoredFile(fileId)
+    if (!stored) throw new Error('Missing fixture')
+    expect(stored.metadata.previewKind).toBe('xlsx')
+
+    const access = createReaderDocumentAccess(createPdfRuntime(getStoredFile))
+    expect(access.getReadability(stored.metadata)).toEqual({ textReadable: true })
+    const source = await access.open(fileId)
+    // Rows are lines, so a later row is reachable without paging through the earlier ones.
+    expect(source.unit).toBe('line')
+    expect((await source.readPage(1)).split('\n')).toEqual([
+      '# 数据 (2 rows × 2 columns)',
+      '\tA\tB',
+      '1\t项目\t人日',
+      '2\tA\t3',
+      '',
+      '# 汇总 (1 rows × 2 columns)',
+      '\tA\tB',
+      '1\t合计\t3',
+    ])
+    await access.open(fileId)
+    expect(xlsx.read).toHaveBeenCalledTimes(1)
   })
 })
