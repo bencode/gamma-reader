@@ -5,13 +5,31 @@ import type { StoredFileMetadata } from '../core/files'
 import { readWorkspace, writeWorkspace } from './workspace-storage'
 import { createWorkspaceActions, createWorkspaceStore } from './workspace-store'
 
-const documentPath = (id: string | null) => (id ? `/files/${encodeURIComponent(id)}` : '/files')
+// The address carries the name the reader sees rather than the id the store keeps.
+const documentPath = (files: readonly StoredFileMetadata[], id: string | null) => {
+  const file = id ? files.find(document => document.id === id) : undefined
+  return file ? `/files/${encodeURIComponent(file.name)}` : '/files'
+}
+
+// A name is unique in the library apart from case, and the only rename the app performs — the
+// write tool replacing a file it matched case-insensitively — changes nothing else, so matching
+// that way keeps an open document open across one. An id still resolves, which keeps links made
+// before names reached the address working.
+const documentIdFor = (files: readonly StoredFileMetadata[], segment: string | undefined) => {
+  if (!segment) return null
+  const wanted = segment.toLowerCase()
+  return (
+    files.find(file => file.name.toLowerCase() === wanted)?.id ??
+    files.find(file => file.id === segment)?.id ??
+    null
+  )
+}
 
 export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean) => {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const routeId = useMatch('/files/:documentId')?.params.documentId
-  const activeId = files.find(document => document.id === routeId)?.id ?? null
+  const routeSegment = useMatch('/files/:documentId')?.params.documentId
+  const activeId = documentIdFor(files, routeSegment)
   const [initialWorkspace] = useState(readWorkspace)
   const [store] = useState(() => createWorkspaceStore(initialWorkspace.tabs))
   const [actions] = useState(() => createWorkspaceActions(store))
@@ -26,7 +44,7 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
     })
     navigationTargetRef.current = activeId
     if (pathname === '/') {
-      void navigate(documentPath(initialWorkspace.lastActiveId), { replace: true })
+      void navigate(documentPath(files, initialWorkspace.lastActiveId), { replace: true })
       return
     }
     if (pathname !== '/files' && activeId === null) {
@@ -57,7 +75,7 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
   const openDocument = (id: string) => {
     if (id === navigationTargetRef.current || !files.some(document => document.id === id)) return
     navigationTargetRef.current = id
-    void navigate(documentPath(id))
+    void navigate(documentPath(files, id))
   }
 
   const closeDocuments = (ids: readonly string[]) => {
@@ -74,7 +92,7 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
       actions.closeDocuments([...closing])
       if (active && closing.has(active)) {
         navigationTargetRef.current = next
-        void navigate(documentPath(next), { replace: true })
+        void navigate(documentPath(files, next), { replace: true })
       }
     })
     closing.forEach(id => {
