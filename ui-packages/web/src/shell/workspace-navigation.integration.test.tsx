@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { samples } from '../core/samples'
 import { Workbench } from './workbench'
 
 beforeEach(() => {
@@ -14,6 +15,11 @@ const storageKey = 'gamma-reader.workspace'
 const file = (name: string) =>
   within(screen.getByRole('list', { name: 'Files' })).getByRole('button', { name })
 const tabNames = () => screen.queryAllByRole('tab').map(tab => tab.textContent)
+// The workspace file keeps ids; the address shows names.
+const routeFor = (id: string | null) => {
+  const name = samples.find(sample => sample.id === id)?.name
+  return name ? `/files/${encodeURIComponent(name)}` : '/files'
+}
 const savedWorkspace = () => JSON.parse(localStorage.getItem(storageKey) ?? 'null')
 const waitForWorkspace = async () => {
   const panel = await screen.findByRole('complementary', { name: 'Files' })
@@ -77,7 +83,7 @@ describe('local workspace navigation', () => {
     ])
     await waitFor(() =>
       expect(screen.getByLabelText('Current route')).toHaveTextContent(
-        '/files/how-gamma-reader-works',
+        routeFor('how-gamma-reader-works'),
       ),
     )
     await waitFor(() =>
@@ -247,6 +253,13 @@ describe('local workspace navigation', () => {
     expect(scroll.scrollTop).toBe(180)
     expect(screen.queryByRole('button', { name: 'Ask AI' })).not.toBeInTheDocument()
   })
+  it('opens a document whose name differs only in case, as a rename leaves behind', async () => {
+    // The write tool replaces a file it matched without regard to case, so the name in an
+    // address can fall out of step with the one on the file by exactly that much.
+    openReader('/files/start HERE.md')
+    const tab = await screen.findByRole('tab', { name: 'Start here.md' })
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+  })
 })
 
 describe('bulk tab navigation', () => {
@@ -285,9 +298,7 @@ describe('bulk tab navigation', () => {
       await user.click(screen.getByRole('menuitem', { name: command }))
       await waitFor(() => expect(tabNames()).toEqual(remaining))
       expect(savedWorkspace().lastActiveId).toBe(active)
-      expect(screen.getByLabelText('Current route').textContent).toBe(
-        active ? `/files/${active}` : '/files',
-      )
+      expect(screen.getByLabelText('Current route').textContent).toBe(routeFor(active))
       if (active) expect(screen.getByRole('tab', { selected: true })).toHaveFocus()
       else expect(screen.getByRole('button', { name: 'Open Start here.md' })).toHaveFocus()
       expect(
