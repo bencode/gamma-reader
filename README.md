@@ -26,7 +26,7 @@ print("Hello from the browser")
 ```
 ````
 
-New workspaces include **Start here.md**, a PDF, a wave Lab, an orbit sketch, and an architecture diagram. Follow the examples, then add your own files with **+**. Existing workspaces keep their files unchanged.
+New workspaces include **Start here.md**, a PDF essay, a Word document with the spreadsheet it describes, two Labs covering all four languages, an orbit sketch, and an architecture diagram. Follow the examples, then add your own files by dragging them onto Files or with **+**. Existing workspaces keep their files unchanged.
 
 ## Local-first by design
 

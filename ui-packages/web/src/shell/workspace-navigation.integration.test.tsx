@@ -238,7 +238,7 @@ describe('local workspace navigation', () => {
     if (!scroll) throw new Error('Document scroll container is missing')
     fireEvent.scroll(scroll, { target: { scrollTop: 180 } })
     const text = screen.getByText(
-      'Read, experiment, and create with AI, using files in your browser.',
+      'Read, experiment, and create with AI, using files that stay in your browser.',
     )
     const range = document.createRange()
     range.selectNodeContents(text)
