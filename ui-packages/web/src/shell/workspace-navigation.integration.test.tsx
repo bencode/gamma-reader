@@ -253,6 +253,13 @@ describe('local workspace navigation', () => {
     expect(scroll.scrollTop).toBe(180)
     expect(screen.queryByRole('button', { name: 'Ask AI' })).not.toBeInTheDocument()
   })
+  it('opens a document whose name differs only in case, as a rename leaves behind', async () => {
+    // The write tool replaces a file it matched without regard to case, so the name in an
+    // address can fall out of step with the one on the file by exactly that much.
+    openReader('/files/start HERE.md')
+    const tab = await screen.findByRole('tab', { name: 'Start here.md' })
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+  })
 })
 
 describe('bulk tab navigation', () => {
@@ -299,12 +306,4 @@ describe('bulk tab navigation', () => {
       ).toBeVisible()
     },
   )
-
-  it('opens a document whose name differs only in case, as a rename leaves behind', async () => {
-    // The write tool replaces a file it matched without regard to case, so the name in an
-    // address can fall out of step with the one on the file by exactly that much.
-    openReader('/files/start HERE.md')
-    const tab = await screen.findByRole('tab', { name: 'Start here.md' })
-    expect(tab).toHaveAttribute('aria-selected', 'true')
-  })
 })
