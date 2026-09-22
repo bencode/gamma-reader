@@ -7,12 +7,19 @@ import { networkOf } from './network.js'
 import { issuePass, passCookieName, verifyPass } from './pass.js'
 import { type QuotaStore, utcDay } from './store.js'
 
+// Shared with the route that turns a stranger away before it reads their body,
+// so the two refusals cannot drift apart.
+export const passRequiredMessage = 'Reload Gamma Reader to continue chatting.'
+
 export type Admission =
   | { ok: true; done: (tokens: number) => void }
   | { ok: false; status: number; message: string }
 
 export type QuotaGuard = {
   pass: () => string
+  // Whether the caller holds a pass, on its own, so a route can turn away a
+  // stranger before it buffers and parses whatever they sent.
+  verify: (c: Context) => boolean
   admit: (c: Context) => Admission
   // Whether forwarded headers may be believed, which the routes also need when
   // deciding if the pass cookie is being issued over a secure connection.
@@ -28,6 +35,9 @@ export const createQuotaGuard = (
   const salt = store.secret('subject_salt')
   const inFlight = new Map<string, number>()
   let prunedDay = ''
+  // What everyone together has spent on `prunedDay`. Summing the table on every
+  // request would be wasteful, and a restart reseeds it from the same rows.
+  let spentToday = 0
 
   // A reverse proxy appends the connecting peer to X-Forwarded-For, so only the
   // last entry is trustworthy; earlier ones are supplied by the caller. The
@@ -49,9 +59,10 @@ export const createQuotaGuard = (
   // that runs for weeks accumulate weeks of addresses.
   const rollOver = (day: string) => {
     if (day === prunedDay) return
-    // Recorded only once the delete succeeds: a transient failure here must be
-    // retried by the next request, not silently skipped for the rest of the day.
+    // Recorded only once both succeed: a transient failure here must be retried
+    // by the next request, not silently skipped for the rest of the day.
     store.prune(day)
+    spentToday = store.totalTokensToday(day)
     prunedDay = day
   }
 
@@ -61,12 +72,14 @@ export const createQuotaGuard = (
     else inFlight.delete(subject)
   }
 
+  const verify = (c: Context) => verifyPass(secret, getCookie(c, passCookieName))
+
   return {
     trustProxy: config.trustProxy,
     pass: () => issuePass(secret),
+    verify,
     admit: c => {
-      if (!verifyPass(secret, getCookie(c, passCookieName)))
-        return { ok: false, status: 401, message: 'Reload Gamma Reader to continue chatting.' }
+      if (!verify(c)) return { ok: false, status: 401, message: passRequiredMessage }
       const at = Date.now()
       const day = utcDay(at)
       rollOver(day)
@@ -84,6 +97,15 @@ export const createQuotaGuard = (
           status: 429,
           message: 'The daily chat limit for this network is used up. It resets at 00:00 UTC.',
         }
+      // Checked after the per-network limit so that a reader who has spent their
+      // own allowance is told that, rather than that the service ran out.
+      if (spentToday >= config.totalDailyTokens)
+        return {
+          ok: false,
+          status: 429,
+          message:
+            'Gamma Reader has used up the shared allowance for today. It resets at 00:00 UTC, and a model key of your own is not affected.',
+        }
       inFlight.set(subject, active + 1)
       let settled = false
       return {
@@ -93,8 +115,12 @@ export const createQuotaGuard = (
           settled = true
           release(subject)
           const settledAt = Date.now()
+          const settledDay = utcDay(settledAt)
           try {
-            store.addUsage({ subject, day: utcDay(settledAt), at: settledAt, tokens })
+            store.addUsage({ subject, day: settledDay, at: settledAt, tokens })
+            // Only when it lands on the day being tracked; one that settles after
+            // midnight belongs to a total the next request reseeds anyway.
+            if (settledDay === prunedDay) spentToday += tokens
           } catch (cause) {
             // This runs inside the response stream's callbacks, so a failure to
             // record must not tear down an answer the reader is already reading.

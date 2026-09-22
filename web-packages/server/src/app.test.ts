@@ -8,7 +8,13 @@ import { openQuotaStore } from './quota/store.js'
 
 const guard = createQuotaGuard(
   openQuotaStore(':memory:'),
-  { databaseFile: ':memory:', dailyTokens: 1, maximumConcurrent: 1, trustProxy: false },
+  {
+    databaseFile: ':memory:',
+    dailyTokens: 1,
+    totalDailyTokens: 1,
+    maximumConcurrent: 1,
+    trustProxy: false,
+  },
   () => '127.0.0.1',
 )
 const build = (webRoot?: string) => createApp(guard, webRoot)
