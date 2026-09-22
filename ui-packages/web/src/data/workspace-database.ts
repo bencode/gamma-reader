@@ -2,7 +2,6 @@ import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 import type { StoredConversation, StoredConversationMessage } from '../core/conversations'
 import type { FolderExportRecord } from '../core/file-export'
 import { previewKindFor, type StoredFileContent, type StoredFileMetadata } from '../core/files'
-import { samples } from '../core/samples'
 
 export type WorkspaceDatabase = DBSchema & {
   files: {
@@ -27,28 +26,42 @@ export type WorkspaceDatabase = DBSchema & {
 const databaseName = 'gamma-reader-files'
 let databasePromise: Promise<IDBPDatabase<WorkspaceDatabase>> | undefined
 
+// An upgrade transaction cannot wait for a dynamic import, so the starter files are written
+// immediately after it instead. Keeping them out of the upgrade also keeps them out of the
+// main bundle: they are fetched once, by whoever opens the app for the first time.
+const seedSamples = async (database: IDBPDatabase<WorkspaceDatabase>) => {
+  const { samples } = await import('../core/samples')
+  const transaction = database.transaction(['files', 'contents'], 'readwrite')
+  const files = transaction.objectStore('files')
+  const contents = transaction.objectStore('contents')
+  samples.forEach((sample, index) => {
+    const blob = new Blob([sample.content], { type: sample.mediaType })
+    files.put({
+      id: sample.id,
+      name: sample.name,
+      collection: 'files',
+      mediaType: blob.type,
+      previewKind: previewKindFor(sample.name, blob.type),
+      size: blob.size,
+      lastModified: 0,
+      createdAt: index,
+      revision: 1,
+    })
+    contents.put({ id: sample.id, blob })
+  })
+  await transaction.done
+}
+
 export const openWorkspaceDatabase = () => {
-  databasePromise ??= openDB<WorkspaceDatabase>(databaseName, 6, {
+  if (databasePromise) return databasePromise
+  let seeding = false
+  databasePromise = openDB<WorkspaceDatabase>(databaseName, 6, {
     upgrade(database, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         const files = database.createObjectStore('files', { keyPath: 'id' })
         files.createIndex('by-created-at', 'createdAt')
-        const contents = database.createObjectStore('contents', { keyPath: 'id' })
-        samples.forEach((sample, index) => {
-          const blob = new Blob([sample.content], { type: sample.mediaType })
-          files.put({
-            id: sample.id,
-            name: sample.name,
-            collection: 'files',
-            mediaType: blob.type,
-            previewKind: previewKindFor(sample.name, blob.type),
-            size: blob.size,
-            lastModified: 0,
-            createdAt: index,
-            revision: 1,
-          })
-          contents.put({ id: sample.id, blob })
-        })
+        database.createObjectStore('contents', { keyPath: 'id' })
+        seeding = true
       }
       if (oldVersion === 1) {
         const files = transaction.objectStore('files')
@@ -89,10 +102,15 @@ export const openWorkspaceDatabase = () => {
         })
       }
     },
-  }).catch(error => {
-    databasePromise = undefined
-    throw error
   })
+    .then(async database => {
+      if (seeding) await seedSamples(database)
+      return database
+    })
+    .catch(error => {
+      databasePromise = undefined
+      throw error
+    })
   return databasePromise
 }
 

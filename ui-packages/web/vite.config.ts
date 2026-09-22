@@ -17,6 +17,10 @@ const testDefaults = {
   environment: 'jsdom',
   setupFiles: ['./src/test/setup.ts'],
   testTimeout: 15000,
+  // The app gets Mammoth's browser build through the legacy `browser` field, which Node
+  // resolution ignores in favour of a zip reader that will not take an ArrayBuffer. Point the
+  // tests at the build the app ships so a Word document is read here by the real library.
+  alias: { mammoth: 'mammoth/mammoth.browser.js' },
 }
 
 export default defineConfig({
@@ -33,6 +37,9 @@ export default defineConfig({
       ],
     }),
   ],
+  // Vite treats .pdf as an asset already; the Office formats among the starter files are not
+  // in its default list, so an import of one would otherwise be parsed as JavaScript.
+  assetsInclude: ['**/*.docx', '**/*.xlsx'],
   optimizeDeps: {
     include: ['@gamma-reader/code-lab > biwascheme', '@gamma-reader/code-lab > sucrase'],
   },

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { FileCollection } from '../core/files'
+import { samples } from '../core/samples'
 import {
   closeFileStore,
   getStoredFile,
@@ -100,11 +101,12 @@ describe('local file store', () => {
     })
 
     await expect(listStoredFiles()).rejects.toThrow('Temporarily unavailable')
-    await expect(listStoredFiles()).resolves.toHaveLength(5)
+    await expect(listStoredFiles()).resolves.toHaveLength(samples.length)
   })
 
   it('seeds samples once and keeps a deleted sample removed after reopening', async () => {
     const initial = await listStoredFiles()
+    // The order is the tour Start here.md walks a first-time reader through.
     expect(initial).toEqual([
       expect.objectContaining({
         id: 'getting-started',
@@ -117,8 +119,23 @@ describe('local file store', () => {
         previewKind: 'pdf',
       }),
       expect.objectContaining({
+        id: 'field-notes',
+        name: 'Field notes.docx',
+        previewKind: 'docx',
+      }),
+      expect.objectContaining({
+        id: 'observation-log',
+        name: 'Observation log.xlsx',
+        previewKind: 'xlsx',
+      }),
+      expect.objectContaining({
         id: 'explore-wave',
         name: 'Explore a wave.lab.md',
+        previewKind: 'markdown',
+      }),
+      expect.objectContaining({
+        id: 'seven-mornings',
+        name: 'Seven mornings.lab.md',
         previewKind: 'markdown',
       }),
       expect.objectContaining({
