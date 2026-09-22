@@ -20,6 +20,17 @@ vi.stubGlobal('matchMedia', (query: string) => ({
 vi.stubGlobal('Blob', NodeBlob)
 vi.stubGlobal('File', NodeFile)
 
+// That Blob also returns an ArrayBuffer belonging to Node rather than to jsdom, and a library
+// that gates on `instanceof ArrayBuffer` then refuses it — JSZip, inside Mammoth, does exactly
+// that. Copying the bytes into this realm lets a document parse here as it does in a browser.
+const nodeArrayBuffer = NodeBlob.prototype.arrayBuffer
+NodeBlob.prototype.arrayBuffer = async function arrayBuffer(this: Blob) {
+  const source = new Uint8Array(await nodeArrayBuffer.call(this))
+  const bytes = new Uint8Array(source.byteLength)
+  bytes.set(source)
+  return bytes.buffer as ArrayBuffer
+}
+
 vi.stubGlobal(
   'ResizeObserver',
   class {
