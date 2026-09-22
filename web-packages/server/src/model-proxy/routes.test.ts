@@ -25,13 +25,18 @@ afterAll(() => {
 
 // Charged tokens are read back from the address-free record, so the assertions
 // do not depend on how a subject key is derived.
-const quotaFor = (dailyTokens: number, address: string, maximumConcurrent: number) => {
+const quotaFor = (
+  dailyTokens: number,
+  address: string,
+  maximumConcurrent: number,
+  totalDailyTokens = Number.MAX_SAFE_INTEGER,
+) => {
   const databaseFile = join(directory, `${address}.db`)
   const store = openQuotaStore(databaseFile)
   opened.push(store)
   const guard = createQuotaGuard(
     store,
-    { databaseFile, dailyTokens, maximumConcurrent, trustProxy: false },
+    { databaseFile, dailyTokens, totalDailyTokens, maximumConcurrent, trustProxy: false },
     () => address,
   )
   const charged = () => {
@@ -68,6 +73,22 @@ const post = (
     body: JSON.stringify(input),
   })
 afterEach(() => vi.restoreAllMocks())
+
+const png = (width: number, height: number) => {
+  const bytes = Buffer.alloc(24)
+  bytes.writeUInt32BE(0x89504e47, 0)
+  bytes.writeUInt32BE(0x0d0a1a0a, 4)
+  bytes.writeUInt32BE(13, 8)
+  bytes.write('IHDR', 12, 'ascii')
+  bytes.writeUInt32BE(width, 16)
+  bytes.writeUInt32BE(height, 20)
+  return `data:image/png;base64,${bytes.toString('base64')}`
+}
+const picture = (url: string) => ({
+  model: settings.visionModel.modelId,
+  stream: true,
+  messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url } }] }],
+})
 
 describe('model proxy', () => {
   const eventStream = (payload: string) =>
@@ -265,6 +286,8 @@ describe('model proxy', () => {
     expect(JSON.parse(String(fetchModel.mock.calls[0]?.[1]?.body))).toEqual({
       ...body,
       thinking: { type: 'enabled' },
+      // Pinned by the proxy, so metering never rests on the caller asking for it.
+      stream_options: { include_usage: true },
     })
   })
 
@@ -282,7 +305,10 @@ describe('model proxy', () => {
       reasoning_effort: 'max',
     }
     expect((await post(selected)).status).toBe(200)
-    expect(JSON.parse(String(fetchModel.mock.calls[0]?.[1]?.body))).toEqual(selected)
+    expect(JSON.parse(String(fetchModel.mock.calls[0]?.[1]?.body))).toEqual({
+      ...selected,
+      stream_options: { include_usage: true },
+    })
     expect((await post({ ...selected, model: 'unconfigured-model' })).status).toBe(400)
     expect(fetchModel).toHaveBeenCalledTimes(1)
   })
@@ -304,6 +330,35 @@ describe('model proxy', () => {
     expect(fetchModel).toHaveBeenCalledTimes(1)
   })
 
+  it('turns away a caller with no pass before it reads what they sent', async () => {
+    const fetchModel = vi.spyOn(globalThis, 'fetch')
+    const sent = await app.request('/api/agent/providers/zai-coding-cn/vision/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'x'.repeat(13 * 1024 * 1024),
+    })
+
+    // 401 rather than the 413 the size would earn or the 400 the syntax would:
+    // neither the limit nor the parser was reached on the way to refusing.
+    expect(sent.status).toBe(401)
+    expect(fetchModel).not.toHaveBeenCalled()
+  })
+
+  it('measures a picture from its own header and refuses one it will not forward', async () => {
+    const fetchModel = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response('data: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } }),
+      )
+    const vision = '/api/agent/providers/zai-coding-cn/vision/chat/completions'
+
+    expect((await post(picture(png(1_600, 1_200)), vision)).status).toBe(200)
+    // Forty-eight megapixels in a handful of bytes: the size a caller sends is
+    // not the size the provider charges for.
+    expect((await post(picture(png(8_000, 6_000)), vision)).status).toBe(413)
+    expect(fetchModel).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects unavailable, oversized and invalid requests without contacting the provider', async () => {
     const fetchModel = vi.spyOn(globalThis, 'fetch')
     expect((await createApp(unlimited.guard).request('/api/agent/config')).status).toBe(200)
@@ -314,7 +369,7 @@ describe('model proxy', () => {
       (
         await createApp(unlimited.guard, undefined, resolveModelProxyConfig(settings, {})).request(
           '/api/agent/providers/zai-coding-cn/chat/completions',
-          { method: 'POST' },
+          { method: 'POST', headers: { Cookie: unlimited.cookie } },
         )
       ).status,
     ).toBe(503)
@@ -324,7 +379,7 @@ describe('model proxy', () => {
       (
         await app.request('/api/agent/providers/zai-coding-cn/chat/completions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Cookie: unlimited.cookie },
           body: '{',
         })
       ).status,

@@ -65,6 +65,8 @@ Model choices and thinking levels persist with each conversation.
 
 The shared key carries a daily allowance. Each network gets `GAMMA_DAILY_TOKENS` tokens per day, counted from the usage the provider reports on its final response chunk, and resets at 00:00 UTC. Requests over the limit are refused with `429` and the reader sees the reason in the conversation. A network is identified by its address, so people behind one office or campus connection share a single allowance.
 
+Because anyone can reach a fresh allowance from a fresh address, `GAMMA_TOTAL_DAILY_TOKENS` caps what everyone together may spend in a day. It is the figure that stays put when the addresses do not, and the two refusals are worded apart so a reader can tell their own allowance from the service's.
+
 **Add your own model…** at the end of the model selector takes a key for one of the providers pi ships, or for any OpenAI-compatible address. Those requests go from the browser straight to the provider, so they never reach this server and the allowance does not apply.
 
 Keys are kept in `localStorage`, not the workspace database: Code Lab runs reader-supplied TypeScript in a same-origin worker that can reach `indexedDB`, and `localStorage` does not exist in worker scope.
@@ -88,7 +90,8 @@ Create an untracked root `.env` with `GLM_API_KEY`, `DEEPSEEK_API_KEY`, or both.
 | `PORT` | `3302` | Node service port |
 | `HOST` | `127.0.0.1` | Node service host |
 | `GAMMA_BACKEND` | `http://127.0.0.1:3302` | Vite proxy target |
-| `GAMMA_DAILY_TOKENS` | `1000000` | Tokens one network may spend per day |
+| `GAMMA_DAILY_TOKENS` | `200000` | Tokens one network may spend per day |
+| `GAMMA_TOTAL_DAILY_TOKENS` | `20000000` | Tokens everyone together may spend per day |
 | `GAMMA_DATA_DIR` | `data` | Directory holding the usage database |
 | `GAMMA_TRUST_PROXY` | Unset | Set to `1` when a reverse proxy sets `X-Forwarded-For` |
 
@@ -110,6 +113,10 @@ Two records are kept in a SQLite file under `GAMMA_DATA_DIR`, deliberately separ
 The same file also keeps the cookie signing secret and the hashing salt, so a restart neither signs readers out nor resets anyone's allowance.
 
 Set `GAMMA_TRUST_PROXY=1` only when a reverse proxy sets `X-Forwarded-For`, as `compose.production.yml` assumes: the last entry of that header is then treated as the caller. Without a proxy in front, leave it unset so the header cannot be forged.
+
+To stop or restrain spending, change `GAMMA_TOTAL_DAILY_TOKENS` in `.env` and run the deploy command again; the container is recreated in seconds and the new ceiling applies at once. There is no runtime switch on purpose, since that would be one more thing to authenticate.
+
+Two costs are bounded before a request is forwarded. A caller without the pass cookie is refused before their body is read, so an anonymous request cannot make the server buffer and parse twelve megabytes. An image is measured from its own header rather than from what the caller claims, and one covering more than four megapixels is refused with `413` — a picture the reader itself renders never comes close, since it already fits a page into four megapixels and an upload into 1.5.
 
 `packages/shared` exports only the public configuration types. UI and Server import these types independently; neither package imports the other. The browser requests `/api/agent/config` and sends pi-generated requests through `/api/agent/providers/:provider/chat/completions` (or the provider's `/vision/chat/completions` route). The server injects the corresponding credential.
 

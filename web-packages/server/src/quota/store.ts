@@ -13,6 +13,7 @@ export type UsageEntry = {
 export type QuotaStore = {
   secret: (key: string) => string
   tokensToday: (subject: string, day: string) => number
+  totalTokensToday: (day: string) => number
   addUsage: (entry: UsageEntry) => void
   prune: (before: string) => void
   close: () => void
@@ -55,6 +56,8 @@ export const openQuotaStore = (file: string): QuotaStore => {
     'INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING',
   )
   const readTokens = database.prepare('SELECT tokens FROM usage_day WHERE subject = ? AND day = ?')
+  // Pruning leaves only the current day, so this sums a table that stays small.
+  const readTotal = database.prepare('SELECT SUM(tokens) AS tokens FROM usage_day WHERE day = ?')
   const recordDay = database.prepare(
     `INSERT INTO usage_day (subject, day, tokens) VALUES (?, ?, ?)
        ON CONFLICT(subject, day) DO UPDATE SET tokens = tokens + excluded.tokens`,
@@ -72,6 +75,7 @@ export const openQuotaStore = (file: string): QuotaStore => {
       return stored
     },
     tokensToday: (subject, day) => count(readTokens.get(subject, day), 'tokens'),
+    totalTokensToday: day => count(readTotal.get(day), 'tokens'),
     // One transaction: a counter charged without its matching record would make
     // the permanent totals disagree with what readers were actually charged.
     addUsage: ({ subject, day, at, tokens }) => {

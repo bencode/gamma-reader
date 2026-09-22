@@ -1,8 +1,13 @@
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { setCookie } from 'hono/cookie'
-import { fallbackTokens } from '../quota/charge.js'
-import type { Admission, QuotaGuard } from '../quota/guard.js'
+import {
+  fallbackTokens,
+  maximumImagePixels,
+  type RequestImages,
+  requestImages,
+} from '../quota/charge.js'
+import { type Admission, passRequiredMessage, type QuotaGuard } from '../quota/guard.js'
 import { passCookieName, passLifetimeMs } from '../quota/pass.js'
 import { createUsageSniffer } from '../quota/usage.js'
 import type { ModelProxyConfig } from './config.js'
@@ -28,11 +33,16 @@ const forward = async (
   config: ModelProxyConfig['providers'][string],
   client: AbortSignal,
   granted: Granted,
+  images: RequestImages,
 ) => {
+  // Usage arrives on the final chunk only for a caller that asks for it, and the
+  // charge falls back to an estimate when it never comes. Requiring it here
+  // keeps metering off the caller's goodwill.
+  body.stream_options = { include_usage: true }
   const payload = JSON.stringify(body)
   // Charged when the provider reports no usage, which happens when the reader
   // stops an answer the model has already processed.
-  const estimate = fallbackTokens(body, Buffer.byteLength(payload))
+  const estimate = fallbackTokens(body, Buffer.byteLength(payload), images)
   // A response body that is never read reaches neither the sniffer's flush nor
   // its cancel, so settle on the client going away as well; `done` runs once.
   client.addEventListener('abort', () => granted.done(estimate), { once: true })
@@ -102,6 +112,12 @@ export const createModelProxyRoutes = (config: ModelProxyConfig, guard: QuotaGua
   const register = (path: string, vision: boolean, maximumBytes: number, label: string) => {
     app.post(
       path,
+      // Before the body is buffered and parsed: without this a caller with no
+      // pass could make the server read twelve megabytes on the way to a 401.
+      async (c, next) => {
+        if (!guard.verify(c)) return fail(401, passRequiredMessage)
+        await next()
+      },
       bodyLimit({
         maxSize: maximumBytes,
         onError: () => fail(413, `The ${label} exceeds the request limit.`),
@@ -132,11 +148,16 @@ export const createModelProxyRoutes = (config: ModelProxyConfig, guard: QuotaGua
         }
         if (!validBody(body, modelIds))
           return fail(400, 'Use the configured model, messages and stream: true.')
+        // Measured from the picture's own header rather than from what the
+        // caller says it sent, because the provider prices it by the pixel.
+        const images = requestImages(body)
+        if (images.pixels > maximumImagePixels)
+          return fail(413, 'The image exceeds the size this proxy forwards.')
         // Last check before forwarding: a granted admission holds a concurrency
         // slot that only `done` releases, so nothing may return early after it.
         const admission = guard.admit(c)
         if (!admission.ok) return fail(admission.status, admission.message)
-        return forward(body, provider, c.req.raw.signal, admission)
+        return forward(body, provider, c.req.raw.signal, admission, images)
       },
     )
   }
