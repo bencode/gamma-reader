@@ -14,7 +14,7 @@ The shared key comes with a daily allowance. [Add a key of your own](#chat-model
 - **Run code inside documents** — `.lab.md` articles carry executable Scheme, Clojure, Python, and TypeScript cells, and `.p5.js` sketches are interactive. Language runtimes load on demand.
 - **Ask about what you are reading.** The assistant searches and reads your open documents, explains images, and compares sources; its agent loop runs in the browser, not on a server.
 - **Keep questions apart.** Conversations are separate, each with its own history, chat model, and thinking level.
-- **Work in projects.** Each project keeps its own files, conversations, and tabs, and the assistant sees only the project it is in. A project opens in its own browser tab, so assistants in different projects can work at the same time.
+- **Work in projects.** Each project keeps its own files, conversations, and tabs, and the assistant sees only the project it is in. A project opens in its own browser tab, so assistants in different projects can work at the same time — see [Projects](#projects).
 - **Write, not just read.** Edit any text document in the Source panel, or let the assistant draft into it. Save to the browser with ⌘/Ctrl+S, and write copies back to your computer with **Save as…** or folder export.
 - **Bring your own model key** and run outside the shared allowance — see [Chat models and limits](#chat-models-and-limits).
 - **Keep your files local.** Documents are stored in the browser and are never uploaded to an application server.
@@ -28,6 +28,14 @@ print("Hello from the browser")
 ````
 
 The first project includes **Start here.md**, a PDF essay, a Word document with the spreadsheet it describes, two Labs covering all four languages, an orbit sketch, and an architecture diagram. Follow the examples, then add your own files by dragging them onto Files or with **+**. New projects start empty. Files kept before projects existed become the first project, **My reading**, unchanged.
+
+## Projects
+
+The name at the top of Files is the current project. Open it to switch to another project, create one, rename this one, or delete it. Another project opens in its own browser tab, and choosing it again returns to that tab instead of loading the project a second time, so a reply in progress there carries on. A new project's link appears once the project is saved.
+
+The address names the project — `/p/<id>/files/<document>` — so a bookmark or a second tab opens the same one. `/` opens the project used most recently, and links from before projects existed open in **My reading**.
+
+Deleting a project removes its files, conversations, and saved tabs from this browser; the dialog offers to save the files to a folder first. If another tab still has the project open, deletion waits until that tab closes. Deleting every project leaves an empty page from which a new one can start.
 
 ## Local-first by design
 
