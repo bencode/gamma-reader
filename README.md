@@ -14,6 +14,7 @@ The shared key comes with a daily allowance. [Add a key of your own](#chat-model
 - **Run code inside documents** — `.lab.md` articles carry executable Scheme, Clojure, Python, and TypeScript cells, and `.p5.js` sketches are interactive. Language runtimes load on demand.
 - **Ask about what you are reading.** The assistant searches and reads your open documents, explains images, and compares sources; its agent loop runs in the browser, not on a server.
 - **Keep questions apart.** Conversations are separate, each with its own history, chat model, and thinking level.
+- **Work in projects.** Each project keeps its own files, conversations, and tabs, and the assistant sees only the project it is in. A project opens in its own browser tab, so assistants in different projects can work at the same time.
 - **Write, not just read.** Edit any text document in the Source panel, or let the assistant draft into it. Save to the browser with ⌘/Ctrl+S, and write copies back to your computer with **Save as…** or folder export.
 - **Bring your own model key** and run outside the shared allowance — see [Chat models and limits](#chat-models-and-limits).
 - **Keep your files local.** Documents are stored in the browser and are never uploaded to an application server.
@@ -26,7 +27,7 @@ print("Hello from the browser")
 ```
 ````
 
-New workspaces include **Start here.md**, a PDF essay, a Word document with the spreadsheet it describes, two Labs covering all four languages, an orbit sketch, and an architecture diagram. Follow the examples, then add your own files by dragging them onto Files or with **+**. Existing workspaces keep their files unchanged.
+The first project includes **Start here.md**, a PDF essay, a Word document with the spreadsheet it describes, two Labs covering all four languages, an orbit sketch, and an architecture diagram. Follow the examples, then add your own files by dragging them onto Files or with **+**. New projects start empty. Files kept before projects existed become the first project, **My reading**, unchanged.
 
 ## Local-first by design
 
@@ -36,7 +37,7 @@ AI inference runs at the model provider. On the free allowance, questions, conve
 
 ![Browser storage, local tools, and the two routes to a model provider](ui-packages/web/src/assets/samples/how-gamma-reader-works.svg)
 
-Files, attachments, and conversations persist in **IndexedDB**; tabs, the last active file, and any model keys you configure use **localStorage**. Unsaved Source drafts and code execution state stay in memory. **Save** (⌘/Ctrl+S) saves a Source draft to the browser; **Save as…** and folder export write saved copies to your computer. Lab outputs are not included in the exported Markdown.
+Files, attachments, and conversations persist in **IndexedDB**, one database per project, with a small registry listing the projects; tabs, the last active file, and any model keys you configure use **localStorage**. Unsaved Source drafts and code execution state stay in memory. **Save** (⌘/Ctrl+S) saves a Source draft to the browser; **Save as…** and folder export write saved copies to your computer. Lab outputs are not included in the exported Markdown.
 
 Browser storage belongs to this site and browser profile. Export work you want to keep beyond it. Removing a file deletes only the browser copy, leaving your original unchanged.
 
@@ -57,7 +58,7 @@ Browser storage belongs to this site and browser profile. Export work you want t
 
 Word and Excel are read from the modern `.docx` and `.xlsx` only; the older binary `.doc` and `.xls` are stored but not read, and a `.csv` opens as text. Both keep structure and drop presentation: a document loses page layout, fonts, headers and footers, tracked changes, and equations, while a sheet arrives without cell colours, charts, or images and a formula shows the value it was saved with. Neither is decoded as text, so the 5 MiB limit below does not reach them — a large illustrated document takes a few seconds to open, and a very wide sheet is previewed to a hundred columns while the assistant reads them all.
 
-Limits: 200 MiB per file, 1 GiB per browser library (including attachments), and 5 MiB for text preview and reading. Available storage also depends on the browser's quota and device space. Python and Clojure require runtime downloads on first use. Folder export requires desktop Chrome or Edge; individual files can also be downloaded.
+Limits: 200 MiB per file, 1 GiB per project (including attachments), and 5 MiB for text preview and reading. Available storage also depends on the browser's quota and device space. Python and Clojure require runtime downloads on first use. Folder export requires desktop Chrome or Edge; individual files can also be downloaded.
 
 ## Chat models and limits
 

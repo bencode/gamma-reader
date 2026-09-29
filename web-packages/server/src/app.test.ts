@@ -67,25 +67,31 @@ describe('application HTTP boundaries', () => {
     expect(await asset.text()).toBe(script)
   })
 
-  it.each(['/files', '/files/getting-started', '/files/reading-notes'])(
-    'serves the application entry for direct navigation to %s',
-    async path => {
-      const response = await build(webRoot).request(path)
-      expect(response.status).toBe(200)
-      expect(response.headers.get('content-type')).toContain('text/html')
-      expect(await response.text()).toBe(page)
-    },
-  )
+  it.each([
+    '/files',
+    '/files/getting-started',
+    '/files/reading-notes',
+    '/p/bird-notes',
+    '/p/bird-notes/files',
+    '/p/bird-notes/files/reading-notes',
+  ])('serves the application entry for direct navigation to %s', async path => {
+    const response = await build(webRoot).request(path)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('text/html')
+    expect(await response.text()).toBe(page)
+  })
 
-  it.each(['/assets/missing.js', '/missing-page', '/files/reading-notes/missing.js'])(
-    'returns 404 instead of the welcome page for %s',
-    async path => {
-      const response = await build(webRoot).request(path, {
-        headers: { Accept: 'text/html' },
-      })
+  it.each([
+    '/assets/missing.js',
+    '/missing-page',
+    '/files/reading-notes/missing.js',
+    '/p/bird-notes/files/reading-notes/missing.js',
+  ])('returns 404 instead of the welcome page for %s', async path => {
+    const response = await build(webRoot).request(path, {
+      headers: { Accept: 'text/html' },
+    })
 
-      expect(response.status).toBe(404)
-      expect(await response.text()).not.toBe(page)
-    },
-  )
+    expect(response.status).toBe(404)
+    expect(await response.text()).not.toBe(page)
+  })
 })

@@ -26,6 +26,7 @@ import {
   saveStoredConversationDraft,
   touchStoredConversation,
 } from '../../data/conversation-store'
+import { workspaceStorageKey } from '../../data/workspace-database'
 import { createReaderAgent } from '../agent/create-reader-agent'
 import type { LocalTools } from '../agent/local-tools'
 import { createModelRuntime, type ModelRuntime } from '../agent/model-runtime'
@@ -65,7 +66,7 @@ type ConfigState =
   | { kind: 'unavailable' }
   | { kind: 'error'; message: string }
 
-const activeConversationKey = 'gamma-reader.active-conversation'
+const activeConversationKey = () => workspaceStorageKey('gamma-reader.active-conversation')
 
 const createConversation = (): StoredConversation => {
   const now = Date.now()
@@ -213,7 +214,7 @@ export const useConversation = (
       try {
         await saveStoredConversationDraft(conversation)
         placeFirst(conversation)
-        localStorage.setItem(activeConversationKey, conversation.id)
+        localStorage.setItem(activeConversationKey(), conversation.id)
         setStorageError(undefined)
       } catch (cause) {
         reportStorageError(cause)
@@ -311,7 +312,7 @@ export const useConversation = (
         })
         persistedMessageCount.current += pending.length
         placeFirst(next)
-        localStorage.setItem(activeConversationKey, next.id)
+        localStorage.setItem(activeConversationKey(), next.id)
         setStorageError(undefined)
       } catch (cause) {
         reportStorageError(cause)
@@ -444,7 +445,7 @@ export const useConversation = (
         persistedIds.current = new Set(page.items.map(item => item.id))
         setHistoryItems(page.items)
         setHistoryCursor(page.nextCursor)
-        const requestedId = localStorage.getItem(activeConversationKey)
+        const requestedId = localStorage.getItem(activeConversationKey())
         const requested = requestedId ? await getStoredConversation(requestedId) : null
         const fallback =
           requested ?? (page.items[0] ? await getStoredConversation(page.items[0].id) : null)
@@ -452,8 +453,8 @@ export const useConversation = (
           conversation = fallback.conversation
           storedMessages = fallback.messages
           persistedIds.current.add(conversation.id)
-          localStorage.setItem(activeConversationKey, conversation.id)
-        } else if (requestedId) localStorage.removeItem(activeConversationKey)
+          localStorage.setItem(activeConversationKey(), conversation.id)
+        } else if (requestedId) localStorage.removeItem(activeConversationKey())
       } catch (cause) {
         if (controller.signal.aborted) return
         console.error('Unable to restore conversations', cause)
@@ -505,7 +506,7 @@ export const useConversation = (
         )
         showSession(conversation, stored.messages)
         placeFirst(conversation)
-        localStorage.setItem(activeConversationKey, id)
+        localStorage.setItem(activeConversationKey(), id)
         setView('chat')
       } catch (cause) {
         console.error('Unable to switch conversation', cause)
@@ -535,7 +536,7 @@ export const useConversation = (
     try {
       await disposeAgent(true)
       const conversation = createConversation()
-      localStorage.removeItem(activeConversationKey)
+      localStorage.removeItem(activeConversationKey())
       showSession(conversation, [])
       setView('chat')
     } finally {
@@ -557,7 +558,7 @@ export const useConversation = (
           setHistoryItems(current => current.filter(item => item.id !== id))
           return
         }
-        localStorage.removeItem(activeConversationKey)
+        localStorage.removeItem(activeConversationKey())
         const page = await listStoredConversations()
         persistedIds.current = new Set(page.items.map(item => item.id))
         setHistoryItems(page.items)
@@ -565,7 +566,7 @@ export const useConversation = (
         const nextStored = page.items[0] ? await getStoredConversation(page.items[0].id) : null
         if (nextStored) {
           showSession(nextStored.conversation, nextStored.messages)
-          localStorage.setItem(activeConversationKey, nextStored.conversation.id)
+          localStorage.setItem(activeConversationKey(), nextStored.conversation.id)
         } else showSession(createConversation(), [])
         setView('chat')
       } catch (cause) {

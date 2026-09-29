@@ -1,6 +1,7 @@
 import { BookOpen, PanelLeft, Plus } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
+import type { Project } from '../core/projects'
 import { ConversationProvider } from '../features/conversation/conversation-context'
 import { ConversationPanel } from '../features/conversation/conversation-panel'
 import { DocumentTabs } from '../features/reader/document-tabs'
@@ -36,7 +37,7 @@ const subscribeMode = (notify: () => void) => {
     })
 }
 
-export const Workbench = () => {
+export const Workbench = ({ project }: { project: Project }) => {
   const rootRef = useRef<HTMLDivElement>(null)
   const library = useFileLibrary(prepareP5SourceFile)
   const exporter = useFileExport(library.files)
@@ -119,6 +120,7 @@ export const Workbench = () => {
 
   const files = (
     <ResourcePanel
+      project={project}
       activeId={workspace.activeId}
       library={library}
       exporter={exporter}

@@ -2,6 +2,7 @@ import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 import type { StoredConversation, StoredConversationMessage } from '../core/conversations'
 import type { FolderExportRecord } from '../core/file-export'
 import { previewKindFor, type StoredFileContent, type StoredFileMetadata } from '../core/files'
+import { legacyDatabaseName } from '../core/projects'
 
 export type WorkspaceDatabase = DBSchema & {
   files: {
@@ -23,8 +24,21 @@ export type WorkspaceDatabase = DBSchema & {
   folderExports: { key: string; value: FolderExportRecord }
 }
 
-const databaseName = 'gamma-reader-files'
+// A page opens one project for its whole life, chosen from the address before anything is read.
+let databaseName = legacyDatabaseName
 let databasePromise: Promise<IDBPDatabase<WorkspaceDatabase>> | undefined
+
+export const setWorkspaceDatabaseName = (name: string) => {
+  if (name === databaseName) return
+  closeWorkspaceDatabase().catch(error => {
+    console.error('Unable to close the previous workspace database', error)
+  })
+  databaseName = name
+}
+
+// Settings saved before projects existed belong to the legacy library and keep their keys.
+export const workspaceStorageKey = (base: string) =>
+  databaseName === legacyDatabaseName ? base : `${base}:${databaseName}`
 
 // An upgrade transaction cannot wait for a dynamic import, so the starter files are written
 // immediately after it instead. Keeping them out of the upgrade also keeps them out of the
@@ -61,7 +75,8 @@ export const openWorkspaceDatabase = () => {
         const files = database.createObjectStore('files', { keyPath: 'id' })
         files.createIndex('by-created-at', 'createdAt')
         database.createObjectStore('contents', { keyPath: 'id' })
-        seeding = true
+        // Only the first library carries the starter files; a new project starts empty.
+        seeding = databaseName === legacyDatabaseName
       }
       if (oldVersion === 1) {
         const files = transaction.objectStore('files')
@@ -115,9 +130,10 @@ export const openWorkspaceDatabase = () => {
 }
 
 export const closeWorkspaceDatabase = async () => {
-  const database = await databasePromise
-  database?.close()
+  const pending = databasePromise
   databasePromise = undefined
+  const database = await pending
+  database?.close()
 }
 
 export const deleteWorkspaceDatabase = async () => {

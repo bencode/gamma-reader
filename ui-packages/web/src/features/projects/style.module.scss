@@ -1,0 +1,132 @@
+.trigger {
+  min-width: 0;
+  max-width: 100%;
+  height: 30px;
+  margin-left: -6px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  &:hover,
+  &[data-state='open'] {
+    background: oklch(0.94 0 0);
+  }
+  .chevron {
+    flex-shrink: 0;
+    margin-left: -3px;
+    color: var(--muted);
+  }
+}
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.popover {
+  z-index: 20;
+  width: min(280px, calc(100vw - 16px));
+  max-height: var(--radix-popover-content-available-height);
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: oklch(0.28 0 0);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  font-size: 12px;
+}
+.projects {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.project,
+.actions button,
+.createdLink {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+a.project,
+.actions button,
+.createdLink {
+  &:hover,
+  &:focus-visible {
+    background: var(--selected);
+    color: var(--accent);
+  }
+}
+.project[aria-current] {
+  font-weight: 600;
+}
+.project svg:last-child:not(.check) {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--muted);
+}
+.check {
+  flex-shrink: 0;
+  width: 14px;
+  color: var(--accent);
+}
+.separator {
+  height: 1px;
+  margin: 4px;
+  background: var(--line);
+}
+.createdLink {
+  color: var(--accent);
+  svg {
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+}
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px;
+  input {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font: inherit;
+    &:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+  }
+}
+.error {
+  flex-basis: 100%;
+  margin: 4px 8px;
+  color: oklch(0.45 0.14 25);
+}
+.empty {
+  display: grid;
+  gap: 10px;
+  margin: 32px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  p {
+    margin: 0;
+  }
+  .form {
+    padding: 0;
+  }
+}

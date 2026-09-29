@@ -1,5 +1,4 @@
 import {
-  BookOpen,
   FileCode2,
   FileDown,
   FileImage,
@@ -13,14 +12,17 @@ import {
 } from 'lucide-react'
 import { type DragEvent, useRef, useState } from 'react'
 import { formatBytes, type PreviewKind, type StoredFileMetadata } from '../../core/files'
+import type { Project } from '../../core/projects'
 import { useSourceDrafts } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
+import { ProjectSwitcher } from '../projects/project-switcher'
 import { DuplicateFilesDialog, RemoveFileDialog } from './file-dialogs'
 import { FolderExportControl } from './folder-export-control'
 import type { FileExportController } from './use-file-export'
 import type { FileLibrary } from './use-file-library'
 
 type ResourcePanelProps = {
+  project: Project
   activeId: string | null
   library: FileLibrary
   exporter: FileExportController
@@ -110,6 +112,7 @@ const droppedFiles = (transfer: DataTransfer) => {
 }
 
 export const ResourcePanel = ({
+  project,
   activeId,
   library,
   exporter,
@@ -150,9 +153,7 @@ export const ResourcePanel = ({
       onDrop={dropFiles}
     >
       <header className="panel-header brand-header">
-        <span className="brand" title="Gamma Reader">
-          <BookOpen size={18} strokeWidth={1.8} /> <span>Gamma Reader</span>
-        </span>
+        <ProjectSwitcher project={project} fileCount={library.files.length} exporter={exporter} />
         <button
           className="icon-button"
           type="button"

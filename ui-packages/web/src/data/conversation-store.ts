@@ -39,6 +39,11 @@ export const listStoredConversations = async ({
   }
 }
 
+export const countStoredConversations = async () => {
+  const database = await openWorkspaceDatabase()
+  return database.count('conversations')
+}
+
 export const getStoredConversation = async (id: string) => {
   const database = await openWorkspaceDatabase()
   const transaction = database.transaction(['conversations', 'messages'])
