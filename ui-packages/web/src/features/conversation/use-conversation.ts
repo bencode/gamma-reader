@@ -26,7 +26,7 @@ import {
   saveStoredConversationDraft,
   touchStoredConversation,
 } from '../../data/conversation-store'
-import { workspaceStorageKey } from '../../data/workspace-database'
+import { workspaceStorageBases, workspaceStorageKey } from '../../data/workspace-database'
 import { createReaderAgent } from '../agent/create-reader-agent'
 import type { LocalTools } from '../agent/local-tools'
 import { createModelRuntime, type ModelRuntime } from '../agent/model-runtime'
@@ -66,7 +66,7 @@ type ConfigState =
   | { kind: 'unavailable' }
   | { kind: 'error'; message: string }
 
-const activeConversationKey = () => workspaceStorageKey('gamma-reader.active-conversation')
+const activeConversationKey = () => workspaceStorageKey(workspaceStorageBases.activeConversation)
 
 const createConversation = (): StoredConversation => {
   const now = Date.now()

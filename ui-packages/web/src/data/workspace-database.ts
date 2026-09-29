@@ -36,9 +36,14 @@ export const setWorkspaceDatabaseName = (name: string) => {
   databaseName = name
 }
 
+export const workspaceStorageBases = {
+  workspace: 'gamma-reader.workspace',
+  activeConversation: 'gamma-reader.active-conversation',
+} as const
+
 // Settings saved before projects existed belong to the legacy library and keep their keys.
-export const workspaceStorageKey = (base: string) =>
-  databaseName === legacyDatabaseName ? base : `${base}:${databaseName}`
+export const workspaceStorageKey = (base: string, name = databaseName) =>
+  name === legacyDatabaseName ? base : `${base}:${name}`
 
 // An upgrade transaction cannot wait for a dynamic import, so the starter files are written
 // immediately after it instead. Keeping them out of the upgrade also keeps them out of the
@@ -136,15 +141,20 @@ export const closeWorkspaceDatabase = async () => {
   database?.close()
 }
 
+// A blocked deletion stays queued until the connections holding it close. Without onBlocked the
+// caller is told at once; with it the caller may wait for the deletion to finish.
+export const deleteIndexedDatabase = (name: string, onBlocked?: () => void) =>
+  new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(name)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error ?? new Error(`Unable to delete ${name}`))
+    request.onblocked = () =>
+      onBlocked ? onBlocked() : reject(new Error(`Unable to delete an open database: ${name}`))
+  })
+
 export const deleteWorkspaceDatabase = async () => {
   await closeWorkspaceDatabase()
-  await new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(databaseName)
-    request.onsuccess = () => resolve()
-    request.onerror = () =>
-      reject(request.error ?? new Error('Unable to delete workspace database'))
-    request.onblocked = () => reject(new Error('Unable to delete an open workspace database'))
-  })
+  await deleteIndexedDatabase(databaseName)
 }
 
 export const requestPersistentStorage = async () => {

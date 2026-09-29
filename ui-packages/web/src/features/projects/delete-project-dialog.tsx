@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ConfirmationDialog as Modal } from '../../components/confirmation-dialog'
-import type { Project } from '../../core/projects'
+import { type Project, projectDeletionPath } from '../../core/projects'
 import { countStoredConversations } from '../../data/conversation-store'
-import { deleteProject } from '../../data/project-store'
+import { schedulePendingDeletion } from '../../data/project-store'
 import type { FileExportController } from '../resources/use-file-export'
 
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
@@ -19,8 +19,6 @@ export const DeleteProjectDialog = ({
   onCancel: () => void
 }) => {
   const [conversationCount, setConversationCount] = useState<number | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     let current = true
     countStoredConversations().then(
@@ -42,16 +40,15 @@ export const DeleteProjectDialog = ({
         {conversationCount !== null && ` and ${plural(conversationCount, 'conversation')}`} kept in
         this browser for the project. Originals on your computer will not change.
       </p>
-      {error && <p role="alert">{error}</p>}
       <div className="dialog-actions">
-        <button type="button" className="text-button" onClick={onCancel} disabled={deleting}>
+        <button type="button" className="text-button" onClick={onCancel}>
           Cancel
         </button>
         {exporter.supported && fileCount > 0 && (
           <button
             type="button"
             className="secondary-button"
-            disabled={deleting || exportBusy}
+            disabled={exportBusy}
             onClick={() => void exporter.saveToFolder()}
           >
             Save to folder first
@@ -60,23 +57,14 @@ export const DeleteProjectDialog = ({
         <button
           type="button"
           className="danger-button"
-          disabled={deleting || exportBusy}
+          disabled={exportBusy}
           onClick={() => {
-            setDeleting(true)
-            setError(null)
-            deleteProject(project).then(
-              () => window.location.assign('/'),
-              cause => {
-                console.error('Unable to delete project', cause)
-                setError(
-                  'The project could not be deleted. Close other tabs that have it open, then try again.',
-                )
-                setDeleting(false)
-              },
-            )
+            // The next page deletes the library before anything opens it; this one still holds it.
+            schedulePendingDeletion(project.id)
+            window.location.assign(projectDeletionPath(project.id))
           }}
         >
-          {deleting ? 'Deleting…' : 'Delete project'}
+          Delete project
         </button>
       </div>
     </Modal>

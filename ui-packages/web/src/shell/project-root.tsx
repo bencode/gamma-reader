@@ -1,16 +1,32 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter } from 'react-router-dom'
-import { legacyDatabaseName, type Project, projectPath, projectTitle } from '../core/projects'
-import { listProjects, touchProject } from '../data/project-store'
+import {
+  legacyDatabaseName,
+  type Project,
+  projectPath,
+  projectTitle,
+  projectWindowName,
+} from '../core/projects'
+import {
+  clearPendingDeletion,
+  deleteProject,
+  getProject,
+  isPendingDeletion,
+  listProjects,
+  touchProject,
+} from '../data/project-store'
 import { setWorkspaceDatabaseName } from '../data/workspace-database'
 import { EmptyWorkbench } from './empty-workbench'
 import { Workbench } from './workbench'
 
 type Boot =
   | { kind: 'loading' }
+  | { kind: 'deleting'; project: Project; waiting: boolean }
   | { kind: 'project'; project: Project }
   | { kind: 'empty' }
-  | { kind: 'error' }
+  | { kind: 'error'; message: string }
+
+class ProjectDeletionError extends Error {}
 
 const projectSegment = /^\/p\/([^/]+)/
 const isLegacyPath = (pathname: string) => pathname === '/files' || pathname.startsWith('/files/')
@@ -43,37 +59,78 @@ const resolveProject = async (): Promise<Project | null> => {
   return (await touchProject(target.id)) ?? target
 }
 
+// The page that asked for a deletion has gone, so nothing here holds the library open; if the
+// deletion is blocked, another tab has the project and it finishes once that tab closes.
+const deleteRequestedProject = async (onDeleting: (project: Project, waiting: boolean) => void) => {
+  const requested = new URLSearchParams(window.location.search).get('delete')
+  if (!requested) return
+  if (isPendingDeletion(requested)) {
+    const project = await getProject(requested)
+    if (project) {
+      onDeleting(project, false)
+      try {
+        await deleteProject(project, () => onDeleting(project, true))
+      } catch (error) {
+        throw new ProjectDeletionError(`${project.name} could not be deleted.`, { cause: error })
+      }
+    }
+  }
+  clearPendingDeletion()
+  window.history.replaceState(null, '', '/')
+}
+
 export const ProjectRoot = () => {
   const [boot, setBoot] = useState<Boot>({ kind: 'loading' })
   useEffect(() => {
     let current = true
-    resolveProject().then(
-      project => {
-        if (!current) return
-        if (!project) {
-          setBoot({ kind: 'empty' })
-          return
-        }
-        setWorkspaceDatabaseName(project.databaseName)
-        document.title = projectTitle(project)
-        setBoot({ kind: 'project', project })
-      },
-      error => {
-        console.error('Unable to open projects', error)
-        if (current) setBoot({ kind: 'error' })
-      },
-    )
+    const show = (next: Boot) => {
+      if (current) setBoot(next)
+    }
+    deleteRequestedProject((project, waiting) => show({ kind: 'deleting', project, waiting }))
+      .then(resolveProject)
+      .then(
+        project => {
+          if (!current) return
+          if (!project) {
+            setBoot({ kind: 'empty' })
+            return
+          }
+          setWorkspaceDatabaseName(project.databaseName)
+          document.title = projectTitle(project)
+          window.name = projectWindowName(project.id)
+          setBoot({ kind: 'project', project })
+        },
+        error => {
+          console.error('Unable to open projects', error)
+          show({
+            kind: 'error',
+            message:
+              error instanceof ProjectDeletionError
+                ? error.message
+                : 'Projects could not be opened in this browser.',
+          })
+        },
+      )
     return () => {
       current = false
     }
   }, [])
   if (boot.kind === 'loading') return null
+  if (boot.kind === 'deleting')
+    return (
+      <p className="resource-state" role="status">
+        {boot.waiting
+          ? `Waiting for other tabs that have ${boot.project.name} open to close.`
+          : `Deleting ${boot.project.name}…`}
+      </p>
+    )
   if (boot.kind === 'empty') return <EmptyWorkbench />
   if (boot.kind === 'error')
     return (
-      <p className="resource-state error-state" role="alert">
-        Projects could not be opened in this browser.
-      </p>
+      <div className="resource-state error-state" role="alert">
+        <p>{boot.message}</p>
+        <a href="/">Return to your projects</a>
+      </div>
     )
   return (
     <BrowserRouter basename={projectPath(boot.project.id)}>

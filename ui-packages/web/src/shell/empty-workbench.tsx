@@ -1,6 +1,5 @@
-import { NewProjectForm } from '../features/projects/new-project-form'
 import { ProjectSwitcher } from '../features/projects/project-switcher'
-import styles from '../features/projects/style.module.scss'
+import { StartProject } from '../features/projects/start-project'
 
 export const EmptyWorkbench = () => (
   <div className="workbench">
@@ -8,10 +7,7 @@ export const EmptyWorkbench = () => (
       <header className="panel-header brand-header">
         <ProjectSwitcher project={null} />
       </header>
-      <div className={styles.empty}>
-        <p>Create a project to add documents.</p>
-        <NewProjectForm newTab={false} />
-      </div>
+      <StartProject />
     </aside>
   </div>
 )

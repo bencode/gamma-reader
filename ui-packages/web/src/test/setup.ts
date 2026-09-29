@@ -71,6 +71,7 @@ afterEach(async () => {
   window.getSelection()?.removeAllRanges()
   vi.restoreAllMocks()
   localStorage.clear()
+  sessionStorage.clear()
   // A test that opened another project removes that library before returning to the first.
   await deleteFileStore()
   setWorkspaceDatabaseName(legacyDatabaseName)

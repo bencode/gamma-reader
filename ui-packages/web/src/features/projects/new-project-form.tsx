@@ -1,13 +1,31 @@
 import { ExternalLink } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { normalizeProjectName, type Project, projectPath } from '../../core/projects'
 import { createProject } from '../../data/project-store'
+import { ProjectLink } from './project-link'
 import styles from './style.module.scss'
 
 type Phase =
   | { kind: 'editing'; error: string | null }
   | { kind: 'creating' }
   | { kind: 'created'; project: Project }
+
+// The link takes the place of the field that had focus, so focus follows it there.
+const CreatedLink = ({ project, newTab }: { project: Project; newTab: boolean }) => {
+  const ref = useRef<HTMLAnchorElement>(null)
+  useEffect(() => ref.current?.focus(), [])
+  const label = <span className={styles.name}>Open {project.name}</span>
+  return newTab ? (
+    <ProjectLink ref={ref} className={styles.createdLink} projectId={project.id}>
+      {label}
+      <ExternalLink size={13} aria-hidden="true" />
+    </ProjectLink>
+  ) : (
+    <a ref={ref} className={styles.createdLink} href={projectPath(project.id)}>
+      {label}
+    </a>
+  )
+}
 
 // The link appears only once the project is saved, so opening it never races the write, and
 // following an ordinary link is something no popup blocker stands in the way of.
@@ -20,19 +38,9 @@ export const NewProjectForm = ({
 }) => {
   const [name, setName] = useState('Untitled project')
   const [phase, setPhase] = useState<Phase>({ kind: 'editing', error: null })
-  if (phase.kind === 'created')
-    return (
-      <a
-        className={styles.createdLink}
-        href={projectPath(phase.project.id)}
-        {...(newTab ? { target: '_blank', rel: 'noopener' } : {})}
-        // biome-ignore lint/a11y/noAutofocus: the link replaces the field that had focus.
-        autoFocus
-      >
-        <span className={styles.name}>Open {phase.project.name}</span>
-        {newTab && <ExternalLink size={13} aria-hidden="true" />}
-      </a>
-    )
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => inputRef.current?.focus(), [])
+  if (phase.kind === 'created') return <CreatedLink project={phase.project} newTab={newTab} />
   return (
     <form
       className={styles.form}
@@ -53,13 +61,12 @@ export const NewProjectForm = ({
       }}
     >
       <input
+        ref={inputRef}
         aria-label="New project name"
         value={name}
         disabled={phase.kind === 'creating'}
         onChange={event => setName(event.target.value)}
         onFocus={event => event.currentTarget.select()}
-        // biome-ignore lint/a11y/noAutofocus: the field opens in response to New project.
-        autoFocus
       />
       <button
         type="submit"

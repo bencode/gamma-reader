@@ -1,10 +1,16 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { openDB } from 'idb'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { legacyDatabaseName } from '../core/projects'
+import { legacyDatabaseName, projectDeletionPath, projectWindowName } from '../core/projects'
 import { importStoredFiles, listStoredFiles } from '../data/file-store'
-import { createProject, listProjects } from '../data/project-store'
-import { setWorkspaceDatabaseName } from '../data/workspace-database'
+import {
+  createProject,
+  getProject,
+  listProjects,
+  schedulePendingDeletion,
+} from '../data/project-store'
+import { closeWorkspaceDatabase, setWorkspaceDatabaseName } from '../data/workspace-database'
 import { ProjectRoot } from './project-root'
 
 beforeEach(() => {
@@ -40,7 +46,7 @@ describe('projects', () => {
     await user.click(screen.getByRole('button', { name: 'Bird notes' }))
     const others = await screen.findByRole('link', { name: 'My reading' })
     expect(others).toHaveAttribute('href', `/p/${first?.id}`)
-    expect(others).toHaveAttribute('target', '_blank')
+    expect(others).toHaveAttribute('target', projectWindowName(first?.id ?? ''))
 
     setWorkspaceDatabaseName(legacyDatabaseName)
     expect(await fileNames()).not.toContain('Sightings.txt')
@@ -48,21 +54,26 @@ describe('projects', () => {
     expect(await fileNames()).toEqual(['Sightings.txt'])
   })
 
-  it('can delete every project and start again from an empty one', async () => {
+  it('deletes a project on the next page and can start again from an empty one', async () => {
     const user = userEvent.setup({ delay: null })
-    // jsdom cannot load another page; the reload that follows a deletion is not under test.
+    // jsdom cannot load another page, so the next page is mounted by hand.
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const first = visit('/')
+    const [first] = await listProjects()
+    const page = visit('/')
     await screen.findByRole('list', { name: 'Files' })
+    localStorage.setItem('gamma-reader.workspace', JSON.stringify({ tabs: [], lastActiveId: null }))
     await user.click(screen.getByRole('button', { name: 'My reading' }))
     await user.click(await screen.findByRole('button', { name: 'Delete project…' }))
     const dialog = screen.getByRole('dialog', { name: 'Delete My reading' })
     await user.click(within(dialog).getByRole('button', { name: 'Delete project' }))
-    await waitFor(async () => expect(await listProjects()).toEqual([]))
-    first.unmount()
+    // Leaving a page closes the library it had open.
+    page.unmount()
+    await closeWorkspaceDatabase()
 
-    visit('/')
+    visit(projectDeletionPath(first?.id ?? ''))
     expect(await screen.findByText('Create a project to add documents.')).toBeVisible()
+    expect(await listProjects()).toEqual([])
+    expect(localStorage.getItem('gamma-reader.workspace')).toBeNull()
     const name = screen.getByRole('textbox', { name: 'New project name' })
     await user.clear(name)
     await user.type(name, 'Fresh start{Enter}')
@@ -71,5 +82,24 @@ describe('projects', () => {
     expect(link).toHaveAttribute('href', `/p/${created?.id}`)
     setWorkspaceDatabaseName(created?.databaseName ?? '')
     expect(await fileNames()).toEqual([])
+  })
+
+  it('deletes only what this tab asked for, once other tabs let go of it', async () => {
+    const birds = await createProject('Bird notes')
+    const page = visit(projectDeletionPath(birds.id))
+    await screen.findByRole('list', { name: 'Files' })
+    expect(await getProject(birds.id)).not.toBeNull()
+    page.unmount()
+    await closeWorkspaceDatabase()
+
+    const otherTab = await openDB(birds.databaseName)
+    schedulePendingDeletion(birds.id)
+    visit(projectDeletionPath(birds.id))
+    expect(
+      await screen.findByText('Waiting for other tabs that have Bird notes open to close.'),
+    ).toBeVisible()
+    otherTab.close()
+    expect(await screen.findByRole('button', { name: 'My reading' })).toBeInTheDocument()
+    expect(await getProject(birds.id)).toBeNull()
   })
 })

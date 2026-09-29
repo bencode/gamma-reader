@@ -1,11 +1,12 @@
 import * as Popover from '@radix-ui/react-popover'
 import { BookOpen, Check, ChevronDown, ExternalLink } from 'lucide-react'
-import { useState } from 'react'
-import { normalizeProjectName, type Project, projectPath, projectTitle } from '../../core/projects'
+import { useEffect, useRef, useState } from 'react'
+import { normalizeProjectName, type Project, projectTitle } from '../../core/projects'
 import { listProjects, renameProject } from '../../data/project-store'
 import type { FileExportController } from '../resources/use-file-export'
 import { DeleteProjectDialog } from './delete-project-dialog'
 import { NewProjectForm } from './new-project-form'
+import { ProjectLink } from './project-link'
 import styles from './style.module.scss'
 
 type Mode = 'list' | 'create' | 'rename'
@@ -20,6 +21,8 @@ const RenameForm = ({
   const [name, setName] = useState(project.name)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => inputRef.current?.focus(), [])
   return (
     <form
       className={styles.form}
@@ -35,13 +38,12 @@ const RenameForm = ({
       }}
     >
       <input
+        ref={inputRef}
         aria-label="Project name"
         value={name}
         disabled={saving}
         onChange={event => setName(event.target.value)}
         onFocus={event => event.currentTarget.select()}
-        // biome-ignore lint/a11y/noAutofocus: the field opens in response to Rename.
-        autoFocus
       />
       <button
         type="submit"
@@ -122,17 +124,15 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
             )}
             {others.map(project => (
               <li key={project.id}>
-                <a
+                <ProjectLink
                   className={styles.project}
-                  href={projectPath(project.id)}
-                  target="_blank"
-                  rel="noopener"
-                  title={`Open ${project.name} in a new tab`}
+                  projectId={project.id}
+                  title={`Open ${project.name} in its own tab`}
                 >
                   <span className={styles.check} />
                   <span className={styles.name}>{project.name}</span>
                   <ExternalLink size={13} aria-hidden="true" />
-                </a>
+                </ProjectLink>
               </li>
             ))}
           </ul>

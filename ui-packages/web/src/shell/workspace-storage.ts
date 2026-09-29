@@ -1,8 +1,8 @@
-import { workspaceStorageKey } from '../data/workspace-database'
+import { workspaceStorageBases, workspaceStorageKey } from '../data/workspace-database'
 
 type SavedWorkspace = { tabs: string[]; lastActiveId: string | null }
 
-const storageKey = 'gamma-reader.workspace'
+const storageKey = workspaceStorageBases.workspace
 const defaults: SavedWorkspace = { tabs: [], lastActiveId: null }
 const isDocumentId = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0
