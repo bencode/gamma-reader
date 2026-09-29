@@ -4,6 +4,7 @@ import { StrictMode } from 'react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { samples } from '../core/samples'
+import { testProject } from '../test/project'
 import { Workbench } from './workbench'
 
 beforeEach(() => {
@@ -47,7 +48,7 @@ const openReader = (path = '/') =>
   render(
     <StrictMode>
       <MemoryRouter initialEntries={[path]}>
-        <Workbench />
+        <Workbench project={testProject} />
         <Navigation />
       </MemoryRouter>
     </StrictMode>,

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getStoredFileContent, listStoredFiles } from '../data/file-store'
 import { modelConfig } from '../test/model-config'
+import { testProject } from '../test/project'
 import { usePanelWidths } from './use-panel-widths'
 import { Workbench } from './workbench'
 
@@ -58,7 +59,7 @@ describe('reading workspace', () => {
     })
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForWorkspace()
@@ -116,7 +117,7 @@ describe('reading workspace', () => {
     const network = vi.spyOn(globalThis, 'fetch')
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForWorkspace()
@@ -150,7 +151,7 @@ describe('reading workspace', () => {
     const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForWorkspace()
@@ -175,7 +176,7 @@ describe('reading workspace', () => {
     const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForWorkspace()
@@ -201,7 +202,7 @@ describe('reading workspace', () => {
     const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForWorkspace()
@@ -236,7 +237,7 @@ describe('reading workspace', () => {
     const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForWorkspace()
@@ -318,7 +319,7 @@ describe('panel width preferences', () => {
     const user = userEvent.setup({ delay: null })
     const page = render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForWorkspace()
@@ -335,7 +336,7 @@ describe('panel width preferences', () => {
     page.unmount()
     render(
       <MemoryRouter initialEntries={['/files/getting-started']}>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForWorkspace()

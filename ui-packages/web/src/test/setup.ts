@@ -3,7 +3,10 @@ import 'fake-indexeddb/auto'
 import { Blob as NodeBlob, File as NodeFile } from 'node:buffer'
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, vi } from 'vitest'
+import { legacyDatabaseName } from '../core/projects'
 import { deleteFileStore } from '../data/file-store'
+import { deleteProjectStore } from '../data/project-store'
+import { setWorkspaceDatabaseName } from '../data/workspace-database'
 
 vi.stubGlobal('matchMedia', (query: string) => ({
   matches: true,
@@ -68,7 +71,12 @@ afterEach(async () => {
   window.getSelection()?.removeAllRanges()
   vi.restoreAllMocks()
   localStorage.clear()
+  sessionStorage.clear()
+  // A test that opened another project removes that library before returning to the first.
   await deleteFileStore()
+  setWorkspaceDatabaseName(legacyDatabaseName)
+  await deleteFileStore()
+  await deleteProjectStore()
 })
 
 beforeEach(() => {

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { samples } from '../core/samples'
 import { removeStoredFile } from '../data/file-store'
+import { testProject } from '../test/project'
 import { Workbench } from './workbench'
 
 const filesList = () => within(screen.getByRole('list', { name: 'Files' }))
@@ -50,7 +51,7 @@ describe('file library', () => {
     const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForFiles()
@@ -86,7 +87,7 @@ describe('file library', () => {
     const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForFiles()
@@ -123,7 +124,7 @@ describe('file library', () => {
     const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForFiles()
@@ -151,7 +152,7 @@ describe('file library', () => {
     await Promise.all(samples.map(file => removeStoredFile(file.id)))
     render(
       <MemoryRouter>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
 
@@ -177,7 +178,7 @@ describe('file library', () => {
     try {
       render(
         <MemoryRouter>
-          <Workbench />
+          <Workbench project={testProject} />
         </MemoryRouter>,
       )
       await waitForFiles()
@@ -253,7 +254,7 @@ describe('file library', () => {
     try {
       render(
         <MemoryRouter>
-          <Workbench />
+          <Workbench project={testProject} />
         </MemoryRouter>,
       )
       await waitForFiles()
@@ -269,7 +270,7 @@ describe('file library', () => {
   it('adds files dropped onto the panel and leaves a dropped folder alone', async () => {
     render(
       <MemoryRouter>
-        <Workbench />
+        <Workbench project={testProject} />
       </MemoryRouter>,
     )
     await waitForFiles()

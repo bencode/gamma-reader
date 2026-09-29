@@ -19,6 +19,9 @@ export const createApp = (
   if (webRoot) {
     app.get('/files', serveStatic({ root: webRoot, path: 'index.html' }))
     app.get('/files/:documentId', serveStatic({ root: webRoot, path: 'index.html' }))
+    app.get('/p/:projectId', serveStatic({ root: webRoot, path: 'index.html' }))
+    app.get('/p/:projectId/files', serveStatic({ root: webRoot, path: 'index.html' }))
+    app.get('/p/:projectId/files/:documentId', serveStatic({ root: webRoot, path: 'index.html' }))
     app.use('*', serveStatic({ root: webRoot }))
   }
 

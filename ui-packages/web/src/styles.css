@@ -96,6 +96,10 @@ svg {
 .brand-header {
   padding-right: 8px;
 }
+.empty-workbench {
+  width: min(300px, 100%);
+  border-right: 1px solid var(--line);
+}
 .icon-button {
   display: inline-flex;
   align-items: center;

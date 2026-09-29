@@ -7,6 +7,7 @@ import { emptyConversationDraft } from '../../core/conversations'
 import { getStoredConversation, saveStoredConversationDraft } from '../../data/conversation-store'
 import { Workbench } from '../../shell/workbench'
 import { modelConfig as config } from '../../test/model-config'
+import { testProject } from '../../test/project'
 import { DraftAttachmentTray, MessageAttachments } from './conversation-attachments'
 
 const event = (delta: unknown, finish: string | null = null) =>
@@ -14,7 +15,7 @@ const event = (delta: unknown, finish: string | null = null) =>
 const open = () =>
   render(
     <MemoryRouter initialEntries={['/files/getting-started']}>
-      <Workbench />
+      <Workbench project={testProject} />
     </MemoryRouter>,
   )
 const send = () => screen.getByRole('button', { name: 'Send question' })

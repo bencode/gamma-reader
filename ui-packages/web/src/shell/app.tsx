@@ -1,8 +1,3 @@
-import { BrowserRouter } from 'react-router-dom'
-import { Workbench } from './workbench'
+import { ProjectRoot } from './project-root'
 
-export const App = () => (
-  <BrowserRouter>
-    <Workbench />
-  </BrowserRouter>
-)
+export const App = () => <ProjectRoot />

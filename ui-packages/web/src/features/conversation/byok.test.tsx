@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Workbench } from '../../shell/workbench'
 import { modelConfig as config } from '../../test/model-config'
+import { testProject } from '../../test/project'
 
 const event = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'answer', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
@@ -18,7 +19,7 @@ const reply = (text: string) =>
 const open = () =>
   render(
     <MemoryRouter initialEntries={['/files/getting-started']}>
-      <Workbench />
+      <Workbench project={testProject} />
     </MemoryRouter>,
   )
 

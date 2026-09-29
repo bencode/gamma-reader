@@ -1,13 +1,15 @@
+import { workspaceStorageBases, workspaceStorageKey } from '../data/workspace-database'
+
 type SavedWorkspace = { tabs: string[]; lastActiveId: string | null }
 
-const storageKey = 'gamma-reader.workspace'
+const storageKey = workspaceStorageBases.workspace
 const defaults: SavedWorkspace = { tabs: [], lastActiveId: null }
 const isDocumentId = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0
 
 export const readWorkspace = (): SavedWorkspace => {
   try {
-    const raw = localStorage.getItem(storageKey)
+    const raw = localStorage.getItem(workspaceStorageKey(storageKey))
     if (raw === null) return defaults
     const value: unknown = JSON.parse(raw)
     if (
@@ -30,7 +32,7 @@ export const readWorkspace = (): SavedWorkspace => {
 
 export const writeWorkspace = (workspace: SavedWorkspace) => {
   try {
-    localStorage.setItem(storageKey, JSON.stringify(workspace))
+    localStorage.setItem(workspaceStorageKey(storageKey), JSON.stringify(workspace))
   } catch (error) {
     console.error('Unable to save workspace', error)
   }
