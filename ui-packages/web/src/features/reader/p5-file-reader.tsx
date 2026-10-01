@@ -12,5 +12,5 @@ export const P5FileReader = ({ document, content, active }: TextReaderProps) => 
     [document.id],
   )
   useReaderBinding(binding, active)
-  return <P5Reader name={document.name} source={content} active={active} />
+  return <P5Reader name={document.path} source={content} active={active} />
 }

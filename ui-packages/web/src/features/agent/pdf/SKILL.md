@@ -7,7 +7,7 @@ Use this guidance when a question depends on a PDF document.
 - Use get_reader_state when the reader refers to the current file or page. Otherwise use list or a supplied attachment fileId.
 - For document-level questions, use pdf_info to check the page count and pdf_outline to discover embedded bookmarks. An empty outline does not mean the document has no chapters. Read its contents pages or search for headings instead.
 - For a specific question, search first, then pass a match's fileId and range directly to read. For a chapter, use the bookmark's page and inspect the text to establish the boundaries; a bookmark is a destination, not an exact chapter range.
-- All tool page numbers are one-based physical file pages. Printed page numbers can differ. Cite the file name and physical page number; do not silently substitute a printed number.
+- All tool page numbers are one-based physical file pages. Printed page numbers can differ. Cite the file path and physical page number; do not silently substitute a printed number.
 
 ## Read text or inspect the page
 

@@ -4,6 +4,7 @@ import { StrictMode } from 'react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { samples } from '../core/samples'
+import { writeStoredTextFile } from '../data/file-store'
 import { testProject } from '../test/project'
 import { Workbench } from './workbench'
 
@@ -278,6 +279,25 @@ describe('local workspace navigation', () => {
     openReader('/files/start HERE.md')
     const tab = await screen.findByRole('tab', { name: 'Start here.md' })
     expect(tab).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('opens a file in a folder from its address and reveals it in the file tree', async () => {
+    await writeStoredTextFile('docs/Read me #1.md', '# Nested guide')
+    openReader('/files/docs/Read%20me%20%231.md')
+
+    const tab = await screen.findByRole('tab', { name: 'Read me #1.md' })
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+    await screen.findByRole('heading', { name: 'Nested guide' })
+    expect(file('docs')).toHaveAttribute('aria-expanded', 'true')
+    expect(file('Read me #1.md')).toHaveAttribute('aria-current', 'page')
+
+    fireEvent.click(file('Start here.md'))
+    fireEvent.click(file('Read me #1.md'))
+    await waitFor(() =>
+      expect(screen.getByLabelText('Current route')).toHaveTextContent(
+        '/files/docs/Read%20me%20%231.md',
+      ),
+    )
   })
 })
 

@@ -59,7 +59,7 @@ export const DocxReader = ({
         : {
             id: document.id,
             revision: document.revision,
-            result: convertDocument(blob, document.name),
+            result: convertDocument(blob, document.path),
           }
     if (pending !== cached) {
       conversion.current = pending
@@ -72,10 +72,10 @@ export const DocxReader = ({
     return () => {
       current = false
     }
-  }, [blob, document.id, document.name, document.revision])
+  }, [blob, document.id, document.path, document.revision])
 
   if (state.status === 'loading')
-    return <div className="preview-state">Opening {document.name}…</div>
+    return <div className="preview-state">Opening {document.path}…</div>
   if (state.status === 'error')
     return (
       <div className="preview-state error-state">

@@ -55,7 +55,7 @@ export const ImageReader = ({ document, blob }: { document: StoredFileMetadata; 
         {url && (
           <img
             src={url}
-            alt={document.name}
+            alt={document.path}
             className={fit ? 'preview-image fit' : 'preview-image'}
             style={fit || naturalWidth === 0 ? undefined : { width: naturalWidth * zoom }}
             onLoad={event => setNaturalWidth(event.currentTarget.naturalWidth)}

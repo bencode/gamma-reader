@@ -1,4 +1,4 @@
-import type { StoredFileMetadata } from './files'
+import { baseName, type StoredFileMetadata } from './files'
 
 type FileSystemPermissionMode = 'read' | 'readwrite'
 type FileSystemPermissionState = 'denied' | 'granted' | 'prompt'
@@ -22,7 +22,7 @@ type FilePickerWindow = Window & {
   showSaveFilePicker?: (options?: SaveFilePickerOptions) => Promise<FileSystemFileHandle>
 }
 
-export type ExportedFileVersion = Pick<StoredFileMetadata, 'id' | 'name' | 'revision'>
+export type ExportedFileVersion = Pick<StoredFileMetadata, 'id' | 'path' | 'revision'>
 
 export type FolderExportRecord = {
   id: 'files'
@@ -50,9 +50,15 @@ export const ensureDirectoryWritePermission = async (directory: WritableDirector
     : false
 }
 
-const directoryContains = async (directory: FileSystemDirectoryHandle, name: string) => {
+const folderSegments = (path: string) => path.split('/').slice(0, -1)
+
+// Something already standing on the path counts, whether it is the file itself or a file where
+// one of its folders would go.
+const directoryContains = async (directory: FileSystemDirectoryHandle, path: string) => {
   try {
-    await directory.getFileHandle(name)
+    let folder = directory
+    for (const segment of folderSegments(path)) folder = await folder.getDirectoryHandle(segment)
+    await folder.getFileHandle(baseName(path))
     return true
   } catch (error) {
     if (error instanceof DOMException && error.name === 'NotFoundError') return false
@@ -66,11 +72,11 @@ export const findDirectoryConflicts = async (
   files: readonly StoredFileMetadata[],
   savedFiles: readonly ExportedFileVersion[],
 ) => {
-  const managed = new Set(savedFiles.map(file => `${file.id}\0${file.name}`))
+  const managed = new Set(savedFiles.map(file => `${file.id}\0${file.path}`))
   const conflicts: string[] = []
   for (const file of files) {
-    if (managed.has(`${file.id}\0${file.name}`)) continue
-    if (await directoryContains(directory, file.name)) conflicts.push(file.name)
+    if (managed.has(`${file.id}\0${file.path}`)) continue
+    if (await directoryContains(directory, file.path)) conflicts.push(file.path)
   }
   return conflicts
 }
@@ -92,9 +98,14 @@ const writeBlob = async (handle: FileSystemFileHandle, blob: Blob) => {
 
 export const writeBlobToDirectory = async (
   directory: FileSystemDirectoryHandle,
-  name: string,
+  path: string,
   blob: Blob,
-) => writeBlob(await directory.getFileHandle(name, { create: true }), blob)
+) => {
+  let folder = directory
+  for (const segment of folderSegments(path))
+    folder = await folder.getDirectoryHandle(segment, { create: true })
+  await writeBlob(await folder.getFileHandle(baseName(path), { create: true }), blob)
+}
 
 const downloadBlob = (name: string, blob: Blob) => {
   const url = URL.createObjectURL(blob)

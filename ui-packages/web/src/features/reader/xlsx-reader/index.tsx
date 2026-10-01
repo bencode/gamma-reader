@@ -87,7 +87,7 @@ export const XlsxReader = ({
   const rows = sheets[sheetIndex]?.rows ?? []
 
   if (state.status === 'loading')
-    return <div className="preview-state">Opening {document.name}…</div>
+    return <div className="preview-state">Opening {document.path}…</div>
   if (state.status === 'error')
     return (
       <div className="preview-state error-state">

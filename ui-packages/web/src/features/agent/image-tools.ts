@@ -30,7 +30,7 @@ export const createImageTools = (loadFile: typeof getStoredFile, analyze: Vision
         input.question?.trim() || 'Describe this image and transcribe any important visible text.',
         signal,
       )
-      return { fileId: stored.metadata.id, name: stored.metadata.name, analysis }
+      return { fileId: stored.metadata.id, path: stored.metadata.path, analysis }
     },
   ),
 ]

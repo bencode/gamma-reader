@@ -684,6 +684,13 @@ svg {
   flex: 1;
   min-width: 0;
 }
+/* Deep folders indent the row; the icon keeps its size while the name gives way. */
+.resource-item svg {
+  flex-shrink: 0;
+}
+.resource-folder {
+  font-weight: 550;
+}
 .resource-actions {
   display: flex;
   align-items: center;

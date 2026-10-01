@@ -7,7 +7,7 @@ describe('folder export store', () => {
     const record: FolderExportRecord = {
       id: 'files',
       directory: { kind: 'directory', name: 'Reading' } as WritableDirectoryHandle,
-      savedFiles: [{ id: 'notes', name: 'Notes.md', revision: 3 }],
+      savedFiles: [{ id: 'notes', path: 'Notes.md', revision: 3 }],
       savedAt: 42,
     }
 

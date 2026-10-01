@@ -42,14 +42,14 @@ const validSourceCursor = (value: unknown): value is SourceCursor =>
   integer(value.offset, 0)
 
 export type WorkspaceTextWriter = (
-  name: string,
+  path: string,
   content: string,
   signal?: AbortSignal,
 ) => Promise<StoredFileMetadata>
 
 export type ActiveSourceSnapshot = {
   fileId: string
-  name: string
+  path: string
   version: string
   content: string
 }
@@ -113,7 +113,7 @@ const readActiveSource = (
     const end = start + (content.match(/\n/g)?.length ?? 0) - (content.endsWith('\n') ? 1 : 0)
     return {
       fileId: source.fileId,
-      name: source.name,
+      path: source.path,
       version: source.version,
       range: content ? { unit: 'line', start, end } : null,
       content,

@@ -84,7 +84,7 @@ describe('reading workspace', () => {
       'true',
     )
     expect(screen.queryByRole('tab', { name: 'Saved notes.md' })).not.toBeInTheDocument()
-    const created = (await listStoredFiles()).find(file => file.name === 'Saved notes.md')
+    const created = (await listStoredFiles()).find(file => file.path === 'Saved notes.md')
     if (!created) throw new Error('The agent-created file was not persisted.')
     expect(created.revision).toBe(1)
 
@@ -105,7 +105,7 @@ describe('reading workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Send question' }))
     expect(await screen.findByText('Revised the notes.', {}, { timeout: 3000 })).toBeVisible()
     const replaced = (await listStoredFiles()).find(file => file.id === created.id)
-    expect(replaced).toMatchObject({ name: 'saved NOTES.md', revision: 2 })
+    expect(replaced).toMatchObject({ path: 'saved NOTES.md', revision: 2 })
     expect(await (await getStoredFileContent(created.id))?.text()).toBe(
       '# Revised\n\nThe updated conclusion.',
     )

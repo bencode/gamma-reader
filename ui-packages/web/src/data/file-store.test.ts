@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { FileCollection } from '../core/files'
+import { type FileCollection, rootSources } from '../core/files'
 import { samples } from '../core/samples'
 import {
   closeFileStore,
@@ -11,6 +11,7 @@ import {
   updateStoredTextFile,
   writeStoredTextFile,
 } from './file-store'
+import { getFolderExport } from './folder-export-store'
 
 const textFile = (name: string, content: string) =>
   new File([content], name, { type: 'text/markdown', lastModified: 1 })
@@ -56,8 +57,9 @@ describe('local file store', () => {
     })
 
     expect(await listStoredFiles()).toEqual([
-      expect.objectContaining({ id: 'legacy', collection: 'files' }),
+      expect.objectContaining({ id: 'legacy', path: 'Legacy.md', collection: 'files' }),
     ])
+    expect((await listStoredFiles())[0]).not.toHaveProperty('name')
     expect(await (await getStoredFileContent('legacy'))?.text()).toBe('legacy')
   })
 
@@ -90,9 +92,62 @@ describe('local file store', () => {
     })
 
     expect(await listStoredFiles()).toEqual([
-      expect.objectContaining({ id: 'version-two', name: 'Version two.md' }),
+      expect.objectContaining({ id: 'version-two', path: 'Version two.md' }),
     ])
     expect(await (await getStoredFileContent('version-two'))?.text()).toBe('old')
+  })
+
+  it('places version-six files and saved export versions on paths', async () => {
+    await closeFileStore()
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('gamma-reader-files', 6)
+      request.onupgradeneeded = () => {
+        const files = request.result.createObjectStore('files', { keyPath: 'id' })
+        files.createIndex('by-created-at', 'createdAt')
+        request.result.createObjectStore('contents', { keyPath: 'id' })
+        request.result.createObjectStore('conversations', { keyPath: 'id' })
+        request.result.createObjectStore('messages', { keyPath: ['conversationId', 'position'] })
+        const exports = request.result.createObjectStore('folderExports', { keyPath: 'id' })
+        files.put({
+          id: 'version-six',
+          name: 'Version six.md',
+          collection: 'attachments',
+          mediaType: 'text/markdown',
+          previewKind: 'markdown',
+          size: 3,
+          lastModified: 1,
+          createdAt: 1,
+          revision: 4,
+        })
+        exports.put({
+          id: 'files',
+          directory: { kind: 'directory', name: 'Reading' },
+          savedFiles: [{ id: 'version-six', name: 'Version six.md', revision: 4 }],
+          savedAt: 1,
+        })
+      }
+      request.onsuccess = () => {
+        request.result.close()
+        resolve()
+      }
+      request.onerror = () => reject(request.error)
+    })
+
+    const [file] = await listStoredFiles()
+    expect(file).toEqual({
+      id: 'version-six',
+      path: 'Version six.md',
+      collection: 'attachments',
+      mediaType: 'text/markdown',
+      previewKind: 'markdown',
+      size: 3,
+      lastModified: 1,
+      createdAt: 1,
+      revision: 4,
+    })
+    expect((await getFolderExport())?.savedFiles).toEqual([
+      { id: 'version-six', path: 'Version six.md', revision: 4 },
+    ])
   })
 
   it('can retry after opening IndexedDB fails', async () => {
@@ -110,42 +165,42 @@ describe('local file store', () => {
     expect(initial).toEqual([
       expect.objectContaining({
         id: 'getting-started',
-        name: 'Start here.md',
+        path: 'Start here.md',
         previewKind: 'markdown',
       }),
       expect.objectContaining({
         id: 'art-of-noticing',
-        name: 'The art of noticing.pdf',
+        path: 'The art of noticing.pdf',
         previewKind: 'pdf',
       }),
       expect.objectContaining({
         id: 'field-notes',
-        name: 'Field notes.docx',
+        path: 'Field notes.docx',
         previewKind: 'docx',
       }),
       expect.objectContaining({
         id: 'observation-log',
-        name: 'Observation log.xlsx',
+        path: 'Observation log.xlsx',
         previewKind: 'xlsx',
       }),
       expect.objectContaining({
         id: 'explore-wave',
-        name: 'Explore a wave.lab.md',
+        path: 'Explore a wave.lab.md',
         previewKind: 'markdown',
       }),
       expect.objectContaining({
         id: 'seven-mornings',
-        name: 'Seven mornings.lab.md',
+        path: 'Seven mornings.lab.md',
         previewKind: 'markdown',
       }),
       expect.objectContaining({
         id: 'orbit-demo',
-        name: 'Orbit.p5.js',
+        path: 'Orbit.p5.js',
         previewKind: 'text',
       }),
       expect.objectContaining({
         id: 'how-gamma-reader-works',
-        name: 'How Gamma Reader works.svg',
+        path: 'How Gamma Reader works.svg',
         previewKind: 'image',
       }),
     ])
@@ -159,27 +214,30 @@ describe('local file store', () => {
   })
 
   it('replaces a duplicate in place or keeps it under a numbered name', async () => {
-    const added = await importStoredFiles([textFile('Draft.md', 'first')], 'keep')
+    const added = await importStoredFiles(rootSources([textFile('Draft.md', 'first')]), 'keep')
     expect(added.addedIds).toHaveLength(1)
     const id = onlyAddedId(added)
 
-    const replaced = await importStoredFiles([textFile('Draft.md', 'second')], 'replace')
+    const replaced = await importStoredFiles(
+      rootSources([textFile('Draft.md', 'second')]),
+      'replace',
+    )
     expect(replaced).toMatchObject({ addedIds: [], replacedIds: [id], rejected: [] })
     expect(await getStoredFileContent(id)).not.toBeNull()
     expect(await (await getStoredFileContent(id))?.text()).toBe('second')
 
-    const kept = await importStoredFiles([textFile('Draft.md', 'third')], 'keep')
+    const kept = await importStoredFiles(rootSources([textFile('Draft.md', 'third')]), 'keep')
     expect(kept.addedIds).toHaveLength(1)
     const keptId = onlyAddedId(kept)
     const files = await listStoredFiles()
-    expect(files.find(file => file.id === id)).toMatchObject({ name: 'Draft.md', revision: 2 })
-    expect(files.find(file => file.id === keptId)?.name).toBe('Draft (2).md')
+    expect(files.find(file => file.id === id)).toMatchObject({ path: 'Draft.md', revision: 2 })
+    expect(files.find(file => file.id === keptId)?.path).toBe('Draft (2).md')
   })
 
   it('writes generated text through the same limits and replacement model', async () => {
     const first = await writeStoredTextFile('Generated.json', '{"value":"初稿"}')
     expect(first).toMatchObject({
-      name: 'Generated.json',
+      path: 'Generated.json',
       collection: 'files',
       previewKind: 'text',
       revision: 1,
@@ -195,7 +253,7 @@ describe('local file store', () => {
     await expect(
       writeStoredTextFile('Cancelled.txt', 'not written', controller.signal),
     ).rejects.toThrow()
-    expect((await listStoredFiles()).some(file => file.name === 'Cancelled.txt')).toBe(false)
+    expect((await listStoredFiles()).some(file => file.path === 'Cancelled.txt')).toBe(false)
   })
 
   it('stores generated SVG as an image and repairs legacy SVG Blob types when reading', async () => {
@@ -206,7 +264,7 @@ describe('local file store', () => {
     expect((await getStoredFileContent(generated.id))?.type).toBe('image/svg+xml')
 
     const legacy = await importStoredFiles(
-      [new File([source], 'Legacy.svg', { type: 'text/plain;charset=utf-8' })],
+      rootSources([new File([source], 'Legacy.svg', { type: 'text/plain;charset=utf-8' })]),
       'keep',
     )
     const legacyId = onlyAddedId(legacy)
@@ -217,30 +275,71 @@ describe('local file store', () => {
 
   it('stores only the last copy when a selected batch repeats a new name', async () => {
     const result = await importStoredFiles(
-      [textFile('Repeated.md', 'first'), textFile('Repeated.md', 'last')],
+      rootSources([textFile('Repeated.md', 'first'), textFile('Repeated.md', 'last')]),
       'replace',
     )
 
     expect(result.addedIds).toHaveLength(1)
     expect(result.replacedIds).toEqual([])
-    expect((await listStoredFiles()).filter(file => file.name === 'Repeated.md')).toHaveLength(1)
+    expect((await listStoredFiles()).filter(file => file.path === 'Repeated.md')).toHaveLength(1)
     expect(await (await getStoredFileContent(onlyAddedId(result)))?.text()).toBe('last')
+  })
+
+  it('stores files on folder paths and numbers a kept duplicate within its folder', async () => {
+    const result = await importStoredFiles(
+      [
+        { path: 'docs/v1.2/Guide.md', file: textFile('Guide.md', 'first') },
+        { path: 'docs/v1.2/Guide.md', file: textFile('Guide.md', 'second') },
+      ],
+      'keep',
+    )
+
+    expect(result.imported.map(item => item.metadata.path)).toEqual([
+      'docs/v1.2/Guide.md',
+      'docs/v1.2/Guide (2).md',
+    ])
+    const [first] = result.imported
+    expect(await (await getStoredFileContent(first?.metadata.id ?? ''))?.text()).toBe('first')
+  })
+
+  it('rejects paths that are malformed or would put a file where a folder is', async () => {
+    await importStoredFiles([{ path: 'docs/a.md', file: textFile('a.md', 'a') }], 'keep')
+
+    const result = await importStoredFiles(
+      ['docs', 'docs/a.md/b.md', '../a.md', '/a.md', 'a//b.md'].map(path => ({
+        path,
+        file: textFile('x.md', 'x'),
+      })),
+      'replace',
+    )
+
+    expect(result.imported).toEqual([])
+    expect(result.rejected.map(item => [item.path, item.reason])).toEqual([
+      ['docs', 'path-conflict'],
+      ['docs/a.md/b.md', 'path-conflict'],
+      ['../a.md', 'invalid-path'],
+      ['/a.md', 'invalid-path'],
+      ['a//b.md', 'invalid-path'],
+    ])
+    // Names a disk allows, such as one with a backslash, still import at the root.
+    const kept = await importStoredFiles(rootSources([textFile('a\\b.md', 'kept')]), 'keep')
+    expect(kept.imported[0]?.metadata.path).toBe('a\\b.md')
   })
 
   it('recognizes common UTF-8 document formats with application MIME types as text', async () => {
     await importStoredFiles(
-      [new File(['{"local":true}'], 'Context.json', { type: 'application/json' })],
+      rootSources([new File(['{"local":true}'], 'Context.json', { type: 'application/json' })]),
       'keep',
     )
 
-    expect((await listStoredFiles()).find(file => file.name === 'Context.json')?.previewKind).toBe(
+    expect((await listStoredFiles()).find(file => file.path === 'Context.json')?.previewKind).toBe(
       'text',
     )
   })
 
   it('stores chat attachments in the shared workspace with source mappings', async () => {
     const result = await importStoredFiles(
-      [textFile('Chat notes.md', 'private attachment content')],
+      rootSources([textFile('Chat notes.md', 'private attachment content')]),
       'keep',
       'attachments',
     )
@@ -249,9 +348,9 @@ describe('local file store', () => {
     expect(result.imported[0]).toMatchObject({
       sourceIndex: 0,
       action: 'added',
-      metadata: { name: 'Chat notes.md', collection: 'attachments' },
+      metadata: { path: 'Chat notes.md', collection: 'attachments' },
     })
-    expect((await listStoredFiles()).find(file => file.name === 'Chat notes.md')).toMatchObject({
+    expect((await listStoredFiles()).find(file => file.path === 'Chat notes.md')).toMatchObject({
       collection: 'attachments',
     })
     expect(await (await getStoredFileContent(result.imported[0]?.metadata.id ?? ''))?.text()).toBe(
@@ -264,19 +363,19 @@ describe('local file store', () => {
     async collection => {
       const size = 200 * 1024 * 1024
       const result = await importStoredFiles(
-        [fileWithReportedSize('large.pdf', size)],
+        rootSources([fileWithReportedSize('large.pdf', size)]),
         'keep',
         collection,
       )
       const id = onlyAddedId(result)
       const before = await getStoredFile(id)
       const rejected = await importStoredFiles(
-        [fileWithReportedSize('large.pdf', size + 1)],
+        rootSources([fileWithReportedSize('large.pdf', size + 1)]),
         'replace',
         collection,
       )
       expect(rejected.rejected).toEqual([
-        { sourceIndex: 0, name: 'large.pdf', reason: 'file-too-large' },
+        { sourceIndex: 0, path: 'large.pdf', reason: 'file-too-large' },
       ])
       expect((await getStoredFile(id))?.metadata).toEqual(before?.metadata)
       expect(await (await getStoredFileContent(id))?.text()).toBe('content')
@@ -289,20 +388,23 @@ describe('local file store', () => {
     const files = Array.from({ length: 5 }, (_, index) =>
       fileWithReportedSize(`large-${index}.bin`, size),
     )
-    expect((await importStoredFiles(files, 'keep')).addedIds).toHaveLength(5)
+    expect((await importStoredFiles(rootSources(files), 'keep')).addedIds).toHaveLength(5)
     const remaining = 1024 * 1024 * 1024 - seedBytes - 5 * size
     const tail = fileWithReportedSize('tail.bin', remaining)
-    const id = onlyAddedId(await importStoredFiles([tail], 'keep', 'attachments'))
-    const overflow = await importStoredFiles([fileWithReportedSize('extra.bin', 1)], 'keep')
+    const id = onlyAddedId(await importStoredFiles(rootSources([tail]), 'keep', 'attachments'))
+    const overflow = await importStoredFiles(
+      rootSources([fileWithReportedSize('extra.bin', 1)]),
+      'keep',
+    )
     expect(overflow.rejected[0]?.reason).toBe('library-full')
     const rejected = await importStoredFiles(
-      [fileWithReportedSize('tail.bin', remaining + 1)],
+      rootSources([fileWithReportedSize('tail.bin', remaining + 1)]),
       'replace',
       'attachments',
     )
     expect(rejected.rejected[0]?.reason).toBe('library-full')
     expect((await getStoredFile(id))?.metadata.size).toBe(remaining)
-    const replaced = await importStoredFiles([tail], 'replace', 'attachments')
+    const replaced = await importStoredFiles(rootSources([tail]), 'replace', 'attachments')
     expect(replaced.imported[0]).toMatchObject({ action: 'replaced', metadata: { id } })
   })
 
@@ -313,9 +415,12 @@ describe('local file store', () => {
       value: { estimate: async () => ({ quota: 100, usage: 99 }) },
     })
     try {
-      const result = await importStoredFiles([fileWithReportedSize('small.bin', 2)], 'keep')
+      const result = await importStoredFiles(
+        rootSources([fileWithReportedSize('small.bin', 2)]),
+        'keep',
+      )
       expect(result.rejected[0]?.reason).toBe('storage-unavailable')
-      expect((await listStoredFiles()).some(file => file.name === 'small.bin')).toBe(false)
+      expect((await listStoredFiles()).some(file => file.path === 'small.bin')).toBe(false)
     } finally {
       if (descriptor) Object.defineProperty(navigator, 'storage', descriptor)
       else Reflect.deleteProperty(navigator, 'storage')

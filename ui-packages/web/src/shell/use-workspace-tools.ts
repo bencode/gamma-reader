@@ -37,7 +37,7 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
         const file = latest.files.find(candidate => candidate.id === latest.activeId)
         const draft = file ? latest.store.getState().sourceDrafts[file.id] : undefined
         return file && draft
-          ? { fileId: file.id, name: file.name, version: draft.version, content: draft.content }
+          ? { fileId: file.id, path: file.path, version: draft.version, content: draft.content }
           : null
       },
       replace: (fileId: string, expectedVersion: string, content: string): ActiveSourceSnapshot => {
@@ -53,7 +53,7 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
         if (!updated) throw new LocalToolError('The active source is no longer available.')
         return {
           fileId: file.id,
-          name: file.name,
+          path: file.path,
           version: updated.version,
           content: updated.content,
         }
@@ -69,7 +69,7 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
           const latest = current.current
           const openFiles = latest.store.getState().tabs.flatMap(id => {
             const file = latest.files.find(file => file.id === id)
-            return file ? [{ id: file.id, name: file.name, type: file.previewKind }] : []
+            return file ? [{ id: file.id, path: file.path, type: file.previewKind }] : []
           })
           const file = latest.files.find(file => file.id === latest.activeId)
           const binding = file ? readers.current.get(file.id) : undefined
@@ -81,7 +81,7 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
             activeFile: file
               ? {
                   id: file.id,
-                  name: file.name,
+                  path: file.path,
                   type: file.previewKind,
                   ...(pageNumber !== undefined ? { pageNumber } : {}),
                   ...(draft ? { source: { dirty: sourceDirty(draft) } } : {}),
@@ -90,7 +90,7 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
             viewport: blocked ? null : (binding?.getViewport() ?? null),
           }
         },
-        (name, content, signal) => writer.current(name, content, signal),
+        (path, content, signal) => writer.current(path, content, signal),
         activeSource,
       ),
     [activeSource, readers, rootRef],

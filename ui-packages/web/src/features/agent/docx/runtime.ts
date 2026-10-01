@@ -22,7 +22,7 @@ export const createDocxRuntime = () => {
     if (current?.id !== file.id || current.revision !== file.revision) {
       const { markdown, messages } = await convertDocxToMarkdown(stored.blob, { images: false })
       signal?.throwIfAborted()
-      reportDocxMessages(file.name, messages)
+      reportDocxMessages(file.path, messages)
       current = { id: file.id, revision: file.revision, text: markdownText(markdown) }
     }
     const { text } = current

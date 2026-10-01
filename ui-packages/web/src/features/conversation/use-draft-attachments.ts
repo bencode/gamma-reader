@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid'
 import { useCallback, useRef, useState } from 'react'
 import type { ConversationAttachment } from '../../core/agent/reader-message'
-import type { ImportResult } from '../../core/files'
+import { baseName, type ImportResult, type StoredFileMetadata } from '../../core/files'
 
 export type DraftAttachment =
   | { key: string; file: File; status: 'adding' }
@@ -12,9 +12,26 @@ type AddWorkspaceAttachments = (files: readonly File[]) => Promise<ImportResult>
 
 const maximumDraftAttachments = 10
 
+// The message keeps a snapshot of what the reader attached, not the library record itself.
+const attachmentFrom = ({
+  id,
+  path,
+  mediaType,
+  previewKind,
+  size,
+}: StoredFileMetadata): ConversationAttachment => ({
+  id,
+  name: baseName(path),
+  mediaType,
+  previewKind,
+  size,
+})
+
 const rejectionText = (reason: ImportResult['rejected'][number]['reason']) => {
   if (reason === 'file-too-large') return 'File is over 200 MiB.'
   if (reason === 'library-full') return 'The 1 GiB workspace limit is full.'
+  if (reason === 'invalid-path') return 'The file name cannot be stored.'
+  if (reason === 'path-conflict') return 'A folder in the workspace has the same name.'
   return 'The browser could not store this file.'
 }
 
@@ -64,7 +81,8 @@ export const useDraftAttachments = (importFiles: AddWorkspaceAttachments) => {
                 const index = pending.findIndex(candidate => candidate.key === item.key)
                 if (index < 0 || item.status !== 'adding') return item
                 const metadata = imported.get(index)
-                if (metadata) return { key: item.key, metadata, status: 'ready' }
+                if (metadata)
+                  return { key: item.key, metadata: attachmentFrom(metadata), status: 'ready' }
                 return {
                   key: item.key,
                   file: item.file,
@@ -111,7 +129,7 @@ export const useDraftAttachments = (importFiles: AddWorkspaceAttachments) => {
                 item.key !== key || item.status !== 'adding'
                   ? item
                   : metadata
-                    ? { key, metadata, status: 'ready' }
+                    ? { key, metadata: attachmentFrom(metadata), status: 'ready' }
                     : {
                         key,
                         file: failed.file,

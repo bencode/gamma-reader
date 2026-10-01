@@ -7,7 +7,7 @@ vi.mock('../../shell/workspace-context', () => ({ useReaderBinding: vi.fn() }))
 
 const file: StoredFileMetadata = {
   id: 'sightings',
-  name: 'sightings.csv',
+  path: 'sightings.csv',
   mediaType: 'text/csv',
   previewKind: 'text',
   size: 64,

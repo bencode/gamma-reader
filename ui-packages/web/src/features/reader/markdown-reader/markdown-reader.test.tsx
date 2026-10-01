@@ -10,7 +10,7 @@ vi.mock('../../../shell/workspace-context', () => ({ useReaderBinding: vi.fn() }
 
 const document: StoredFileMetadata = {
   id: 'guide',
-  name: 'Guide.md',
+  path: 'Guide.md',
   mediaType: 'text/markdown',
   previewKind: 'markdown',
   size: 100,
@@ -99,7 +99,7 @@ describe('Markdown file reader', () => {
     const second = render(
       <StandardMarkdownReader
         {...props}
-        document={{ ...document, id: 'second', name: 'Second.md' }}
+        document={{ ...document, id: 'second', path: 'Second.md' }}
       />,
     )
     expect(screen.getAllByRole('article')[1]).toHaveStyle({ fontSize: '18px', maxWidth: 'none' })

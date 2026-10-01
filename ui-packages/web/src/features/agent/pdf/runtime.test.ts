@@ -1,5 +1,6 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { rootSources } from '../../../core/files'
 import { getStoredFile, importStoredFiles, removeStoredFile } from '../../../data/file-store'
 import { createPdfRuntime } from './runtime'
 
@@ -43,7 +44,7 @@ beforeEach(() => {
 })
 const addPdf = async (name = 'Book.pdf', mode: 'keep' | 'replace' = 'keep') => {
   const result = await importStoredFiles(
-    [new File(['pdf'], name, { type: 'application/pdf' })],
+    rootSources([new File(['pdf'], name, { type: 'application/pdf' })]),
     mode,
   )
   const file = result.imported[0]?.metadata

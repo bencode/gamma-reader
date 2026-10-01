@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { StoredFileMetadata } from '../../core/files'
+import { rootSources, type StoredFileMetadata } from '../../core/files'
 import { importStoredFiles, listStoredFiles } from '../../data/file-store'
 import {
   createMarkdownImageResolver,
@@ -55,15 +55,18 @@ describe('Markdown image resolution', () => {
 
   it('loads current root-level Files and excludes Attachments and non-images', async () => {
     await importStoredFiles(
-      [new File(['<svg>local</svg>'], 'diagram.svg', { type: 'image/svg+xml' })],
+      rootSources([new File(['<svg>local</svg>'], 'diagram.svg', { type: 'image/svg+xml' })]),
       'keep',
     )
     await importStoredFiles(
-      [new File(['attachment'], 'attachment.svg', { type: 'image/svg+xml' })],
+      rootSources([new File(['attachment'], 'attachment.svg', { type: 'image/svg+xml' })]),
       'keep',
       'attachments',
     )
-    await importStoredFiles([new File(['text'], 'notes.txt', { type: 'text/plain' })], 'keep')
+    await importStoredFiles(
+      rootSources([new File(['text'], 'notes.txt', { type: 'text/plain' })]),
+      'keep',
+    )
     const resolve = createMarkdownImageResolver(await listStoredFiles())
 
     await expect(resolve('./diagram.svg', 'readme.md')).resolves.toBeInstanceOf(Blob)

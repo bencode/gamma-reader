@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { rootSources } from '../../core/files'
 import {
   getStoredFile,
   importStoredFiles,
@@ -39,7 +40,7 @@ const tools = createDocumentTools({
 })
 
 const add = async (name: string, text: string, type = 'text/plain') => {
-  const result = await importStoredFiles([new File([text], name, { type })], 'keep')
+  const result = await importStoredFiles(rootSources([new File([text], name, { type })]), 'keep')
   const id = result.addedIds[0]
   if (!id) throw new Error('Fixture import failed')
   return id
@@ -50,19 +51,21 @@ const budget = (result: unknown) =>
 describe('local reader tools', () => {
   it('lists capabilities, filters names, and paginates without losing files', async () => {
     await importStoredFiles(
-      Array.from(
-        { length: 105 },
-        (_, index) => new File(['text'], `Fixture ${index}.txt`, { type: 'text/plain' }),
+      rootSources(
+        Array.from(
+          { length: 105 },
+          (_, index) => new File(['text'], `Fixture ${index}.txt`, { type: 'text/plain' }),
+        ),
       ),
       'keep',
     )
     await add('Fixture unsupported.html', '<p>text</p>', 'text/html')
     await importStoredFiles(
-      [new File(['context'], 'Fixture attachment.txt', { type: 'text/plain' })],
+      rootSources([new File(['context'], 'Fixture attachment.txt', { type: 'text/plain' })]),
       'keep',
       'attachments',
     )
-    let next: ListInput | null = { name: 'FIXTURE' }
+    let next: ListInput | null = { path: 'FIXTURE' }
     const files = []
     while (next) {
       const result = await tools.list(next)
@@ -72,7 +75,7 @@ describe('local reader tools', () => {
     }
     expect(files).toHaveLength(107)
     expect(new Set(files.map(file => file.id)).size).toBe(107)
-    expect(files.find(file => file.name === 'Fixture attachment.txt')).toMatchObject({
+    expect(files.find(file => file.path === 'Fixture attachment.txt')).toMatchObject({
       collection: 'attachments',
       textReadable: true,
     })
@@ -92,7 +95,7 @@ describe('local reader tools', () => {
           { type: 'text/markdown' },
         ),
     )
-    await importStoredFiles(contents, 'keep')
+    await importStoredFiles(rootSources(contents), 'keep')
     let next: SearchInput | null = { query: 'SEARCH this\nphrase' }
     const matches: SearchMatch[] = []
     while (next) {
@@ -143,7 +146,7 @@ describe('local reader tools', () => {
       tools.read({ ...result.next, range: { unit: 'line', start: 2, end: 3 } }),
     ).rejects.toThrow('does not match')
     await importStoredFiles(
-      [new File(['new content'], 'Changing.txt', { type: 'text/plain' })],
+      rootSources([new File(['new content'], 'Changing.txt', { type: 'text/plain' })]),
       'replace',
     )
     await expect(tools.read(result.next)).rejects.toThrow('File changed')
@@ -155,12 +158,14 @@ describe('local reader tools', () => {
 
   it('reports unreadable files separately and bounds pages of errors', async () => {
     await importStoredFiles(
-      Array.from(
-        { length: 130 },
-        (_, index) =>
-          new File(['<p>Unreadable fixture</p>'], `Unreadable ${index}.html`, {
-            type: 'text/html',
-          }),
+      rootSources(
+        Array.from(
+          { length: 130 },
+          (_, index) =>
+            new File(['<p>Unreadable fixture</p>'], `Unreadable ${index}.html`, {
+              type: 'text/html',
+            }),
+        ),
       ),
       'keep',
     )
@@ -179,7 +184,7 @@ describe('local reader tools', () => {
     expect(issueCount).toBe(131)
     expect(ids).toEqual([id])
     const bad = await importStoredFiles(
-      [new File([new Uint8Array([255])], 'Broken.txt', { type: 'text/plain' })],
+      rootSources([new File([new Uint8Array([255])], 'Broken.txt', { type: 'text/plain' })]),
       'keep',
     )
     await expect(tools.read({ fileId: bad.addedIds[0] ?? '' })).rejects.toThrow('UTF-8')
@@ -287,7 +292,7 @@ describe('active source tools', () => {
   it('reads raw source with lossless bounded pagination and detects changes', () => {
     let source: ActiveSourceSnapshot = {
       fileId: 'a',
-      name: 'A.md',
+      path: 'A.md',
       version: crypto.randomUUID(),
       content: `# Raw source\n${'中😀'.repeat(15000)}`,
     }
@@ -317,7 +322,7 @@ describe('active source tools', () => {
   it('edits only the matching active file and version with a unique exact match', () => {
     let source: ActiveSourceSnapshot = {
       fileId: 'a',
-      name: 'A.md',
+      path: 'A.md',
       version: crypto.randomUUID(),
       content: 'same same',
     }

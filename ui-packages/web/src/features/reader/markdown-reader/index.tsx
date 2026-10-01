@@ -3,7 +3,7 @@ import { type ReactNode, useCallback, useLayoutEffect, useMemo, useRef, useState
 import { Markdown, type MarkdownExtensions } from '../../../components/markdown'
 import { normalizeMath } from '../../../core/markdown-math'
 import { useReaderBinding } from '../../../shell/workspace-context'
-import { createMarkdownImageResolver, workspacePathFor } from '../markdown-image-resolver'
+import { createMarkdownImageResolver } from '../markdown-image-resolver'
 import { readViewport } from '../reader-viewport'
 import type { TextReaderProps } from '../text-file-reader'
 import { parseMarkdownHeadings } from './heading-model'
@@ -54,7 +54,7 @@ export const MarkdownReader = ({
   )
   const images = useMemo(
     () => ({
-      basePath: workspacePathFor(document),
+      basePath: document.path,
       resolve: imageResolver ?? createMarkdownImageResolver(files),
     }),
     [document, files, imageResolver],

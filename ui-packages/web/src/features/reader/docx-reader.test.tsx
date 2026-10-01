@@ -26,7 +26,7 @@ const converts = (conversion: Partial<DocxConversion>) => {
 
 const file: StoredFileMetadata = {
   id: 'report',
-  name: '季度报告.docx',
+  path: '季度报告.docx',
   mediaType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   previewKind: 'docx',
   size: 2048,
