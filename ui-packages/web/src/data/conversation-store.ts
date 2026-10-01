@@ -3,6 +3,7 @@ import type {
   ConversationCursor,
   ConversationPage,
   StoredConversation,
+  TitleSource,
 } from '../core/conversations'
 import { openWorkspaceDatabase, requestPersistentStorage } from './workspace-database'
 
@@ -98,6 +99,21 @@ export const touchStoredConversation = async (id: string, lastActiveAt: number) 
   const conversation = await database.get('conversations', id)
   if (!conversation) throw new Error('Conversation is unavailable.')
   const updated = { ...conversation, lastActiveAt }
+  await database.put('conversations', updated)
+  return updated
+}
+
+// Renaming leaves the activity time alone, so the history keeps its order.
+export const renameStoredConversation = async (
+  id: string,
+  title: string,
+  titledBy: TitleSource,
+) => {
+  const database = await openWorkspaceDatabase()
+  const conversation = await database.get('conversations', id)
+  if (!conversation) throw new Error('Conversation is unavailable.')
+  if (titledBy === 'model' && conversation.titledBy === 'reader') return conversation
+  const updated = { ...conversation, title, titledBy }
   await database.put('conversations', updated)
   return updated
 }

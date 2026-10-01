@@ -12,9 +12,13 @@ export type ConversationDraft = {
   attachments: ConversationAttachment[]
 }
 
+// Absent means the title was cut from the first message; the model or the reader replaces it.
+export type TitleSource = 'model' | 'reader'
+
 export type StoredConversation = {
   id: ConversationId
   title: string | null
+  titledBy?: TitleSource
   selection?: ModelSelection
   draft: ConversationDraft
   createdAt: number

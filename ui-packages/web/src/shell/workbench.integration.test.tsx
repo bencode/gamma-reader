@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getStoredFileContent, listStoredFiles } from '../data/file-store'
-import { modelConfig } from '../test/model-config'
+import { isTitleRequest, modelConfig } from '../test/model-config'
 import { testProject } from '../test/project'
 import { usePanelWidths } from './use-panel-widths'
 import { Workbench } from './workbench'
@@ -44,9 +44,10 @@ describe('reading workspace', () => {
   it('shows an agent-written file without changing the active document', async () => {
     const user = userEvent.setup({ delay: null })
     let modelRequests = 0
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = String(input)
       if (url === '/api/agent/config') return Response.json(modelConfig)
+      if (isTitleRequest(init)) return Response.json({}, { status: 503 })
       if (url.endsWith('/api/agent/providers/zai-coding-cn/chat/completions')) {
         modelRequests += 1
         if (modelRequests === 1)

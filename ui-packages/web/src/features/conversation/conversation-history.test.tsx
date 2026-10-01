@@ -13,11 +13,12 @@ const item = (id: string, title: string): StoredConversation => ({
 })
 
 describe('conversation history', () => {
-  it('selects, loads, and confirms deletion inside the history panel', async () => {
+  it('selects, loads, renames, and deletes inside the history panel', async () => {
     const user = userEvent.setup({ delay: null })
     const onSelect = vi.fn()
     const onLoadMore = vi.fn()
     const onDelete = vi.fn().mockResolvedValue(undefined)
+    const onRename = vi.fn().mockResolvedValue(undefined)
     render(
       <ConversationHistory
         items={[item('a', 'First question'), item('b', 'Second question')]}
@@ -31,6 +32,7 @@ describe('conversation history', () => {
         onSelect={onSelect}
         onLoadMore={onLoadMore}
         onDelete={onDelete}
+        onRename={onRename}
       />,
     )
 
@@ -41,8 +43,20 @@ describe('conversation history', () => {
 
     const first = screen.getByText('First question').closest('li')
     if (!first) throw new Error('History row is missing')
-    await user.click(within(first).getByRole('button', { name: 'More actions for First question' }))
-    expect(within(first).getByText('Delete this conversation?')).toBeVisible()
+    const more = () =>
+      within(first).getByRole('button', { name: 'More actions for First question' })
+    await user.click(more())
+    await user.click(within(first).getByRole('button', { name: 'Rename' }))
+    await user.keyboard('{Escape}')
+    expect(onRename).not.toHaveBeenCalled()
+    await user.click(more())
+    await user.click(within(first).getByRole('button', { name: 'Rename' }))
+    const field = within(first).getByRole('textbox', { name: 'Conversation name' })
+    await user.clear(field)
+    await user.type(field, '  Birds at   dawn {Enter}')
+    expect(onRename).toHaveBeenCalledWith('a', 'Birds at dawn')
+
+    await user.click(more())
     await user.click(within(first).getByRole('button', { name: 'Delete' }))
     expect(onDelete).toHaveBeenCalledWith('a')
   })
