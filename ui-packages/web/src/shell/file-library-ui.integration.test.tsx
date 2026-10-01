@@ -365,7 +365,7 @@ describe('file library', () => {
     }
   })
 
-  it('adds files dropped onto the panel and leaves a dropped folder alone', async () => {
+  it('adds dropped files, and reads a dropped folder as Add folder does', async () => {
     render(
       <MemoryRouter>
         <Workbench project={testProject} />
@@ -373,27 +373,60 @@ describe('file library', () => {
     )
     await waitForFiles()
     const panel = screen.getByRole('complementary', { name: 'Files' })
-
-    const note = new File(['# Dropped\n\nArrived by drag.'], 'Dropped.md', {
-      type: 'text/markdown',
+    const fileEntry = (file: File) => ({
+      isDirectory: false,
+      isFile: true,
+      name: file.name,
+      file: (resolve: (file: File) => void) => resolve(file),
     })
-    // A folder reaches the drop as a File that cannot be read; only its entry says so.
-    const folder = new File([], 'Notes')
-    const dataTransfer = {
-      types: ['Files'],
-      files: [note, folder],
-      items: [
-        { kind: 'file', webkitGetAsEntry: () => ({ isDirectory: false }) },
-        { kind: 'file', webkitGetAsEntry: () => ({ isDirectory: true }) },
-      ],
+    // A dropped folder lists its entries in batches, the last one empty.
+    const folderEntry = (name: string, children: unknown[]) => ({
+      isDirectory: true,
+      isFile: false,
+      name,
+      createReader: () => {
+        const batches = [children, []]
+        return {
+          readEntries: (resolve: (batch: unknown[]) => void) => resolve(batches.shift() ?? []),
+        }
+      },
+    })
+    const drop = (files: File[], entries: unknown[]) => {
+      const dataTransfer = {
+        types: ['Files'],
+        files,
+        items: entries.map(entry => ({ kind: 'file', webkitGetAsEntry: () => entry })),
+      }
+      fireEvent.dragEnter(panel, { dataTransfer })
+      fireEvent.drop(panel, { dataTransfer })
     }
 
-    fireEvent.dragEnter(panel, { dataTransfer })
-    expect(screen.getByText('Drop files to add them')).toBeVisible()
-    fireEvent.drop(panel, { dataTransfer })
-
+    const loose = new File(['# Dropped\n\nArrived by drag.'], 'Dropped.md', {
+      type: 'text/markdown',
+    })
+    fireEvent.dragEnter(panel, { dataTransfer: { types: ['Files'] } })
+    expect(screen.getByText('Drop files or folders to add them')).toBeVisible()
+    drop([loose], [fileEntry(loose)])
     expect(await filesList().findByRole('button', { name: 'Dropped.md' })).toBeVisible()
-    expect(filesList().queryByRole('button', { name: 'Notes' })).not.toBeInTheDocument()
-    expect(screen.queryByText('Drop files to add them')).not.toBeInTheDocument()
+    expect(screen.queryByText('Drop files or folders to add them')).not.toBeInTheDocument()
+
+    const extra = new File(['Loose'], 'Loose.txt', { type: 'text/plain' })
+    // A folder reaches the drop as a File that cannot be read; only its entry says so.
+    drop(
+      [new File([], 'Notes'), extra],
+      [
+        folderEntry('Notes', [
+          fileEntry(new File(['# Idea'], 'idea.md', { type: 'text/markdown' })),
+          folderEntry('node_modules', [fileEntry(new File(['x'], 'lib.js'))]),
+        ]),
+        fileEntry(extra),
+      ],
+    )
+
+    const user = userEvent.setup({ delay: null })
+    await user.click(await filesList().findByRole('button', { name: 'Notes' }))
+    expect(filesList().getByRole('button', { name: 'idea.md' })).toBeVisible()
+    expect(filesList().getByRole('button', { name: 'Loose.txt' })).toBeVisible()
+    expect(filesList().queryByRole('button', { name: 'node_modules' })).toBeNull()
   })
 })

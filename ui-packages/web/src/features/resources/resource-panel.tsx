@@ -13,6 +13,7 @@ import {
   folderImportSupported,
   folderPickerAvailable,
   pickFolder,
+  readDroppedEntries,
   readPickedFolder,
 } from './pick-folder'
 import { ResourceTree } from './resource-tree'
@@ -29,15 +30,14 @@ type ResourcePanelProps = {
   onClose: () => void
 }
 
-// A dropped folder arrives as a File whose contents cannot be read, and importing it would
-// leave an entry in the library that never opens. The Add files button cannot reach one.
-const droppedFiles = (transfer: DataTransfer) => {
-  const files = Array.from(transfer.files)
-  // files holds exactly the items whose kind is file, in the same order, so the entry that
-  // says whether something is a folder is the one at the same index.
-  const entries = Array.from(transfer.items).filter(item => item.kind === 'file')
-  if (entries.length !== files.length) return files
-  return files.filter((_, index) => !entries[index]?.webkitGetAsEntry?.()?.isDirectory)
+// A dropped folder arrives as a File whose contents cannot be read, so a drop holding one is read
+// entry by entry, as Add folder reads a chosen folder. The entries must be taken while the drop
+// event runs; the transfer is emptied as soon as it ends.
+const droppedFolderEntries = (transfer: DataTransfer) => {
+  const entries = Array.from(transfer.items)
+    .filter(item => item.kind === 'file')
+    .flatMap(item => item.webkitGetAsEntry?.() ?? [])
+  return entries.some(entry => entry.isDirectory) ? entries : null
 }
 
 export const ResourcePanel = ({
@@ -68,7 +68,9 @@ export const ResourcePanel = ({
   const dropFiles = (event: DragEvent<HTMLElement>) => {
     event.preventDefault()
     setDropping(false)
-    library.addFiles(droppedFiles(event.dataTransfer))
+    const folderEntries = droppedFolderEntries(event.dataTransfer)
+    if (folderEntries) void library.addFolder(onRead => readDroppedEntries(folderEntries, onRead))
+    else library.addFiles(Array.from(event.dataTransfer.files))
   }
 
   return (
@@ -239,7 +241,7 @@ export const ResourcePanel = ({
           }}
         />
       )}
-      {dropping && <span className="resource-drop-hint">Drop files to add them</span>}
+      {dropping && <span className="resource-drop-hint">Drop files or folders to add them</span>}
     </aside>
   )
 }
