@@ -1,4 +1,4 @@
-import type { CodeLabExecutionResult } from '../../types'
+import type { CodeLabExecutionResult, CodeLabOutput } from '../../types'
 import { createConsoleCapture, installConsoleCapture } from '../format-value'
 import type { LanguageRuntime, RuntimeProgress } from '../protocol'
 
@@ -10,6 +10,17 @@ type Scittle = {
     eval_string(source: string): unknown
   }
 }
+
+// Defined in the default `user` namespace; cells that switch namespaces call it as `user/latex`.
+const latexHelper = `(defn latex [tex]
+  (when-not (string? tex) (throw (js/Error. (str "latex expects a string, got " (pr-str tex)))))
+  #js {:toLatex (fn [] tex)})`
+
+// Values carrying toLatex() stay JS objects for the formula output; everything else is printed.
+const wrapCell = (source: string): string => `(let [value (do
+${source}
+)]
+  (if (and (some? value) (fn? (.-toLatex value))) value (pr-str value)))`
 
 let scittle: Scittle | null = null
 let initialization: Promise<Scittle> | null = null
@@ -34,6 +45,7 @@ const initialize = async (progress: RuntimeProgress): Promise<Scittle> => {
     loadScittle.call(globalThis)
     const runtime = getGlobalScittle()
     if (!runtime) throw new Error('Scittle loaded without exposing its runtime')
+    runtime.core.eval_string(latexHelper)
     scittle = runtime
     return runtime
   })()
@@ -46,6 +58,12 @@ const initialize = async (progress: RuntimeProgress): Promise<Scittle> => {
   }
 }
 
+const clojureValueOutput = (value: unknown): CodeLabOutput | null => {
+  if (typeof value === 'string') return value === 'nil' ? null : { kind: 'text', text: value }
+  const latex = (value as { toLatex: () => unknown }).toLatex()
+  return typeof latex === 'string' ? { kind: 'latex', latex } : null
+}
+
 const runClojure = async (
   source: string,
   progress: RuntimeProgress,
@@ -55,10 +73,9 @@ const runClojure = async (
   const capture = createConsoleCapture()
   const restoreConsole = installConsoleCapture(capture)
   try {
-    const value = runtime.core.eval_string(`(pr-str (do\n${source}\n))`)
-    const text = typeof value === 'string' && value !== 'nil' ? value : null
+    const output = clojureValueOutput(runtime.core.eval_string(wrapCell(source)))
     return {
-      outputs: [...capture.outputs(), ...(text === null ? [] : [{ kind: 'text' as const, text }])],
+      outputs: [...capture.outputs(), ...(output === null ? [] : [output])],
       error: null,
     }
   } catch (error) {
