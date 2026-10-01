@@ -48,6 +48,9 @@ export const ConversationPanel = ({
     draftAttachments,
   } = conversation
   const running = phase === 'running' || phase === 'stopping'
+  const commands = [
+    { name: 'clear', description: 'Start a new conversation', run: () => void startNew() },
+  ]
   const switching = phase === 'switching'
   const status =
     phase === 'loading'
@@ -149,6 +152,7 @@ export const ConversationPanel = ({
               onSend={send}
               onStop={stop}
               availableFileIds={availableFileIds}
+              commands={commands}
             />
           </div>
         </div>

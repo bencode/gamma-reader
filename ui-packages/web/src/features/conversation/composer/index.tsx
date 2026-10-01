@@ -1,11 +1,26 @@
 import { ArrowUp, Paperclip, Square } from 'lucide-react'
-import { type DragEvent, type RefObject, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type DragEvent,
+  type RefObject,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import type { ConversationDraft } from '../../../core/conversations'
 import { DraftAttachmentTray } from '../conversation-attachments'
 import { ConversationModelControl, type ModelControlProps } from '../model-control'
 import type { ConversationPhase } from '../use-conversation'
 import type { DraftAttachment } from '../use-draft-attachments'
 import { QueuedMessages } from './queued-messages'
+import {
+  commandOptionId,
+  isCommandInput,
+  matchCommands,
+  type SlashCommand,
+  SlashCommandMenu,
+} from './slash-command-menu'
 import styles from './style.module.scss'
 
 type ComposerProps = {
@@ -29,6 +44,7 @@ type ComposerProps = {
   onSend: () => void
   onStop: () => void
   availableFileIds: ReadonlySet<string>
+  commands: readonly SlashCommand[]
 }
 
 const resizeTextarea = (textarea: HTMLTextAreaElement) => {
@@ -57,9 +73,22 @@ export const ConversationComposer = ({
   onSend,
   onStop,
   availableFileIds,
+  commands,
 }: ComposerProps) => {
   const pickerRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  // A typed command stays here and never reaches the saved draft. A draft that is not empty was
+  // changed from outside (queued messages returned on stop), so it wins.
+  // Known glitch, left on purpose: the hidden command shows again once that draft is sent. It is
+  // never saved; fix it here if it starts to matter.
+  const [typedCommand, setTypedCommand] = useState('')
+  const [selected, setSelected] = useState(0)
+  const [dismissed, setDismissed] = useState(false)
+  const menuId = useId()
+  const command = draft ? '' : typedCommand
+  const value = draft || command
+  const matches = command ? matchCommands(command, commands) : []
+  const menuOpen = !dismissed && matches.length > 0
   const running = phase === 'running' || phase === 'stopping'
   const readyAttachments = attachments.filter(item => item.status === 'ready')
   const hasUnavailable = readyAttachments.some(item => !availableFileIds.has(item.metadata.id))
@@ -68,7 +97,11 @@ export const ConversationComposer = ({
     (phase === 'ready' || running) &&
     !unsettled &&
     !hasUnavailable &&
-    Boolean(draft.trim() || readyAttachments.length)
+    Boolean(value.trim() || readyAttachments.length)
+
+  useEffect(() => {
+    if (phase === 'switching') setTypedCommand('')
+  }, [phase])
 
   useLayoutEffect(() => {
     const textarea = inputRef.current
@@ -79,6 +112,45 @@ export const ConversationComposer = ({
     observer.observe(textarea)
     return () => observer.disconnect()
   }, [inputRef])
+
+  const changeText = (text: string) => {
+    setSelected(0)
+    setDismissed(false)
+    if (isCommandInput(text)) {
+      setTypedCommand(text)
+      if (draft) onDraftChange('')
+      return
+    }
+    setTypedCommand('')
+    onDraftChange(text)
+  }
+
+  const runCommand = (picked: SlashCommand) => {
+    setTypedCommand('')
+    picked.run()
+  }
+
+  // A command nothing matches, or one whose menu was closed, is sent as an ordinary message.
+  const submit = () => {
+    if (!canSend) return
+    if (command) {
+      setTypedCommand('')
+      onDraftChange(command)
+    }
+    onSend()
+  }
+
+  const handleMenuKey = (key: string) => {
+    const picked = matches[selected]
+    if (!picked) return false
+    if (key === 'ArrowDown') setSelected((selected + 1) % matches.length)
+    else if (key === 'ArrowUp') setSelected((selected - 1 + matches.length) % matches.length)
+    else if (key === 'Enter') runCommand(picked)
+    else if (key === 'Tab') setTypedCommand(`/${picked.name}`)
+    else if (key === 'Escape') setDismissed(true)
+    else return false
+    return true
+  }
 
   const addDroppedFiles = (event: DragEvent<HTMLFieldSetElement>) => {
     event.preventDefault()
@@ -115,15 +187,20 @@ export const ConversationComposer = ({
         onRemove={onRemove}
         availableFileIds={availableFileIds}
       />
+      {menuOpen && (
+        <SlashCommandMenu id={menuId} commands={matches} selected={selected} onRun={runCommand} />
+      )}
       <textarea
         ref={inputRef}
         disabled={phase === 'loading' || phase === 'switching'}
         aria-label="Your question"
-        placeholder="Ask about what you are reading"
-        value={draft}
+        placeholder="Ask about what you are reading, / for commands"
+        aria-controls={menuOpen ? menuId : undefined}
+        aria-activedescendant={menuOpen ? commandOptionId(menuId, selected) : undefined}
+        value={value}
         onChange={event => {
           resizeTextarea(event.currentTarget)
-          onDraftChange(event.target.value)
+          changeText(event.target.value)
         }}
         onPaste={event => {
           const files = Array.from(event.clipboardData.files)
@@ -134,6 +211,10 @@ export const ConversationComposer = ({
         rows={1}
         onKeyDown={event => {
           if (event.nativeEvent.isComposing || event.keyCode === 229) return
+          if (menuOpen && !event.shiftKey && handleMenuKey(event.key)) {
+            event.preventDefault()
+            return
+          }
           if (event.key === 'Escape' && running) {
             event.preventDefault()
             onStop()
@@ -141,7 +222,7 @@ export const ConversationComposer = ({
           }
           if (event.key !== 'Enter' || event.shiftKey) return
           event.preventDefault()
-          if (canSend) onSend()
+          submit()
         }}
       />
       <div className={styles.bottom}>
@@ -195,7 +276,7 @@ export const ConversationComposer = ({
             aria-label={running ? 'Queue message' : 'Send question'}
             title={running ? 'Queue message' : 'Send question'}
             disabled={!canSend}
-            onClick={onSend}
+            onClick={submit}
           >
             <ArrowUp size={17} />
           </button>

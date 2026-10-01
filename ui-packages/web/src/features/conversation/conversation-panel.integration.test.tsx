@@ -4,7 +4,11 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { ConversationAttachment } from '../../core/agent/reader-message'
 import { emptyConversationDraft } from '../../core/conversations'
-import { getStoredConversation, saveStoredConversationDraft } from '../../data/conversation-store'
+import {
+  countStoredConversations,
+  getStoredConversation,
+  saveStoredConversationDraft,
+} from '../../data/conversation-store'
 import { Workbench } from '../../shell/workbench'
 import { modelConfig as config, isTitleRequest } from '../../test/model-config'
 import { testProject } from '../../test/project'
@@ -564,6 +568,35 @@ describe('conversation', () => {
     )
     await user.click(within(activeRow).getByRole('button', { name: 'Delete' }))
     expect(await screen.findByText('Second answer')).toBeVisible()
+  })
+
+  it('starts a new conversation from /clear without saving the command anywhere', async () => {
+    const user = userEvent.setup({ delay: null })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      if (isTitleRequest(init)) return Response.json({}, { status: 503 })
+      return complete('First answer')
+    })
+    open()
+    await waitFor(() => expect(question()).toBeEnabled())
+    await user.type(question(), 'First topic')
+    await user.click(send())
+    expect(await screen.findByText('First answer')).toBeVisible()
+    const previous = activeConversationId()
+
+    await user.type(question(), '/cl')
+    const menu = screen.getByRole('listbox', { name: 'Commands' })
+    expect(within(menu).getByRole('option', { name: /clear/ })).toBeVisible()
+    await user.keyboard('{Enter}')
+
+    await waitFor(() => {
+      expect(screen.queryByText('First answer')).not.toBeInTheDocument()
+      expect(question()).toHaveValue('')
+    })
+    expect((await getStoredConversation(previous))?.conversation.draft).toEqual(
+      emptyConversationDraft(),
+    )
+    expect(await countStoredConversations()).toBe(1)
   })
 
   it('names a conversation after its first reply and keeps a name the reader chose', async () => {
