@@ -34,6 +34,7 @@ type PythonResult = {
   stderr: string
   valueText: string | null
   valueHtml: string | null
+  valueLatex: string | null
   imagePngBase64: string | null
   error: string | null
 }
@@ -50,6 +51,18 @@ from pyodide.code import eval_code_async
 
 _gamma_lab_globals = {'__name__': '__main__'}
 
+def _gamma_lab_latex(value):
+    # Classes carry an unbound _repr_latex_; only instances follow the Jupyter protocol.
+    repr_latex = None if isinstance(value, type) else getattr(value, '_repr_latex_', None)
+    if not callable(repr_latex):
+        return None
+    try:
+        latex = repr_latex()
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
+        return None
+    return latex.strip().strip('$').strip() if isinstance(latex, str) else None
+
 async def _gamma_lab_execute(source):
     stdout_buffer = io.StringIO()
     stderr_buffer = io.StringIO()
@@ -60,6 +73,7 @@ async def _gamma_lab_execute(source):
         'stderr': '',
         'valueText': None,
         'valueHtml': None,
+        'valueLatex': None,
         'imagePngBase64': None,
         'error': None,
     }
@@ -78,7 +92,11 @@ async def _gamma_lab_execute(source):
                     traceback.print_exc(file=sys.stderr)
                     result['valueText'] = repr(value)
             else:
-                result['valueText'] = repr(value)
+                latex = _gamma_lab_latex(value)
+                if latex:
+                    result['valueLatex'] = latex
+                else:
+                    result['valueText'] = repr(value)
 
         try:
             import matplotlib.pyplot as plt
@@ -118,6 +136,7 @@ const normalizePythonResult = (value: unknown): PythonResult => {
     stderr: requireString(record.stderr),
     valueText: optionalString(record.valueText),
     valueHtml: optionalString(record.valueHtml),
+    valueLatex: optionalString(record.valueLatex),
     imagePngBase64: optionalString(record.imagePngBase64),
     error: optionalString(record.error),
   }
@@ -184,6 +203,7 @@ const runPython = async (
   if (result.stderr) outputs.push({ kind: 'stderr', text: result.stderr })
   if (result.valueText) outputs.push({ kind: 'text', text: result.valueText })
   if (result.valueHtml) outputs.push({ kind: 'html', html: result.valueHtml })
+  if (result.valueLatex) outputs.push({ kind: 'latex', latex: result.valueLatex })
   if (result.imagePngBase64) {
     outputs.push({ kind: 'image', mediaType: 'image/png', base64: result.imagePngBase64 })
   }

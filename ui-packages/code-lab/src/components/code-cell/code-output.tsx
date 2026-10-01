@@ -6,6 +6,9 @@ import styles from './style.module.scss'
 const HtmlOutput = lazy(() =>
   import('./html-output').then(module => ({ default: module.HtmlOutput })),
 )
+const LatexOutput = lazy(() =>
+  import('./latex-output').then(module => ({ default: module.LatexOutput })),
+)
 
 type CodeOutputProps = {
   execution: CellExecution | undefined
@@ -27,6 +30,15 @@ const OutputValue = ({ output }: { output: CodeLabOutput }) => {
       <div className={styles.richOutput}>
         <Suspense fallback={<span className={styles.muted}>Rendering output…</span>}>
           <HtmlOutput html={output.html} />
+        </Suspense>
+      </div>
+    )
+  }
+  if (output.kind === 'latex') {
+    return (
+      <div className={styles.richOutput}>
+        <Suspense fallback={<span className={styles.muted}>Rendering formula…</span>}>
+          <LatexOutput latex={output.latex} />
         </Suspense>
       </div>
     )
