@@ -1,11 +1,16 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { samples } from '../core/samples'
 import { removeStoredFile, writeStoredTextFile } from '../data/file-store'
 import { testProject } from '../test/project'
 import { Workbench } from './workbench'
+
+beforeEach(() => {
+  // Code reads in CodeMirror, which measures text geometry unavailable in jsdom.
+  Range.prototype.getClientRects = () => [new DOMRect(0, 0, 100, 20)] as unknown as DOMRectList
+})
 
 const filesList = () => within(screen.getByRole('list', { name: 'Files' }))
 const waitForFiles = async () => {
@@ -222,6 +227,21 @@ describe('file library', () => {
     } finally {
       Reflect.deleteProperty(HTMLInputElement.prototype, 'webkitdirectory')
     }
+  })
+
+  it('reads source code highlighted by its language and leaves it unchanged', async () => {
+    await writeStoredTextFile('tools/run.py', 'def greet(name):\n    return f"hello {name}"\n')
+    render(
+      <MemoryRouter initialEntries={['/files/tools/run.py']}>
+        <Workbench project={testProject} />
+      </MemoryRouter>,
+    )
+
+    const code = await screen.findByRole('textbox', { name: 'tools/run.py code' })
+    expect(code).toHaveTextContent('def greet(name):')
+    expect(code).toHaveAttribute('aria-readonly', 'true')
+    // Python support loads on demand; once it has, the keyword stands apart from plain text.
+    await waitFor(() => expect(within(code).getByText('def').tagName).toBe('SPAN'))
   })
 
   it('keeps the add-files action in the toolbar when the library is empty', async () => {
