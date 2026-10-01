@@ -24,6 +24,10 @@ export type WorkspaceDatabase = DBSchema & {
   folderExports: { key: string; value: FolderExportRecord }
 }
 
+// Records written before version 7 named a file instead of placing it on a path.
+type LegacyFileRecord = Omit<StoredFileMetadata, 'path'> & { path?: string; name?: string }
+type LegacyExportedFile = { id: string; revision: number; path?: string; name?: string }
+
 // A page opens one project for its whole life, chosen from the address before anything is read.
 let databaseName = legacyDatabaseName
 let databasePromise: Promise<IDBPDatabase<WorkspaceDatabase>> | undefined
@@ -57,7 +61,7 @@ const seedSamples = async (database: IDBPDatabase<WorkspaceDatabase>) => {
     const blob = new Blob([sample.content], { type: sample.mediaType })
     files.put({
       id: sample.id,
-      name: sample.name,
+      path: sample.name,
       collection: 'files',
       mediaType: blob.type,
       previewKind: previewKindFor(sample.name, blob.type),
@@ -74,7 +78,7 @@ const seedSamples = async (database: IDBPDatabase<WorkspaceDatabase>) => {
 export const openWorkspaceDatabase = () => {
   if (databasePromise) return databasePromise
   let seeding = false
-  databasePromise = openDB<WorkspaceDatabase>(databaseName, 6, {
+  databasePromise = openDB<WorkspaceDatabase>(databaseName, 7, {
     upgrade(database, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         const files = database.createObjectStore('files', { keyPath: 'id' })
@@ -82,19 +86,6 @@ export const openWorkspaceDatabase = () => {
         database.createObjectStore('contents', { keyPath: 'id' })
         // Only the first library carries the starter files; a new project starts empty.
         seeding = databaseName === legacyDatabaseName
-      }
-      if (oldVersion === 1) {
-        const files = transaction.objectStore('files')
-        void (async () => {
-          let cursor = await files.openCursor()
-          while (cursor) {
-            await cursor.update({ ...cursor.value, collection: 'files' })
-            cursor = await cursor.continue()
-          }
-        })().catch(error => {
-          console.error('Unable to migrate the local file library', error)
-          transaction.abort()
-        })
       }
       if (oldVersion < 3) {
         const conversations = database.createObjectStore('conversations', { keyPath: 'id' })
@@ -105,19 +96,48 @@ export const openWorkspaceDatabase = () => {
         messages.createIndex('by-conversation', 'conversationId')
       }
       if (oldVersion < 4) database.createObjectStore('folderExports', { keyPath: 'id' })
-      // Files imported before a format was supported still carry the old preview kind.
-      if (oldVersion > 0 && oldVersion < 6) {
+      // One pass rewrites every older record, so no two cursors write back stale copies of it:
+      // version 1 lacked a collection, files from before version 6 may carry an outdated
+      // preview kind, and files from before version 7 were named rather than placed on a path.
+      if (oldVersion > 0 && oldVersion < 7) {
         const files = transaction.objectStore('files')
         void (async () => {
           let cursor = await files.openCursor()
           while (cursor) {
-            const previewKind = previewKindFor(cursor.value.name, cursor.value.mediaType)
-            if (previewKind !== cursor.value.previewKind)
-              await cursor.update({ ...cursor.value, previewKind })
+            const { name, ...value }: LegacyFileRecord = cursor.value
+            const path = value.path ?? name
+            if (path === undefined) throw new Error(`Stored file has no path: ${value.id}`)
+            await cursor.update({
+              ...value,
+              path,
+              collection: oldVersion === 1 ? 'files' : value.collection,
+              previewKind:
+                oldVersion < 6 ? previewKindFor(path, value.mediaType) : value.previewKind,
+            })
             cursor = await cursor.continue()
           }
         })().catch(error => {
-          console.error('Unable to refresh stored preview kinds', error)
+          console.error('Unable to migrate the local file library', error)
+          transaction.abort()
+        })
+      }
+      if (oldVersion >= 4 && oldVersion < 7) {
+        const exports = transaction.objectStore('folderExports')
+        void (async () => {
+          let cursor = await exports.openCursor()
+          while (cursor) {
+            const savedFiles: readonly LegacyExportedFile[] = cursor.value.savedFiles
+            await cursor.update({
+              ...cursor.value,
+              savedFiles: savedFiles.map(({ id, revision, name, path = name }) => {
+                if (path === undefined) throw new Error(`Saved export has no path: ${id}`)
+                return { id, revision, path }
+              }),
+            })
+            cursor = await cursor.continue()
+          }
+        })().catch(error => {
+          console.error('Unable to migrate the saved export folder', error)
           transaction.abort()
         })
       }

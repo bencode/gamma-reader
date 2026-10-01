@@ -180,7 +180,7 @@ describe('text source workspace', () => {
     if (!handles) throw new Error('Tools not available')
     const current = handles
     act(() => current.actions.updateSource(file.id, '# Local draft'))
-    await writeStoredTextFile(file.name, '# External change')
+    await writeStoredTextFile(file.path, '# External change')
     await act(async () => expect(await current.actions.saveSource(file.id)).toBe('conflict'))
     expect(current.tools.read_active_source().content).toBe('# Local draft')
     expect(await (await getStoredFileContent(file.id))?.text()).toBe('# External change')

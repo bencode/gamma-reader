@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { duplicateNames, type ImportResult, type StoredFileMetadata } from '../../core/files'
+import {
+  duplicatePaths,
+  type ImportResult,
+  rootSources,
+  type StoredFileMetadata,
+} from '../../core/files'
 import {
   type DuplicateMode,
   importStoredFiles,
@@ -16,10 +21,14 @@ const rejectionMessage = (result: ImportResult) => {
   const tooLarge = result.rejected.filter(item => item.reason === 'file-too-large').length
   const libraryFull = result.rejected.filter(item => item.reason === 'library-full').length
   const unavailable = result.rejected.filter(item => item.reason === 'storage-unavailable').length
+  const invalid = result.rejected.filter(item => item.reason === 'invalid-path').length
+  const conflicting = result.rejected.filter(item => item.reason === 'path-conflict').length
   return [
     tooLarge > 0 ? `${tooLarge} over 200 MiB` : '',
     libraryFull > 0 ? `${libraryFull} over the 1 GiB library limit` : '',
     unavailable > 0 ? `${unavailable} could not fit in browser storage` : '',
+    invalid > 0 ? `${invalid} with an invalid path` : '',
+    conflicting > 0 ? `${conflicting} clashing with a file or folder of the same path` : '',
   ]
     .filter(Boolean)
     .join(', ')
@@ -80,7 +89,7 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     setImporting(true)
     setStatus(null)
     try {
-      const result = await importStoredFiles(selected.map(prepareFile), mode)
+      const result = await importStoredFiles(rootSources(selected.map(prepareFile)), mode)
       await reload()
       setStatus(resultStatus(result))
       rememberPersistence(result.imported.length > 0)
@@ -94,7 +103,11 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
 
   const addAttachments = useCallback(
     async (selected: readonly File[]) => {
-      const result = await importStoredFiles(selected.map(prepareFile), 'keep', 'attachments')
+      const result = await importStoredFiles(
+        rootSources(selected.map(prepareFile)),
+        'keep',
+        'attachments',
+      )
       await reload()
       rememberPersistence(result.imported.length > 0)
       return result
@@ -103,8 +116,8 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
   )
 
   const writeTextFile = useCallback(
-    async (name: string, content: string, signal?: AbortSignal) => {
-      const metadata = await writeStoredTextFile(name, content, signal)
+    async (path: string, content: string, signal?: AbortSignal) => {
+      const metadata = await writeStoredTextFile(path, content, signal)
       await reload()
       rememberPersistence()
       return metadata
@@ -125,7 +138,7 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
 
   const addFiles = (selected: readonly File[]) => {
     if (selected.length === 0 || importing) return
-    const duplicates = duplicateNames(selected, files)
+    const duplicates = duplicatePaths(rootSources(selected), files)
     if (duplicates.length > 0) setPendingFiles([...selected])
     else void commitImport(selected, 'keep')
   }
@@ -154,7 +167,7 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     importing,
     error,
     status,
-    duplicateNames: pendingFiles ? duplicateNames(pendingFiles, files) : [],
+    duplicatePaths: pendingFiles ? duplicatePaths(rootSources(pendingFiles), files) : [],
     addFiles,
     addAttachments,
     writeTextFile,

@@ -35,11 +35,11 @@ vi.mock('./file-preview', () => ({
 
 const storedFile = (
   id: string,
-  name: string,
+  path: string,
   previewKind: StoredFileMetadata['previewKind'],
 ): StoredFileMetadata => ({
   id,
-  name,
+  path,
   collection: 'files',
   mediaType: previewKind === 'pdf' ? 'application/pdf' : 'image/png',
   previewKind,

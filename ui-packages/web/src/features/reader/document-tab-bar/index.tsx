@@ -5,7 +5,7 @@ import { type RefObject, useLayoutEffect, useRef } from 'react'
 import { OpenDocuments } from './open-documents'
 import styles from './style.module.scss'
 
-export type DocumentTabItem = { id: string; name: string; dirty: boolean }
+export type DocumentTabItem = { id: string; label: string; title: string; dirty: boolean }
 
 type DocumentTabBarProps = {
   items: readonly DocumentTabItem[]
@@ -82,10 +82,10 @@ const DocumentTab = ({
           <Tabs.Trigger
             className={styles.trigger}
             value={item.id}
-            title={item.name}
+            title={item.title}
             ref={active ? activeTriggerRef : undefined}
           >
-            <span className={styles.name}>{item.name}</span>
+            <span className={styles.name}>{item.label}</span>
             {item.dirty && (
               <span className="source-dirty" role="img" aria-label="Unsaved changes">
                 ●
@@ -95,7 +95,7 @@ const DocumentTab = ({
           <button
             type="button"
             className={`${styles.close} icon-button`}
-            aria-label={`Close ${item.name}`}
+            aria-label={`Close ${item.title}`}
             onClick={() => onRequestClose([item.id])}
           >
             <X size={13} />

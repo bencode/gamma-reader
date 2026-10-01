@@ -30,12 +30,12 @@ export const HtmlReader = ({ document, content }: TextReaderProps) => {
         <iframe
           className="html-preview"
           src={url}
-          title={document.name}
+          title={document.path}
           sandbox="allow-scripts"
           referrerPolicy="no-referrer"
         />
       ) : (
-        <div className="preview-state">Opening {document.name}…</div>
+        <div className="preview-state">Opening {document.path}…</div>
       )}
     </div>
   )

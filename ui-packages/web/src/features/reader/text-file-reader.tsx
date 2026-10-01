@@ -93,7 +93,7 @@ export const TextFileReader = ({
   }, [blob, document.id, document.revision, document.size])
 
   if (state.status === 'loading')
-    return <div className="preview-state">Opening {document.name}…</div>
+    return <div className="preview-state">Opening {document.path}…</div>
   if (state.status === 'error')
     return (
       <div className="preview-state error-state">

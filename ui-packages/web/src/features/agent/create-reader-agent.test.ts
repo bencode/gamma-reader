@@ -1,6 +1,7 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { describe, expect, it, vi } from 'vitest'
 import { createReaderUserMessage } from '../../core/agent/reader-message'
+import { rootSources } from '../../core/files'
 import type { ReaderState } from '../../core/reader-state'
 import {
   getStoredFile,
@@ -140,7 +141,7 @@ describe('reader agent', () => {
       '<main>Saved</main>',
       expect.any(AbortSignal),
     )
-    const written = (await listStoredFiles()).find(file => file.name === 'Study notes.html')
+    const written = (await listStoredFiles()).find(file => file.path === 'Study notes.html')
     if (!written) throw new Error('Written file is missing')
     expect(written.previewKind).toBe('html')
     expect(await (await getStoredFileContent(written.id))?.text()).toBe('<main>Saved</main>')
@@ -153,14 +154,14 @@ describe('reader agent', () => {
 
   it('runs local tools through Pi and supplies context only after a tool request', async () => {
     const imported = await importStoredFiles(
-      [new File(['# Local secret\n\nThe fox reads quietly.'], 'private.md')],
+      rootSources([new File(['# Local secret\n\nThe fox reads quietly.'], 'private.md')]),
       'keep',
     )
     const fileId = imported.addedIds[0]
     if (!fileId) throw new Error('Missing fixture')
     const state: ReaderState = {
-      openFiles: [{ id: fileId, name: 'private.md', type: 'markdown' }],
-      activeFile: { id: fileId, name: 'private.md', type: 'markdown' },
+      openFiles: [{ id: fileId, path: 'private.md', type: 'markdown' }],
+      activeFile: { id: fileId, path: 'private.md', type: 'markdown' },
       viewport: { startText: 'The fox', endText: 'quietly.' },
     }
     const requests: { messages: { role: string; content: string; tool_call_id?: string }[] }[] = []
@@ -223,7 +224,7 @@ describe('reader agent', () => {
 
   it('uses a one-shot vision model and returns only its text to the main agent', async () => {
     const imported = await importStoredFiles(
-      [new File(['private-image-bytes'], 'screen.png', { type: 'image/png' })],
+      rootSources([new File(['private-image-bytes'], 'screen.png', { type: 'image/png' })]),
       'keep',
     )
     const fileId = imported.addedIds[0]
@@ -270,7 +271,7 @@ describe('reader agent', () => {
 
   it('rejects missing and non-image files before contacting the vision model', async () => {
     const imported = await importStoredFiles(
-      [new File(['Readable text'], 'note.txt', { type: 'text/plain' })],
+      rootSources([new File(['Readable text'], 'note.txt', { type: 'text/plain' })]),
       'keep',
     )
     const fileId = imported.addedIds[0]
@@ -330,7 +331,7 @@ describe('reader agent', () => {
     pdfTools.render.mockClear()
     pdfTools.read.mockClear()
     const imported = await importStoredFiles(
-      [new File(['pdf'], 'Study.pdf', { type: 'application/pdf' })],
+      rootSources([new File(['pdf'], 'Study.pdf', { type: 'application/pdf' })]),
       'keep',
     )
     const fileId = imported.addedIds[0]
@@ -400,7 +401,10 @@ describe('reader agent', () => {
       value: '<h1>季度报告</h1><p>营收增长了两成。</p>',
       messages: [],
     })
-    const imported = await importStoredFiles([new File(['docx bytes'], 'report.docx')], 'keep')
+    const imported = await importStoredFiles(
+      rootSources([new File(['docx bytes'], 'report.docx')]),
+      'keep',
+    )
     const fileId = imported.addedIds[0]
     if (!fileId) throw new Error('Missing fixture')
     const stored = await getStoredFile(fileId)
@@ -426,7 +430,10 @@ describe('reader agent', () => {
       },
       { sheet: '汇总', data: [['合计', 3]] },
     ])
-    const imported = await importStoredFiles([new File(['xlsx bytes'], 'effort.xlsx')], 'keep')
+    const imported = await importStoredFiles(
+      rootSources([new File(['xlsx bytes'], 'effort.xlsx')]),
+      'keep',
+    )
     const fileId = imported.addedIds[0]
     if (!fileId) throw new Error('Missing fixture')
     const stored = await getStoredFile(fileId)

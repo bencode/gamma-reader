@@ -1,18 +1,8 @@
 import type { MarkdownImageResolver } from '../../components/markdown-image'
-import type { StoredFileMetadata } from '../../core/files'
+import { containsControlCharacter, type StoredFileMetadata } from '../../core/files'
 import { getStoredFileContent } from '../../data/file-store'
 
-type PathAwareFile = StoredFileMetadata & { path?: string }
-
 const unsafeScheme = /^[a-z][a-z\d+.-]*:/i
-
-const containsControlCharacter = (value: string) =>
-  Array.from(value).some(character => {
-    const codePoint = character.codePointAt(0)
-    return codePoint !== undefined && (codePoint < 32 || codePoint === 127)
-  })
-
-export const workspacePathFor = (file: PathAwareFile) => file.path ?? file.name
 
 const decodedPath = (reference: string) => {
   const path = reference.split(/[?#]/, 1)[0]
@@ -50,7 +40,7 @@ export const resolveMarkdownImagePath = (reference: string, basePath: string) =>
 }
 
 export const findMarkdownImageFile = (
-  files: readonly PathAwareFile[],
+  files: readonly StoredFileMetadata[],
   reference: string,
   basePath: string,
 ) => {
@@ -61,13 +51,13 @@ export const findMarkdownImageFile = (
       file =>
         (file.collection ?? 'files') === 'files' &&
         file.previewKind === 'image' &&
-        workspacePathFor(file).toLowerCase() === path,
+        file.path.toLowerCase() === path,
     ) ?? null
   )
 }
 
 export const createMarkdownImageResolver = (
-  files: readonly PathAwareFile[],
+  files: readonly StoredFileMetadata[],
 ): MarkdownImageResolver => {
   return async (reference, basePath) => {
     const file = findMarkdownImageFile(files, reference, basePath)

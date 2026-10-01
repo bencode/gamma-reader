@@ -11,7 +11,7 @@ import {
   type WritableDirectoryHandle,
   writeBlobToDirectory,
 } from '../../core/file-export'
-import type { StoredFileMetadata } from '../../core/files'
+import { baseName, type StoredFileMetadata } from '../../core/files'
 import { getStoredFile } from '../../data/file-store'
 import { getFolderExport, putFolderExport } from '../../data/folder-export-store'
 
@@ -36,17 +36,17 @@ const writeStoredFiles = async (
       const stored = await getStoredFile(file.id)
       if (
         !stored ||
-        stored.metadata.name !== file.name ||
+        stored.metadata.path !== file.path ||
         stored.metadata.revision !== file.revision
       ) {
-        result.failed.push(file.name)
+        result.failed.push(file.path)
         continue
       }
-      await writeBlobToDirectory(directory, file.name, stored.blob)
-      result.saved.push({ id: file.id, name: file.name, revision: file.revision })
+      await writeBlobToDirectory(directory, file.path, stored.blob)
+      result.saved.push({ id: file.id, path: file.path, revision: file.revision })
     } catch (error) {
-      console.error(`Unable to export file: ${file.name}`, error)
-      result.failed.push(file.name)
+      console.error(`Unable to export file: ${file.path}`, error)
+      result.failed.push(file.path)
     }
   }
   return result
@@ -108,7 +108,7 @@ export const useFileExport = (allFiles: readonly StoredFileMetadata[]) => {
     const saved = new Map(target.savedFiles.map(file => [file.id, file]))
     return files.some(file => {
       const version = saved.get(file.id)
-      return !version || version.name !== file.name || version.revision !== file.revision
+      return !version || version.path !== file.path || version.revision !== file.revision
     })
   }, [files, target])
 
@@ -205,8 +205,8 @@ export const useFileExport = (allFiles: readonly StoredFileMetadata[]) => {
       try {
         const stored = await getStoredFile(fileId)
         if (!stored) throw new Error(`Stored file not found: ${fileId}`)
-        await saveBlobAs(stored.metadata.name, stored.blob)
-        setAnnouncement(`${stored.metadata.name} saved.`)
+        await saveBlobAs(baseName(stored.metadata.path), stored.blob)
+        setAnnouncement(`${stored.metadata.path} saved.`)
       } catch (cause) {
         if (pickerCancelled(cause)) return
         console.error('Unable to save a file', cause)

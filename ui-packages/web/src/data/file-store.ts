@@ -1,7 +1,10 @@
 import { nanoid } from 'nanoid'
 import {
+  baseName,
   type FileCollection,
   type ImportResult,
+  type ImportSource,
+  isWorkspacePath,
   maximumFileBytes,
   maximumLibraryBytes,
   previewKindFor,
@@ -27,7 +30,7 @@ const openFileDatabase = openWorkspaceDatabase
 const svgMediaType = 'image/svg+xml'
 const isSvg = (name: string) => name.toLowerCase().endsWith('.svg')
 const storedBlob = (metadata: StoredFileMetadata | undefined, blob: Blob) =>
-  metadata && isSvg(metadata.name) && blob.type !== svgMediaType
+  metadata && isSvg(metadata.path) && blob.type !== svgMediaType
     ? new Blob([blob], { type: svgMediaType })
     : blob
 
@@ -59,22 +62,33 @@ export const getStoredFile = async (id: string) => {
     transaction.done,
   ])
   if (!metadata) return null
-  if (!content) throw new Error(`Stored file content is missing: ${metadata.name}`)
+  if (!content) throw new Error(`Stored file content is missing: ${metadata.path}`)
   return { metadata, blob: storedBlob(metadata, content.blob) }
 }
 
-const nextName = (requested: string, occupied: Set<string>) => {
-  const dot = requested.lastIndexOf('.')
+// Only the file name takes the number, so a dot in a folder name never splits the path.
+const nextPath = (requested: string, occupied: Set<string>) => {
+  const folder = requested.slice(0, requested.length - baseName(requested).length)
+  const name = baseName(requested)
+  const dot = name.lastIndexOf('.')
   const hasExtension = dot > 0
-  const stem = hasExtension ? requested.slice(0, dot) : requested
-  const extension = hasExtension ? requested.slice(dot) : ''
+  const stem = hasExtension ? name.slice(0, dot) : name
+  const extension = hasExtension ? name.slice(dot) : ''
   let number = 2
-  let candidate = `${stem} (${number})${extension}`
+  let candidate = `${folder}${stem} (${number})${extension}`
   while (occupied.has(candidate.toLowerCase())) {
     number += 1
-    candidate = `${stem} (${number})${extension}`
+    candidate = `${folder}${stem} (${number})${extension}`
   }
   return candidate
+}
+
+// A path cannot name a file and a folder at once: one may not lie inside the other.
+const shadows = (path: string, occupied: Iterable<string>) => {
+  const key = path.toLowerCase()
+  for (const other of occupied)
+    if (other.startsWith(`${key}/`) || key.startsWith(`${other}/`)) return true
+  return false
 }
 
 const hasBrowserCapacity = async (bytes: number) => {
@@ -95,7 +109,7 @@ type PlannedWrite = {
 }
 
 export const importStoredFiles = async (
-  selected: readonly File[],
+  selected: readonly ImportSource[],
   duplicateMode: DuplicateMode,
   collection: FileCollection = 'files',
   signal?: AbortSignal,
@@ -104,43 +118,49 @@ export const importStoredFiles = async (
   const database = await openFileDatabase()
   const existing = await database.getAllFromIndex('files', 'by-created-at')
   const existingIds = new Set(existing.map(file => file.id))
-  const planned = new Map(existing.map(file => [file.name.toLowerCase(), file]))
+  const planned = new Map(existing.map(file => [file.path.toLowerCase(), file]))
   const writes = new Map<string, PlannedWrite>()
   const rejected: ImportResult['rejected'] = []
   let totalBytes = existing.reduce((total, file) => total + file.size, 0)
   const createdAt = Date.now()
 
-  selected.forEach((file, index) => {
-    if (file.size > maximumFileBytes) {
-      rejected.push({ sourceIndex: index, name: file.name, reason: 'file-too-large' })
+  selected.forEach(({ path: requested, file }, index) => {
+    const duplicate = planned.get(requested.toLowerCase())
+    const path =
+      duplicate && duplicateMode === 'keep'
+        ? nextPath(requested, new Set(planned.keys()))
+        : requested
+    const reason = !isWorkspacePath(requested)
+      ? 'invalid-path'
+      : file.size > maximumFileBytes
+        ? 'file-too-large'
+        : shadows(path, planned.keys())
+          ? 'path-conflict'
+          : null
+    if (reason) {
+      rejected.push({ sourceIndex: index, path: requested, reason })
       return
     }
-    const requestedKey = file.name.toLowerCase()
-    const duplicate = planned.get(requestedKey)
-    const name =
-      duplicate && duplicateMode === 'keep'
-        ? nextName(file.name, new Set(planned.keys()))
-        : file.name
     const replaced = duplicate !== undefined && duplicateMode === 'replace'
     const id = replaced ? duplicate.id : nanoid()
     const previousSize = replaced ? duplicate.size : 0
     if (totalBytes - previousSize + file.size > maximumLibraryBytes) {
-      rejected.push({ sourceIndex: index, name: file.name, reason: 'library-full' })
+      rejected.push({ sourceIndex: index, path: requested, reason: 'library-full' })
       return
     }
     const metadata: StoredFileMetadata = {
       id,
-      name,
+      path,
       collection,
       mediaType: file.type || 'application/octet-stream',
-      previewKind: previewKindFor(name, file.type),
+      previewKind: previewKindFor(path, file.type),
       size: file.size,
       lastModified: file.lastModified,
       createdAt: replaced ? duplicate.createdAt : createdAt + index,
       revision: replaced ? duplicate.revision + 1 : 1,
     }
     totalBytes += file.size - previousSize
-    planned.set(name.toLowerCase(), metadata)
+    planned.set(path.toLowerCase(), metadata)
     writes.set(id, {
       sourceIndex: index,
       metadata,
@@ -159,7 +179,7 @@ export const importStoredFiles = async (
         ...rejected,
         ...plannedWrites.map(write => ({
           sourceIndex: write.sourceIndex,
-          name: write.metadata.name,
+          path: write.metadata.path,
           reason: 'storage-unavailable' as const,
         })),
       ],
@@ -193,7 +213,7 @@ export const importStoredFiles = async (
           ...rejected,
           ...plannedWrites.map(write => ({
             sourceIndex: write.sourceIndex,
-            name: write.metadata.name,
+            path: write.metadata.path,
             reason: 'storage-unavailable' as const,
           })),
         ],
@@ -217,19 +237,28 @@ export const importStoredFiles = async (
 const writeError = (reason: ImportResult['rejected'][number]['reason']) => {
   if (reason === 'file-too-large') return new Error('The file exceeds the 200 MiB file limit.')
   if (reason === 'library-full') return new Error('The file exceeds the 1 GiB library limit.')
+  if (reason === 'invalid-path')
+    return new Error('Use a relative path whose segments are not empty, "." or "..".')
+  if (reason === 'path-conflict')
+    return new Error('The path would place a file where a folder is, or inside a file.')
   return new Error('The file does not fit in browser storage.')
 }
 
-export const writeStoredTextFile = async (name: string, content: string, signal?: AbortSignal) => {
+export const writeStoredTextFile = async (path: string, content: string, signal?: AbortSignal) => {
   signal?.throwIfAborted()
   const existing = (await listStoredFiles()).find(
-    file => file.name.toLowerCase() === name.toLowerCase(),
+    file => file.path.toLowerCase() === path.toLowerCase(),
   )
-  const file = new File([content], name, {
-    type: isSvg(name) ? svgMediaType : 'text/plain;charset=utf-8',
+  const file = new File([content], baseName(path), {
+    type: isSvg(path) ? svgMediaType : 'text/plain;charset=utf-8',
     lastModified: Date.now(),
   })
-  const result = await importStoredFiles([file], 'replace', existing?.collection ?? 'files', signal)
+  const result = await importStoredFiles(
+    [{ path, file }],
+    'replace',
+    existing?.collection ?? 'files',
+    signal,
+  )
   const written = result.imported[0]?.metadata
   if (written) return written
   const rejected = result.rejected[0]

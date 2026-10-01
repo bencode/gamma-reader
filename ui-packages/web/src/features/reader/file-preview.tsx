@@ -78,7 +78,7 @@ export const FilePreview = ({
     return (
       <div className="preview-state unavailable-preview">
         <h1>Preview unavailable</h1>
-        <p>{document.name}</p>
+        <p>{document.path}</p>
         <span>{formatBytes(document.size)}</span>
         <p>This file is stored locally and can be used as context in a later iteration.</p>
       </div>
@@ -97,7 +97,7 @@ export const FilePreview = ({
     state.document.id !== document.id ||
     (!textReader && state.document.revision !== document.revision)
   )
-    return <div className="preview-state">Opening {document.name}…</div>
+    return <div className="preview-state">Opening {document.path}…</div>
 
   if (textReader)
     return (
@@ -140,7 +140,7 @@ export const FilePreview = ({
   if (document.previewKind === 'pdf') {
     const source = pdfSources.current.get(document.id)
     if (!source || source.revision !== document.revision)
-      return <div className="preview-state">Opening {document.name}…</div>
+      return <div className="preview-state">Opening {document.path}…</div>
     return (
       <Suspense fallback={<div className="preview-state">Preparing PDF preview…</div>}>
         <PdfReader

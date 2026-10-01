@@ -9,6 +9,7 @@ import { createLocalTools } from '../features/agent/local-tools'
 import { createPdfRuntime } from '../features/agent/pdf/runtime'
 import { readViewport } from '../features/reader/reader-viewport'
 import { findTextMatches, markdownText, normalizeSearchText } from './document-text'
+import { rootSources } from './files'
 
 describe('searchable document text', () => {
   it.each([
@@ -77,7 +78,10 @@ describe('formula and diagram source context', () => {
 
   it('resolves viewport formula anchors through the public search and read tools', async () => {
     const source = 'Before $x^2$ after.\n\n$$\\frac{a}{b}$$'
-    const imported = await importStoredFiles([new File([source], 'formulas.md')], 'keep')
+    const imported = await importStoredFiles(
+      rootSources([new File([source], 'formulas.md')]),
+      'keep',
+    )
     const fileId = imported.addedIds[0]
     if (!fileId) throw new Error('Missing imported fixture')
     const { container } = render(<Markdown variant="reader" text={source} />)
@@ -92,8 +96,8 @@ describe('formula and diagram source context', () => {
     })
     const tools = createLocalTools(
       () => ({
-        openFiles: [{ id: fileId, name: 'formulas.md', type: 'markdown' }],
-        activeFile: { id: fileId, name: 'formulas.md', type: 'markdown' },
+        openFiles: [{ id: fileId, path: 'formulas.md', type: 'markdown' }],
+        activeFile: { id: fileId, path: 'formulas.md', type: 'markdown' },
         viewport: readViewport(container, container),
       }),
       writeStoredTextFile,

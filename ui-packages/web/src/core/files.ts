@@ -15,7 +15,7 @@ export type FileCollection = 'files' | 'attachments'
 
 export type StoredFileMetadata = {
   id: string
-  name: string
+  path: string
   collection?: FileCollection
   mediaType: string
   previewKind: PreviewKind
@@ -27,7 +27,14 @@ export type StoredFileMetadata = {
 
 export type StoredFileContent = { id: string; blob: Blob }
 
-export type ImportRejectionReason = 'file-too-large' | 'library-full' | 'storage-unavailable'
+export type ImportRejectionReason =
+  | 'file-too-large'
+  | 'library-full'
+  | 'storage-unavailable'
+  | 'invalid-path'
+  | 'path-conflict'
+
+export type ImportSource = { path: string; file: File }
 
 export type ImportedFile = {
   sourceIndex: number
@@ -39,7 +46,7 @@ export type ImportResult = {
   addedIds: string[]
   replacedIds: string[]
   imported: ImportedFile[]
-  rejected: Array<{ sourceIndex: number; name: string; reason: ImportRejectionReason }>
+  rejected: Array<{ sourceIndex: number; path: string; reason: ImportRejectionReason }>
 }
 
 const extensionOf = (name: string) => name.toLowerCase().match(/\.([^.]+)$/)?.[1] ?? ''
@@ -88,12 +95,39 @@ export const formatBytes = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`
 }
 
-export const duplicateNames = (files: readonly File[], existing: readonly StoredFileMetadata[]) => {
-  const names = new Set(existing.map(file => file.name.toLowerCase()))
-  return files.reduce<string[]>((duplicates, file) => {
-    const normalized = file.name.toLowerCase()
-    if (names.has(normalized) && !duplicates.includes(file.name)) duplicates.push(file.name)
-    names.add(normalized)
+const maximumPathLength = 1024
+
+export const containsControlCharacter = (value: string) =>
+  Array.from(value).some(character => {
+    const codePoint = character.codePointAt(0)
+    return codePoint !== undefined && (codePoint < 32 || codePoint === 127)
+  })
+
+// A path is relative, uses '/' only, and every segment names something. Paths are checked and
+// never rewritten, so every caller agrees on which file a path means.
+export const isWorkspacePath = (path: string) =>
+  path.length > 0 &&
+  path.length <= maximumPathLength &&
+  !path.startsWith('/') &&
+  !path.includes('\\') &&
+  !containsControlCharacter(path) &&
+  path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
+
+export const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
+
+// Files chosen or dropped one by one land in the library root under their own names.
+export const rootSources = (files: readonly File[]): ImportSource[] =>
+  files.map(file => ({ path: file.name, file }))
+
+export const duplicatePaths = (
+  sources: readonly ImportSource[],
+  existing: readonly StoredFileMetadata[],
+) => {
+  const paths = new Set(existing.map(file => file.path.toLowerCase()))
+  return sources.reduce<string[]>((duplicates, { path }) => {
+    const normalized = path.toLowerCase()
+    if (paths.has(normalized) && !duplicates.includes(path)) duplicates.push(path)
+    paths.add(normalized)
     return duplicates
   }, [])
 }

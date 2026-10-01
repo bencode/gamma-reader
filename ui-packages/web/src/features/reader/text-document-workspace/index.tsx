@@ -147,7 +147,7 @@ export const TextDocumentWorkspace = ({
           >
             <section
               className={styles.sourcePanel}
-              aria-label={`${document.name} source editor`}
+              aria-label={`${document.path} source editor`}
               aria-hidden={!draft.sourceOpen}
               inert={!draft.sourceOpen ? true : undefined}
             >
@@ -181,7 +181,7 @@ export const TextDocumentWorkspace = ({
               <div className={styles.editor}>
                 <Suspense fallback={<div className="preview-state">Opening source…</div>}>
                   <SourceEditor
-                    name={document.name}
+                    name={document.path}
                     value={draft.content}
                     language={sourceLanguage}
                     active={active && draft.sourceOpen}

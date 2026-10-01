@@ -39,7 +39,7 @@ export type DocumentAccess = {
   open: (fileId: string, signal?: AbortSignal) => Promise<DocumentSource>
 }
 type DocumentCursor =
-  | { operation: 'list'; name: string; index: number }
+  | { operation: 'list'; path: string; index: number }
   | {
       operation: 'search'
       query: string
@@ -60,7 +60,7 @@ type DocumentCursor =
     }
 const validDocumentCursor = (value: unknown): value is DocumentCursor => {
   if (!record(value)) return false
-  if (value.operation === 'list') return typeof value.name === 'string' && integer(value.index, 0)
+  if (value.operation === 'list') return typeof value.path === 'string' && integer(value.index, 0)
   if (typeof value.fileId !== 'string' || !integer(value.revision, 1) || !integer(value.page, 1))
     return false
   if (value.operation === 'search')
@@ -78,13 +78,13 @@ const list = async (
   signal?: AbortSignal,
 ): Promise<ListResult> => {
   signal?.throwIfAborted()
-  const name = normalizeSearchText(input.name ?? '')
-  if (name.length > 512)
-    throw new LocalToolError('Use a shorter file name filter (up to 512 characters).')
+  const path = normalizeSearchText(input.path ?? '')
+  if (path.length > 512)
+    throw new LocalToolError('Use a shorter path filter (up to 512 characters).')
   const cursor = decodeCursor(input.cursor, validDocumentCursor)
-  if (cursor && (cursor.operation !== 'list' || cursor.name !== name)) throw mismatchedCursor()
+  if (cursor && (cursor.operation !== 'list' || cursor.path !== path)) throw mismatchedCursor()
   const files = (await access.listFiles()).filter(file =>
-    normalizeSearchText(file.name).includes(name),
+    normalizeSearchText(file.path).includes(path),
   )
   const result: ListResult = { files: [], next: null }
   for (let index = cursor?.index ?? 0; index < files.length; index++) {
@@ -94,15 +94,15 @@ const list = async (
     const { reason, textReadable } = access.getReadability(file)
     const entry = {
       id: file.id,
-      name: file.name,
+      path: file.path,
       collection: file.collection ?? 'files',
       type: file.previewKind,
       textReadable,
       ...(reason ? { reason } : {}),
     }
     const next = {
-      ...(name ? { name } : {}),
-      cursor: encodeCursor({ operation: 'list', name, index }),
+      ...(path ? { path } : {}),
+      cursor: encodeCursor({ operation: 'list', path, index }),
     }
     if (result.files.length >= 100 || !fitsResult({ files: [...result.files, entry], next })) {
       if (!result.files.length) throw new LocalToolError('File metadata exceeds the result limit.')
@@ -210,7 +210,7 @@ const search = async (
           }
           const entry = {
             fileId: file.id,
-            name: file.name,
+            path: file.path,
             ...match,
             excerpt: boundedText(match.excerpt, 1200),
           }
@@ -230,17 +230,17 @@ const search = async (
       if (!hasText)
         result.issues.push({
           fileId: file.id,
-          name: file.name,
+          path: file.path,
           reason: 'No extractable text in this file. OCR is not available.',
         })
     } catch (error) {
       signal?.throwIfAborted()
       if (source && resume && resume.revision !== source.file.revision) throw error
       if (!(error instanceof LocalToolError))
-        console.error('Unable to search file', file.name, error)
+        console.error('Unable to search file', file.path, error)
       result.issues.push({
         fileId: file.id,
-        name: file.name,
+        path: file.path,
         reason: boundedText(
           error instanceof Error ? error.message : 'Unable to read this file.',
           300,
@@ -334,7 +334,7 @@ const readDocument = async (
       const end = start + (content.match(/\n/g)?.length ?? 0) - (content.endsWith('\n') ? 1 : 0)
       return {
         fileId: input.fileId,
-        name: source.file.name,
+        path: source.file.path,
         range:
           source.unit === 'page'
             ? { unit: 'page', start: page, end: page }

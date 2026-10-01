@@ -17,7 +17,7 @@ vi.mock('../../../core/xlsx', async importOriginal => ({
 
 const file: StoredFileMetadata = {
   id: 'effort',
-  name: '人日评估.xlsx',
+  path: '人日评估.xlsx',
   mediaType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   previewKind: 'xlsx',
   size: 12_000,

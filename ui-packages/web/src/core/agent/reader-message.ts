@@ -2,10 +2,11 @@ import type { UserMessage } from '@earendil-works/pi-ai'
 import { nanoid } from 'nanoid'
 import type { PreviewKind, StoredFileMetadata } from '../files'
 
+// Saved with the conversation, so the name stays what the reader saw when they attached it.
 export type ConversationAttachment = Pick<
   StoredFileMetadata,
-  'id' | 'name' | 'mediaType' | 'previewKind' | 'size'
->
+  'id' | 'mediaType' | 'previewKind' | 'size'
+> & { name: string }
 
 export type ReaderUserMessage = UserMessage & {
   reader: {
@@ -31,7 +32,7 @@ export const createReaderUserMessage = (
   const request = text || 'Review the attached workspace files.'
   const metadata = attachments.map(attachment => ({
     fileId: attachment.id,
-    name: attachment.name,
+    path: attachment.name,
     type: attachment.previewKind,
     recommendedTool: recommendedTool(attachment.previewKind),
   }))

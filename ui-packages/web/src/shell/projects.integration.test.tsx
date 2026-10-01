@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { openDB } from 'idb'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { rootSources } from '../core/files'
 import { legacyDatabaseName, projectDeletionPath, projectWindowName } from '../core/projects'
 import { importStoredFiles, listStoredFiles } from '../data/file-store'
 import {
@@ -22,11 +23,14 @@ const visit = (path: string) => {
   window.history.replaceState(null, '', path)
   return render(<ProjectRoot />)
 }
-const fileNames = async () => (await listStoredFiles()).map(file => file.name)
+const fileNames = async () => (await listStoredFiles()).map(file => file.path)
 
 describe('projects', () => {
   it('opens the library kept before projects as the first project', async () => {
-    await importStoredFiles([new File(['# Notes'], 'Notes.md', { type: 'text/markdown' })], 'keep')
+    await importStoredFiles(
+      rootSources([new File(['# Notes'], 'Notes.md', { type: 'text/markdown' })]),
+      'keep',
+    )
     visit('/files/Notes.md')
 
     expect(await screen.findByRole('tab', { name: 'Notes.md' })).toBeInTheDocument()
@@ -42,7 +46,10 @@ describe('projects', () => {
     visit(`/p/${birds.id}`)
 
     expect(await screen.findByText('Add a document when you are ready to read.')).toBeVisible()
-    await importStoredFiles([new File(['Wren'], 'Sightings.txt', { type: 'text/plain' })], 'keep')
+    await importStoredFiles(
+      rootSources([new File(['Wren'], 'Sightings.txt', { type: 'text/plain' })]),
+      'keep',
+    )
     await user.click(screen.getByRole('button', { name: 'Bird notes' }))
     const others = await screen.findByRole('link', { name: 'My reading' })
     expect(others).toHaveAttribute('href', `/p/${first?.id}`)

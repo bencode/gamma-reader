@@ -14,7 +14,9 @@ export const OpenDocuments = ({ items, activeId, onSelect }: OpenDocumentsProps)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const selected = useRef(false)
-  const matches = items.filter(item => item.name.toLowerCase().includes(query.trim().toLowerCase()))
+  const matches = items.filter(item =>
+    item.title.toLowerCase().includes(query.trim().toLowerCase()),
+  )
   return (
     <Popover.Root
       open={open}
@@ -64,7 +66,7 @@ export const OpenDocuments = ({ items, activeId, onSelect }: OpenDocumentsProps)
                   type="button"
                   className={styles.result}
                   aria-current={item.id === activeId ? 'page' : undefined}
-                  title={item.name}
+                  title={item.title}
                   onClick={() => {
                     selected.current = true
                     setOpen(false)
@@ -74,7 +76,7 @@ export const OpenDocuments = ({ items, activeId, onSelect }: OpenDocumentsProps)
                   <span className={styles.check}>
                     {item.id === activeId && <Check size={14} />}
                   </span>
-                  <span className={styles.name}>{item.name}</span>
+                  <span className={styles.name}>{item.label}</span>
                   {item.dirty && (
                     <span className="source-dirty" role="img" aria-label="Unsaved changes">
                       ●

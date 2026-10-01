@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createReaderUserMessage } from '../core/agent/reader-message'
 import { emptyConversationDraft, type StoredConversation } from '../core/conversations'
+import { rootSources } from '../core/files'
 import {
   appendStoredConversationMessages,
   getStoredConversation,
@@ -25,7 +26,7 @@ const conversation = (
 describe('conversation store', () => {
   it('stores drafts and ordered Pi messages, then deletes only the conversation', async () => {
     const imported = await importStoredFiles(
-      [new File(['shared'], 'Shared.md', { type: 'text/markdown' })],
+      rootSources([new File(['shared'], 'Shared.md', { type: 'text/markdown' })]),
       'keep',
     )
     const stored = {
@@ -59,7 +60,7 @@ describe('conversation store', () => {
 
     await removeStoredConversation(stored.id)
     expect(await getStoredConversation(stored.id)).toBeNull()
-    expect((await listStoredFiles()).some(file => file.name === 'Shared.md')).toBe(true)
+    expect((await listStoredFiles()).some(file => file.path === 'Shared.md')).toBe(true)
   })
 
   it('pages by activity and id without duplicates when timestamps match', async () => {

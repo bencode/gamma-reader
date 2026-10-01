@@ -553,7 +553,7 @@ describe('conversation', () => {
     }
     const sent = body.messages.find(message => message.role === 'user')
     expect(sent?.content[0]?.text).toBe('Review the attached workspace files.')
-    expect(sent?.content[1]?.text).toContain('"name":"Chat notes.md"')
+    expect(sent?.content[1]?.text).toContain('"path":"Chat notes.md"')
     expect(sent?.content[1]?.text).toContain('"fileId":')
     expect(String(requests[0]?.body)).not.toContain('private attachment content')
 

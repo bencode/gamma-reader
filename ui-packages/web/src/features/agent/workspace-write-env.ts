@@ -8,28 +8,21 @@ import {
   ok,
   toError,
 } from '@earendil-works/pi-agent-core'
+import { baseName, isWorkspacePath } from '../../core/files'
 import { listStoredFiles } from '../../data/file-store'
 import type { WorkspaceTextWriter } from './local-tools'
 
 const root = '/workspace'
 
-const fileName = (path: string) => {
+const relativePath = (path: string) => {
   const relative = path.startsWith(`${root}/`)
     ? path.slice(root.length + 1)
     : path.replace(/^\.\//, '')
-  if (
-    !relative ||
-    path === root ||
-    (path.startsWith('/') && !path.startsWith(`${root}/`)) ||
-    relative.includes('/') ||
-    relative.includes('\\') ||
-    relative === '.' ||
-    relative === '..' ||
-    [...relative].some(character => character.charCodeAt(0) < 32)
-  )
+  // An absolute path outside the workspace keeps its leading '/', which the check rejects.
+  if (!isWorkspacePath(relative))
     throw new FileError(
       'invalid',
-      'Use one file name in the workspace root without parent traversal.',
+      'Use a relative workspace path such as notes.md or docs/notes.md without parent traversal.',
       path,
     )
   return relative
@@ -61,9 +54,9 @@ const unsupported = async <T>() =>
   )
 
 const metadataFor = async (path: string) => {
-  const requested = fileName(path)
+  const requested = relativePath(path)
   const metadata = (await listStoredFiles()).find(
-    file => file.name.toLowerCase() === requested.toLowerCase(),
+    file => file.path.toLowerCase() === requested.toLowerCase(),
   )
   if (!metadata) throw new FileError('not_found', `File not found: ${requested}`, path)
   return metadata
@@ -71,9 +64,9 @@ const metadataFor = async (path: string) => {
 
 export const createWorkspaceWriteEnv = (writeTextFile: WorkspaceTextWriter): ExecutionEnv => ({
   cwd: root,
-  absolutePath: (path, context) => attempt(path, () => `${root}/${fileName(path)}`, context),
+  absolutePath: (path, context) => attempt(path, () => `${root}/${relativePath(path)}`, context),
   canonicalPath: (path, context) =>
-    attempt(path, async () => `${root}/${(await metadataFor(path)).name}`, context),
+    attempt(path, async () => `${root}/${(await metadataFor(path)).path}`, context),
   exists: (path, context) =>
     attempt(
       path,
@@ -94,8 +87,8 @@ export const createWorkspaceWriteEnv = (writeTextFile: WorkspaceTextWriter): Exe
       async () => {
         const metadata = await metadataFor(path)
         return {
-          name: metadata.name,
-          path: `${root}/${metadata.name}`,
+          name: baseName(metadata.path),
+          path: `${root}/${metadata.path}`,
           kind: 'file',
           size: metadata.size,
           mtimeMs: metadata.lastModified,
@@ -109,7 +102,7 @@ export const createWorkspaceWriteEnv = (writeTextFile: WorkspaceTextWriter): Exe
       async () => {
         if (typeof content !== 'string')
           throw new FileError('not_supported', 'Only UTF-8 text content can be written.', path)
-        await writeTextFile(fileName(path), content, context.abortSignal)
+        await writeTextFile(relativePath(path), content, context.abortSignal)
       },
       context,
     ),

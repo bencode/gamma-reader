@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { samples } from '../core/samples'
-import { removeStoredFile } from '../data/file-store'
+import { removeStoredFile, writeStoredTextFile } from '../data/file-store'
 import { testProject } from '../test/project'
 import { Workbench } from './workbench'
 
@@ -146,6 +146,35 @@ describe('file library', () => {
     await waitFor(() => expect(filesList().queryByRole('button', { name: 'Draft.txt' })).toBeNull())
     expect(screen.queryByRole('tab', { name: 'Draft.txt' })).not.toBeInTheDocument()
     expect(screen.queryByText('Browser copy removed.')).not.toBeInTheDocument()
+  })
+
+  it('shows files on paths inside folded folders that open on request', async () => {
+    const user = userEvent.setup({ delay: null })
+    await writeStoredTextFile('src/core/files.ts', 'export const kind = "core"')
+    await writeStoredTextFile('src/app.ts', 'export const kind = "app"')
+    render(
+      <MemoryRouter>
+        <Workbench project={testProject} />
+      </MemoryRouter>,
+    )
+    await waitForFiles()
+
+    const folder = filesList().getByRole('button', { name: 'src' })
+    expect(folder).toHaveAttribute('aria-expanded', 'false')
+    expect(filesList().queryByRole('button', { name: 'app.ts' })).toBeNull()
+
+    await user.click(folder)
+    await user.click(filesList().getByRole('button', { name: 'core' }))
+    const nested = filesList().getByRole('button', { name: 'files.ts' })
+    expect(nested).toHaveAttribute('title', expect.stringContaining('src/core/files.ts'))
+    await user.click(nested)
+    expect(await screen.findByRole('tab', { name: 'files.ts' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+
+    await user.click(folder)
+    expect(filesList().queryByRole('button', { name: 'files.ts' })).toBeNull()
   })
 
   it('keeps the add-files action in the toolbar when the library is empty', async () => {

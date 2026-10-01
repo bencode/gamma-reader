@@ -49,7 +49,7 @@ export const UnsavedSourceDialog = ({
     <ConfirmationDialog
       label={
         fileIds.length === 1
-          ? `Save changes to ${workspace.files.find(file => file.id === fileIds[0])?.name ?? 'document'}`
+          ? `Save changes to ${workspace.files.find(file => file.id === fileIds[0])?.path ?? 'document'}`
           : 'Save changes before closing'
       }
       onCancel={() => {
@@ -61,7 +61,7 @@ export const UnsavedSourceDialog = ({
       <ul style={{ maxHeight: '40dvh', overflowY: 'auto', overflowWrap: 'anywhere' }}>
         {files.map(file => (
           <li key={file.id}>
-            {file.name}
+            {file.path}
             {drafts[file.id]?.saveError && <p role="alert">{drafts[file.id]?.saveError}</p>}
           </li>
         ))}

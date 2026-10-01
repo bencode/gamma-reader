@@ -69,13 +69,13 @@ export const createReaderTools = (
   const write = {
     ...piWrite,
     description:
-      'Create or completely overwrite one UTF-8 text file in the browser workspace. Use a root-level file name such as notes.md; folders are not available.',
+      'Create or completely overwrite one UTF-8 text file in the browser workspace. Use a workspace path such as notes.md or docs/notes.md; folders follow from the path.',
   }
   const tools = [
     bind(
       'list',
-      'List workspace files and chat attachments, including whether their text is readable. Follow next to continue.',
-      Type.Object({ name: Type.Optional(Type.String()), cursor }),
+      'List workspace files and chat attachments by path, including whether their text is readable. path filters to paths containing that text. Follow next to continue.',
+      Type.Object({ path: Type.Optional(Type.String()), cursor }),
       documents.list,
     ),
     bind(

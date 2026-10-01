@@ -38,7 +38,7 @@ export const PdfReader = ({
     <DocumentPdfReader
       ref={readerRef}
       source={source}
-      name={document.name}
+      name={document.path}
       pageNumber={pageNumber}
       theme={theme}
       onPageChange={page => {

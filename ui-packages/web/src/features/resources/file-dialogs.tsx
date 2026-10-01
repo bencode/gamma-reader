@@ -41,10 +41,10 @@ export const RemoveFileDialog = ({
   onRemove: () => void
   dirty?: boolean
 }) => (
-  <Modal label={`Remove ${file.name}`} onCancel={onCancel}>
+  <Modal label={`Remove ${file.path}`} onCancel={onCancel}>
     <h2>Remove from Files?</h2>
     <p>
-      This removes the browser copy of <strong>{file.name}</strong>. The original file on your
+      This removes the browser copy of <strong>{file.path}</strong>. The original file on your
       computer will not change.
     </p>
     {dirty && <p>Unsaved source changes will also be discarded.</p>}

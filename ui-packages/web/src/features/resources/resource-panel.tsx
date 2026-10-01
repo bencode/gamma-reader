@@ -1,23 +1,13 @@
-import {
-  FileCode2,
-  FileDown,
-  FileImage,
-  FileQuestion,
-  FileText,
-  LoaderCircle,
-  PanelLeft,
-  Plus,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { PanelLeft, Plus, X } from 'lucide-react'
 import { type DragEvent, useRef, useState } from 'react'
-import { formatBytes, type PreviewKind, type StoredFileMetadata } from '../../core/files'
+import type { StoredFileMetadata } from '../../core/files'
 import type { Project } from '../../core/projects'
 import { useSourceDrafts } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
 import { ProjectSwitcher } from '../projects/project-switcher'
 import { DuplicateFilesDialog, RemoveFileDialog } from './file-dialogs'
 import { FolderExportControl } from './folder-export-control'
+import { ResourceTree } from './resource-tree'
 import type { FileExportController } from './use-file-export'
 import type { FileLibrary } from './use-file-library'
 
@@ -30,75 +20,6 @@ type ResourcePanelProps = {
   onRemoved: (id: string) => void
   onClose: () => void
 }
-
-const FileKindIcon = ({ kind }: { kind: PreviewKind }) => {
-  if (kind === 'image') return <FileImage size={15} />
-  if (kind === 'html') return <FileCode2 size={15} />
-  if (kind === 'unsupported') return <FileQuestion size={15} />
-  return <FileText size={15} />
-}
-
-const ResourceList = ({
-  files,
-  label,
-  activeId,
-  onOpen,
-  onRemove,
-  onSaveAs,
-  savingFileId,
-  exportBusy,
-}: {
-  files: StoredFileMetadata[]
-  label: 'Files' | 'Attachments'
-  activeId: string | null
-  onOpen: (id: string) => void
-  onRemove: (file: StoredFileMetadata) => void
-  onSaveAs: (id: string) => void
-  savingFileId: string | null
-  exportBusy: boolean
-}) => (
-  <ul aria-label={label}>
-    {files.map(file => (
-      <li className="resource-row" key={file.id}>
-        <button
-          type="button"
-          className={activeId === file.id ? 'resource-item active' : 'resource-item'}
-          onClick={() => onOpen(file.id)}
-          aria-current={activeId === file.id ? 'page' : undefined}
-          title={`${file.name} · ${formatBytes(file.size)}`}
-        >
-          <FileKindIcon kind={file.previewKind} />
-          <span>{file.name}</span>
-        </button>
-        <span className="resource-actions">
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={`Save ${file.name} as`}
-            title="Save as…"
-            disabled={exportBusy}
-            onClick={() => onSaveAs(file.id)}
-          >
-            {savingFileId === file.id ? (
-              <LoaderCircle className="folder-save-spinner" size={13} />
-            ) : (
-              <FileDown size={13} />
-            )}
-          </button>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={`Remove ${file.name} from ${label}`}
-            title={`Remove from ${label}`}
-            onClick={() => onRemove(file)}
-          >
-            <Trash2 size={13} />
-          </button>
-        </span>
-      </li>
-    ))}
-  </ul>
-)
 
 // A dropped folder arrives as a File whose contents cannot be read, and importing it would
 // leave an entry in the library that never opens. The Add files button cannot reach one.
@@ -236,7 +157,7 @@ export const ResourcePanel = ({
         ) : (
           <>
             {files.length > 0 && (
-              <ResourceList
+              <ResourceTree
                 files={files}
                 label="Files"
                 activeId={activeId}
@@ -250,7 +171,7 @@ export const ResourcePanel = ({
             {attachments.length > 0 && (
               <section className="resource-group" aria-labelledby="attachments-heading">
                 <h3 id="attachments-heading">Attachments</h3>
-                <ResourceList
+                <ResourceTree
                   files={attachments}
                   label="Attachments"
                   activeId={activeId}
@@ -265,9 +186,9 @@ export const ResourcePanel = ({
           </>
         )}
       </div>
-      {library.duplicateNames.length > 0 && (
+      {library.duplicatePaths.length > 0 && (
         <DuplicateFilesDialog
-          names={library.duplicateNames}
+          names={library.duplicatePaths}
           onResolve={library.resolveDuplicates}
         />
       )}

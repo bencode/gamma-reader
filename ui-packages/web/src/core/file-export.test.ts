@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { findDirectoryConflicts, saveBlobAs, writeBlobToDirectory } from './file-export'
 import type { StoredFileMetadata } from './files'
 
-const metadata = (id: string, name: string): StoredFileMetadata => ({
+const metadata = (id: string, path: string): StoredFileMetadata => ({
   id,
-  name,
+  path,
   collection: 'files',
   mediaType: 'text/plain',
   previewKind: 'text',
@@ -24,7 +24,60 @@ const writableFile = (write: (data: Blob) => void): FileSystemFileHandle =>
       }) as unknown as FileSystemWritableFileStream,
   }) as FileSystemFileHandle
 
+type FakeFolder = Map<string, Blob | FakeFolder>
+
+// Behaves like a real directory handle: folders and files share names, and nothing appears
+// unless asked to be created.
+const fakeDirectory = (folder: FakeFolder): FileSystemDirectoryHandle =>
+  ({
+    getDirectoryHandle: async (name: string, options?: { create?: boolean }) => {
+      const entry = folder.get(name)
+      if (entry instanceof Map) return fakeDirectory(entry)
+      if (entry) throw new DOMException('A file is in the way', 'TypeMismatchError')
+      if (!options?.create) throw new DOMException('Missing', 'NotFoundError')
+      const created: FakeFolder = new Map()
+      folder.set(name, created)
+      return fakeDirectory(created)
+    },
+    getFileHandle: async (name: string, options?: { create?: boolean }) => {
+      const entry = folder.get(name)
+      if (entry instanceof Map)
+        throw new DOMException('A folder is in the way', 'TypeMismatchError')
+      if (!entry && !options?.create) throw new DOMException('Missing', 'NotFoundError')
+      return writableFile(data => folder.set(name, data))
+    },
+  }) as unknown as FileSystemDirectoryHandle
+
 describe('browser file export', () => {
+  it('creates the folders of a path when writing a file', async () => {
+    const root: FakeFolder = new Map()
+    const blob = new Blob(['nested'])
+
+    await writeBlobToDirectory(fakeDirectory(root), 'docs/v1.2/Notes.md', blob)
+
+    const docs = root.get('docs')
+    const version = docs instanceof Map ? docs.get('v1.2') : undefined
+    expect(version instanceof Map ? version.get('Notes.md') : undefined).toBe(blob)
+  })
+
+  it('reports a path as a conflict when a file stands where one of its folders would go', async () => {
+    const notes: FakeFolder = new Map([['a.md', new Blob(['existing'])]])
+    const root: FakeFolder = new Map<string, Blob | FakeFolder>([
+      ['docs', new Blob(['a file named docs'])],
+      ['notes', notes],
+    ])
+    const files = [
+      metadata('blocked', 'docs/a.md'),
+      metadata('existing', 'notes/a.md'),
+      metadata('new', 'missing/b.md'),
+    ]
+
+    await expect(findDirectoryConflicts(fakeDirectory(root), files, [])).resolves.toEqual([
+      'docs/a.md',
+      'notes/a.md',
+    ])
+  })
+
   it('ignores managed files and reports new name conflicts before writing', async () => {
     const files = [metadata('managed', 'Managed.md'), metadata('new', 'Existing.md')]
     const directory = {
@@ -36,7 +89,7 @@ describe('browser file export', () => {
 
     await expect(
       findDirectoryConflicts(directory, files, [
-        { id: 'managed', name: 'Managed.md', revision: 1 },
+        { id: 'managed', path: 'Managed.md', revision: 1 },
       ]),
     ).resolves.toEqual(['Existing.md'])
     expect(directory.getFileHandle).toHaveBeenCalledOnce()

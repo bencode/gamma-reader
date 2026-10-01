@@ -5,6 +5,7 @@ import {
   withAbortSignal,
 } from '@earendil-works/pi-agent-core'
 import { describe, expect, it, vi } from 'vitest'
+import { rootSources } from '../../core/files'
 import {
   getStoredFileContent,
   importStoredFiles,
@@ -40,14 +41,14 @@ describe('browser workspace write environment', () => {
     expect(created.content).toEqual([
       { type: 'text', text: 'Successfully wrote to Study notes.md' },
     ])
-    const first = (await listStoredFiles()).find(file => file.name === 'Study notes.md')
+    const first = (await listStoredFiles()).find(file => file.path === 'Study notes.md')
     if (!first) throw new Error('Written file is missing')
     expect(first).toMatchObject({ collection: 'files', previewKind: 'markdown', revision: 1 })
     expect(first.size).toBe(new TextEncoder().encode('# 第一版').byteLength)
 
     await executeWrite('/workspace/study NOTES.md', '# Final')
     const second = (await listStoredFiles()).find(file => file.id === first.id)
-    expect(second).toMatchObject({ name: 'study NOTES.md', revision: 2 })
+    expect(second).toMatchObject({ path: 'study NOTES.md', revision: 2 })
     expect(await (await getStoredFileContent(first.id))?.text()).toBe('# Final')
   })
 
@@ -55,7 +56,7 @@ describe('browser workspace write environment', () => {
     await executeWrite('report.html', '<main>Report</main>')
     await executeWrite('component.tsx', 'export const Value = 1')
     const attachment = await importStoredFiles(
-      [new File(['draft'], 'chat.txt', { type: 'text/plain' })],
+      rootSources([new File(['draft'], 'chat.txt', { type: 'text/plain' })]),
       'keep',
       'attachments',
     )
@@ -64,18 +65,26 @@ describe('browser workspace write environment', () => {
     await executeWrite('chat.txt', 'revised')
 
     const files = await listStoredFiles()
-    expect(files.find(file => file.name === 'report.html')?.previewKind).toBe('html')
-    expect(files.find(file => file.name === 'component.tsx')?.previewKind).toBe('text')
+    expect(files.find(file => file.path === 'report.html')?.previewKind).toBe('html')
+    expect(files.find(file => file.path === 'component.tsx')?.previewKind).toBe('text')
     expect(files.find(file => file.id === attachmentId)).toMatchObject({
       collection: 'attachments',
       revision: 2,
     })
   })
 
-  it('rejects nested and external paths, binary writes and cancelled calls', async () => {
-    await expect(executeWrite('../outside.md', 'blocked')).rejects.toThrow('workspace root')
-    await expect(executeWrite('folder/nested.md', 'blocked')).rejects.toThrow('workspace root')
-    await expect(executeWrite('/outside.md', 'blocked')).rejects.toThrow('workspace root')
+  it('writes into folders named by the path', async () => {
+    await executeWrite('/workspace/docs/notes.md', '# Nested')
+
+    const nested = (await listStoredFiles()).find(file => file.path === 'docs/notes.md')
+    if (!nested) throw new Error('Nested file is missing')
+    expect(await (await getStoredFileContent(nested.id))?.text()).toBe('# Nested')
+    await expect(executeWrite('docs', 'blocked')).rejects.toThrow('where a folder is')
+  })
+
+  it('rejects traversal and external paths, binary writes and cancelled calls', async () => {
+    for (const path of ['../outside.md', 'docs/../outside.md', '/outside.md', 'docs//a.md'])
+      await expect(executeWrite(path, 'blocked')).rejects.toThrow('without parent traversal')
 
     const env = createWorkspaceWriteEnv(writeStoredTextFile)
     await expect(

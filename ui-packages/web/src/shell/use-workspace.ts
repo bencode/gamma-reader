@@ -5,22 +5,23 @@ import type { StoredFileMetadata } from '../core/files'
 import { readWorkspace, writeWorkspace } from './workspace-storage'
 import { createWorkspaceActions, createWorkspaceStore } from './workspace-store'
 
-// The address carries the name the reader sees rather than the id the store keeps.
+// The address carries the path the reader sees rather than the id the store keeps, one encoded
+// segment per folder.
 const documentPath = (files: readonly StoredFileMetadata[], id: string | null) => {
   const file = id ? files.find(document => document.id === id) : undefined
-  return file ? `/files/${encodeURIComponent(file.name)}` : '/files'
+  return file ? `/files/${file.path.split('/').map(encodeURIComponent).join('/')}` : '/files'
 }
 
-// A name is unique in the library apart from case, and the only rename the app performs — the
+// A path is unique in the library apart from case, and the only rename the app performs — the
 // write tool replacing a file it matched case-insensitively — changes nothing else, so matching
 // that way keeps an open document open across one. An id still resolves, which keeps links made
-// before names reached the address working.
-const documentIdFor = (files: readonly StoredFileMetadata[], segment: string | undefined) => {
-  if (!segment) return null
-  const wanted = segment.toLowerCase()
+// before paths reached the address working.
+const documentIdFor = (files: readonly StoredFileMetadata[], route: string | undefined) => {
+  if (!route) return null
+  const wanted = route.toLowerCase()
   return (
-    files.find(file => file.name.toLowerCase() === wanted)?.id ??
-    files.find(file => file.id === segment)?.id ??
+    files.find(file => file.path.toLowerCase() === wanted)?.id ??
+    files.find(file => file.id === route)?.id ??
     null
   )
 }
@@ -28,8 +29,8 @@ const documentIdFor = (files: readonly StoredFileMetadata[], segment: string | u
 export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean) => {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const routeSegment = useMatch('/files/:documentId')?.params.documentId
-  const activeId = documentIdFor(files, routeSegment)
+  const routePath = useMatch('/files/*')?.params['*']
+  const activeId = documentIdFor(files, routePath)
   const [initialWorkspace] = useState(readWorkspace)
   const [store] = useState(() =>
     createWorkspaceStore(initialWorkspace.tabs, initialWorkspace.positions),

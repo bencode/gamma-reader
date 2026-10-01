@@ -11,7 +11,7 @@ import { useLocalTools, useReaderBinding, WorkspaceProvider } from './workspace-
 
 const files: StoredFileMetadata[] = ['first', 'second'].map(id => ({
   id,
-  name: `${id}.pdf`,
+  path: `${id}.pdf`,
   mediaType: 'application/pdf',
   previewKind: 'pdf',
   size: 10,
@@ -84,7 +84,7 @@ describe('reader state tools', () => {
     )
     await waitFor(() =>
       expect(handles[0]?.get_reader_state().openFiles).toEqual([
-        { id: 'first', name: 'first.pdf', type: 'pdf' },
+        { id: 'first', path: 'first.pdf', type: 'pdf' },
       ]),
     )
     const tools = handles[0]
@@ -98,10 +98,10 @@ describe('reader state tools', () => {
     await user.click(screen.getByRole('button', { name: 'Open second' }))
     expect(tools.get_reader_state()).toEqual({
       openFiles: [
-        { id: 'first', name: 'first.pdf', type: 'pdf' },
-        { id: 'second', name: 'second.pdf', type: 'pdf' },
+        { id: 'first', path: 'first.pdf', type: 'pdf' },
+        { id: 'second', path: 'second.pdf', type: 'pdf' },
       ],
-      activeFile: { id: 'second', name: 'second.pdf', type: 'pdf', pageNumber: 1 },
+      activeFile: { id: 'second', path: 'second.pdf', type: 'pdf', pageNumber: 1 },
       viewport,
     })
   })
@@ -158,10 +158,10 @@ describe('reader state tools', () => {
     })
     expect(handles).toHaveLength(2)
     expect(handles[0]?.get_reader_state().openFiles).toEqual([
-      { id: 'first', name: 'first.pdf', type: 'pdf' },
+      { id: 'first', path: 'first.pdf', type: 'pdf' },
     ])
     expect(handles[1]?.get_reader_state().openFiles).toEqual([
-      { id: 'second', name: 'second.pdf', type: 'pdf' },
+      { id: 'second', path: 'second.pdf', type: 'pdf' },
     ])
   })
 })
