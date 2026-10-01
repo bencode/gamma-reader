@@ -1,6 +1,6 @@
 import { baseName, type ImportSource, previewKindFor } from './files'
 
-export const maximumFolderFiles = 1000
+export const maximumFolderFiles = 5000
 export const maximumFolderFileBytes = 1024 * 1024
 
 // A path here starts with the chosen folder's own name, such as 'repo/src/index.ts'.

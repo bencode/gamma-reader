@@ -196,6 +196,10 @@ describe('file library', () => {
         </MemoryRouter>,
       )
       await waitForFiles()
+      await user.click(screen.getByRole('button', { name: 'Add files or a folder' }))
+      expect(screen.getByRole('menuitem', { name: 'Add files…' })).toBeVisible()
+      expect(screen.getByRole('menuitem', { name: 'Add folder…' })).toBeVisible()
+      await user.keyboard('{Escape}')
 
       await user.upload(screen.getByLabelText('Choose a folder'), [
         inFolder('tool/main.py', 'print("hello")'),

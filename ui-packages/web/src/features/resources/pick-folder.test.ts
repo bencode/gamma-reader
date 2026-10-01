@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { maximumFolderFiles } from '../../core/folder-import'
 import { entriesFromInput, readPickedFolder } from './pick-folder'
 
 type Tree = { [name: string]: Tree | string }
@@ -35,14 +36,16 @@ describe('picking a folder', () => {
     expect(opened).toEqual(['repo', 'src'])
   })
 
-  it('stops walking once the folder is known to hold more than a thousand files', async () => {
+  it('stops walking once the folder is known to be over the limit', async () => {
     const opened: string[] = []
-    const many = Object.fromEntries(Array.from({ length: 1001 }, (_, i) => [`f${i}.txt`, 'x']))
+    const many = Object.fromEntries(
+      Array.from({ length: maximumFolderFiles + 1 }, (_, i) => [`f${i}.txt`, 'x']),
+    )
     const root = folder('repo', { a: many, b: { 'late.txt': 'x' } }, opened)
 
     const entries = await readPickedFolder(root as Parameters<typeof readPickedFolder>[0])
 
-    expect(entries).toHaveLength(1001)
+    expect(entries).toHaveLength(maximumFolderFiles + 1)
     expect(opened).not.toContain('b')
   })
 
