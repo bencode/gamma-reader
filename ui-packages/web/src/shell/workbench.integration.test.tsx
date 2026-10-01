@@ -22,16 +22,16 @@ const reply = (text: string) =>
   new Response(`${streamEvent({ content: text }) + streamEvent({}, 'stop')}data: [DONE]\n\n`, {
     headers: { 'Content-Type': 'text/event-stream' },
   })
-const writeCall = (path: string, content: string) =>
+const toolCall = (name: string, args: unknown) =>
   new Response(
     `${streamEvent(
       {
         tool_calls: [
           {
             index: 0,
-            id: 'write-file',
+            id: `${name}-call`,
             type: 'function',
-            function: { name: 'write', arguments: JSON.stringify({ path, content }) },
+            function: { name, arguments: JSON.stringify(args) },
           },
         ],
       },
@@ -39,8 +39,48 @@ const writeCall = (path: string, content: string) =>
     )}data: [DONE]\n\n`,
     { headers: { 'Content-Type': 'text/event-stream' } },
   )
+const writeCall = (path: string, content: string) => toolCall('write', { path, content })
 
 describe('reading workspace', () => {
+  it('keeps the open document open when the agent moves it into a folder', async () => {
+    const user = userEvent.setup({ delay: null })
+    let modelRequests = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url === '/api/agent/config') return Response.json(modelConfig)
+      if (isTitleRequest(init)) return Response.json({}, { status: 503 })
+      if (url.endsWith('/api/agent/providers/zai-coding-cn/chat/completions')) {
+        modelRequests += 1
+        return modelRequests === 1
+          ? toolCall('move', { fileId: 'getting-started', path: 'guides/Start here.md' })
+          : reply('Moved it.')
+      }
+      throw new Error(`Unexpected network request: ${url}`)
+    })
+    render(
+      <MemoryRouter initialEntries={['/files/Start%20here.md']}>
+        <Workbench project={testProject} />
+      </MemoryRouter>,
+    )
+    await waitForWorkspace()
+    const input = screen.getByRole('textbox', { name: 'Your question' })
+    await waitFor(() => expect(input).toBeEnabled(), { timeout: 3000 })
+    await user.type(input, 'Put the guide in a folder')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send question' })).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: 'Send question' }))
+
+    expect(await screen.findByText('Moved it.', {}, { timeout: 3000 })).toBeVisible()
+    expect((await listStoredFiles()).find(file => file.id === 'getting-started')?.path).toBe(
+      'guides/Start here.md',
+    )
+    // The address followed the move, so the document stayed open.
+    expect(screen.getByRole('tab', { name: 'Start here.md' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(material('guides')).toBeVisible()
+  })
+
   it('shows an agent-written file without changing the active document', async () => {
     const user = userEvent.setup({ delay: null })
     let modelRequests = 0

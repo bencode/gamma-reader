@@ -22,6 +22,8 @@ export type EditActiveSourceInput = {
   newText: string
 }
 export type EditActiveSourceResult = { version: string }
+export type MoveInput = { fileId: string; path: string }
+export type MoveResult = { fileId: string; from: string; path: string }
 export type AnalyzeImageInput = { fileId: string; question?: string }
 export type AnalyzeImageResult = { fileId: string; path: string; analysis: string }
 export type FileEntry = FileRef & {

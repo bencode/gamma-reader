@@ -38,6 +38,8 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
   const [actions] = useState(() => createWorkspaceActions(store))
   const tabs = useStore(store, state => state.tabs)
   const navigationTargetRef = useRef(activeId)
+  // The document the address last named, with the path it had then, so a move can be followed.
+  const shownRef = useRef<{ id: string; path: string } | null>(null)
   const savedActiveId = useRef(initialWorkspace.lastActiveId)
 
   useEffect(() => {
@@ -45,6 +47,17 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
     Object.keys(store.getState().sourceDrafts).forEach(id => {
       if (!files.some(file => file.id === id)) actions.forgetSource(id)
     })
+    const shown = files.find(file => file.id === activeId)
+    // The open document moved: the address still holds its old path, so it moves along.
+    const moved =
+      activeId === null && routePath?.toLowerCase() === shownRef.current?.path.toLowerCase()
+        ? files.find(file => file.id === shownRef.current?.id)
+        : undefined
+    shownRef.current = shown ? { id: shown.id, path: shown.path } : shownRef.current
+    if (moved) {
+      void navigate(documentPath(files, moved.id), { replace: true })
+      return
+    }
     navigationTargetRef.current = activeId
     if (pathname === '/') {
       void navigate(documentPath(files, initialWorkspace.lastActiveId), { replace: true })
@@ -60,6 +73,7 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
     })
   }, [
     pathname,
+    routePath,
     activeId,
     initialWorkspace.lastActiveId,
     navigate,

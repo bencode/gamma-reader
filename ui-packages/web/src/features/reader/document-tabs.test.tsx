@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { useRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { StoredFileMetadata } from '../../core/files'
-import { updateStoredTextFile, writeStoredTextFile } from '../../data/file-store'
+import { moveStoredFile, updateStoredTextFile, writeStoredTextFile } from '../../data/file-store'
 import type { Workspace } from '../../shell/use-workspace'
 import { WorkspaceProvider } from '../../shell/workspace-context'
 import { createWorkspaceActions, createWorkspaceStore } from '../../shell/workspace-store'
@@ -81,6 +81,7 @@ const TestTabs = ({
       workspace={workspace}
       rootRef={rootRef}
       writeTextFile={writeStoredTextFile}
+      moveFile={moveStoredFile}
       updateTextFile={updateTextFile}
     >
       <div ref={rootRef}>

@@ -4,6 +4,7 @@ import {
   getStoredFile,
   importStoredFiles,
   listStoredFiles,
+  moveStoredFile,
   removeStoredFile,
   writeStoredTextFile,
 } from '../../data/file-store'
@@ -49,6 +50,25 @@ const budget = (result: unknown) =>
   expect(new TextEncoder().encode(JSON.stringify(result)).length).toBeLessThanOrEqual(16 * 1024)
 
 describe('local reader tools', () => {
+  it('moves a file to a path the model names, reporting where it came from', async () => {
+    const id = await add('Draft.txt', 'draft')
+    const local = createLocalTools(
+      () => ({ openFiles: [], activeFile: null, viewport: null }),
+      writeStoredTextFile,
+      moveStoredFile,
+    )
+
+    await expect(local.move({ fileId: id, path: '/workspace/notes/draft.md' })).resolves.toEqual({
+      fileId: id,
+      from: 'Draft.txt',
+      path: 'notes/draft.md',
+    })
+    await expect(local.move({ fileId: id, path: '../draft.md' })).rejects.toThrow(
+      'without parent traversal',
+    )
+    expect((await listStoredFiles()).find(file => file.id === id)?.path).toBe('notes/draft.md')
+  })
+
   it('lists capabilities, filters names, and paginates without losing files', async () => {
     await importStoredFiles(
       rootSources(
@@ -299,6 +319,7 @@ describe('active source tools', () => {
     const local = createLocalTools(
       () => ({ openFiles: [], activeFile: null, viewport: null }),
       writeStoredTextFile,
+      moveStoredFile,
       {
         get: () => source,
         replace: (_fileId, _version, content) =>
@@ -329,6 +350,7 @@ describe('active source tools', () => {
     const local = createLocalTools(
       () => ({ openFiles: [], activeFile: null, viewport: null }),
       writeStoredTextFile,
+      moveStoredFile,
       {
         get: () => source,
         replace: (_fileId, _version, content) =>

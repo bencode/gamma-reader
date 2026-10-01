@@ -12,7 +12,11 @@ import {
 import { useStore } from 'zustand'
 import type { UpdateStoredTextFileResult } from '../data/file-store'
 import { getStoredFile } from '../data/file-store'
-import type { LocalTools, WorkspaceTextWriter } from '../features/agent/local-tools'
+import type {
+  LocalTools,
+  WorkspaceFileMover,
+  WorkspaceTextWriter,
+} from '../features/agent/local-tools'
 import type { Workspace } from './use-workspace'
 import { type ReaderBinding, useWorkspaceTools } from './use-workspace-tools'
 import { sourceDirty, type WorkspaceActions, type WorkspaceStore } from './workspace-store'
@@ -30,12 +34,14 @@ export const WorkspaceProvider = ({
   workspace,
   rootRef,
   writeTextFile,
+  moveFile,
   updateTextFile,
   children,
 }: {
   workspace: Workspace
   rootRef: RefObject<HTMLDivElement | null>
   writeTextFile: WorkspaceTextWriter
+  moveFile: WorkspaceFileMover
   updateTextFile: (
     id: string,
     expectedRevision: number,
@@ -46,7 +52,7 @@ export const WorkspaceProvider = ({
 }) => {
   const { actions, store } = workspace
   const readers = useRef(new Map<string, ReaderBinding>())
-  const tools = useWorkspaceTools({ workspace, rootRef, readers, writeTextFile })
+  const tools = useWorkspaceTools({ workspace, rootRef, readers, writeTextFile, moveFile })
   const hasDirtySource = useStore(store, state =>
     Object.values(state.sourceDrafts).some(sourceDirty),
   )

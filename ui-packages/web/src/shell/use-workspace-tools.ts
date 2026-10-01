@@ -3,6 +3,7 @@ import type { ReaderState } from '../core/reader-state'
 import {
   type ActiveSourceSnapshot,
   createLocalTools,
+  type WorkspaceFileMover,
   type WorkspaceTextWriter,
 } from '../features/agent/local-tools'
 import { LocalToolError } from '../features/agent/tool-types'
@@ -20,16 +21,19 @@ type WorkspaceToolsOptions = {
   rootRef: RefObject<HTMLDivElement | null>
   readers: RefObject<Map<string, ReaderBinding>>
   writeTextFile: WorkspaceTextWriter
+  moveFile: WorkspaceFileMover
 }
 
 export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
   const { workspace, rootRef, readers } = options
   const current = useRef(workspace)
   const writer = useRef(options.writeTextFile)
+  const mover = useRef(options.moveFile)
   useLayoutEffect(() => {
     current.current = workspace
     writer.current = options.writeTextFile
-  }, [workspace, options.writeTextFile])
+    mover.current = options.moveFile
+  }, [workspace, options.writeTextFile, options.moveFile])
   const activeSource = useMemo(
     () => ({
       get: (): ActiveSourceSnapshot | null => {
@@ -91,6 +95,7 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
           }
         },
         (path, content, signal) => writer.current(path, content, signal),
+        (fileId, path, signal) => mover.current(fileId, path, signal),
         activeSource,
       ),
     [activeSource, readers, rootRef],

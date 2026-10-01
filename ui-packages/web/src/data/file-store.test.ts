@@ -7,6 +7,7 @@ import {
   getStoredFileContent,
   importStoredFiles,
   listStoredFiles,
+  moveStoredFile,
   removeStoredFile,
   updateStoredTextFile,
   writeStoredTextFile,
@@ -324,6 +325,56 @@ describe('local file store', () => {
     // Names a disk allows, such as one with a backslash, still import at the root.
     const kept = await importStoredFiles(rootSources([textFile('a\\b.md', 'kept')]), 'keep')
     expect(kept.imported[0]?.metadata.path).toBe('a\\b.md')
+  })
+
+  it('moves a file to a new path, keeping its id, revision and content', async () => {
+    const [notes] = (
+      await importStoredFiles(rootSources([textFile('Notes.txt', 'kept')]), 'keep')
+    ).imported.map(item => item.metadata)
+    if (!notes) throw new Error('Expected the notes file')
+
+    const { from, metadata } = await moveStoredFile(notes.id, 'docs/notes.md')
+
+    expect(from).toBe('Notes.txt')
+    expect(metadata).toMatchObject({
+      id: notes.id,
+      path: 'docs/notes.md',
+      revision: notes.revision,
+      previewKind: 'markdown',
+    })
+    expect(await (await getStoredFileContent(notes.id))?.text()).toBe('kept')
+    await expect(moveStoredFile(notes.id, 'docs/NOTES.md')).resolves.toMatchObject({
+      metadata: { path: 'docs/NOTES.md' },
+    })
+  })
+
+  it('refuses a move that would take another path, cross a folder or move an attachment', async () => {
+    const imported = await importStoredFiles(
+      [
+        { path: 'a.md', file: textFile('a.md', 'a') },
+        { path: 'docs/b.md', file: textFile('b.md', 'b') },
+      ],
+      'keep',
+    )
+    const [a] = imported.imported.map(item => item.metadata)
+    const attachment = await importStoredFiles(
+      rootSources([textFile('chat.md', 'c')]),
+      'keep',
+      'attachments',
+    )
+    if (!a) throw new Error('Expected a.md')
+    const before = await listStoredFiles()
+
+    for (const [id, path, reason] of [
+      [a.id, 'DOCS/b.md', 'path-taken'],
+      [a.id, 'docs', 'path-conflict'],
+      [a.id, 'docs/b.md/a.md', 'path-conflict'],
+      [a.id, '../a.md', 'invalid-path'],
+      [attachment.addedIds[0] ?? '', 'docs/chat.md', 'attachment'],
+      ['missing', 'x.md', 'missing'],
+    ])
+      await expect(moveStoredFile(id ?? '', path ?? '')).rejects.toMatchObject({ reason })
+    expect(await listStoredFiles()).toEqual(before)
   })
 
   it('recognizes common UTF-8 document formats with application MIME types as text', async () => {

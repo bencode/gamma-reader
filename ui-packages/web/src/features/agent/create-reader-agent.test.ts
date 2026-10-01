@@ -8,6 +8,7 @@ import {
   getStoredFileContent,
   importStoredFiles,
   listStoredFiles,
+  moveStoredFile,
   writeStoredTextFile,
 } from '../../data/file-store'
 import { modelConfig } from '../../test/model-config'
@@ -77,7 +78,7 @@ const call = (name: string, args: unknown) =>
     { headers: { 'Content-Type': 'text/event-stream' } },
   )
 const emptyState = (): ReaderState => ({ openFiles: [], activeFile: null, viewport: null })
-const localTools = () => createLocalTools(emptyState, writeStoredTextFile)
+const localTools = () => createLocalTools(emptyState, writeStoredTextFile, moveStoredFile)
 const session = { id: 'test-conversation', messages: [], ...resolveModelSelection(config) }
 
 describe('reader agent', () => {
@@ -132,7 +133,11 @@ describe('reader agent', () => {
       return reply('Saved as Study notes.html.')
     })
     const writer = vi.fn(writeStoredTextFile)
-    const agent = createReaderAgent(config, createLocalTools(emptyState, writer), session)
+    const agent = createReaderAgent(
+      config,
+      createLocalTools(emptyState, writer, moveStoredFile),
+      session,
+    )
 
     await agent.prompt('Save this as an HTML file')
 
@@ -179,7 +184,7 @@ describe('reader agent', () => {
     })
     const agent = createReaderAgent(
       config,
-      createLocalTools(() => state, writeStoredTextFile),
+      createLocalTools(() => state, writeStoredTextFile, moveStoredFile),
       session,
     )
     await agent.prompt('Explain the current paragraph')
