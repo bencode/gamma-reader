@@ -149,6 +149,7 @@ export const Workbench = ({ project }: { project: Project }) => {
       workspace={workspace}
       rootRef={rootRef}
       writeTextFile={library.writeTextFile}
+      moveFile={library.moveFile}
       updateTextFile={library.updateTextFile}
     >
       <ConversationProvider addAttachments={library.addAttachments}>

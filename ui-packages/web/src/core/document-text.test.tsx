@@ -2,7 +2,12 @@ import { render } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { Markdown } from '../components/markdown'
-import { getStoredFile, importStoredFiles, writeStoredTextFile } from '../data/file-store'
+import {
+  getStoredFile,
+  importStoredFiles,
+  moveStoredFile,
+  writeStoredTextFile,
+} from '../data/file-store'
 import { createReaderDocumentAccess } from '../features/agent/create-reader-agent'
 import { createDocumentTools } from '../features/agent/document-tools'
 import { createLocalTools } from '../features/agent/local-tools'
@@ -101,6 +106,7 @@ describe('formula and diagram source context', () => {
         viewport: readViewport(container, container),
       }),
       writeStoredTextFile,
+      moveStoredFile,
     )
     const documents = createDocumentTools(
       createReaderDocumentAccess(createPdfRuntime(getStoredFile)),

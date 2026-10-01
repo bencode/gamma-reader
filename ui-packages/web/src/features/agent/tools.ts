@@ -122,6 +122,12 @@ export const createReaderTools = (
       }),
       local.edit_active_source,
     ),
+    bind(
+      'move',
+      'Move or rename one workspace file by fileId to a new path such as docs/notes.md. Folders follow from the path. Content, the file id and open tabs are kept. Fails when another file already has that path; chat attachments cannot be moved.',
+      Type.Object({ fileId, path: Type.String({ minLength: 1 }) }),
+      local.move,
+    ),
     write,
   ]
   return tools

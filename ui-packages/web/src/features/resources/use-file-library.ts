@@ -9,6 +9,7 @@ import {
   type DuplicateMode,
   importStoredFiles,
   listStoredFiles,
+  moveStoredFile,
   removeStoredFile,
   updateStoredTextFile,
   writeStoredTextFile,
@@ -125,6 +126,16 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     [reload, rememberPersistence],
   )
 
+  const moveFile = useCallback(
+    async (id: string, path: string, signal?: AbortSignal) => {
+      const moved = await moveStoredFile(id, path, signal)
+      await reload()
+      rememberPersistence()
+      return moved
+    },
+    [reload, rememberPersistence],
+  )
+
   const updateTextFile = useCallback(
     async (id: string, expectedRevision: number, content: string, signal?: AbortSignal) => {
       const result = await updateStoredTextFile(id, expectedRevision, content, signal)
@@ -171,6 +182,7 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     addFiles,
     addAttachments,
     writeTextFile,
+    moveFile,
     updateTextFile,
     resolveDuplicates,
     removeFile,

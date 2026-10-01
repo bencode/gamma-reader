@@ -322,6 +322,62 @@ export const updateStoredTextFile = async (
   }
 }
 
+export type MoveRejectionReason =
+  | 'missing'
+  | 'invalid-path'
+  | 'path-taken'
+  | 'path-conflict'
+  | 'attachment'
+
+const moveMessages: Record<MoveRejectionReason, string> = {
+  missing: 'The file is no longer in the workspace.',
+  'invalid-path': 'Use a relative path whose segments are not empty, "." or "..".',
+  'path-taken': 'Another file already has that path. Choose another path or ask the reader first.',
+  'path-conflict': 'The path would place a file where a folder is, or inside a file.',
+  attachment: 'Chat attachments stay where they are and cannot be moved.',
+}
+
+export class MoveRejectedError extends Error {
+  constructor(readonly reason: MoveRejectionReason) {
+    super(moveMessages[reason])
+  }
+}
+
+// Moving changes where a file lives, not what it holds, so the revision stays: a source draft
+// saved later still matches the file it was read from.
+export const moveStoredFile = async (id: string, path: string, signal?: AbortSignal) => {
+  signal?.throwIfAborted()
+  const database = await openFileDatabase()
+  const transaction = database.transaction('files', 'readwrite')
+  const files = transaction.objectStore('files')
+  const all = await files.getAll()
+  const current = all.find(file => file.id === id)
+  const others = all.filter(file => file.id !== id).map(file => file.path.toLowerCase())
+  const reason: MoveRejectionReason | null = !current
+    ? 'missing'
+    : current.collection === 'attachments'
+      ? 'attachment'
+      : !isWorkspacePath(path)
+        ? 'invalid-path'
+        : others.includes(path.toLowerCase())
+          ? 'path-taken'
+          : shadows(path, others)
+            ? 'path-conflict'
+            : null
+  if (reason || !current) {
+    await transaction.done
+    throw new MoveRejectedError(reason ?? 'missing')
+  }
+  signal?.throwIfAborted()
+  const metadata: StoredFileMetadata = {
+    ...current,
+    path,
+    previewKind: previewKindFor(path, current.mediaType),
+  }
+  await Promise.all([files.put(metadata), transaction.done])
+  return { from: current.path, metadata }
+}
+
 export const removeStoredFile = async (id: string) => {
   const database = await openFileDatabase()
   const transaction = database.transaction(['files', 'contents'], 'readwrite')

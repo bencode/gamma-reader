@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type { StoredFileMetadata } from '../core/files'
-import { updateStoredTextFile, writeStoredTextFile } from '../data/file-store'
+import { moveStoredFile, updateStoredTextFile, writeStoredTextFile } from '../data/file-store'
 import type { LocalTools } from '../features/agent/local-tools'
 import { useWorkspace } from './use-workspace'
 import { useLocalTools, useReaderBinding, WorkspaceProvider } from './workspace-context'
@@ -55,6 +55,7 @@ const Harness = ({
       workspace={workspace}
       rootRef={rootRef}
       writeTextFile={writeStoredTextFile}
+      moveFile={moveStoredFile}
       updateTextFile={updateStoredTextFile}
     >
       <div ref={rootRef}>

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StoredFileMetadata } from '../../../core/files'
 import {
   getStoredFileContent,
+  moveStoredFile,
   updateStoredTextFile,
   writeStoredTextFile,
 } from '../../../data/file-store'
@@ -70,6 +71,7 @@ const Harness = ({
       workspace={workspace}
       rootRef={rootRef}
       writeTextFile={writeStoredTextFile}
+      moveFile={moveStoredFile}
       updateTextFile={updateStoredTextFile}
     >
       <div ref={rootRef}>

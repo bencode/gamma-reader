@@ -14,7 +14,8 @@ import type { WorkspaceTextWriter } from './local-tools'
 
 const root = '/workspace'
 
-const relativePath = (path: string) => {
+// Every path the model names goes through here, so write and move accept the same paths.
+export const agentWorkspacePath = (path: string) => {
   const relative = path.startsWith(`${root}/`)
     ? path.slice(root.length + 1)
     : path.replace(/^\.\//, '')
@@ -55,7 +56,7 @@ const unsupported = async <T>() =>
   )
 
 const metadataFor = async (path: string) => {
-  const requested = relativePath(path)
+  const requested = agentWorkspacePath(path)
   const metadata = (await listStoredFiles()).find(
     file => file.path.toLowerCase() === requested.toLowerCase(),
   )
@@ -65,7 +66,8 @@ const metadataFor = async (path: string) => {
 
 export const createWorkspaceWriteEnv = (writeTextFile: WorkspaceTextWriter): ExecutionEnv => ({
   cwd: root,
-  absolutePath: (path, context) => attempt(path, () => `${root}/${relativePath(path)}`, context),
+  absolutePath: (path, context) =>
+    attempt(path, () => `${root}/${agentWorkspacePath(path)}`, context),
   canonicalPath: (path, context) =>
     attempt(path, async () => `${root}/${(await metadataFor(path)).path}`, context),
   exists: (path, context) =>
@@ -103,7 +105,7 @@ export const createWorkspaceWriteEnv = (writeTextFile: WorkspaceTextWriter): Exe
       async () => {
         if (typeof content !== 'string')
           throw new FileError('not_supported', 'Only UTF-8 text content can be written.', path)
-        await writeTextFile(relativePath(path), content, context.abortSignal)
+        await writeTextFile(agentWorkspacePath(path), content, context.abortSignal)
       },
       context,
     ),

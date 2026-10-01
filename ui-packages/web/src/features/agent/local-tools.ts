@@ -19,10 +19,13 @@ import {
   type EditActiveSourceInput,
   type EditActiveSourceResult,
   LocalToolError,
+  type MoveInput,
+  type MoveResult,
   type ReadActiveSourceInput,
   type ReadActiveSourceResult,
   type SourceLineRange,
 } from './tool-types'
+import { agentWorkspacePath } from './workspace-write-env'
 
 type SourceCursor = {
   operation: 'read-active-source'
@@ -46,6 +49,12 @@ export type WorkspaceTextWriter = (
   content: string,
   signal?: AbortSignal,
 ) => Promise<StoredFileMetadata>
+
+export type WorkspaceFileMover = (
+  fileId: string,
+  path: string,
+  signal?: AbortSignal,
+) => Promise<{ from: string; metadata: StoredFileMetadata }>
 
 export type ActiveSourceSnapshot = {
   fileId: string
@@ -162,10 +171,15 @@ const editActiveSource = (
 export const createLocalTools = (
   getReaderState: () => ReaderState,
   writeTextFile: WorkspaceTextWriter,
+  moveFile: WorkspaceFileMover,
   activeSource?: ActiveSourceAccess,
 ) => ({
   get_reader_state: getReaderState,
   writeTextFile,
+  move: async (input: MoveInput, signal?: AbortSignal): Promise<MoveResult> => {
+    const { from, metadata } = await moveFile(input.fileId, agentWorkspacePath(input.path), signal)
+    return { fileId: metadata.id, from, path: metadata.path }
+  },
   read_active_source: (input?: ReadActiveSourceInput) => {
     if (!activeSource) throw new LocalToolError('Active source editing is unavailable.')
     return readActiveSource(activeSource, input)
