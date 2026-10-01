@@ -10,12 +10,14 @@ The shared key comes with a daily allowance. [Add a key of your own](#chat-model
 
 ## Features
 
-- **Read** PDF, Word, Excel, Markdown, HTML, images, and text in tabs, each with the navigation its own format allows — an outline, sheet tabs, page controls, a reading theme. [Document support](#document-support) lists what each format offers.
-- **Run code inside documents** — `.lab.md` articles carry executable Scheme, Clojure, Python, and TypeScript cells, and `.p5.js` sketches are interactive. Language runtimes load on demand.
+- **Read** PDF, Word, Excel, Markdown, HTML, images, source code, and text in tabs, each with the navigation its own format allows — an outline, sheet tabs, page controls, a reading theme, highlighted code with line numbers. [Document support](#document-support) lists what each format offers.
+- **Run code inside documents** — `.lab.md` articles carry executable Scheme, Clojure, Python, and TypeScript cells, and `.p5.js` sketches are interactive. A cell can show its result as a typeset formula, and language runtimes load on demand.
 - **Ask about what you are reading.** The assistant searches and reads your open documents, explains images, and compares sources; its agent loop runs in the browser, not on a server.
-- **Keep questions apart.** Conversations are separate, each with its own history, chat model, and thinking level.
+- **Keep questions apart.** Conversations are separate, each with its own history, chat model, and thinking level. The model names each one after its first reply, and you can rename it from history.
+- **Keep talking while it answers.** A message sent during a reply waits in a queue and reaches the model at its next step; Escape stops the reply and sends the queue at once. Type `/` for commands — `/clear` starts a new conversation.
 - **Work in projects.** Each project keeps its own files, conversations, and tabs, and the assistant sees only the project it is in. A project opens in its own browser tab, so assistants in different projects can work at the same time — see [Projects](#projects).
-- **Write, not just read.** Edit any text document in the Source panel, or let the assistant draft into it. Save to the browser with ⌘/Ctrl+S, and write copies back to your computer with **Save as…** or folder export.
+- **Bring in whole folders.** Add or drop a folder, such as a source repository, and Files keeps its tree while leaving out dependencies and build output — see [Folders](#folders).
+- **Write, not just read.** Edit any text document in the Source panel, or let the assistant draft into it, and ask it to move or rename files to tidy a project. Save to the browser with ⌘/Ctrl+S, and write copies back to your computer with **Save as…** or folder export.
 - **Bring your own model key** and run outside the shared allowance — see [Chat models and limits](#chat-models-and-limits).
 - **Keep your files local.** Documents are stored in the browser and are never uploaded to an application server.
 
@@ -27,7 +29,18 @@ print("Hello from the browser")
 ```
 ````
 
-The first project includes **Start here.md**, a PDF essay, a Word document with the spreadsheet it describes, two Labs covering all four languages, an orbit sketch, and an architecture diagram. Follow the examples, then add your own files by dragging them onto Files or with **+**. New projects start empty. Files kept before projects existed become the first project, **My reading**, unchanged.
+When a cell's last value is a formula, it is typeset with KaTeX instead of printed:
+
+| Language | Write |
+| --- | --- |
+| Python | Any value with `_repr_latex_`, as in Jupyter — a SymPy expression such as `diff(x*sin(x), x)` |
+| TypeScript | An object with `toLatex()` returning TeX, such as ``({ toLatex: () => String.raw`\frac{1}{2}` })`` |
+| Scheme | `(latex "e^{i\\pi} + 1 = 0")` |
+| Clojure | `(latex "e^{i\\pi} + 1 = 0")`, or `user/latex` after switching namespaces |
+
+Only the last value counts: printed output stays text.
+
+The first project includes **Start here.md**, a PDF essay, a Word document with the spreadsheet it describes, two Labs covering all four languages, an orbit sketch, and an architecture diagram. Follow the examples, then add your own files or folders by dragging them onto Files or with **+**. New projects start empty. Files kept before projects existed become the first project, **My reading**, unchanged.
 
 ## Projects
 
@@ -36,6 +49,18 @@ The name at the top of Files is the current project. Open it to switch to anothe
 The address names the project — `/p/<id>/files/<document>` — so a bookmark or a second tab opens the same one. `/` opens the project used most recently, and links from before projects existed open in **My reading**.
 
 Deleting a project removes its files, conversations, and saved tabs from this browser; the dialog offers to save the files to a folder first. If another tab still has the project open, deletion waits until that tab closes. Deleting every project leaves an empty page from which a new one can start.
+
+## Folders
+
+Files are kept on folder paths and shown as a tree whose folders start collapsed; the open document's folders unfold on their own. **+ → Add folder…** brings in a folder with its structure, and so does dropping one onto Files. Desktop Chrome and Edge read the folder directly; other desktop browsers use their folder upload, and iPhone and iPad offer only files.
+
+A folder is imported for reading, not mirrored, so some of it stays out:
+
+- Folders named `node_modules`, `dist`, `build`, `out`, `target`, `coverage`, `__pycache__`, or `venv`, and any folder whose name starts with `.`, are never entered.
+- Hidden files, files over 1 MiB, and formats Gamma Reader cannot read are left out, and the status bar says how many.
+- A folder with more than 5,000 readable files is refused as a whole.
+
+Files already in the library are either replaced or skipped, so importing a folder again with **Replace** brings in what changed since. A folder row's remove button takes every file under it out of the library at once and closes their tabs; your folder on disk is untouched. Folder export recreates the tree on disk.
 
 ## Local-first by design
 
@@ -60,6 +85,7 @@ Browser storage belongs to this site and browser profile. Export work you want t
 | HTML | Sandboxed preview and editable Source | Active source tools; no text search |
 | Images / SVG | Image preview and zoom; SVG also has editable Source | Vision analysis; SVG active source tools |
 | UTF-8 text | Text preview and editable Source | Search, read, and edit source |
+| Source code | Read-only view with highlighting, line numbers, folding, and search | Search, read, and rewrite whole files |
 | CSV | Spreadsheet grid that follows edits in the editable Source; a single-column file shows as text | Search, read, and edit source as text |
 | Word (`.docx`) | Read-only preview converted to Markdown, with outline and adjustable text size, width, and theme | Search and read converted text |
 | Excel (`.xlsx`) | Read-only grid with sheet tabs, column letters, and row numbers | Search, and read by sheet and A1 range |
