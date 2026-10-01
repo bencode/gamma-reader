@@ -21,6 +21,8 @@ export type StoredConversation = {
   titledBy?: TitleSource
   selection?: ModelSelection
   draft: ConversationDraft
+  // Sent while a reply was running and not yet given to the model.
+  queued?: ConversationDraft[]
   createdAt: number
   lastActiveAt: number
 }
@@ -39,6 +41,22 @@ export type ConversationPage = {
 }
 
 export const emptyConversationDraft = (): ConversationDraft => ({ text: '', attachments: [] })
+
+// Queued messages were written before the draft, so they come first.
+export const foldQueued = (
+  draft: ConversationDraft,
+  queued: readonly ConversationDraft[],
+): ConversationDraft => ({
+  text: [...queued.map(item => item.text), draft.text].filter(text => text.trim()).join('\n\n'),
+  attachments: [...queued.flatMap(item => item.attachments), ...draft.attachments],
+})
+
+// A queue only means something while its reply runs; a conversation opened later gets it back as
+// its draft.
+export const returnQueuedToDraft = (conversation: StoredConversation): StoredConversation =>
+  conversation.queued?.length
+    ? { ...conversation, draft: foldQueued(conversation.draft, conversation.queued), queued: [] }
+    : conversation
 
 export const conversationTitle = (draft: ConversationDraft) => {
   const firstLine = draft.text.trim().split(/\r?\n/, 1)[0]?.replace(/\s+/g, ' ')

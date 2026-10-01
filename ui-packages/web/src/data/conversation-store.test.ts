@@ -63,6 +63,22 @@ describe('conversation store', () => {
     expect((await listStoredFiles()).some(file => file.path === 'Shared.md')).toBe(true)
   })
 
+  it('opens a conversation with its unsent queue returned to the draft', async () => {
+    await saveStoredConversationDraft({
+      ...conversation('queued', 10),
+      draft: { text: 'Still typing', attachments: [] },
+      queued: [
+        { text: 'First queued', attachments: [] },
+        { text: 'Second queued', attachments: [] },
+      ],
+    })
+
+    const opened = await getStoredConversation('queued')
+
+    expect(opened?.conversation.draft.text).toBe('First queued\n\nSecond queued\n\nStill typing')
+    expect(opened?.conversation.queued).toEqual([])
+  })
+
   it('pages by activity and id without duplicates when timestamps match', async () => {
     await Promise.all(
       Array.from({ length: 65 }, (_, index) =>

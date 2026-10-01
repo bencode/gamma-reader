@@ -166,9 +166,13 @@ export const useDraftAttachments = (importFiles: AddWorkspaceAttachments) => {
     return ready
   }, [update])
 
+  // Restored files may pass the limit; adding is refused until some are removed, none are dropped.
   const restore = useCallback(
-    (items: readonly Extract<DraftAttachment, { status: 'ready' }>[]) =>
-      update(current => [...items, ...current].slice(0, maximumDraftAttachments)),
+    (items: readonly ConversationAttachment[]) =>
+      update(current => [
+        ...items.map(metadata => ({ key: nanoid(), metadata, status: 'ready' as const })),
+        ...current,
+      ]),
     [update],
   )
 

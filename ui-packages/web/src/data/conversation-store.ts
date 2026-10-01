@@ -1,9 +1,10 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
-import type {
-  ConversationCursor,
-  ConversationPage,
-  StoredConversation,
-  TitleSource,
+import {
+  type ConversationCursor,
+  type ConversationPage,
+  returnQueuedToDraft,
+  type StoredConversation,
+  type TitleSource,
 } from '../core/conversations'
 import { openWorkspaceDatabase, requestPersistentStorage } from './workspace-database'
 
@@ -55,7 +56,7 @@ export const getStoredConversation = async (id: string) => {
   ])
   if (!conversation) return null
   return {
-    conversation,
+    conversation: returnQueuedToDraft(conversation),
     messages: records
       .sort((left, right) => left.position - right.position)
       .map(record => record.message),
@@ -98,7 +99,7 @@ export const touchStoredConversation = async (id: string, lastActiveAt: number) 
   const database = await openWorkspaceDatabase()
   const conversation = await database.get('conversations', id)
   if (!conversation) throw new Error('Conversation is unavailable.')
-  const updated = { ...conversation, lastActiveAt }
+  const updated = { ...returnQueuedToDraft(conversation), lastActiveAt }
   await database.put('conversations', updated)
   return updated
 }

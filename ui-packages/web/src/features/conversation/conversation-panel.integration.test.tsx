@@ -304,7 +304,7 @@ describe('conversation', () => {
     const requests: RequestInit[] = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
       if (url === '/api/agent/config') return Response.json(config)
-      if (init) requests.push(init)
+      if (init && !isTitleRequest(init)) requests.push(init)
       return new Response(
         new ReadableStream({
           start(value) {
@@ -340,8 +340,10 @@ describe('conversation', () => {
     expect(requests).toHaveLength(1)
     await user.click(screen.getByRole('button', { name: 'Close reading assistant' }))
     await user.click(screen.getByRole('button', { name: 'Open reading assistant' }))
-    expect(question()).toHaveValue('Next question')
+    const queue = screen.getByRole('list', { name: 'Queued messages' })
+    expect(within(queue).getByText('Next question')).toBeVisible()
     expect(screen.getByText('First words')).toBeVisible()
+    await user.click(within(queue).getByRole('button', { name: 'Remove queued message' }))
     await act(async () => {
       controller?.enqueue(
         new TextEncoder().encode(
@@ -350,7 +352,8 @@ describe('conversation', () => {
       )
       controller?.close()
     })
-    await waitFor(() => expect(send()).toBeEnabled())
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Chat model' })).toBeEnabled())
+    expect(requests).toHaveLength(1)
     expect(screen.getByText('First words').tagName).toBe('STRONG')
   })
 
@@ -410,6 +413,101 @@ describe('conversation', () => {
     await waitFor(() => expect(send()).toBeEnabled())
     await user.click(send())
     expect(await screen.findByText('Ready again')).toBeVisible()
+  })
+
+  it('queues a message during a reply and gives it to the model at the next turn', async () => {
+    const user = userEvent.setup({ delay: null })
+    const bodies: { messages: { role: string; content: unknown }[] }[] = []
+    let releaseToolCall = () => {}
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      if (isTitleRequest(init)) return complete('Title')
+      bodies.push(JSON.parse(String(init?.body)))
+      if (bodies.length > 1) return complete('Checked both')
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            releaseToolCall = () => {
+              controller.enqueue(
+                new TextEncoder().encode(
+                  `${event(
+                    {
+                      tool_calls: [
+                        {
+                          index: 0,
+                          id: 'state-call',
+                          type: 'function',
+                          function: { name: 'get_reader_state', arguments: '{}' },
+                        },
+                      ],
+                    },
+                    'tool_calls',
+                  )}data: [DONE]\n\n`,
+                ),
+              )
+              controller.close()
+            }
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      )
+    })
+    open()
+    await waitFor(() => expect(question()).toBeEnabled())
+    await user.type(question(), 'What am I reading?')
+    await user.click(send())
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    await user.type(question(), 'Also list the open files{Enter}')
+
+    const queue = screen.getByRole('list', { name: 'Queued messages' })
+    expect(within(queue).getByText('Also list the open files')).toBeVisible()
+    expect(question()).toHaveValue('')
+    act(() => releaseToolCall())
+
+    expect(await screen.findByText('Checked both')).toBeVisible()
+    const sent = bodies[1]?.messages ?? []
+    expect(sent.at(-2)?.role).toBe('tool')
+    expect(sent.at(-1)?.role).toBe('user')
+    expect(JSON.stringify(sent.at(-1)?.content)).toContain('Also list the open files')
+    expect(screen.queryByRole('list', { name: 'Queued messages' })).not.toBeInTheDocument()
+  })
+
+  it('sends queued messages as soon as Escape stops the reply', async () => {
+    const user = userEvent.setup({ delay: null })
+    const bodies: { messages: { role: string; content: unknown }[] }[] = []
+    let signal: AbortSignal | null | undefined
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      if (isTitleRequest(init)) return complete('Title')
+      bodies.push(JSON.parse(String(init?.body)))
+      if (bodies.length > 1) return complete('Answered the follow-up')
+      signal = init?.signal
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            signal?.addEventListener(
+              'abort',
+              () => controller.error(new DOMException('Aborted', 'AbortError')),
+              { once: true },
+            )
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      )
+    })
+    open()
+    await waitFor(() => expect(question()).toBeEnabled())
+    await user.type(question(), 'Summarize everything')
+    await user.click(send())
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    await user.type(question(), 'Only the first chapter{Enter}')
+    await user.keyboard('{Escape}')
+
+    expect(await screen.findByText('Generation stopped.')).toBeVisible()
+    expect(signal?.aborted).toBe(true)
+    expect(await screen.findByText('Answered the follow-up')).toBeVisible()
+    expect(screen.queryByRole('list', { name: 'Queued messages' })).not.toBeInTheDocument()
+    expect(JSON.stringify(bodies[1]?.messages.at(-1)?.content)).toContain('Only the first chapter')
   })
 
   it('switches between isolated conversations and restores the active transcript', async () => {

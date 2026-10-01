@@ -78,6 +78,45 @@
   background: var(--accent);
   color: var(--surface);
 }
+.bottom .sendButton + .sendButton {
+  margin-left: 6px;
+}
+.queued {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.queuedItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 4px 3px 8px;
+  border-radius: 5px;
+  background: oklch(0.96 0 0);
+  color: var(--muted);
+  font-size: 12px;
+}
+.queuedItem > button {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+}
+.queuedText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.queuedAttachments {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
 
 @media (max-width: 599px) {
   .composer textarea {
