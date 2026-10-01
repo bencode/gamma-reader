@@ -20,7 +20,7 @@ const latexHelper = `(defn latex [tex]
 const wrapCell = (source: string): string => `(let [value (do
 ${source}
 )]
-  (if (and (some? value) (fn? (.-toLatex value))) value (pr-str value)))`
+  (if (and (some? value) (fn? (.-toLatex value)) (string? (.toLatex value))) value (pr-str value)))`
 
 let scittle: Scittle | null = null
 let initialization: Promise<Scittle> | null = null
@@ -60,8 +60,7 @@ const initialize = async (progress: RuntimeProgress): Promise<Scittle> => {
 
 const clojureValueOutput = (value: unknown): CodeLabOutput | null => {
   if (typeof value === 'string') return value === 'nil' ? null : { kind: 'text', text: value }
-  const latex = (value as { toLatex: () => unknown }).toLatex()
-  return typeof latex === 'string' ? { kind: 'latex', latex } : null
+  return { kind: 'latex', latex: (value as { toLatex: () => string }).toLatex() }
 }
 
 const runClojure = async (
