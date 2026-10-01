@@ -7,6 +7,7 @@ import { sourceDirty } from '../../shell/workspace-store'
 import { ProjectSwitcher } from '../projects/project-switcher'
 import { AddMenu } from './add-menu'
 import { DuplicateFilesDialog, RemoveFileDialog, RemoveFolderDialog } from './file-dialogs'
+import { filesInFolder } from './file-tree'
 import { FolderExportControl } from './folder-export-control'
 import {
   entriesFromInput,
@@ -61,9 +62,7 @@ export const ResourcePanel = ({
       }
     : undefined
   const [removal, setRemoval] = useState<
-    | { kind: 'file'; file: StoredFileMetadata }
-    | { kind: 'folder'; path: string; files: StoredFileMetadata[] }
-    | null
+    { kind: 'file'; file: StoredFileMetadata } | { kind: 'folder'; path: string } | null
   >(null)
   const remove = (ids: readonly string[]) =>
     void library.removeFiles(ids).then(removed => {
@@ -72,6 +71,9 @@ export const ResourcePanel = ({
     })
   const [dropping, setDropping] = useState(false)
   const files = library.files.filter(file => (file.collection ?? 'files') === 'files')
+  // A folder's files are read when the dialog renders and when it confirms, so anything added to
+  // the folder while it is open is counted and removed too.
+  const folderFiles = removal?.kind === 'folder' ? filesInFolder(files, removal.path) : []
   const attachments = library.files.filter(file => file.collection === 'attachments')
 
   const dropFiles = (event: DragEvent<HTMLElement>) => {
@@ -207,7 +209,7 @@ export const ResourcePanel = ({
                 activeId={activeId}
                 onOpen={onOpen}
                 onRemove={file => setRemoval({ kind: 'file', file })}
-                onRemoveFolder={(path, files) => setRemoval({ kind: 'folder', path, files })}
+                onRemoveFolder={path => setRemoval({ kind: 'folder', path })}
                 onSaveAs={id => void exporter.saveAs(id)}
                 savingFileId={exporter.savingFileId}
                 exportBusy={exporter.phase === 'saving' || exporter.savingFileId !== null}
@@ -222,7 +224,7 @@ export const ResourcePanel = ({
                   activeId={activeId}
                   onOpen={onOpen}
                   onRemove={file => setRemoval({ kind: 'file', file })}
-                  onRemoveFolder={(path, files) => setRemoval({ kind: 'folder', path, files })}
+                  onRemoveFolder={path => setRemoval({ kind: 'folder', path })}
                   onSaveAs={id => void exporter.saveAs(id)}
                   savingFileId={exporter.savingFileId}
                   exportBusy={exporter.phase === 'saving' || exporter.savingFileId !== null}
@@ -249,10 +251,10 @@ export const ResourcePanel = ({
       {removal?.kind === 'folder' && (
         <RemoveFolderDialog
           path={removal.path}
-          count={removal.files.length}
-          dirty={removal.files.some(file => sourceDirty(drafts[file.id]))}
+          count={folderFiles.length}
+          dirty={folderFiles.some(file => sourceDirty(drafts[file.id]))}
           onCancel={() => setRemoval(null)}
-          onRemove={() => remove(removal.files.map(file => file.id))}
+          onRemove={() => remove(folderFiles.map(file => file.id))}
         />
       )}
       {dropping && <span className="resource-drop-hint">Drop files or folders to add them</span>}

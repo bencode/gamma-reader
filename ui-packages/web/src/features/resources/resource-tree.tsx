@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { formatBytes, type PreviewKind, type StoredFileMetadata } from '../../core/files'
-import { ancestorFolders, buildFileTree, type FileTreeNode, filesIn } from './file-tree'
+import { ancestorFolders, buildFileTree, type FileTreeNode } from './file-tree'
 
 type ResourceTreeProps = {
   files: StoredFileMetadata[]
@@ -19,7 +19,7 @@ type ResourceTreeProps = {
   activeId: string | null
   onOpen: (id: string) => void
   onRemove: (file: StoredFileMetadata) => void
-  onRemoveFolder: (path: string, files: StoredFileMetadata[]) => void
+  onRemoveFolder: (path: string) => void
   onSaveAs: (id: string) => void
   savingFileId: string | null
   exportBusy: boolean
@@ -130,7 +130,7 @@ const TreeRows = ({
               className="icon-button"
               aria-label={`Remove folder ${node.path} from ${context.label}`}
               title="Remove folder"
-              onClick={() => context.onRemoveFolder(node.path, filesIn(node))}
+              onClick={() => context.onRemoveFolder(node.path)}
             >
               <Trash2 size={13} />
             </button>

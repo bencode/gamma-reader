@@ -55,6 +55,8 @@ export const ancestorFolders = (path: string) => {
   return segments.map((_, index) => segments.slice(0, index + 1).join('/'))
 }
 
-// Every file a folder holds, however deeply.
-export const filesIn = (node: FileTreeNode): StoredFileMetadata[] =>
-  node.kind === 'file' ? [node.file] : node.children.flatMap(filesIn)
+// Every file a folder holds, however deeply, matched as the tree groups folders: ignoring case.
+export const filesInFolder = (files: readonly StoredFileMetadata[], folder: string) => {
+  const prefix = `${folder.toLowerCase()}/`
+  return files.filter(file => file.path.toLowerCase().startsWith(prefix))
+}
