@@ -65,7 +65,9 @@ Browser storage belongs to this site and browser profile. Export work you want t
 | Excel (`.xlsx`) | Read-only grid with sheet tabs, column letters, and row numbers | Search, and read by sheet and A1 range |
 | Other formats | Stored in Files | No preview or text reading yet |
 
-Word and Excel are read from the modern `.docx` and `.xlsx` only; the older binary `.doc` and `.xls` are stored but not read. A `.csv` is separated by commas, semicolons, or tabs, whichever its first line uses. Both keep structure and drop presentation: a document loses page layout, fonts, headers and footers, tracked changes, and equations, while a sheet arrives without cell colours, charts, or images and a formula shows the value it was saved with. Neither is decoded as text, so the 5 MiB limit below does not reach them — a large illustrated document takes a few seconds to open, and a very wide sheet is previewed to a hundred columns while the assistant reads them all.
+Word and Excel are read from the modern `.docx` and `.xlsx` only; the older binary `.doc` and `.xls` are stored but not read. Both keep structure and drop presentation: a document loses page layout, fonts, headers and footers, tracked changes, and equations, while a sheet arrives without cell colours, charts, or images and a formula shows the value it was saved with. Neither is decoded as text, so the 5 MiB limit below does not reach them — a large illustrated document takes a few seconds to open, and a very wide sheet is previewed to a hundred columns while the assistant reads them all.
+
+A `.csv` is plain text, so the 5 MiB limit applies and the assistant reads it as text. Its fields may be separated by commas, semicolons, or tabs, whichever its first line uses.
 
 Limits: 200 MiB per file, 1 GiB per project (including attachments), and 5 MiB for text preview and reading. Available storage also depends on the browser's quota and device space. Python and Clojure require runtime downloads on first use. Folder export requires desktop Chrome or Edge; individual files can also be downloaded.
 
