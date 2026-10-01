@@ -133,13 +133,14 @@ const TreeRows = ({
 
 export const ResourceTree = ({ files, ...props }: ResourceTreeProps) => {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
-  const [revealedId, setRevealedId] = useState<string | null>(null)
+  const activePath = files.find(file => file.id === props.activeId)?.path ?? null
+  const [revealedPath, setRevealedPath] = useState<string | null>(null)
 
-  // Opening a file reveals its folders once; the reader may fold them again afterwards.
-  if (props.activeId !== revealedId) {
-    setRevealedId(props.activeId)
-    const active = files.find(file => file.id === props.activeId)
-    const ancestors = active ? ancestorFolders(active.path) : []
+  // Opening a file, or the open file moving, reveals its folders once; the reader may fold them
+  // again afterwards.
+  if (activePath !== revealedPath) {
+    setRevealedPath(activePath)
+    const ancestors = activePath ? ancestorFolders(activePath) : []
     if (ancestors.some(key => !expanded.has(key))) setExpanded(new Set([...expanded, ...ancestors]))
   }
 

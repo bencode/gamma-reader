@@ -73,12 +73,13 @@ describe('reading workspace', () => {
     expect((await listStoredFiles()).find(file => file.id === 'getting-started')?.path).toBe(
       'guides/Start here.md',
     )
-    // The address followed the move, so the document stayed open.
+    // The address followed the move, so the document stayed open and its folder unfolded.
     expect(screen.getByRole('tab', { name: 'Start here.md' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    expect(material('guides')).toBeVisible()
+    expect(material('guides')).toHaveAttribute('aria-expanded', 'true')
+    expect(material('Start here.md')).toHaveAttribute('aria-current', 'page')
   })
 
   it('shows an agent-written file without changing the active document', async () => {
