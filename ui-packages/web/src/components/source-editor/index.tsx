@@ -1,8 +1,6 @@
-import { LanguageDescription } from '@codemirror/language'
 import { EditorState, type Extension, Transaction } from '@codemirror/state'
 import { basicSetup, EditorView } from 'codemirror'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { baseName } from '../../core/files'
 import styles from './style.module.scss'
 
 export type SourceLanguage = 'plain' | 'markdown' | 'javascript' | 'typescript'
@@ -15,12 +13,7 @@ export type SourceEditorProps = {
   onChange: (value: string) => void
 }
 
-// Each language arrives on first use. Plain text still looks its path up among the languages
-// CodeMirror knows, so source code of any kind reads with its own highlighting.
-export const languageExtensions = async (
-  language: SourceLanguage,
-  path: string,
-): Promise<readonly Extension[]> => {
+const languageExtensions = async (language: SourceLanguage): Promise<readonly Extension[]> => {
   if (language === 'markdown') {
     const { markdown } = await import('@codemirror/lang-markdown')
     return [markdown({ addKeymap: false, completeHTMLTags: false })]
@@ -29,9 +22,7 @@ export const languageExtensions = async (
     const { javascript } = await import('@codemirror/lang-javascript')
     return [javascript({ typescript: language === 'typescript' })]
   }
-  const { languages } = await import('@codemirror/language-data')
-  const description = LanguageDescription.matchFilename(languages, baseName(path))
-  return description ? [await description.load()] : []
+  return []
 }
 
 const synchronize = (view: EditorView, next: string, applyingExternal: { current: boolean }) => {
@@ -105,7 +96,7 @@ export const SourceEditor = ({ name, value, language, active, onChange }: Source
       )
         scroll.current = view.scrollSnapshot()
     }
-    void languageExtensions(language, name).then(
+    void languageExtensions(language).then(
       extensions => {
         if (disposed) return
         const view = new EditorView({

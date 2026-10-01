@@ -40,9 +40,7 @@ const plainReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLangu
 const CodeReader = lazy(() =>
   import('./code-reader').then(module => ({ default: module.CodeReader })),
 )
-const jsReader: TextReaderDefinition = { Preview: CodeReader, sourceLanguage: 'javascript' }
-const tsReader: TextReaderDefinition = { Preview: CodeReader, sourceLanguage: 'typescript' }
-const codeReader: TextReaderDefinition = { Preview: CodeReader, sourceLanguage: 'plain' }
+const codeReader: TextReaderDefinition = { Preview: CodeReader }
 const p5Reader: TextReaderDefinition = { Preview: P5FileReader, sourceLanguage: 'javascript' }
 const htmlReader: TextReaderDefinition = { Preview: HtmlReader, sourceLanguage: 'plain' }
 const svgReader: TextReaderDefinition = { Preview: SvgReader, sourceLanguage: 'plain' }
@@ -56,8 +54,6 @@ const textReaderFor = (file: StoredFileMetadata): TextReaderDefinition | undefin
   if (file.path.toLowerCase().endsWith('.svg') || file.mediaType === 'image/svg+xml')
     return svgReader
   if (file.path.toLowerCase().endsWith('.csv') || file.mediaType === 'text/csv') return csvReader
-  if (/\.(?:js|jsx|mjs|cjs)$/i.test(file.path)) return jsReader
-  if (/\.(?:ts|tsx)$/i.test(file.path)) return tsReader
   if (isCodePath(file.path)) return codeReader
   if (file.previewKind === 'text') return plainReader
   return undefined

@@ -229,7 +229,7 @@ describe('file library', () => {
     }
   })
 
-  it('reads source code highlighted by its language and leaves it unchanged', async () => {
+  it('reads source code highlighted by its language, without a Source view', async () => {
     await writeStoredTextFile('tools/run.py', 'def greet(name):\n    return f"hello {name}"\n')
     render(
       <MemoryRouter initialEntries={['/files/tools/run.py']}>
@@ -242,6 +242,8 @@ describe('file library', () => {
     expect(code).toHaveAttribute('aria-readonly', 'true')
     // Python support loads on demand; once it has, the keyword stands apart from plain text.
     await waitFor(() => expect(within(code).getByText('def').tagName).toBe('SPAN'))
+    // Code is read, not edited here, so there is no Source view to open beside it.
+    expect(screen.queryByRole('button', { name: 'Source' })).toBeNull()
   })
 
   it('keeps the add-files action in the toolbar when the library is empty', async () => {

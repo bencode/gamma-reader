@@ -1,12 +1,20 @@
-import { EditorState } from '@codemirror/state'
+import { LanguageDescription } from '@codemirror/language'
+import { EditorState, type Extension } from '@codemirror/state'
 import { basicSetup, EditorView } from 'codemirror'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { languageExtensions } from '../../components/source-editor'
 import styles from '../../components/source-editor/style.module.scss'
+import { baseName } from '../../core/files'
 import type { ReaderState } from '../../core/reader-state'
 import type { ReadingPosition } from '../../core/reading-position'
 import { useReaderBinding } from '../../shell/workspace-context'
 import type { TextReaderProps } from './text-file-reader'
+
+// Each language arrives the first time a file in it is opened; an unknown one reads as plain text.
+const languageFor = async (path: string): Promise<readonly Extension[]> => {
+  const { languages } = await import('@codemirror/language-data')
+  const description = LanguageDescription.matchFilename(languages, baseName(path))
+  return description ? [await description.load()] : []
+}
 
 // The line at the top of the view and the share of it scrolled past: a flow position by line.
 const positionOf = (view: EditorView): ReadingPosition => {
@@ -39,7 +47,7 @@ const visibleText = (view: EditorView | null): ReaderState['viewport'] => {
 }
 
 // Source code reads in place: highlighted by its language, numbered, foldable and searchable,
-// selectable to copy, and never edited here — the Source view is where code changes.
+// and selectable to copy. It is a reader, not an editor, and has no Source view beside it.
 export const CodeReader = ({
   document,
   content,
@@ -76,7 +84,7 @@ export const CodeReader = ({
       if (view && activeRef.current && !pendingPosition.current)
         onPositionRef.current(positionOf(view))
     }
-    void languageExtensions('plain', document.path).then(
+    void languageFor(document.path).then(
       extensions => {
         if (disposed) return
         const view = new EditorView({
