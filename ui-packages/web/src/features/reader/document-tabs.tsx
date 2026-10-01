@@ -57,10 +57,10 @@ const textReaderFor = (file: StoredFileMetadata): TextReaderDefinition | undefin
   return undefined
 }
 
-// Tabs show the file name; when open files share one, the parent folder tells them apart.
+// Tabs show the file name; when open files share one, the folder path tells them apart.
 const tabLabel = (path: string, openPaths: readonly string[]) => {
   const name = baseName(path)
-  const folder = path.split('/').at(-2)
+  const folder = path.slice(0, -name.length - 1)
   const shared =
     openPaths.filter(other => baseName(other).toLowerCase() === name.toLowerCase()).length > 1
   return shared && folder ? `${name} · ${folder}` : name

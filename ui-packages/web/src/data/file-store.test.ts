@@ -306,7 +306,7 @@ describe('local file store', () => {
     await importStoredFiles([{ path: 'docs/a.md', file: textFile('a.md', 'a') }], 'keep')
 
     const result = await importStoredFiles(
-      ['docs', 'docs/a.md/b.md', '../a.md', '/a.md', 'a//b.md', 'a\\b.md'].map(path => ({
+      ['docs', 'docs/a.md/b.md', '../a.md', '/a.md', 'a//b.md'].map(path => ({
         path,
         file: textFile('x.md', 'x'),
       })),
@@ -320,8 +320,10 @@ describe('local file store', () => {
       ['../a.md', 'invalid-path'],
       ['/a.md', 'invalid-path'],
       ['a//b.md', 'invalid-path'],
-      ['a\\b.md', 'invalid-path'],
     ])
+    // Names a disk allows, such as one with a backslash, still import at the root.
+    const kept = await importStoredFiles(rootSources([textFile('a\\b.md', 'kept')]), 'keep')
+    expect(kept.imported[0]?.metadata.path).toBe('a\\b.md')
   })
 
   it('recognizes common UTF-8 document formats with application MIME types as text', async () => {

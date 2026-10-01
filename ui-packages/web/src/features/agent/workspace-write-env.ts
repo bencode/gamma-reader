@@ -8,7 +8,7 @@ import {
   ok,
   toError,
 } from '@earendil-works/pi-agent-core'
-import { baseName, isWorkspacePath } from '../../core/files'
+import { baseName, containsControlCharacter, isWorkspacePath } from '../../core/files'
 import { listStoredFiles } from '../../data/file-store'
 import type { WorkspaceTextWriter } from './local-tools'
 
@@ -18,8 +18,9 @@ const relativePath = (path: string) => {
   const relative = path.startsWith(`${root}/`)
     ? path.slice(root.length + 1)
     : path.replace(/^\.\//, '')
-  // An absolute path outside the workspace keeps its leading '/', which the check rejects.
-  if (!isWorkspacePath(relative))
+  // An absolute path outside the workspace keeps its leading '/', which the check rejects. The
+  // model must also stay clear of characters that read as separators or are invisible.
+  if (!isWorkspacePath(relative) || relative.includes('\\') || containsControlCharacter(relative))
     throw new FileError(
       'invalid',
       'Use a relative workspace path such as notes.md or docs/notes.md without parent traversal.',

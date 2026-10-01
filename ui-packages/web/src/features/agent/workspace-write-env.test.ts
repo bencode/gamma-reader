@@ -83,7 +83,13 @@ describe('browser workspace write environment', () => {
   })
 
   it('rejects traversal and external paths, binary writes and cancelled calls', async () => {
-    for (const path of ['../outside.md', 'docs/../outside.md', '/outside.md', 'docs//a.md'])
+    for (const path of [
+      '../outside.md',
+      'docs/../outside.md',
+      '/outside.md',
+      'docs//a.md',
+      'a\\b.md',
+    ])
       await expect(executeWrite(path, 'blocked')).rejects.toThrow('without parent traversal')
 
     const env = createWorkspaceWriteEnv(writeStoredTextFile)

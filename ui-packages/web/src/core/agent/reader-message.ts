@@ -32,6 +32,7 @@ export const createReaderUserMessage = (
   const request = text || 'Review the attached workspace files.'
   const metadata = attachments.map(attachment => ({
     fileId: attachment.id,
+    // Attachments are always stored at the library root, so the name they keep is their path.
     path: attachment.name,
     type: attachment.previewKind,
     recommendedTool: recommendedTool(attachment.previewKind),

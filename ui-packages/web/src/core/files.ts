@@ -103,14 +103,13 @@ export const containsControlCharacter = (value: string) =>
     return codePoint !== undefined && (codePoint < 32 || codePoint === 127)
   })
 
-// A path is relative, uses '/' only, and every segment names something. Paths are checked and
+// A path is relative and every '/'-separated segment names something. Any character a file
+// name may hold is allowed, so files imported from disk keep their names. Paths are checked and
 // never rewritten, so every caller agrees on which file a path means.
 export const isWorkspacePath = (path: string) =>
   path.length > 0 &&
   path.length <= maximumPathLength &&
   !path.startsWith('/') &&
-  !path.includes('\\') &&
-  !containsControlCharacter(path) &&
   path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
 
 export const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
