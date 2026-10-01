@@ -109,4 +109,38 @@ describe('projects', () => {
     expect(await screen.findByRole('button', { name: 'My reading' })).toBeInTheDocument()
     expect(await getProject(birds.id)).toBeNull()
   })
+
+  it('waits for an older tab to let go before upgrading the library, then opens it', async () => {
+    const birds = await createProject('Bird notes')
+    // An older page still holds the version-six library and does not know to let go.
+    const olderTab = await openDB(birds.databaseName, 6, {
+      upgrade(database) {
+        const files = database.createObjectStore('files', { keyPath: 'id' })
+        files.createIndex('by-created-at', 'createdAt')
+        database.createObjectStore('contents', { keyPath: 'id' })
+        database.createObjectStore('conversations', { keyPath: 'id' })
+        database.createObjectStore('messages', { keyPath: ['conversationId', 'position'] })
+        database.createObjectStore('folderExports', { keyPath: 'id' })
+        files.put({
+          id: 'old',
+          name: 'Old.md',
+          collection: 'files',
+          mediaType: 'text/markdown',
+          previewKind: 'markdown',
+          size: 1,
+          lastModified: 1,
+          createdAt: 1,
+          revision: 1,
+        })
+      },
+    })
+    visit(`/p/${birds.id}`)
+
+    expect(
+      await screen.findByText('Waiting for other tabs that have Bird notes open to close.'),
+    ).toBeVisible()
+    olderTab.close()
+    const files = await screen.findByRole('list', { name: 'Files' })
+    expect(within(files).getByRole('button', { name: 'Old.md' })).toBeInTheDocument()
+  })
 })

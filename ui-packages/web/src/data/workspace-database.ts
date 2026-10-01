@@ -75,7 +75,8 @@ const seedSamples = async (database: IDBPDatabase<WorkspaceDatabase>) => {
   await transaction.done
 }
 
-export const openWorkspaceDatabase = () => {
+// Only the first caller hears that the open is blocked; later callers share the same open.
+export const openWorkspaceDatabase = (onBlocked?: () => void) => {
   if (databasePromise) return databasePromise
   let seeding = false
   databasePromise = openDB<WorkspaceDatabase>(databaseName, 7, {
@@ -141,6 +142,18 @@ export const openWorkspaceDatabase = () => {
           transaction.abort()
         })
       }
+    },
+    // A newer page is upgrading the library, so this page's code is out of date: let go so the
+    // upgrade can finish. A deletion is not given way to — deleting a project waits for other
+    // tabs to close, and this page reading again would recreate the deleted library empty.
+    blocking(_currentVersion, blockedVersion) {
+      if (blockedVersion !== null)
+        closeWorkspaceDatabase().catch(error => {
+          console.error('Unable to close the library for an upgrade', error)
+        })
+    },
+    blocked() {
+      onBlocked?.()
     },
   })
     .then(async database => {
