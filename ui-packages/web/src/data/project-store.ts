@@ -85,15 +85,17 @@ export const touchProject = async (id: string) => {
 }
 
 // A project is deleted by the page that opens after the request, before it opens any library, so
-// only another tab can hold the library open. The library goes first: if it cannot be deleted,
-// the project stays listed and can be retried.
+// only another tab can hold the library open. The project leaves the registry first, so nothing
+// opens it while its library waits for those tabs: an open would queue behind the deletion and
+// never finish. Deleting the library is cleanup; if it never completes, an unlisted library is
+// left taking space and nothing else.
 export const deleteProject = async (project: Project, onBlocked: () => void) => {
-  await deleteIndexedDatabase(project.databaseName, onBlocked)
+  const database = await openRegistry()
+  await database.delete('projects', project.id)
   Object.values(workspaceStorageBases).forEach(base => {
     localStorage.removeItem(workspaceStorageKey(base, project.databaseName))
   })
-  const database = await openRegistry()
-  await database.delete('projects', project.id)
+  await deleteIndexedDatabase(project.databaseName, onBlocked)
 }
 
 const pendingDeletionKey = 'gamma-reader.pending-deletion'
