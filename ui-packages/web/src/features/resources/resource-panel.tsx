@@ -56,7 +56,7 @@ export const ResourcePanel = ({
   const addFolder = folderImportSupported()
     ? () => {
         if (folderPickerAvailable())
-          void library.addFolder(async () => readPickedFolder(await pickFolder()))
+          void library.addFolder(async onRead => readPickedFolder(await pickFolder(), onRead))
         else folderInputRef.current?.click()
       }
     : undefined
@@ -140,6 +140,11 @@ export const ResourcePanel = ({
           }}
         />
       </div>
+      {library.progress && (
+        <p className="file-progress" role="status">
+          {library.progress}
+        </p>
+      )}
       {library.status && (
         <div className="file-status" role="alert">
           <span>{library.status.message}</span>

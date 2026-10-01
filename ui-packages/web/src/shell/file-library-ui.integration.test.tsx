@@ -120,7 +120,7 @@ describe('file library', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
-  it('resolves duplicate names and removes the active browser copy', async () => {
+  it('skips files already in the library and removes the active browser copy', async () => {
     const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter>
@@ -132,10 +132,14 @@ describe('file library', () => {
 
     await user.upload(input, new File(['one'], 'Draft.txt', { type: 'text/plain' }))
     await filesList().findByRole('button', { name: 'Draft.txt' })
-    await user.upload(input, new File(['two'], 'Draft.txt', { type: 'text/plain' }))
+    await user.upload(input, [
+      new File(['two'], 'Draft.txt', { type: 'text/plain' }),
+      new File(['new'], 'Fresh.txt', { type: 'text/plain' }),
+    ])
     expect(screen.getByRole('dialog', { name: 'Resolve duplicate files' })).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Keep both' }))
-    await screen.findByText('Draft (2).txt')
+    await user.click(screen.getByRole('button', { name: 'Skip existing' }))
+    await filesList().findByRole('button', { name: 'Fresh.txt' })
+    expect(filesList().queryByRole('button', { name: 'Draft (2).txt' })).toBeNull()
 
     await user.click(filesList().getByRole('button', { name: 'Draft.txt' }))
     expect(await screen.findByText('one')).toBeVisible()

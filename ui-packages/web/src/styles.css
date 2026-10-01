@@ -732,6 +732,11 @@ svg {
 .resource-row:focus-within .resource-actions {
   opacity: 1;
 }
+.file-progress {
+  margin: 0 10px 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
 .resource-state {
   margin: 20px 10px;
   color: var(--muted);

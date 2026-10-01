@@ -31,13 +31,13 @@ export const pickFolder = async () => {
 }
 
 // Ignored folders are never entered, and the walk stops as soon as the folder is known to be
-// over the limit, so a large repository costs no more than what is actually kept.
-export const readPickedFolder = async (folder: FolderHandle, signal?: AbortSignal) => {
+// over the limit, so a large repository costs no more than what is actually kept. Progress is
+// reported every hundred files, often enough to show movement without a render per file.
+export const readPickedFolder = async (folder: FolderHandle, onRead?: (count: number) => void) => {
   const entries: FolderEntry[] = []
   let wanted = 0
   const walk = async (current: FolderHandle, prefix: string): Promise<void> => {
     for await (const handle of current.values()) {
-      signal?.throwIfAborted()
       if (wanted > maximumFolderFiles) return
       const path = `${prefix}/${handle.name}`
       if (handle.kind === 'directory') {
@@ -47,6 +47,7 @@ export const readPickedFolder = async (folder: FolderHandle, signal?: AbortSigna
       const entry = { path, file: await handle.getFile() }
       entries.push(entry)
       if (isFolderFileWanted(entry)) wanted += 1
+      if (entries.length % 100 === 0) onRead?.(entries.length)
     }
   }
   await walk(folder, folder.name)
