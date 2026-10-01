@@ -2,15 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import type { MarkdownImageResolver } from '../../components/markdown-image'
 import { convertDocxToMarkdown, reportDocxMessages } from '../../core/docx'
 import type { StoredFileMetadata } from '../../core/files'
-import type { Workspace } from '../../shell/use-workspace'
+import type { ReadingPositionProps } from '../../core/reading-position'
 import { StandardMarkdownReader } from './markdown-reader/standard-reader'
 
-type DocxReaderProps = {
+type DocxReaderProps = ReadingPositionProps & {
   document: StoredFileMetadata
   blob: Blob
   files: readonly StoredFileMetadata[]
   active: boolean
-  scrollPositions: Workspace['scrollPositions']
 }
 
 type ConversionState =
@@ -38,7 +37,14 @@ const convertDocument = (blob: Blob, name: string): Promise<ConversionState> =>
     },
   )
 
-export const DocxReader = ({ document, blob, files, active, scrollPositions }: DocxReaderProps) => {
+export const DocxReader = ({
+  document,
+  blob,
+  files,
+  active,
+  defaultPosition,
+  onPositionChange,
+}: DocxReaderProps) => {
   // Converting is expensive, and both StrictMode and reopening a tab ask for the same document again.
   const conversion = useRef<{ id: string; revision: number; result: Promise<ConversionState> }>(
     null,
@@ -83,7 +89,8 @@ export const DocxReader = ({ document, blob, files, active, scrollPositions }: D
       content={state.content}
       files={files}
       active={active}
-      scrollPositions={scrollPositions}
+      defaultPosition={defaultPosition}
+      onPositionChange={onPositionChange}
       imageResolver={state.resolveImage}
     />
   )

@@ -229,7 +229,10 @@ export const DocumentTabs = ({
               document={source}
               files={workspace.files}
               active={workspace.activeId === id}
-              scrollPositions={workspace.scrollPositions}
+              // Read when the reader mounts, not subscribed: a reader reports its place as it
+              // scrolls, and the tabs have no reason to render again for that.
+              defaultPosition={workspace.store.getState().positions[id]}
+              onPositionChange={position => workspace.actions.setPosition(id, position)}
               pdfSources={pdfSources}
               textReader={textReaderFor(source)}
             />

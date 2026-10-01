@@ -1,7 +1,7 @@
 import { lazy, type RefObject, Suspense, useEffect, useState } from 'react'
 import { formatBytes, type StoredFileMetadata } from '../../core/files'
+import type { ReadingPositionProps } from '../../core/reading-position'
 import { getStoredFile } from '../../data/file-store'
-import type { Workspace } from '../../shell/use-workspace'
 import { ImageReader } from './image-reader'
 import { TextFileReader, type TextReaderDefinition } from './text-file-reader'
 
@@ -13,11 +13,10 @@ const XlsxReader = lazy(() =>
   import('./xlsx-reader').then(module => ({ default: module.XlsxReader })),
 )
 
-type FilePreviewProps = {
+type FilePreviewProps = ReadingPositionProps & {
   document: StoredFileMetadata
   files: readonly StoredFileMetadata[]
   active: boolean
-  scrollPositions: Workspace['scrollPositions']
   pdfSources: RefObject<Map<string, PdfSourceCacheEntry>>
   textReader?: TextReaderDefinition
 }
@@ -33,7 +32,8 @@ export const FilePreview = ({
   document,
   files,
   active,
-  scrollPositions,
+  defaultPosition,
+  onPositionChange,
   pdfSources,
   textReader,
 }: FilePreviewProps) => {
@@ -106,7 +106,8 @@ export const FilePreview = ({
         blob={state.blob}
         files={files}
         active={active}
-        scrollPositions={scrollPositions}
+        defaultPosition={defaultPosition}
+        onPositionChange={onPositionChange}
         textReader={textReader}
       />
     )
@@ -119,7 +120,8 @@ export const FilePreview = ({
           blob={state.blob}
           files={files}
           active={active}
-          scrollPositions={scrollPositions}
+          defaultPosition={defaultPosition}
+          onPositionChange={onPositionChange}
         />
       </Suspense>
     )
@@ -130,7 +132,8 @@ export const FilePreview = ({
           document={document}
           blob={state.blob}
           active={active}
-          scrollPositions={scrollPositions}
+          defaultPosition={defaultPosition}
+          onPositionChange={onPositionChange}
         />
       </Suspense>
     )
@@ -145,6 +148,8 @@ export const FilePreview = ({
           document={document}
           source={source.url}
           active={active}
+          defaultPosition={defaultPosition}
+          onPositionChange={onPositionChange}
         />
       </Suspense>
     )

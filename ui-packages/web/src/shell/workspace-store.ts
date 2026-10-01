@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid'
 import { createStore } from 'zustand/vanilla'
+import type { ReadingPosition } from '../core/reading-position'
 
 export type PersistedSource = {
   revision: number
@@ -19,6 +20,7 @@ export type SourceDraft = {
 export type WorkspaceState = {
   tabs: string[]
   sourceDrafts: Record<string, SourceDraft>
+  positions: Record<string, ReadingPosition>
 }
 
 export type WorkspaceActions = {
@@ -32,6 +34,7 @@ export type WorkspaceActions = {
   failSourceSave: (fileId: string, message: string, open?: boolean) => void
   reloadIncomingSource: (fileId: string) => void
   forgetSource: (fileId: string) => void
+  setPosition: (fileId: string, position: ReadingPosition) => void
 }
 
 export const sourceDirty = (draft: SourceDraft | undefined) =>
@@ -48,10 +51,14 @@ const updateDraft = (
   return next === draft ? drafts : { ...drafts, [fileId]: next }
 }
 
-export const createWorkspaceStore = (tabs: string[]) =>
+export const createWorkspaceStore = (
+  tabs: string[],
+  positions: Record<string, ReadingPosition> = {},
+) =>
   createStore<WorkspaceState>(() => ({
     tabs,
     sourceDrafts: {},
+    positions,
   }))
 
 export type WorkspaceStore = ReturnType<typeof createWorkspaceStore>
@@ -67,6 +74,9 @@ export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions 
           tabs: state.tabs.filter(id => !closing.has(id)),
           sourceDrafts: Object.fromEntries(
             Object.entries(state.sourceDrafts).filter(([id]) => !closing.has(id)),
+          ),
+          positions: Object.fromEntries(
+            Object.entries(state.positions).filter(([id]) => !closing.has(id)),
           ),
         }
       }),
@@ -187,5 +197,7 @@ export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions 
         const { [fileId]: _removed, ...sourceDrafts } = state.sourceDrafts
         return { sourceDrafts }
       }),
+    setPosition: (fileId, position) =>
+      set(state => ({ positions: { ...state.positions, [fileId]: position } })),
   }
 }

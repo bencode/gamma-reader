@@ -45,7 +45,7 @@ AI inference runs at the model provider. On the free allowance, questions, conve
 
 ![Browser storage, local tools, and the two routes to a model provider](ui-packages/web/src/assets/samples/how-gamma-reader-works.svg)
 
-Files, attachments, and conversations persist in **IndexedDB**, one database per project, with a small registry listing the projects; tabs, the last active file, and any model keys you configure use **localStorage**. Unsaved Source drafts and code execution state stay in memory. **Save** (⌘/Ctrl+S) saves a Source draft to the browser; **Save as…** and folder export write saved copies to your computer. Lab outputs are not included in the exported Markdown.
+Files, attachments, and conversations persist in **IndexedDB**, one database per project, with a small registry listing the projects; tabs, the last active file, where you stopped in each open document, and any model keys you configure use **localStorage**. Unsaved Source drafts and code execution state stay in memory. **Save** (⌘/Ctrl+S) saves a Source draft to the browser; **Save as…** and folder export write saved copies to your computer. Lab outputs are not included in the exported Markdown.
 
 Browser storage belongs to this site and browser profile. Export work you want to keep beyond it. Removing a file deletes only the browser copy, leaving your original unchanged.
 

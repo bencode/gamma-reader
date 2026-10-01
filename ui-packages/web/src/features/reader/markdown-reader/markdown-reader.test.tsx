@@ -26,7 +26,7 @@ const renderReader = (content: string) =>
       content={content}
       files={[document]}
       active
-      scrollPositions={{ current: new Map() }}
+      onPositionChange={() => undefined}
     />,
   )
 
@@ -75,7 +75,7 @@ describe('Markdown file reader', () => {
       content: '# Guide\n\nRead at your own pace.',
       files: [document],
       active: true,
-      scrollPositions: { current: new Map<string, number>() },
+      onPositionChange: () => undefined,
     }
     const base = render(<MarkdownReader {...props} />)
     expect(screen.queryByRole('button', { name: 'Reading appearance' })).not.toBeInTheDocument()

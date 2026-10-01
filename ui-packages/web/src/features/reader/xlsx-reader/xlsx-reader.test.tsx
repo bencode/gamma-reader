@@ -35,7 +35,7 @@ const show = (sheets: Worksheet[]) => {
         document={file}
         blob={new Blob(['xlsx'])}
         active
-        scrollPositions={{ current: new Map() }}
+        onPositionChange={() => undefined}
       />
     </StrictMode>,
   )

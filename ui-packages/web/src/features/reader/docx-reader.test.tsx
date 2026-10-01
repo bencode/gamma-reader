@@ -44,7 +44,7 @@ const renderReader = () =>
         blob={new Blob(['docx bytes'])}
         files={[file]}
         active
-        scrollPositions={{ current: new Map() }}
+        onPositionChange={() => undefined}
       />
     </StrictMode>,
   )
