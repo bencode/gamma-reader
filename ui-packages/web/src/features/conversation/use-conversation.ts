@@ -17,16 +17,19 @@ import {
   emptyConversationDraft,
   type ModelSelection,
   type StoredConversation,
+  type TitleSource,
 } from '../../core/conversations'
 import {
   appendStoredConversationMessages,
   getStoredConversation,
   listStoredConversations,
   removeStoredConversation,
+  renameStoredConversation,
   saveStoredConversationDraft,
   touchStoredConversation,
 } from '../../data/conversation-store'
 import { workspaceStorageBases, workspaceStorageKey } from '../../data/workspace-database'
+import { generateConversationTitle } from '../agent/conversation-title'
 import { createReaderAgent } from '../agent/create-reader-agent'
 import type { LocalTools } from '../agent/local-tools'
 import { createModelRuntime, type ModelRuntime } from '../agent/model-runtime'
@@ -253,6 +256,25 @@ export const useConversation = (
       activeRef.current = next
       setActive(next)
       void queueDraft(next)
+    },
+    [queueDraft],
+  )
+
+  // The active conversation is written whole from memory, so its title changes there; any other
+  // is changed in storage. A title the reader chose is never replaced by one the model suggests.
+  const applyTitle = useCallback(
+    async (id: ConversationId, title: string, titledBy: TitleSource) => {
+      const current = activeRef.current
+      if (current.id !== id) {
+        const renamed = await renameStoredConversation(id, title, titledBy)
+        setHistoryItems(items => items.map(item => (item.id === id ? renamed : item)))
+        return
+      }
+      if (titledBy === 'model' && current.titledBy === 'reader') return
+      const next = { ...current, title, titledBy }
+      activeRef.current = next
+      setActive(next)
+      await queueDraft(next, true)
     },
     [queueDraft],
   )
@@ -601,6 +623,26 @@ export const useConversation = (
     }
   }, [historyCursor, historyItems.length, historyLoading])
 
+  // A title cut from the first message is often "summarize this"; once a reply has finished, the
+  // model names the conversation from the exchange. A failure keeps the cut title and is tried
+  // again after the next reply.
+  const nameConversation = (
+    agent: Agent,
+    id: ConversationId,
+    question: { text: string; attachments: readonly { name: string }[] },
+  ) => {
+    if (activeRef.current.id !== id || activeRef.current.titledBy) return
+    const reply = agent.state.messages.at(-1)
+    if (reply?.role !== 'assistant' || reply.stopReason !== 'stop') return
+    const answer = reply.content.flatMap(block => (block.type === 'text' ? [block.text] : []))
+    generateConversationTitle(agent.state.model, {
+      question: question.text || question.attachments.map(item => item.name).join(', '),
+      answer: answer.join(''),
+    })
+      .then(title => applyTitle(id, title, 'model'))
+      .catch(cause => console.error('Unable to name the conversation', cause))
+  }
+
   const send = async () => {
     const agent = agentRef.current
     const text = draftRef.current.trim()
@@ -633,6 +675,7 @@ export const useConversation = (
     setDraftState('')
     try {
       await agent.prompt(message)
+      nameConversation(agent, submitted.id, message.reader)
     } catch (cause) {
       const recorded = agent.state.messages.some(
         item => isReaderUserMessage(item) && item.reader.id === message.reader.id,
@@ -726,6 +769,7 @@ export const useConversation = (
     switchTo,
     startNew,
     deleteConversation,
+    renameConversation: (id: ConversationId, title: string) => applyTitle(id, title, 'reader'),
     send,
     stop,
     draftAttachments,

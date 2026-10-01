@@ -1,10 +1,11 @@
-import { ArrowLeft, MoreHorizontal, Plus, Trash2, X } from 'lucide-react'
+import { ArrowLeft, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { ConversationId, StoredConversation } from '../../core/conversations'
 
-type DeleteState =
+type RowState =
   | { kind: 'none' }
-  | { kind: 'confirming'; id: ConversationId }
+  | { kind: 'actions'; id: ConversationId }
+  | { kind: 'renaming'; id: ConversationId }
   | { kind: 'deleting'; id: ConversationId }
   | { kind: 'failed'; id: ConversationId; message: string }
 
@@ -20,6 +21,50 @@ export type ConversationHistoryProps = {
   onSelect: (id: ConversationId) => void
   onLoadMore: () => void
   onDelete: (id: ConversationId) => Promise<void>
+  onRename: (id: ConversationId, title: string) => Promise<void>
+}
+
+// The field keeps whatever the reader typed until they leave it; Escape leaves it unchanged.
+const RenameField = ({
+  title,
+  onDone,
+}: {
+  title: string
+  onDone: (title: string | null) => void
+}) => {
+  const ref = useRef<HTMLInputElement>(null)
+  const settled = useRef(false)
+  useEffect(() => {
+    ref.current?.focus()
+    ref.current?.select()
+  }, [])
+  const finish = (next: string | null) => {
+    if (settled.current) return
+    settled.current = true
+    onDone(next)
+  }
+  return (
+    <form
+      className="conversation-history-rename"
+      onSubmit={event => {
+        event.preventDefault()
+        finish(ref.current?.value ?? null)
+      }}
+    >
+      <input
+        ref={ref}
+        aria-label="Conversation name"
+        defaultValue={title}
+        onBlur={event => finish(event.currentTarget.value)}
+        onKeyDown={event => {
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            finish(null)
+          }
+        }}
+      />
+    </form>
+  )
 }
 
 const activityTime = (timestamp: number) =>
@@ -43,8 +88,9 @@ export const ConversationHistory = ({
   onSelect,
   onLoadMore,
   onDelete,
+  onRename,
 }: ConversationHistoryProps) => {
-  const [deleting, setDeleting] = useState<DeleteState>({ kind: 'none' })
+  const [row, setRow] = useState<RowState>({ kind: 'none' })
   const scrollRef = useRef<HTMLDivElement>(null)
   const previousActiveId = useRef(activeId)
 
@@ -54,16 +100,28 @@ export const ConversationHistory = ({
   }, [activeId])
 
   const remove = async (id: ConversationId) => {
-    setDeleting({ kind: 'deleting', id })
+    setRow({ kind: 'deleting', id })
     try {
       await onDelete(id)
-      setDeleting({ kind: 'none' })
+      setRow({ kind: 'none' })
     } catch (cause) {
-      setDeleting({
+      setRow({
         kind: 'failed',
         id,
         message: cause instanceof Error ? cause.message : 'Conversation could not be deleted.',
       })
+    }
+  }
+
+  const rename = async (conversation: StoredConversation, title: string | null) => {
+    const name = title?.trim().replace(/\s+/g, ' ')
+    setRow({ kind: 'none' })
+    if (!name || name === conversation.title) return
+    try {
+      await onRename(conversation.id, name)
+    } catch (cause) {
+      console.error('Unable to rename conversation', cause)
+      setRow({ kind: 'failed', id: conversation.id, message: 'Conversation could not be renamed.' })
     }
   }
 
@@ -91,49 +149,64 @@ export const ConversationHistory = ({
         )}
         <ol className="conversation-history-list">
           {items.map(conversation => {
-            const deleteOpen = deleting.kind !== 'none' && deleting.id === conversation.id
-            const deletePending = deleting.kind === 'deleting' && deleting.id === conversation.id
+            const title = conversation.title ?? 'New conversation'
+            const open = row.kind !== 'none' && row.id === conversation.id
+            const renaming = row.kind === 'renaming' && row.id === conversation.id
+            const deletePending = row.kind === 'deleting' && row.id === conversation.id
             return (
               <li
                 key={conversation.id}
                 className={conversation.id === activeId ? 'active' : undefined}
               >
                 <div className="conversation-history-row">
-                  <button
-                    type="button"
-                    className="conversation-history-main"
-                    disabled={switching || deletePending}
-                    onClick={() => onSelect(conversation.id)}
-                  >
-                    <strong>{conversation.title ?? 'New conversation'}</strong>
-                    <time dateTime={new Date(conversation.lastActiveAt).toISOString()}>
-                      {activityTime(conversation.lastActiveAt)}
-                    </time>
-                  </button>
+                  {renaming ? (
+                    <RenameField title={title} onDone={next => void rename(conversation, next)} />
+                  ) : (
+                    <button
+                      type="button"
+                      className="conversation-history-main"
+                      disabled={switching || deletePending}
+                      onClick={() => onSelect(conversation.id)}
+                    >
+                      <strong>{title}</strong>
+                      <time dateTime={new Date(conversation.lastActiveAt).toISOString()}>
+                        {activityTime(conversation.lastActiveAt)}
+                      </time>
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="icon-button conversation-history-more"
-                    aria-label={`More actions for ${conversation.title ?? 'New conversation'}`}
-                    aria-expanded={deleteOpen}
-                    disabled={switching || deletePending}
+                    aria-label={`More actions for ${title}`}
+                    aria-expanded={open && !renaming}
+                    disabled={switching || deletePending || renaming}
                     onClick={() =>
-                      setDeleting(current =>
+                      setRow(current =>
                         current.kind !== 'none' && current.id === conversation.id
                           ? { kind: 'none' }
-                          : { kind: 'confirming', id: conversation.id },
+                          : { kind: 'actions', id: conversation.id },
                       )
                     }
                   >
-                    {deleteOpen ? <X size={15} /> : <MoreHorizontal size={16} />}
+                    {open && !renaming ? <X size={15} /> : <MoreHorizontal size={16} />}
                   </button>
                 </div>
-                {deleteOpen && (
-                  <div className="conversation-delete-confirmation">
-                    <span>
-                      {deleting.kind === 'failed' ? deleting.message : 'Delete this conversation?'}
+                {open && !renaming && (
+                  <div className="conversation-history-actions">
+                    <span role={row.kind === 'failed' ? 'alert' : undefined}>
+                      {row.kind === 'failed' ? row.message : ''}
                     </span>
                     <button
                       type="button"
+                      disabled={deletePending}
+                      onClick={() => setRow({ kind: 'renaming', id: conversation.id })}
+                    >
+                      <Pencil size={13} />
+                      Rename
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
                       disabled={deletePending}
                       onClick={() => void remove(conversation.id)}
                     >

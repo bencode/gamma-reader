@@ -6,7 +6,7 @@ import type { ConversationAttachment } from '../../core/agent/reader-message'
 import { emptyConversationDraft } from '../../core/conversations'
 import { getStoredConversation, saveStoredConversationDraft } from '../../data/conversation-store'
 import { Workbench } from '../../shell/workbench'
-import { modelConfig as config } from '../../test/model-config'
+import { modelConfig as config, isTitleRequest } from '../../test/model-config'
 import { testProject } from '../../test/project'
 import { DraftAttachmentTray, MessageAttachments } from './conversation-attachments'
 
@@ -19,6 +19,7 @@ const open = () =>
     </MemoryRouter>,
   )
 const send = () => screen.getByRole('button', { name: 'Send question' })
+const activeConversationId = () => localStorage.getItem('gamma-reader.active-conversation') ?? ''
 const question = () => screen.getByRole('textbox', { name: 'Your question' })
 const complete = (text: string) =>
   new Response(`${event({ content: text }) + event({}, 'stop')}data: [DONE]\n\n`, {
@@ -79,6 +80,7 @@ describe('conversation', () => {
     const requests: { url: string; body: Record<string, unknown> }[] = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
       if (url === '/api/agent/config') return Response.json(config)
+      if (isTitleRequest(init)) return Response.json({}, { status: 503 })
       requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
       return complete('A reply')
     })
@@ -184,6 +186,7 @@ describe('conversation', () => {
     const requests: Record<string, unknown>[] = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
       if (url === '/api/agent/config') return Response.json(config)
+      if (isTitleRequest(init)) return Response.json({}, { status: 503 })
       requests.push(JSON.parse(String(init?.body)))
       return complete('A reply')
     })
@@ -414,6 +417,7 @@ describe('conversation', () => {
     const requests: Array<{ messages: Array<{ role: string; content: unknown }> }> = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
       if (url === '/api/agent/config') return Response.json(config)
+      if (isTitleRequest(init)) return Response.json({}, { status: 503 })
       requests.push(JSON.parse(String(init?.body)))
       return complete(requests.length === 1 ? 'First answer' : 'Second answer')
     })
@@ -462,6 +466,52 @@ describe('conversation', () => {
     )
     await user.click(within(activeRow).getByRole('button', { name: 'Delete' }))
     expect(await screen.findByText('Second answer')).toBeVisible()
+  })
+
+  it('names a conversation after its first reply and keeps a name the reader chose', async () => {
+    const user = userEvent.setup({ delay: null })
+    let titleRequests = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      if (!isTitleRequest(init)) return complete('Wrens sing first, then robins.')
+      titleRequests += 1
+      return complete('"Birdsong at dawn"')
+    })
+    open()
+    await waitFor(() => expect(question()).toBeEnabled())
+    await user.type(question(), 'summarize this')
+    await user.click(send())
+    const heading = () =>
+      within(screen.getByRole('complementary', { name: 'Reading assistant' })).getByRole(
+        'heading',
+        { level: 2 },
+      )
+    await waitFor(() => expect(heading()).toHaveTextContent('Birdsong at dawn'))
+
+    await user.click(screen.getByRole('button', { name: 'Conversation history' }))
+    const history = screen.getByRole('region', { name: 'Conversation history' })
+    await user.click(
+      within(history).getByRole('button', { name: 'More actions for Birdsong at dawn' }),
+    )
+    await user.click(within(history).getByRole('button', { name: 'Rename' }))
+    const field = within(history).getByRole('textbox', { name: 'Conversation name' })
+    await user.clear(field)
+    await user.type(field, 'Morning chorus{Enter}')
+    expect(await within(history).findByText('Morning chorus')).toBeVisible()
+
+    await user.click(within(history).getByText('Morning chorus'))
+    await waitFor(() => expect(question()).toBeEnabled())
+    await user.type(question(), 'And the robins?')
+    await waitFor(() => expect(send()).toBeEnabled())
+    await user.click(send())
+    await waitFor(() =>
+      expect(screen.getAllByText('Wrens sing first, then robins.')).toHaveLength(2),
+    )
+    expect(heading()).toHaveTextContent('Morning chorus')
+    expect(titleRequests).toBe(1)
+    expect(await getStoredConversation(activeConversationId())).toMatchObject({
+      conversation: { title: 'Morning chorus', titledBy: 'reader' },
+    })
   })
 
   it('shows initialization failure without discarding a draft', async () => {

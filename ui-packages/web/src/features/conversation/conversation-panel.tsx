@@ -40,6 +40,7 @@ export const ConversationPanel = ({
     switchTo,
     startNew,
     deleteConversation,
+    renameConversation,
     send,
     stop,
     draftAttachments,
@@ -161,6 +162,7 @@ export const ConversationPanel = ({
           onSelect={id => void switchTo(id)}
           onLoadMore={() => void (historyItems.length ? loadMore() : reloadHistory())}
           onDelete={deleteConversation}
+          onRename={renameConversation}
         />
       </Activity>
       {configuringModels && (
