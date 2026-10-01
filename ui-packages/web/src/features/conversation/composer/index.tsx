@@ -79,6 +79,8 @@ export const ConversationComposer = ({
   const [dragging, setDragging] = useState(false)
   // A typed command stays here and never reaches the saved draft. A draft that is not empty was
   // changed from outside (queued messages returned on stop), so it wins.
+  // Known glitch, left on purpose: the hidden command shows again once that draft is sent. It is
+  // never saved; fix it here if it starts to matter.
   const [typedCommand, setTypedCommand] = useState('')
   const [selected, setSelected] = useState(0)
   const [dismissed, setDismissed] = useState(false)
