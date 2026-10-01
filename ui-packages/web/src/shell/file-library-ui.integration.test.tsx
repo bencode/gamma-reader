@@ -120,7 +120,7 @@ describe('file library', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
-  it('resolves duplicate names and removes the active browser copy', async () => {
+  it('skips files already in the library and removes the active browser copy', async () => {
     const user = userEvent.setup({ delay: null })
     render(
       <MemoryRouter>
@@ -132,10 +132,14 @@ describe('file library', () => {
 
     await user.upload(input, new File(['one'], 'Draft.txt', { type: 'text/plain' }))
     await filesList().findByRole('button', { name: 'Draft.txt' })
-    await user.upload(input, new File(['two'], 'Draft.txt', { type: 'text/plain' }))
+    await user.upload(input, [
+      new File(['two'], 'Draft.txt', { type: 'text/plain' }),
+      new File(['new'], 'Fresh.txt', { type: 'text/plain' }),
+    ])
     expect(screen.getByRole('dialog', { name: 'Resolve duplicate files' })).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Keep both' }))
-    await screen.findByText('Draft (2).txt')
+    await user.click(screen.getByRole('button', { name: 'Skip existing' }))
+    await filesList().findByRole('button', { name: 'Fresh.txt' })
+    expect(filesList().queryByRole('button', { name: 'Draft (2).txt' })).toBeNull()
 
     await user.click(filesList().getByRole('button', { name: 'Draft.txt' }))
     expect(await screen.findByText('one')).toBeVisible()
@@ -175,6 +179,49 @@ describe('file library', () => {
 
     await user.click(folder)
     expect(filesList().queryByRole('button', { name: 'files.ts' })).toBeNull()
+  })
+
+  it('adds a chosen folder, leaving out dependencies and reporting what it skipped', async () => {
+    const user = userEvent.setup({ delay: null })
+    // jsdom has no folder input; a browser without the folder picker offers one.
+    Object.defineProperty(HTMLInputElement.prototype, 'webkitdirectory', {
+      configurable: true,
+      value: false,
+    })
+    const inFolder = (path: string, content: string) => {
+      const file = new File([content], path.slice(path.lastIndexOf('/') + 1))
+      Object.defineProperty(file, 'webkitRelativePath', { value: path })
+      return file
+    }
+    try {
+      render(
+        <MemoryRouter>
+          <Workbench project={testProject} />
+        </MemoryRouter>,
+      )
+      await waitForFiles()
+      await user.click(screen.getByRole('button', { name: 'Add files or a folder' }))
+      expect(screen.getByRole('menuitem', { name: 'Add files…' })).toBeVisible()
+      expect(screen.getByRole('menuitem', { name: 'Add folder…' })).toBeVisible()
+      await user.keyboard('{Escape}')
+
+      await user.upload(screen.getByLabelText('Choose a folder'), [
+        inFolder('tool/main.py', 'print("hello")'),
+        inFolder('tool/README', 'A small tool'),
+        inFolder('tool/node_modules/lib/index.js', 'module.exports = 1'),
+        inFolder('tool/.env', 'SECRET=1'),
+      ])
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        '2 files added. Left out 2 files that were hidden, oversized or unreadable.',
+      )
+      await user.click(filesList().getByRole('button', { name: 'tool' }))
+      expect(filesList().getByRole('button', { name: 'main.py' })).toBeVisible()
+      expect(filesList().getByRole('button', { name: 'README' })).toBeVisible()
+      expect(filesList().queryByRole('button', { name: 'node_modules' })).toBeNull()
+    } finally {
+      Reflect.deleteProperty(HTMLInputElement.prototype, 'webkitdirectory')
+    }
   })
 
   it('keeps the add-files action in the toolbar when the library is empty', async () => {

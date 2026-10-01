@@ -67,7 +67,7 @@ export const getStoredFile = async (id: string) => {
 }
 
 // Only the file name takes the number, so a dot in a folder name never splits the path.
-const nextPath = (requested: string, occupied: Set<string>) => {
+const nextPath = (requested: string, occupied: ReadonlyMap<string, unknown>) => {
   const folder = requested.slice(0, requested.length - baseName(requested).length)
   const name = baseName(requested)
   const dot = name.lastIndexOf('.')
@@ -83,13 +83,26 @@ const nextPath = (requested: string, occupied: Set<string>) => {
   return candidate
 }
 
-// A path cannot name a file and a folder at once: one may not lie inside the other.
-const shadows = (path: string, occupied: Iterable<string>) => {
-  const key = path.toLowerCase()
-  for (const other of occupied)
-    if (other.startsWith(`${key}/`) || key.startsWith(`${other}/`)) return true
-  return false
+// The folders a path lies in, outermost first: 'a/b/c.md' → ['a', 'a/b'].
+const folderKeys = (key: string) => {
+  const segments = key.split('/')
+  return segments.slice(0, -1).map((_, index) => segments.slice(0, index + 1).join('/'))
 }
+
+// Every folder the given file keys imply, so a path is checked against the depth of its own
+// folders rather than against every other path.
+const folderIndex = (keys: Iterable<string>) => {
+  const folders = new Set<string>()
+  for (const key of keys) for (const folder of folderKeys(key)) folders.add(folder)
+  return folders
+}
+
+// A path cannot name a file and a folder at once: one may not lie inside the other.
+const shadows = (
+  key: string,
+  files: { has: (key: string) => boolean },
+  folders: ReadonlySet<string>,
+) => folders.has(key) || folderKeys(key).some(folder => files.has(folder))
 
 const hasBrowserCapacity = async (bytes: number) => {
   if (bytes <= 0 || !navigator.storage?.estimate) return true
@@ -119,6 +132,7 @@ export const importStoredFiles = async (
   const existing = await database.getAllFromIndex('files', 'by-created-at')
   const existingIds = new Set(existing.map(file => file.id))
   const planned = new Map(existing.map(file => [file.path.toLowerCase(), file]))
+  const folders = folderIndex(planned.keys())
   const writes = new Map<string, PlannedWrite>()
   const rejected: ImportResult['rejected'] = []
   let totalBytes = existing.reduce((total, file) => total + file.size, 0)
@@ -126,15 +140,12 @@ export const importStoredFiles = async (
 
   selected.forEach(({ path: requested, file }, index) => {
     const duplicate = planned.get(requested.toLowerCase())
-    const path =
-      duplicate && duplicateMode === 'keep'
-        ? nextPath(requested, new Set(planned.keys()))
-        : requested
+    const path = duplicate && duplicateMode === 'keep' ? nextPath(requested, planned) : requested
     const reason = !isWorkspacePath(requested)
       ? 'invalid-path'
       : file.size > maximumFileBytes
         ? 'file-too-large'
-        : shadows(path, planned.keys())
+        : shadows(path.toLowerCase(), planned, folders)
           ? 'path-conflict'
           : null
     if (reason) {
@@ -161,6 +172,7 @@ export const importStoredFiles = async (
     }
     totalBytes += file.size - previousSize
     planned.set(path.toLowerCase(), metadata)
+    for (const folder of folderKeys(path.toLowerCase())) folders.add(folder)
     writes.set(id, {
       sourceIndex: index,
       metadata,
@@ -352,16 +364,17 @@ export const moveStoredFile = async (id: string, path: string, signal?: AbortSig
   const files = transaction.objectStore('files')
   const all = await files.getAll()
   const current = all.find(file => file.id === id)
-  const others = all.filter(file => file.id !== id).map(file => file.path.toLowerCase())
+  const others = new Set(all.filter(file => file.id !== id).map(file => file.path.toLowerCase()))
+  const key = path.toLowerCase()
   const reason: MoveRejectionReason | null = !current
     ? 'missing'
     : current.collection === 'attachments'
       ? 'attachment'
       : !isWorkspacePath(path)
         ? 'invalid-path'
-        : others.includes(path.toLowerCase())
+        : others.has(key)
           ? 'path-taken'
-          : shadows(path, others)
+          : shadows(key, others, folderIndex(others))
             ? 'path-conflict'
             : null
   if (reason || !current) {

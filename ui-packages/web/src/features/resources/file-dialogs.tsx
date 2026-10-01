@@ -1,27 +1,27 @@
 import { ConfirmationDialog as Modal } from '../../components/confirmation-dialog'
 import type { StoredFileMetadata } from '../../core/files'
-import type { DuplicateMode } from '../../data/file-store'
+import type { DuplicateChoice } from './use-file-library'
 
 export const DuplicateFilesDialog = ({
   names,
   onResolve,
 }: {
   names: string[]
-  onResolve: (mode: DuplicateMode | null) => void
+  onResolve: (choice: DuplicateChoice | null) => void
 }) => (
   <Modal label="Resolve duplicate files" onCancel={() => onResolve(null)}>
     <h2>{names.length === 1 ? 'A file already exists' : 'Some files already exist'}</h2>
     <p>
       {names.length === 1
         ? `${names[0]} is already in Files.`
-        : `${names.length} selected files have names already in Files.`}
+        : `${names.length} selected files have paths already in Files.`}
     </p>
     <div className="dialog-actions">
       <button type="button" className="text-button" onClick={() => onResolve(null)}>
         Cancel
       </button>
-      <button type="button" className="secondary-button" onClick={() => onResolve('keep')}>
-        Keep both
+      <button type="button" className="secondary-button" onClick={() => onResolve('skip')}>
+        Skip existing
       </button>
       <button type="button" className="primary-button" onClick={() => onResolve('replace')}>
         Replace

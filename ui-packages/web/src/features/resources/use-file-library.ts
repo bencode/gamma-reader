@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { pickerCancelled } from '../../core/file-export'
 import {
   duplicatePaths,
   type ImportResult,
+  type ImportSource,
   rootSources,
   type StoredFileMetadata,
 } from '../../core/files'
+import { type FolderEntry, maximumFolderFiles, selectFolderFiles } from '../../core/folder-import'
 import {
-  type DuplicateMode,
   importStoredFiles,
   listStoredFiles,
   moveStoredFile,
@@ -51,6 +53,24 @@ const resultStatus = (result: ImportResult): LibraryStatus | null => {
   }
 }
 
+const fileCount = (count: number) => `${count.toLocaleString()} ${count === 1 ? 'file' : 'files'}`
+
+// Like files, a folder speaks up only when something did not come in: refused or left out.
+const folderStatus = (result: ImportResult, skipped: number): LibraryStatus | null => {
+  const refused = resultStatus(result)
+  if (skipped === 0) return refused
+  const imported = result.addedIds.length + result.replacedIds.length
+  return {
+    message: `${refused?.message ?? `${fileCount(imported)} added.`} Left out ${fileCount(skipped)} that were hidden, oversized or unreadable.`,
+  }
+}
+
+// The library holds copies, so a path already there is either refreshed or left as it is.
+export type DuplicateChoice = 'replace' | 'skip'
+
+// Files waiting on the duplicate question; a folder also remembers how many it left out.
+type PendingImport = { sources: ImportSource[]; skipped: number | null }
+
 const keepFile = (file: File) => file
 
 export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => {
@@ -59,7 +79,9 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<LibraryStatus | null>(null)
-  const [pendingFiles, setPendingFiles] = useState<File[] | null>(null)
+  // What an import is doing while it runs; a large folder takes seconds to read and store.
+  const [progress, setProgress] = useState<string | null>(null)
+  const [pending, setPending] = useState<PendingImport | null>(null)
   const persistRequested = useRef(false)
 
   const reload = useCallback(async () => {
@@ -86,19 +108,23 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     }
   }, [])
 
-  const commitImport = async (selected: readonly File[], mode: DuplicateMode) => {
+  // Paths already in the library were settled before this point, so anything left replaces.
+  const commitImport = async ({ sources, skipped }: PendingImport) => {
     setImporting(true)
     setStatus(null)
     try {
-      const result = await importStoredFiles(rootSources(selected.map(prepareFile)), mode)
+      setProgress(`Adding ${fileCount(sources.length)}…`)
+      const prepared = sources.map(source => ({ ...source, file: prepareFile(source.file) }))
+      const result = await importStoredFiles(prepared, 'replace')
       await reload()
-      setStatus(resultStatus(result))
+      setStatus(skipped === null ? resultStatus(result) : folderStatus(result, skipped))
       rememberPersistence(result.imported.length > 0)
     } catch (cause) {
       console.error('Unable to import files', cause)
       setStatus({ message: 'Files could not be added. Try again.' })
     } finally {
       setImporting(false)
+      setProgress(null)
     }
   }
 
@@ -147,17 +173,56 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     [reload, rememberPersistence],
   )
 
-  const addFiles = (selected: readonly File[]) => {
-    if (selected.length === 0 || importing) return
-    const duplicates = duplicatePaths(rootSources(selected), files)
-    if (duplicates.length > 0) setPendingFiles([...selected])
-    else void commitImport(selected, 'keep')
+  const queueImport = async (next: PendingImport) => {
+    if (duplicatePaths(next.sources, files).length > 0) setPending(next)
+    else await commitImport(next)
   }
 
-  const resolveDuplicates = (mode: DuplicateMode | null) => {
-    const selected = pendingFiles
-    setPendingFiles(null)
-    if (mode && selected) void commitImport(selected, mode)
+  const addFiles = (selected: readonly File[]) => {
+    if (selected.length === 0 || importing) return
+    void queueImport({ sources: rootSources(selected), skipped: null })
+  }
+
+  // Reading a large folder takes a moment, so the library counts as importing while it does.
+  const addFolder = async (
+    load: (onRead: (count: number) => void) => Promise<readonly FolderEntry[]>,
+  ) => {
+    if (importing) return
+    setImporting(true)
+    setStatus(null)
+    setProgress('Reading folder…')
+    try {
+      const selection = selectFolderFiles(
+        await load(count => setProgress(`Reading folder… ${count.toLocaleString()} files`)),
+      )
+      if (selection.status === 'too-many')
+        setStatus({
+          message: `This folder has more than ${maximumFolderFiles} readable files. Choose a smaller folder.`,
+        })
+      else if (selection.sources.length === 0)
+        setStatus({ message: 'This folder has no files that can be read here.' })
+      else await queueImport({ sources: selection.sources, skipped: selection.skipped })
+    } catch (cause) {
+      if (!pickerCancelled(cause)) {
+        console.error('Unable to read the folder', cause)
+        setStatus({ message: 'The folder could not be read. Try again.' })
+      }
+    } finally {
+      setImporting(false)
+      setProgress(null)
+    }
+  }
+
+  const resolveDuplicates = (choice: DuplicateChoice | null) => {
+    const selected = pending
+    setPending(null)
+    if (!choice || !selected) return
+    const existing = new Set(files.map(file => file.path.toLowerCase()))
+    const sources =
+      choice === 'replace'
+        ? selected.sources
+        : selected.sources.filter(source => !existing.has(source.path.toLowerCase()))
+    if (sources.length > 0) void commitImport({ ...selected, sources })
   }
 
   const removeFile = async (id: string) => {
@@ -178,8 +243,10 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     importing,
     error,
     status,
-    duplicatePaths: pendingFiles ? duplicatePaths(rootSources(pendingFiles), files) : [],
+    progress,
+    duplicatePaths: pending ? duplicatePaths(pending.sources, files) : [],
     addFiles,
+    addFolder,
     addAttachments,
     writeTextFile,
     moveFile,

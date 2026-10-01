@@ -151,6 +151,41 @@ describe('local file store', () => {
     ])
   })
 
+  it('reads source code stored before version eight as text', async () => {
+    await closeFileStore()
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('gamma-reader-files', 7)
+      request.onupgradeneeded = () => {
+        const files = request.result.createObjectStore('files', { keyPath: 'id' })
+        files.createIndex('by-created-at', 'createdAt')
+        request.result.createObjectStore('contents', { keyPath: 'id' })
+        request.result.createObjectStore('conversations', { keyPath: 'id' })
+        request.result.createObjectStore('messages', { keyPath: ['conversationId', 'position'] })
+        request.result.createObjectStore('folderExports', { keyPath: 'id' })
+        files.put({
+          id: 'script',
+          path: 'tools/run.py',
+          collection: 'files',
+          mediaType: 'application/octet-stream',
+          previewKind: 'unsupported',
+          size: 3,
+          lastModified: 1,
+          createdAt: 1,
+          revision: 1,
+        })
+      }
+      request.onsuccess = () => {
+        request.result.close()
+        resolve()
+      }
+      request.onerror = () => reject(request.error)
+    })
+
+    expect(await listStoredFiles()).toEqual([
+      expect.objectContaining({ id: 'script', path: 'tools/run.py', previewKind: 'text' }),
+    ])
+  })
+
   it('can retry after opening IndexedDB fails', async () => {
     vi.spyOn(indexedDB, 'open').mockImplementationOnce(() => {
       throw new DOMException('Temporarily unavailable', 'UnknownError')

@@ -218,6 +218,33 @@ svg {
 .folder-save-menu button:focus-visible {
   background: oklch(0.945 0 0);
 }
+.add-menu {
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: 160px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px oklch(0 0 0 / 0.12);
+}
+.add-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+}
+.add-menu button:hover,
+.add-menu button:focus-visible {
+  background: oklch(0.945 0 0);
+}
 .resource-list {
   flex: 1;
   overflow: auto;
@@ -704,6 +731,11 @@ svg {
 .resource-row:hover .resource-actions,
 .resource-row:focus-within .resource-actions {
   opacity: 1;
+}
+.file-progress {
+  margin: 0 10px 6px;
+  color: var(--muted);
+  font-size: 11px;
 }
 .resource-state {
   margin: 20px 10px;

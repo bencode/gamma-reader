@@ -1,12 +1,20 @@
-import { PanelLeft, Plus, X } from 'lucide-react'
+import { PanelLeft, X } from 'lucide-react'
 import { type DragEvent, useRef, useState } from 'react'
 import type { StoredFileMetadata } from '../../core/files'
 import type { Project } from '../../core/projects'
 import { useSourceDrafts } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
 import { ProjectSwitcher } from '../projects/project-switcher'
+import { AddMenu } from './add-menu'
 import { DuplicateFilesDialog, RemoveFileDialog } from './file-dialogs'
 import { FolderExportControl } from './folder-export-control'
+import {
+  entriesFromInput,
+  folderImportSupported,
+  folderPickerAvailable,
+  pickFolder,
+  readPickedFolder,
+} from './pick-folder'
 import { ResourceTree } from './resource-tree'
 import type { FileExportController } from './use-file-export'
 import type { FileLibrary } from './use-file-library'
@@ -43,6 +51,15 @@ export const ResourcePanel = ({
 }: ResourcePanelProps) => {
   const drafts = useSourceDrafts()
   const inputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
+  // The folder picker reads a folder in place; elsewhere a folder input hands over its files.
+  const addFolder = folderImportSupported()
+    ? () => {
+        if (folderPickerAvailable())
+          void library.addFolder(async onRead => readPickedFolder(await pickFolder(), onRead))
+        else folderInputRef.current?.click()
+      }
+    : undefined
   const [removeCandidate, setRemoveCandidate] = useState<StoredFileMetadata | null>(null)
   const [dropping, setDropping] = useState(false)
   const files = library.files.filter(file => (file.collection ?? 'files') === 'files')
@@ -89,16 +106,11 @@ export const ResourcePanel = ({
         <h2>Files</h2>
         <div className="resource-toolbar-actions">
           <FolderExportControl exporter={exporter} disabled={files.length === 0} />
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="Add files"
-            title="Add files"
+          <AddMenu
             disabled={library.loading || library.importing}
-            onClick={() => inputRef.current?.click()}
-          >
-            <Plus size={16} />
-          </button>
+            onAddFiles={() => inputRef.current?.click()}
+            onAddFolder={addFolder}
+          />
         </div>
         <input
           ref={inputRef}
@@ -111,7 +123,28 @@ export const ResourcePanel = ({
             event.currentTarget.value = ''
           }}
         />
+        {/* Browsers without the folder picker still let an input choose a whole folder. */}
+        <input
+          ref={node => {
+            folderInputRef.current = node
+            node?.setAttribute('webkitdirectory', '')
+          }}
+          className="visually-hidden"
+          type="file"
+          aria-label="Choose a folder"
+          multiple
+          onChange={event => {
+            const entries = entriesFromInput(Array.from(event.currentTarget.files ?? []))
+            event.currentTarget.value = ''
+            void library.addFolder(async () => entries)
+          }}
+        />
       </div>
+      {library.progress && (
+        <p className="file-progress" role="status">
+          {library.progress}
+        </p>
+      )}
       {library.status && (
         <div className="file-status" role="alert">
           <span>{library.status.message}</span>
