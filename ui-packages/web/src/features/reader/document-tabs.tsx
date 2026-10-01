@@ -5,6 +5,7 @@ import type { StoredFileMetadata } from '../../core/files'
 import type { Workspace } from '../../shell/use-workspace'
 import { useSourceDrafts, useWorkspaceSourceActions } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
+import { CsvReader } from './csv-reader'
 import { DocumentPane } from './document-pane'
 import { DocumentTabBar } from './document-tab-bar'
 import type { PdfSourceCacheEntry } from './file-preview'
@@ -40,6 +41,7 @@ const tsReader: TextReaderDefinition = { Preview: MarkdownReader, sourceLanguage
 const p5Reader: TextReaderDefinition = { Preview: P5FileReader, sourceLanguage: 'javascript' }
 const htmlReader: TextReaderDefinition = { Preview: HtmlReader, sourceLanguage: 'plain' }
 const svgReader: TextReaderDefinition = { Preview: SvgReader, sourceLanguage: 'plain' }
+const csvReader: TextReaderDefinition = { Preview: CsvReader, sourceLanguage: 'plain' }
 
 const textReaderFor = (file: StoredFileMetadata): TextReaderDefinition | undefined => {
   if (file.name.toLowerCase().endsWith('.lab.md')) return labReader
@@ -48,6 +50,7 @@ const textReaderFor = (file: StoredFileMetadata): TextReaderDefinition | undefin
   if (file.previewKind === 'html') return htmlReader
   if (file.name.toLowerCase().endsWith('.svg') || file.mediaType === 'image/svg+xml')
     return svgReader
+  if (file.name.toLowerCase().endsWith('.csv') || file.mediaType === 'text/csv') return csvReader
   if (/\.(?:js|jsx|mjs|cjs)$/i.test(file.name)) return jsReader
   if (/\.(?:ts|tsx)$/i.test(file.name)) return tsReader
   if (file.previewKind === 'text') return plainReader
