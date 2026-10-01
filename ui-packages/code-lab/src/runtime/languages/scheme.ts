@@ -1,5 +1,5 @@
 import type { BiwaSchemeRuntime, InterpreterInstance } from 'biwascheme'
-import type { CodeLabExecutionResult } from '../../types'
+import type { CodeLabExecutionResult, CodeLabOutput } from '../../types'
 import { createConsoleCapture, installConsoleCapture } from '../format-value'
 import type { LanguageRuntime, RuntimeProgress } from '../protocol'
 
@@ -18,6 +18,17 @@ const provideWorkerBrowserAliases = (): void => {
   }
 }
 
+class LatexValue {
+  constructor(readonly latex: string) {}
+}
+
+const defineLatexProcedure = (runtime: BiwaSchemeRuntime): void => {
+  runtime.define_libfunc('latex', 1, 1, ([tex]) => {
+    runtime.assert_string(tex)
+    return new LatexValue(tex)
+  })
+}
+
 const createInterpreter = (runtime: BiwaSchemeRuntime): InterpreterInstance =>
   new runtime.Interpreter(error => console.error('BiwaScheme interpreter error', error))
 
@@ -27,6 +38,7 @@ const initialize = async (progress: RuntimeProgress): Promise<void> => {
   provideWorkerBrowserAliases()
   const module = await import('biwascheme')
   biwaScheme = module.default
+  defineLatexProcedure(biwaScheme)
   interpreter = createInterpreter(biwaScheme)
 }
 
@@ -37,6 +49,12 @@ const formatSchemeValue = (runtime: BiwaSchemeRuntime, value: unknown): string |
   const printable = value as { to_write_string?: () => string }
   if (typeof printable.to_write_string === 'function') return printable.to_write_string()
   return String(value)
+}
+
+const schemeValueOutput = (runtime: BiwaSchemeRuntime, value: unknown): CodeLabOutput | null => {
+  if (value instanceof LatexValue) return { kind: 'latex', latex: value.latex }
+  const text = formatSchemeValue(runtime, value)
+  return text === null ? null : { kind: 'text', text }
 }
 
 const runScheme = async (
@@ -51,9 +69,9 @@ const runScheme = async (
   const restoreConsole = installConsoleCapture(capture)
   try {
     const value = interpreter.evaluate(source)
-    const text = formatSchemeValue(biwaScheme, value)
+    const output = schemeValueOutput(biwaScheme, value)
     return {
-      outputs: [...capture.outputs(), ...(text === null ? [] : [{ kind: 'text' as const, text }])],
+      outputs: [...capture.outputs(), ...(output === null ? [] : [output])],
       error: null,
     }
   } catch (error) {

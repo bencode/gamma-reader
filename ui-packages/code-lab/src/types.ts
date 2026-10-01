@@ -11,6 +11,7 @@ export type CodeLabCell = Readonly<{
 export type CodeLabOutput =
   | Readonly<{ kind: 'stdout' | 'stderr' | 'text'; text: string }>
   | Readonly<{ kind: 'html'; html: string }>
+  | Readonly<{ kind: 'latex'; latex: string }>
   | Readonly<{ kind: 'image'; mediaType: 'image/png'; base64: string }>
 
 export type CodeLabExecutionResult = Readonly<{

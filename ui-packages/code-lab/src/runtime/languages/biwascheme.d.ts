@@ -8,6 +8,13 @@ declare module 'biwascheme' {
     undef?: unknown
     nil?: unknown
     to_write?: (value: unknown) => string
+    define_libfunc(
+      name: string,
+      min: number,
+      max: number,
+      fn: (args: readonly unknown[]) => unknown,
+    ): void
+    assert_string(value: unknown): asserts value is string
   }
 
   const runtime: BiwaSchemeRuntime

@@ -67,10 +67,14 @@ const importLibrary = async (specifier: string): Promise<unknown> => {
 const richValueOutput = (value: unknown): CodeLabOutput | null => {
   if (value === undefined) return null
   if (value !== null && typeof value === 'object') {
-    const richValue = value as { toHtml?: () => unknown }
+    const richValue = value as { toHtml?: () => unknown; toLatex?: () => unknown }
     if (typeof richValue.toHtml === 'function') {
       const html = richValue.toHtml()
       if (typeof html === 'string') return { kind: 'html', html }
+    }
+    if (typeof richValue.toLatex === 'function') {
+      const latex = richValue.toLatex()
+      if (typeof latex === 'string') return { kind: 'latex', latex }
     }
   }
   return { kind: 'text', text: formatValue(value) }
