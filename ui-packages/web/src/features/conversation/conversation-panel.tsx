@@ -43,6 +43,8 @@ export const ConversationPanel = ({
     renameConversation,
     send,
     stop,
+    queued,
+    removeQueued,
     draftAttachments,
   } = conversation
   const running = phase === 'running' || phase === 'stopping'
@@ -134,6 +136,8 @@ export const ConversationPanel = ({
               inputRef={inputRef}
               draft={draft}
               phase={phase}
+              queued={queued}
+              onRemoveQueued={removeQueued}
               attachments={draftAttachments.attachments}
               limitReached={draftAttachments.limitReached}
               unsettled={draftAttachments.unsettled}
@@ -142,7 +146,7 @@ export const ConversationPanel = ({
               onRetry={key => void draftAttachments.retry(key)}
               onRemove={draftAttachments.remove}
               onOpenFile={onOpenFile}
-              onSend={() => void send()}
+              onSend={send}
               onStop={stop}
               availableFileIds={availableFileIds}
             />

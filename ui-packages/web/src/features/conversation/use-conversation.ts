@@ -15,6 +15,7 @@ import {
   type ConversationId,
   conversationTitle,
   emptyConversationDraft,
+  foldQueued,
   type ModelSelection,
   type StoredConversation,
   type TitleSource,
@@ -146,6 +147,15 @@ const snapshot = (
   ]
 }
 
+// A turn that ended this way stops the run, so the library would never read a steered message.
+const runContinues = (message: AgentMessage) =>
+  message.role === 'assistant' && message.stopReason !== 'error' && message.stopReason !== 'aborted'
+
+const failedRun = (agent: Agent) => {
+  const last = agent.state.messages.at(-1)
+  return last?.role === 'assistant' && last.stopReason === 'error'
+}
+
 const displayMessages = (
   messages: readonly AgentMessage[],
   statuses: ReadonlyMap<string, ToolStatus>,
@@ -196,6 +206,7 @@ export const useConversation = (
   const readyDraftAttachments = draftAttachments.ready
   const settleDraftAttachments = draftAttachments.settle
   const replaceDraftAttachments = draftAttachments.replaceReady
+  const restoreDraftAttachments = draftAttachments.restore
 
   const reportStorageError = useCallback((cause: unknown) => {
     console.error('Unable to save conversation', cause)
@@ -258,6 +269,31 @@ export const useConversation = (
       void queueDraft(next)
     },
     [queueDraft],
+  )
+
+  const setQueued = useCallback((queued: ConversationDraft[]) => {
+    const next = { ...activeRef.current, queued }
+    activeRef.current = next
+    setActive(next)
+  }, [])
+
+  // Not saved here: the next message_end writes the emptied queue and the message in one transaction.
+  const takeQueued = useCallback(() => {
+    const queued = activeRef.current.queued ?? []
+    if (queued.length) setQueued([])
+    return queued
+  }, [setQueued])
+
+  const restoreToDraft = useCallback(
+    (items: readonly ConversationDraft[]) => {
+      if (!items.length) return
+      const next = foldQueued(currentDraft(), items)
+      draftRef.current = next.text
+      setDraftState(next.text)
+      restoreDraftAttachments(items.flatMap(item => item.attachments))
+      updateActiveDraft(next)
+    },
+    [currentDraft, restoreDraftAttachments, updateActiveDraft],
   )
 
   // The active conversation is written whole from memory, so its title changes there; any other
@@ -346,11 +382,13 @@ export const useConversation = (
   const disposeAgent = useCallback(
     async (saveDraft: boolean) => {
       const agent = agentRef.current
+      // Taken before stopping, so the run does not send it to an agent about to be dropped.
+      const queued = takeQueued()
       if (agent?.state.isStreaming) agent.abort()
       if (agent) await agent.waitForIdle()
       await settleDraftAttachments()
       if (saveDraft) {
-        updateActiveDraft(currentDraft())
+        updateActiveDraft(foldQueued(currentDraft(), queued))
         await queueDraft(activeRef.current)
       }
       await draftQueue.current.running
@@ -359,7 +397,7 @@ export const useConversation = (
       agentRef.current = null
       busy.current = false
     },
-    [currentDraft, queueDraft, settleDraftAttachments, updateActiveDraft],
+    [currentDraft, queueDraft, settleDraftAttachments, takeQueued, updateActiveDraft],
   )
 
   const attachAgent = useCallback(
@@ -401,6 +439,10 @@ export const useConversation = (
       }
       agentRef.current = agent
       unsubscribeRef.current = agent.subscribe(async (event, signal) => {
+        if (event.type === 'turn_end' && !signal.aborted && runContinues(event.message))
+          takeQueued().forEach(item => {
+            agent.steer(createReaderUserMessage(item.text, item.attachments))
+          })
         if (event.type === 'tool_execution_start') statuses.current.set(event.toolCallId, 'Running')
         if (event.type === 'tool_execution_end')
           statuses.current.set(
@@ -413,7 +455,7 @@ export const useConversation = (
       setError(undefined)
       setPhase('ready')
     },
-    [persistAgentMessages, refresh, tools],
+    [persistAgentMessages, refresh, takeQueued, tools],
   )
 
   const showSession = useCallback(
@@ -643,53 +685,37 @@ export const useConversation = (
       .catch(cause => console.error('Unable to name the conversation', cause))
   }
 
-  const send = async () => {
-    const agent = agentRef.current
-    const text = draftRef.current.trim()
-    if (
-      !agent ||
-      busy.current ||
-      draftAttachments.unsettled ||
-      (!text && !draftAttachments.attachments.length)
-    )
-      return
-    const outgoingAttachments = draftAttachments.takeReady()
-    const message = createReaderUserMessage(
-      text,
-      outgoingAttachments.map(item => item.metadata),
-    )
-    const current = activeRef.current
-    const submitted = {
-      ...current,
-      title: current.title ?? conversationTitle({ text, attachments: message.reader.attachments }),
-      draft: emptyConversationDraft(),
-      lastActiveAt: nextActivityTime(current),
-    }
-    activeRef.current = submitted
-    setActive(submitted)
-    void queueDraft(submitted)
+  // Queued messages join the run at its next turn; whatever is left when it stops, including after
+  // an abort, is sent as the next prompt. A failed run hands them back as the draft.
+  const run = async (agent: Agent, batch: readonly ConversationDraft[]) => {
     busy.current = true
-    setPhase('running')
     setError(undefined)
-    draftRef.current = ''
-    setDraftState('')
     try {
-      await agent.prompt(message)
-      nameConversation(agent, submitted.id, message.reader)
-    } catch (cause) {
-      const recorded = agent.state.messages.some(
-        item => isReaderUserMessage(item) && item.reader.id === message.reader.id,
-      )
-      if (agentRef.current === agent) {
-        setError(cause instanceof Error ? cause.message : 'Could not send the message.')
-        if (!recorded) {
-          draftRef.current = text
-          setDraftState(text)
-          draftAttachments.restore(outgoingAttachments)
-          updateActiveDraft({
-            text,
-            attachments: outgoingAttachments.map(item => item.metadata),
-          })
+      for (let items = batch; items.length; items = takeQueued()) {
+        setPhase('running')
+        const sending = items.map(item => ({
+          item,
+          message: createReaderUserMessage(item.text, item.attachments),
+        }))
+        try {
+          await agent.prompt(sending.map(entry => entry.message))
+        } catch (cause) {
+          if (agentRef.current !== agent) return
+          setError(cause instanceof Error ? cause.message : 'Could not send the message.')
+          const recorded = new Set(
+            agent.state.messages.flatMap(item =>
+              isReaderUserMessage(item) ? [item.reader.id] : [],
+            ),
+          )
+          const unsent = sending.filter(entry => !recorded.has(entry.message.reader.id))
+          restoreToDraft([...unsent.map(entry => entry.item), ...takeQueued()])
+          return
+        }
+        if (agentRef.current !== agent) return
+        nameConversation(agent, activeRef.current.id, foldQueued(emptyConversationDraft(), items))
+        if (failedRun(agent)) {
+          restoreToDraft(takeQueued())
+          return
         }
       }
     } finally {
@@ -702,6 +728,34 @@ export const useConversation = (
         setPhase('ready')
       }
     }
+  }
+
+  const send = () => {
+    const agent = agentRef.current
+    const text = draftRef.current.trim()
+    if (!agent || draftAttachments.unsettled || (!text && !draftAttachments.attachments.length))
+      return
+    const item = { text, attachments: draftAttachments.takeReady().map(entry => entry.metadata) }
+    const current = activeRef.current
+    const queuing = busy.current
+    const submitted = {
+      ...current,
+      title: current.title ?? conversationTitle(item),
+      draft: emptyConversationDraft(),
+      queued: queuing ? [...(current.queued ?? []), item] : current.queued,
+      lastActiveAt: nextActivityTime(current),
+    }
+    activeRef.current = submitted
+    setActive(submitted)
+    void queueDraft(submitted, queuing)
+    draftRef.current = ''
+    setDraftState('')
+    if (!queuing) void run(agent, [item])
+  }
+
+  const removeQueued = (index: number) => {
+    setQueued((activeRef.current.queued ?? []).filter((_, position) => position !== index))
+    void queueDraft(activeRef.current, true)
   }
 
   const configureModel = (selection: ModelSelection) => {
@@ -772,6 +826,8 @@ export const useConversation = (
     renameConversation: (id: ConversationId, title: string) => applyTitle(id, title, 'reader'),
     send,
     stop,
+    queued: active.queued ?? [],
+    removeQueued,
     draftAttachments,
     modelConfiguration: runtime && selection ? { providers: runtime.providers, selection } : null,
     selectModel: (model: ModelReference) => {

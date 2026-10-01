@@ -99,6 +99,7 @@ export const createReaderAgent = (
   const agent = new Agent({
     sessionId: session.id,
     toolExecution: 'sequential',
+    steeringMode: 'all',
     initialState: {
       model: session.model,
       thinkingLevel: session.thinkingLevel,

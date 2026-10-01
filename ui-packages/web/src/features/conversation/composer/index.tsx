@@ -1,9 +1,11 @@
 import { ArrowUp, Paperclip, Square } from 'lucide-react'
 import { type DragEvent, type RefObject, useLayoutEffect, useRef, useState } from 'react'
+import type { ConversationDraft } from '../../../core/conversations'
 import { DraftAttachmentTray } from '../conversation-attachments'
 import { ConversationModelControl, type ModelControlProps } from '../model-control'
 import type { ConversationPhase } from '../use-conversation'
 import type { DraftAttachment } from '../use-draft-attachments'
+import { QueuedMessages } from './queued-messages'
 import styles from './style.module.scss'
 
 type ComposerProps = {
@@ -14,6 +16,8 @@ type ComposerProps = {
   inputRef: RefObject<HTMLTextAreaElement | null>
   draft: string
   phase: ConversationPhase
+  queued: readonly ConversationDraft[]
+  onRemoveQueued: (index: number) => void
   attachments: DraftAttachment[]
   limitReached: boolean
   unsettled: boolean
@@ -40,6 +44,8 @@ export const ConversationComposer = ({
   onConfigureModels,
   draft,
   phase,
+  queued,
+  onRemoveQueued,
   attachments,
   limitReached,
   unsettled,
@@ -57,8 +63,9 @@ export const ConversationComposer = ({
   const running = phase === 'running' || phase === 'stopping'
   const readyAttachments = attachments.filter(item => item.status === 'ready')
   const hasUnavailable = readyAttachments.some(item => !availableFileIds.has(item.metadata.id))
+  // While a reply runs, sending queues the message.
   const canSend =
-    phase === 'ready' &&
+    (phase === 'ready' || running) &&
     !unsettled &&
     !hasUnavailable &&
     Boolean(draft.trim() || readyAttachments.length)
@@ -100,6 +107,7 @@ export const ConversationComposer = ({
       }}
       onDrop={addDroppedFiles}
     >
+      <QueuedMessages queued={queued} onRemove={onRemoveQueued} />
       <DraftAttachmentTray
         attachments={attachments}
         onOpen={onOpenFile}
@@ -125,13 +133,13 @@ export const ConversationComposer = ({
         }}
         rows={1}
         onKeyDown={event => {
-          if (
-            event.key !== 'Enter' ||
-            event.shiftKey ||
-            event.nativeEvent.isComposing ||
-            event.keyCode === 229
-          )
+          if (event.nativeEvent.isComposing || event.keyCode === 229) return
+          if (event.key === 'Escape' && running) {
+            event.preventDefault()
+            onStop()
             return
+          }
+          if (event.key !== 'Enter' || event.shiftKey) return
           event.preventDefault()
           if (canSend) onSend()
         }}
@@ -168,16 +176,30 @@ export const ConversationComposer = ({
           />
         )}
         {limitReached && <span className={styles.attachmentLimit}>10 attachments maximum</span>}
-        <button
-          type="button"
-          className={styles.sendButton}
-          aria-label={running ? 'Stop generation' : 'Send question'}
-          title={running ? 'Stop generation' : 'Send question'}
-          disabled={phase === 'stopping' || (!running && !canSend)}
-          onClick={running ? onStop : onSend}
-        >
-          {running ? <Square size={13} /> : <ArrowUp size={17} />}
-        </button>
+        {running && (
+          <button
+            type="button"
+            className={styles.sendButton}
+            aria-label="Stop generation"
+            title="Stop generation"
+            disabled={phase === 'stopping'}
+            onClick={onStop}
+          >
+            <Square size={13} />
+          </button>
+        )}
+        {(!running || canSend) && (
+          <button
+            type="button"
+            className={styles.sendButton}
+            aria-label={running ? 'Queue message' : 'Send question'}
+            title={running ? 'Queue message' : 'Send question'}
+            disabled={!canSend}
+            onClick={onSend}
+          >
+            <ArrowUp size={17} />
+          </button>
+        )}
       </div>
       {dragging && <span className={styles.dropHint}>Drop files to attach</span>}
     </fieldset>
