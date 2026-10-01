@@ -49,22 +49,30 @@ export type ImportResult = {
   rejected: Array<{ sourceIndex: number; path: string; reason: ImportRejectionReason }>
 }
 
-const extensionOf = (name: string) => name.toLowerCase().match(/\.([^.]+)$/)?.[1] ?? ''
+// Only the file name counts, so a dot in a folder name is never read as an extension.
+const extensionOf = (path: string) =>
+  baseName(path)
+    .toLowerCase()
+    .match(/\.([^.]+)$/)?.[1] ?? ''
 const imageExtensions = new Set(['avif', 'bmp', 'gif', 'jpeg', 'jpg', 'png', 'svg', 'webp'])
-const textExtensions = new Set([
-  'conf',
-  'csv',
-  'ini',
-  'json',
-  'jsonl',
-  'log',
-  'rst',
-  'text',
-  'toml',
-  'txt',
-  'xml',
-  'yaml',
-  'yml',
+// Plain text in its many dialects: notes, data and configuration, and source code.
+const textExtensions = new Set(
+  [
+    'conf csv ini json jsonl log rst text toml txt xml yaml yml',
+    'ts tsx js jsx mjs cjs py rb go rs java kt kts swift c h cc cpp hpp cs php sh bash zsh fish',
+    'sql css scss less vue svelte lua dart scala clj cljs cljc edn el lisp scm rkt hs ml ex exs',
+    'erl r jl gradle properties env lock diff patch',
+  ].flatMap(line => line.split(' ')),
+)
+// Files a project keeps as text without an extension.
+const textFileNames = new Set([
+  'changelog',
+  'dockerfile',
+  'gemfile',
+  'license',
+  'makefile',
+  'procfile',
+  'readme',
 ])
 const docxMediaType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 const xlsxMediaType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -79,7 +87,12 @@ export const previewKindFor = (name: string, mediaType: string): PreviewKind => 
   const extension = extensionOf(name)
   if (extension === 'md' || extension === 'markdown' || mediaType === 'text/markdown')
     return 'markdown'
-  if (textExtensions.has(extension) || textMediaTypes.has(mediaType)) return 'text'
+  if (
+    textExtensions.has(extension) ||
+    textMediaTypes.has(mediaType) ||
+    textFileNames.has(baseName(name).toLowerCase())
+  )
+    return 'text'
   if (extension === 'pdf' || mediaType === 'application/pdf') return 'pdf'
   if (extension === 'docx' || mediaType === docxMediaType) return 'docx'
   if (extension === 'xlsx' || mediaType === xlsxMediaType) return 'xlsx'

@@ -79,7 +79,7 @@ const seedSamples = async (database: IDBPDatabase<WorkspaceDatabase>) => {
 export const openWorkspaceDatabase = (onBlocked?: () => void) => {
   if (databasePromise) return databasePromise
   let seeding = false
-  databasePromise = openDB<WorkspaceDatabase>(databaseName, 7, {
+  databasePromise = openDB<WorkspaceDatabase>(databaseName, 8, {
     upgrade(database, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         const files = database.createObjectStore('files', { keyPath: 'id' })
@@ -98,9 +98,10 @@ export const openWorkspaceDatabase = (onBlocked?: () => void) => {
       }
       if (oldVersion < 4) database.createObjectStore('folderExports', { keyPath: 'id' })
       // One pass rewrites every older record, so no two cursors write back stale copies of it:
-      // version 1 lacked a collection, files from before version 6 may carry an outdated
-      // preview kind, and files from before version 7 were named rather than placed on a path.
-      if (oldVersion > 0 && oldVersion < 7) {
+      // version 1 lacked a collection, files from before version 8 may carry an outdated preview
+      // kind (source code was not read as text before then), and files from before version 7
+      // were named rather than placed on a path.
+      if (oldVersion > 0 && oldVersion < 8) {
         const files = transaction.objectStore('files')
         void (async () => {
           let cursor = await files.openCursor()
@@ -112,8 +113,7 @@ export const openWorkspaceDatabase = (onBlocked?: () => void) => {
               ...value,
               path,
               collection: oldVersion === 1 ? 'files' : value.collection,
-              previewKind:
-                oldVersion < 6 ? previewKindFor(path, value.mediaType) : value.previewKind,
+              previewKind: previewKindFor(path, value.mediaType),
             })
             cursor = await cursor.continue()
           }

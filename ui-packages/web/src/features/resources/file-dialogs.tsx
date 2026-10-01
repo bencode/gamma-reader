@@ -14,7 +14,7 @@ export const DuplicateFilesDialog = ({
     <p>
       {names.length === 1
         ? `${names[0]} is already in Files.`
-        : `${names.length} selected files have names already in Files.`}
+        : `${names.length} selected files have paths already in Files.`}
     </p>
     <div className="dialog-actions">
       <button type="button" className="text-button" onClick={() => onResolve(null)}>

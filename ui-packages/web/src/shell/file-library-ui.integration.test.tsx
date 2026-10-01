@@ -177,6 +177,45 @@ describe('file library', () => {
     expect(filesList().queryByRole('button', { name: 'files.ts' })).toBeNull()
   })
 
+  it('adds a chosen folder, leaving out dependencies and reporting what it skipped', async () => {
+    const user = userEvent.setup({ delay: null })
+    // jsdom has no folder input; a browser without the folder picker offers one.
+    Object.defineProperty(HTMLInputElement.prototype, 'webkitdirectory', {
+      configurable: true,
+      value: false,
+    })
+    const inFolder = (path: string, content: string) => {
+      const file = new File([content], path.slice(path.lastIndexOf('/') + 1))
+      Object.defineProperty(file, 'webkitRelativePath', { value: path })
+      return file
+    }
+    try {
+      render(
+        <MemoryRouter>
+          <Workbench project={testProject} />
+        </MemoryRouter>,
+      )
+      await waitForFiles()
+
+      await user.upload(screen.getByLabelText('Choose a folder'), [
+        inFolder('tool/main.py', 'print("hello")'),
+        inFolder('tool/README', 'A small tool'),
+        inFolder('tool/node_modules/lib/index.js', 'module.exports = 1'),
+        inFolder('tool/.env', 'SECRET=1'),
+      ])
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        '2 files added. Left out 2 hidden, oversized or unreadable files.',
+      )
+      await user.click(filesList().getByRole('button', { name: 'tool' }))
+      expect(filesList().getByRole('button', { name: 'main.py' })).toBeVisible()
+      expect(filesList().getByRole('button', { name: 'README' })).toBeVisible()
+      expect(filesList().queryByRole('button', { name: 'node_modules' })).toBeNull()
+    } finally {
+      Reflect.deleteProperty(HTMLInputElement.prototype, 'webkitdirectory')
+    }
+  })
+
   it('keeps the add-files action in the toolbar when the library is empty', async () => {
     await Promise.all(samples.map(file => removeStoredFile(file.id)))
     render(

@@ -1,4 +1,4 @@
-import { PanelLeft, Plus, X } from 'lucide-react'
+import { FolderPlus, PanelLeft, Plus, X } from 'lucide-react'
 import { type DragEvent, useRef, useState } from 'react'
 import type { StoredFileMetadata } from '../../core/files'
 import type { Project } from '../../core/projects'
@@ -7,6 +7,13 @@ import { sourceDirty } from '../../shell/workspace-store'
 import { ProjectSwitcher } from '../projects/project-switcher'
 import { DuplicateFilesDialog, RemoveFileDialog } from './file-dialogs'
 import { FolderExportControl } from './folder-export-control'
+import {
+  entriesFromInput,
+  folderImportSupported,
+  folderPickerAvailable,
+  pickFolder,
+  readPickedFolder,
+} from './pick-folder'
 import { ResourceTree } from './resource-tree'
 import type { FileExportController } from './use-file-export'
 import type { FileLibrary } from './use-file-library'
@@ -43,6 +50,7 @@ export const ResourcePanel = ({
 }: ResourcePanelProps) => {
   const drafts = useSourceDrafts()
   const inputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
   const [removeCandidate, setRemoveCandidate] = useState<StoredFileMetadata | null>(null)
   const [dropping, setDropping] = useState(false)
   const files = library.files.filter(file => (file.collection ?? 'files') === 'files')
@@ -99,6 +107,22 @@ export const ResourcePanel = ({
           >
             <Plus size={16} />
           </button>
+          {folderImportSupported() && (
+            <button
+              className="icon-button"
+              type="button"
+              aria-label="Add folder"
+              title="Add folder"
+              disabled={library.loading || library.importing}
+              onClick={() =>
+                folderPickerAvailable()
+                  ? void library.addFolder(async () => readPickedFolder(await pickFolder()))
+                  : folderInputRef.current?.click()
+              }
+            >
+              <FolderPlus size={16} />
+            </button>
+          )}
         </div>
         <input
           ref={inputRef}
@@ -109,6 +133,22 @@ export const ResourcePanel = ({
           onChange={event => {
             library.addFiles(Array.from(event.currentTarget.files ?? []))
             event.currentTarget.value = ''
+          }}
+        />
+        {/* Browsers without the folder picker still let an input choose a whole folder. */}
+        <input
+          ref={node => {
+            folderInputRef.current = node
+            node?.setAttribute('webkitdirectory', '')
+          }}
+          className="visually-hidden"
+          type="file"
+          aria-label="Choose a folder"
+          multiple
+          onChange={event => {
+            const entries = entriesFromInput(Array.from(event.currentTarget.files ?? []))
+            event.currentTarget.value = ''
+            void library.addFolder(async () => entries)
           }}
         />
       </div>
