@@ -6,7 +6,7 @@ import { useSourceDrafts } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
 import { ProjectSwitcher } from '../projects/project-switcher'
 import { AddMenu } from './add-menu'
-import { DuplicateFilesDialog, RemoveFileDialog } from './file-dialogs'
+import { DuplicateFilesDialog, RemoveFileDialog, RemoveFolderDialog } from './file-dialogs'
 import { FolderExportControl } from './folder-export-control'
 import {
   entriesFromInput,
@@ -26,7 +26,7 @@ type ResourcePanelProps = {
   library: FileLibrary
   exporter: FileExportController
   onOpen: (id: string) => void
-  onRemoved: (id: string) => void
+  onRemoved: (ids: readonly string[]) => void
   onClose: () => void
 }
 
@@ -60,7 +60,16 @@ export const ResourcePanel = ({
         else folderInputRef.current?.click()
       }
     : undefined
-  const [removeCandidate, setRemoveCandidate] = useState<StoredFileMetadata | null>(null)
+  const [removal, setRemoval] = useState<
+    | { kind: 'file'; file: StoredFileMetadata }
+    | { kind: 'folder'; path: string; files: StoredFileMetadata[] }
+    | null
+  >(null)
+  const remove = (ids: readonly string[]) =>
+    void library.removeFiles(ids).then(removed => {
+      if (removed) onRemoved(ids)
+      setRemoval(null)
+    })
   const [dropping, setDropping] = useState(false)
   const files = library.files.filter(file => (file.collection ?? 'files') === 'files')
   const attachments = library.files.filter(file => file.collection === 'attachments')
@@ -197,7 +206,8 @@ export const ResourcePanel = ({
                 label="Files"
                 activeId={activeId}
                 onOpen={onOpen}
-                onRemove={setRemoveCandidate}
+                onRemove={file => setRemoval({ kind: 'file', file })}
+                onRemoveFolder={(path, files) => setRemoval({ kind: 'folder', path, files })}
                 onSaveAs={id => void exporter.saveAs(id)}
                 savingFileId={exporter.savingFileId}
                 exportBusy={exporter.phase === 'saving' || exporter.savingFileId !== null}
@@ -211,7 +221,8 @@ export const ResourcePanel = ({
                   label="Attachments"
                   activeId={activeId}
                   onOpen={onOpen}
-                  onRemove={setRemoveCandidate}
+                  onRemove={file => setRemoval({ kind: 'file', file })}
+                  onRemoveFolder={(path, files) => setRemoval({ kind: 'folder', path, files })}
                   onSaveAs={id => void exporter.saveAs(id)}
                   savingFileId={exporter.savingFileId}
                   exportBusy={exporter.phase === 'saving' || exporter.savingFileId !== null}
@@ -227,18 +238,21 @@ export const ResourcePanel = ({
           onResolve={library.resolveDuplicates}
         />
       )}
-      {removeCandidate && (
+      {removal?.kind === 'file' && (
         <RemoveFileDialog
-          file={removeCandidate}
-          dirty={sourceDirty(drafts[removeCandidate.id])}
-          onCancel={() => setRemoveCandidate(null)}
-          onRemove={() => {
-            const id = removeCandidate.id
-            void library.removeFile(id).then(removed => {
-              if (removed) onRemoved(id)
-              setRemoveCandidate(null)
-            })
-          }}
+          file={removal.file}
+          dirty={sourceDirty(drafts[removal.file.id])}
+          onCancel={() => setRemoval(null)}
+          onRemove={() => remove([removal.file.id])}
+        />
+      )}
+      {removal?.kind === 'folder' && (
+        <RemoveFolderDialog
+          path={removal.path}
+          count={removal.files.length}
+          dirty={removal.files.some(file => sourceDirty(drafts[file.id]))}
+          onCancel={() => setRemoval(null)}
+          onRemove={() => remove(removal.files.map(file => file.id))}
         />
       )}
       {dropping && <span className="resource-drop-hint">Drop files or folders to add them</span>}

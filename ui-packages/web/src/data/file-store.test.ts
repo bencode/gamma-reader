@@ -8,7 +8,7 @@ import {
   importStoredFiles,
   listStoredFiles,
   moveStoredFile,
-  removeStoredFile,
+  removeStoredFiles,
   updateStoredTextFile,
   writeStoredTextFile,
 } from './file-store'
@@ -242,7 +242,7 @@ describe('local file store', () => {
     ])
     expect((await getStoredFileContent('art-of-noticing'))?.type).toBe('application/pdf')
 
-    await removeStoredFile('getting-started')
+    await removeStoredFiles(['getting-started'])
     await closeFileStore()
 
     expect((await listStoredFiles()).map(file => file.id)).not.toContain('getting-started')
@@ -412,6 +412,22 @@ describe('local file store', () => {
     expect(await listStoredFiles()).toEqual(before)
   })
 
+  it('removes several files together and leaves the rest', async () => {
+    const { imported } = await importStoredFiles(
+      ['docs/a.md', 'docs/b.md', 'keep.md'].map(path => ({ path, file: textFile(path, path) })),
+      'keep',
+    )
+    const [a, b, keep] = imported.map(item => item.metadata.id)
+
+    await removeStoredFiles([a ?? '', b ?? ''])
+
+    const paths = (await listStoredFiles()).map(file => file.path)
+    expect(paths).toContain('keep.md')
+    expect(paths.filter(path => path.startsWith('docs/'))).toEqual([])
+    expect(await getStoredFileContent(a ?? '')).toBeNull()
+    expect(await (await getStoredFileContent(keep ?? ''))?.text()).toBe('keep.md')
+  })
+
   it('recognizes common UTF-8 document formats with application MIME types as text', async () => {
     await importStoredFiles(
       rootSources([new File(['{"local":true}'], 'Context.json', { type: 'application/json' })]),
@@ -526,7 +542,7 @@ describe('source save revision checks', () => {
     const saved = await getStoredFile(file.id)
     expect(saved?.metadata.revision).toBe(file.revision + 1)
     expect(await saved?.blob.text()).toBe(results[0]?.status === 'saved' ? 'first' : 'second')
-    await removeStoredFile(file.id)
+    await removeStoredFiles([file.id])
     expect(await updateStoredTextFile(file.id, file.revision + 1, 'late')).toEqual({
       status: 'missing',
     })

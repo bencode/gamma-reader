@@ -129,7 +129,7 @@ export const Workbench = ({ project }: { project: Project }) => {
         workspace.openDocument(id)
         if (overlay === 'files') setOverlay(null)
       }}
-      onRemoved={workspace.closeDocument}
+      onRemoved={workspace.closeDocuments}
     />
   )
   const assistant = (
