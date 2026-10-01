@@ -2,24 +2,22 @@ import { type ComponentType, type ReactNode, useEffect, useRef, useState } from 
 import type { MarkdownImageResolver } from '../../components/markdown-image'
 import type { SourceLanguage } from '../../components/source-editor'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
-import type { Workspace } from '../../shell/use-workspace'
+import type { ReadingPositionProps } from '../../core/reading-position'
 import { TextDocumentWorkspace } from './text-document-workspace'
 
-type TextFileReaderProps = {
+type TextFileReaderProps = ReadingPositionProps & {
   document: StoredFileMetadata
   files: readonly StoredFileMetadata[]
   blob: Blob
   active: boolean
-  scrollPositions: Workspace['scrollPositions']
   textReader: TextReaderDefinition
 }
 
-export type TextReaderProps = {
+export type TextReaderProps = ReadingPositionProps & {
   document: StoredFileMetadata
   content: string
   files: readonly StoredFileMetadata[]
   active: boolean
-  scrollPositions: Workspace['scrollPositions']
   // Formats converted to Markdown carry their own images rather than workspace files.
   imageResolver?: MarkdownImageResolver
 }
@@ -41,7 +39,8 @@ export const TextFileReader = ({
   files,
   blob,
   active,
-  scrollPositions,
+  defaultPosition,
+  onPositionChange,
   textReader: { Preview, sourceLanguage },
 }: TextFileReaderProps) => {
   const processedDocument = useRef<{ id: string; revision: number }>(null)
@@ -110,7 +109,8 @@ export const TextFileReader = ({
       Preview={Preview}
       files={files}
       active={active}
-      scrollPositions={scrollPositions}
+      defaultPosition={defaultPosition}
+      onPositionChange={onPositionChange}
     />
   )
 }

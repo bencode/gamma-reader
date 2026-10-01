@@ -52,7 +52,6 @@ const storedFile = (
 const pdfFile = storedFile('pdf', 'Guide.pdf', 'pdf')
 const imageFile = storedFile('image', 'Figure.png', 'image')
 const files = [pdfFile, imageFile]
-const scrollPositions = { current: new Map<string, number>() }
 
 const workspace = (activeId: string): Workspace => {
   const store = createWorkspaceStore(files.map(file => file.id))
@@ -63,7 +62,6 @@ const workspace = (activeId: string): Workspace => {
     files,
     filesLoading: false,
     activeId,
-    scrollPositions,
     openDocument: vi.fn(),
     closeDocument: vi.fn(),
     closeDocuments: vi.fn(),

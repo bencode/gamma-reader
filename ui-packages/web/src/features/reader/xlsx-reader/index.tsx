@@ -1,6 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { StoredFileMetadata } from '../../../core/files'
+import type { ReadingPositionProps } from '../../../core/reading-position'
 import {
   cellText,
   clampColumns,
@@ -8,16 +9,14 @@ import {
   readSpreadsheet,
   type Worksheet,
 } from '../../../core/xlsx'
-import type { Workspace } from '../../../shell/use-workspace'
 import { useReaderBinding } from '../../../shell/workspace-context'
 import { readViewport } from '../reader-viewport'
 import styles from './style.module.scss'
 
-type XlsxReaderProps = {
+type XlsxReaderProps = ReadingPositionProps & {
   document: StoredFileMetadata
   blob: Blob
   active: boolean
-  scrollPositions: Workspace['scrollPositions']
 }
 
 type SheetState =
@@ -40,11 +39,21 @@ const openWorkbook = (blob: Blob): Promise<SheetState> =>
     },
   )
 
-export const XlsxReader = ({ document, blob, active, scrollPositions }: XlsxReaderProps) => {
+export const XlsxReader = ({
+  document,
+  blob,
+  active,
+  defaultPosition,
+  onPositionChange,
+}: XlsxReaderProps) => {
   // Parsing is not free and both StrictMode and reopening a tab ask for the same workbook again.
   const workbook = useRef<{ id: string; revision: number; result: Promise<SheetState> }>(null)
   const [state, setState] = useState<SheetState>({ status: 'loading' })
-  const [selected, setSelected] = useState(0)
+  const [selected, setSelected] = useState(
+    defaultPosition?.kind === 'sheet' ? defaultPosition.sheet : 0,
+  )
+  // The reader's own place, kept across a hidden tab, which loses its scroll offset.
+  const place = useRef(defaultPosition?.kind === 'sheet' ? defaultPosition.scrollTop : 0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const tableRef = useRef<HTMLTableElement>(null)
 
@@ -57,7 +66,11 @@ export const XlsxReader = ({ document, blob, active, scrollPositions }: XlsxRead
     if (pending !== cached) {
       workbook.current = pending
       setState({ status: 'loading' })
-      setSelected(0)
+      // A changed workbook starts over; the first one opens where the reader left it.
+      if (cached) {
+        setSelected(0)
+        place.current = 0
+      }
     }
     let current = true
     void pending.result.then(result => {
@@ -78,7 +91,9 @@ export const XlsxReader = ({ document, blob, active, scrollPositions }: XlsxRead
   useReaderBinding(binding, active)
 
   const sheets = state.status === 'ready' ? state.sheets : []
-  const rows = sheets[selected]?.rows ?? []
+  // A saved sheet the workbook no longer has falls back to the first.
+  const sheetIndex = sheets[selected] ? selected : 0
+  const rows = sheets[sheetIndex]?.rows ?? []
   const { columns, hidden } = useMemo(() => clampColumns(rows), [rows])
   // A column is identified by its letter, which is also what the header shows.
   const labels = useMemo(
@@ -99,8 +114,8 @@ export const XlsxReader = ({ document, blob, active, scrollPositions }: XlsxRead
   useEffect(() => {
     // The table only exists once the workbook has parsed, so there is nothing to scroll before.
     if (!active || state.status !== 'ready' || !scrollRef.current) return
-    scrollRef.current.scrollTop = scrollPositions.current.get(document.id) ?? 0
-  }, [active, document.id, scrollPositions, state.status])
+    scrollRef.current.scrollTop = place.current
+  }, [active, state.status])
 
   if (state.status === 'loading')
     return <div className="preview-state">Opening {document.name}…</div>
@@ -122,10 +137,12 @@ export const XlsxReader = ({ document, blob, active, scrollPositions }: XlsxRead
               type="button"
               role="tab"
               className={styles.tab}
-              aria-selected={index === selected}
+              aria-selected={index === sheetIndex}
               onClick={() => {
                 setSelected(index)
+                place.current = 0
                 if (scrollRef.current) scrollRef.current.scrollTop = 0
+                onPositionChange({ kind: 'sheet', sheet: index, scrollTop: 0 })
               }}
             >
               {sheet.name}
@@ -142,7 +159,9 @@ export const XlsxReader = ({ document, blob, active, scrollPositions }: XlsxRead
         className={styles.scroll}
         ref={scrollRef}
         onScroll={event => {
-          if (active) scrollPositions.current.set(document.id, event.currentTarget.scrollTop)
+          if (!active) return
+          place.current = event.currentTarget.scrollTop
+          onPositionChange({ kind: 'sheet', sheet: sheetIndex, scrollTop: place.current })
         }}
       >
         {columns === 0 ? (

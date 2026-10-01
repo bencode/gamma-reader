@@ -73,7 +73,7 @@ const Harness = ({
               blob={blob}
               files={[file]}
               active={visible}
-              scrollPositions={workspace.scrollPositions}
+              onPositionChange={() => undefined}
               textReader={definition}
             />
           </Activity>

@@ -67,7 +67,7 @@ describe('local workspace navigation', () => {
       expect(screen.getByRole('textbox', { name: 'Your question' })).toBeEnabled(),
     )
     await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'A saved question')
-    expect(savedWorkspace()).toEqual({
+    expect(savedWorkspace()).toMatchObject({
       tabs: ['getting-started', 'explore-wave', 'how-gamma-reader-works'],
       lastActiveId: 'how-gamma-reader-works',
     })
@@ -170,13 +170,15 @@ describe('local workspace navigation', () => {
     await waitForWorkspace()
     await screen.findByRole('heading', { name: 'Start with a document' })
     expect(tabNames()).toEqual([])
-    await waitFor(() => expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null }))
+    await waitFor(() =>
+      expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null, positions: {} }),
+    )
 
     await user.click(screen.getByRole('button', { name: 'Open Start here.md' }))
     await screen.findByRole('tab', { name: 'Start here.md' })
     await user.click(screen.getByRole('button', { name: 'Close Start here.md' }))
     expect(screen.getByLabelText('Current route')).toHaveTextContent('/files')
-    expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null })
+    expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null, positions: {} })
     page.unmount()
 
     openReader()
@@ -192,7 +194,7 @@ describe('local workspace navigation', () => {
     )
     expect(tabNames()).toEqual([])
     expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument()
-    expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null })
+    expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null, positions: {} })
   })
 
   it('restores empty defaults and reports damaged storage', async () => {
@@ -254,6 +256,22 @@ describe('local workspace navigation', () => {
     expect(scroll.scrollTop).toBe(180)
     expect(screen.queryByRole('button', { name: 'Ask AI' })).not.toBeInTheDocument()
   })
+  it('reopens a document where the reader left it after a reload', async () => {
+    const scroll = () => {
+      const element = screen.getByRole('tabpanel').querySelector('.document-scroll')
+      if (!element) throw new Error('Document scroll container is missing')
+      return element
+    }
+    const page = openReader('/files/Start%20here.md')
+    await screen.findByRole('heading', { name: 'Start here' })
+    fireEvent.scroll(scroll(), { target: { scrollTop: 180 } })
+    page.unmount()
+
+    openReader('/files/Start%20here.md')
+    await screen.findByRole('heading', { name: 'Start here' })
+    await waitFor(() => expect(scroll().scrollTop).toBe(180))
+  })
+
   it('opens a document whose name differs only in case, as a rename leaves behind', async () => {
     // The write tool replaces a file it matched without regard to case, so the name in an
     // address can fall out of step with the one on the file by exactly that much.

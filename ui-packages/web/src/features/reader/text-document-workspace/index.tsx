@@ -10,7 +10,7 @@ import {
 import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels'
 import type { SourceLanguage } from '../../../components/source-editor'
 import type { StoredFileMetadata } from '../../../core/files'
-import type { Workspace } from '../../../shell/use-workspace'
+import type { ReadingPositionProps } from '../../../core/reading-position'
 import { useWorkspaceSource, useWorkspaceSourceActions } from '../../../shell/workspace-context'
 import type { TextReaderComponent } from '../text-file-reader'
 import styles from './style.module.scss'
@@ -27,14 +27,13 @@ const subscribeNarrow = (notify: () => void) => {
 }
 const narrowSnapshot = () => matchMedia(narrowQuery).matches
 
-type TextDocumentWorkspaceProps = {
+type TextDocumentWorkspaceProps = ReadingPositionProps & {
   document: StoredFileMetadata
   persistedContent: string
   sourceLanguage: SourceLanguage
   Preview: TextReaderComponent
   files: readonly StoredFileMetadata[]
   active: boolean
-  scrollPositions: Workspace['scrollPositions']
 }
 
 export const TextDocumentWorkspace = ({
@@ -44,7 +43,8 @@ export const TextDocumentWorkspace = ({
   Preview,
   files,
   active,
-  scrollPositions,
+  defaultPosition,
+  onPositionChange,
 }: TextDocumentWorkspaceProps) => {
   const draft = useWorkspaceSource(document.id)
   const actions = useWorkspaceSourceActions()
@@ -120,7 +120,8 @@ export const TextDocumentWorkspace = ({
               content={previewContent}
               files={files}
               active={previewActive}
-              scrollPositions={scrollPositions}
+              defaultPosition={defaultPosition}
+              onPositionChange={onPositionChange}
             />
           </Suspense>
         </div>

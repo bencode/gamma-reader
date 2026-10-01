@@ -31,11 +31,13 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
   const routeSegment = useMatch('/files/:documentId')?.params.documentId
   const activeId = documentIdFor(files, routeSegment)
   const [initialWorkspace] = useState(readWorkspace)
-  const [store] = useState(() => createWorkspaceStore(initialWorkspace.tabs))
+  const [store] = useState(() =>
+    createWorkspaceStore(initialWorkspace.tabs, initialWorkspace.positions),
+  )
   const [actions] = useState(() => createWorkspaceActions(store))
   const tabs = useStore(store, state => state.tabs)
-  const scrollPositions = useRef(new Map<string, number>())
   const navigationTargetRef = useRef(activeId)
+  const savedActiveId = useRef(initialWorkspace.lastActiveId)
 
   useEffect(() => {
     if (filesLoading) return
@@ -69,8 +71,35 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
   useEffect(() => {
     if (filesLoading || (pathname !== '/files' && (activeId === null || !tabs.includes(activeId))))
       return
-    writeWorkspace({ tabs, lastActiveId: activeId })
-  }, [tabs, activeId, pathname, filesLoading])
+    savedActiveId.current = activeId
+    writeWorkspace({ tabs, lastActiveId: activeId, positions: store.getState().positions })
+  }, [tabs, activeId, pathname, filesLoading, store])
+
+  // A reader reports its position as it scrolls; storage hears about it once the reader pauses,
+  // and before the page goes away.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const save = () => {
+      clearTimeout(timer)
+      timer = undefined
+      const { tabs, positions } = store.getState()
+      writeWorkspace({ tabs, lastActiveId: savedActiveId.current, positions })
+    }
+    const flush = () => {
+      if (timer !== undefined) save()
+    }
+    const unsubscribe = store.subscribe((state, previous) => {
+      if (state.positions === previous.positions) return
+      clearTimeout(timer)
+      timer = setTimeout(save, 1000)
+    })
+    window.addEventListener('pagehide', flush)
+    return () => {
+      unsubscribe()
+      window.removeEventListener('pagehide', flush)
+      flush()
+    }
+  }, [store])
 
   const openDocument = (id: string) => {
     if (id === navigationTargetRef.current || !files.some(document => document.id === id)) return
@@ -95,9 +124,6 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
         void navigate(documentPath(files, next), { replace: true })
       }
     })
-    closing.forEach(id => {
-      scrollPositions.current.delete(id)
-    })
   }
 
   const closeDocument = (id: string) => closeDocuments([id])
@@ -109,7 +135,6 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
     files,
     filesLoading,
     activeId,
-    scrollPositions,
     openDocument,
     closeDocument,
     closeDocuments,

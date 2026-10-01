@@ -10,6 +10,7 @@ import { parseMarkdownHeadings } from './heading-model'
 import { MarkdownOutline } from './outline'
 import type { MarkdownReadingPreferences } from './reading-preferences'
 import styles from './style.module.scss'
+import { useFlowPosition } from './use-flow-position'
 
 const embeddedOutlineMinimumWidth = 640
 
@@ -32,7 +33,8 @@ export const MarkdownReader = ({
   content,
   files,
   active,
-  scrollPositions,
+  defaultPosition,
+  onPositionChange,
   imageResolver,
   markdownOptions,
   appearance,
@@ -77,10 +79,14 @@ export const MarkdownReader = ({
     return () => observer.disconnect()
   }, [markdown])
 
-  useLayoutEffect(() => {
-    if (!active || !previewScrollRef.current) return
-    previewScrollRef.current.scrollTop = scrollPositions.current.get(document.id) ?? 0
-  }, [active, document.id, scrollPositions])
+  const recordPosition = useFlowPosition({
+    rootRef,
+    scrollRef: previewScrollRef,
+    contentRef: articleRef,
+    active,
+    defaultPosition,
+    onPositionChange,
+  })
 
   useLayoutEffect(() => {
     if (!markdown || !articleRef.current || !previewScrollRef.current) return
@@ -95,14 +101,8 @@ export const MarkdownReader = ({
 
   if (!markdown)
     return (
-      <div className="reader-content">
-        <div
-          className="document-scroll"
-          ref={previewScrollRef}
-          onScroll={event => {
-            if (active) scrollPositions.current.set(document.id, event.currentTarget.scrollTop)
-          }}
-        >
+      <div className="reader-content" ref={rootRef}>
+        <div className="document-scroll" ref={previewScrollRef} onScroll={recordPosition}>
           <article className="markdown-body plain-text-body" ref={articleRef}>
             <pre>{content}</pre>
           </article>
@@ -167,7 +167,7 @@ export const MarkdownReader = ({
           ref={previewScrollRef}
           onScroll={event => {
             if (!active) return
-            scrollPositions.current.set(document.id, event.currentTarget.scrollTop)
+            recordPosition()
             setActiveHeadingId(activeHeadingFrom(headingElements.current, event.currentTarget))
           }}
         >

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { PdfReader as DocumentPdfReader, type PdfReaderHandle } from '../../components/pdf-reader'
 import type { StoredFileMetadata } from '../../core/files'
+import type { ReadingPositionProps } from '../../core/reading-position'
 import { useReaderBinding } from '../../shell/workspace-context'
 import { usePdfReadingTheme } from './pdf-reading-preferences'
 import { readViewport } from './reader-viewport'
@@ -9,13 +10,17 @@ export const PdfReader = ({
   document,
   source,
   active,
-}: {
+  defaultPosition,
+  onPositionChange,
+}: ReadingPositionProps & {
   document: StoredFileMetadata
   source: string
   active: boolean
 }) => {
   const readerRef = useRef<PdfReaderHandle>(null)
-  const [pageNumber, setPageNumber] = useState(1)
+  const [pageNumber, setPageNumber] = useState(
+    defaultPosition?.kind === 'page' ? defaultPosition.page : 1,
+  )
   const [theme, setTheme] = usePdfReadingTheme()
   useReaderBinding(
     {
@@ -36,7 +41,10 @@ export const PdfReader = ({
       name={document.name}
       pageNumber={pageNumber}
       theme={theme}
-      onPageChange={setPageNumber}
+      onPageChange={page => {
+        setPageNumber(page)
+        onPositionChange({ kind: 'page', page })
+      }}
       onThemeChange={setTheme}
     />
   )
