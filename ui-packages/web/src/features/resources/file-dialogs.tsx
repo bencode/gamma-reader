@@ -93,3 +93,34 @@ export const ReplaceExportedFilesDialog = ({
     </Modal>
   )
 }
+
+export const RemoveFolderDialog = ({
+  path,
+  count,
+  onCancel,
+  onRemove,
+  dirty = false,
+}: {
+  path: string
+  count: number
+  onCancel: () => void
+  onRemove: () => void
+  dirty?: boolean
+}) => (
+  <Modal label={`Remove folder ${path}`} onCancel={onCancel}>
+    <h2>Remove this folder from Files?</h2>
+    <p>
+      This removes the browser copies of the {count === 1 ? 'file' : `${count} files`} in{' '}
+      <strong>{path}</strong>. The original folder on your computer will not change.
+    </p>
+    {dirty && <p>Unsaved source changes in these files will also be discarded.</p>}
+    <div className="dialog-actions">
+      <button type="button" className="text-button" onClick={onCancel}>
+        Cancel
+      </button>
+      <button type="button" className="danger-button" onClick={onRemove}>
+        Remove
+      </button>
+    </div>
+  </Modal>
+)

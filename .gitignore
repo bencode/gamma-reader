@@ -1,7 +1,10 @@
 node_modules/
 dist/
 coverage/
-data/
+# The server keeps its local quota database in data/ beside wherever it runs; web code has a
+# data/ folder of its own, so only those two places are ignored.
+/data/
+/web-packages/server/data/
 *.tsbuildinfo
 .env
 .env.*

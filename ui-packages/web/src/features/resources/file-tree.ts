@@ -1,7 +1,7 @@
 import { baseName, type StoredFileMetadata } from '../../core/files'
 
 export type FileTreeNode =
-  | { kind: 'folder'; key: string; name: string; children: FileTreeNode[] }
+  | { kind: 'folder'; key: string; path: string; name: string; children: FileTreeNode[] }
   | { kind: 'file'; file: StoredFileMetadata; name: string }
 
 type FolderNode = Extract<FileTreeNode, { kind: 'folder' }>
@@ -33,7 +33,13 @@ export const buildFileTree = (files: readonly StoredFileMetadata[]): FileTreeNod
         .toLowerCase()
       let folder = folders.get(key)
       if (!folder) {
-        folder = { kind: 'folder', key, name: segment, children: [] }
+        folder = {
+          kind: 'folder',
+          key,
+          path: segments.slice(0, index + 1).join('/'),
+          name: segment,
+          children: [],
+        }
         folders.set(key, folder)
         siblings.push(folder)
       }
@@ -47,4 +53,10 @@ export const buildFileTree = (files: readonly StoredFileMetadata[]): FileTreeNod
 export const ancestorFolders = (path: string) => {
   const segments = path.toLowerCase().split('/').slice(0, -1)
   return segments.map((_, index) => segments.slice(0, index + 1).join('/'))
+}
+
+// Every file a folder holds, however deeply, matched as the tree groups folders: ignoring case.
+export const filesInFolder = (files: readonly StoredFileMetadata[], folder: string) => {
+  const prefix = `${folder.toLowerCase()}/`
+  return files.filter(file => file.path.toLowerCase().startsWith(prefix))
 }

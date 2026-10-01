@@ -12,7 +12,7 @@ import {
   importStoredFiles,
   listStoredFiles,
   moveStoredFile,
-  removeStoredFile,
+  removeStoredFiles,
   updateStoredTextFile,
   writeStoredTextFile,
 } from '../../data/file-store'
@@ -225,13 +225,14 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     if (sources.length > 0) void commitImport({ ...selected, sources })
   }
 
-  const removeFile = async (id: string) => {
+  const removeFiles = async (ids: readonly string[]) => {
     try {
-      await removeStoredFile(id)
-      setFiles(current => current.filter(file => file.id !== id))
+      await removeStoredFiles(ids)
+      const removed = new Set(ids)
+      setFiles(current => current.filter(file => !removed.has(file.id)))
       return true
     } catch (cause) {
-      console.error('Unable to remove file', cause)
+      console.error('Unable to remove files', cause)
       setStatus({ message: 'The browser copy could not be removed.' })
       return false
     }
@@ -252,7 +253,7 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     moveFile,
     updateTextFile,
     resolveDuplicates,
-    removeFile,
+    removeFiles,
     retry: () => {
       setLoading(true)
       void reload()

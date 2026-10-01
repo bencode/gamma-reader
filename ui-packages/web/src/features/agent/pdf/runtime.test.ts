@@ -1,7 +1,7 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { rootSources } from '../../../core/files'
-import { getStoredFile, importStoredFiles, removeStoredFile } from '../../../data/file-store'
+import { getStoredFile, importStoredFiles, removeStoredFiles } from '../../../data/file-store'
 import { createPdfRuntime } from './runtime'
 
 const mocks = vi.hoisted(() => ({ open: vi.fn() }))
@@ -85,7 +85,7 @@ describe('PDF runtime', () => {
     await runtime.info(file.id)
     expect(sources[0]?.destroy).toHaveBeenCalledOnce()
     expect(mocks.open).toHaveBeenCalledTimes(2)
-    await removeStoredFile(file.id)
+    await removeStoredFiles([file.id])
     await expect(runtime.info(file.id)).rejects.toThrow('removed')
     expect(sources[1]?.destroy).toHaveBeenCalledOnce()
     await runtime.dispose()

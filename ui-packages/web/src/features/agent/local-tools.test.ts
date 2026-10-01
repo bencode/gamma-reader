@@ -5,7 +5,7 @@ import {
   importStoredFiles,
   listStoredFiles,
   moveStoredFile,
-  removeStoredFile,
+  removeStoredFiles,
   writeStoredTextFile,
 } from '../../data/file-store'
 import { createReaderDocumentAccess } from './create-reader-agent'
@@ -170,7 +170,7 @@ describe('local reader tools', () => {
       'replace',
     )
     await expect(tools.read(result.next)).rejects.toThrow('File changed')
-    await removeStoredFile(id)
+    await removeStoredFiles([id])
     await expect(tools.read(result.next)).rejects.toThrow('removed')
     await expect(tools.search({ query: ' ', fileId: id })).rejects.toThrow('Query must contain')
     await expect(tools.list({ cursor: 'not a cursor' })).rejects.toThrow('Invalid cursor')

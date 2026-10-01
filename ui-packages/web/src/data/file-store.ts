@@ -391,12 +391,15 @@ export const moveStoredFile = async (id: string, path: string, signal?: AbortSig
   return { from: current.path, metadata }
 }
 
-export const removeStoredFile = async (id: string) => {
+// Files leave together or not at all, so removing a folder never leaves part of it behind.
+export const removeStoredFiles = async (ids: readonly string[]) => {
   const database = await openFileDatabase()
   const transaction = database.transaction(['files', 'contents'], 'readwrite')
   await Promise.all([
-    transaction.objectStore('files').delete(id),
-    transaction.objectStore('contents').delete(id),
+    ...ids.flatMap(id => [
+      transaction.objectStore('files').delete(id),
+      transaction.objectStore('contents').delete(id),
+    ]),
     transaction.done,
   ])
 }

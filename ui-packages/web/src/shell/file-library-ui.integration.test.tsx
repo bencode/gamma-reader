@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { samples } from '../core/samples'
-import { removeStoredFile, writeStoredTextFile } from '../data/file-store'
+import { removeStoredFiles, writeStoredTextFile } from '../data/file-store'
 import { testProject } from '../test/project'
 import { Workbench } from './workbench'
 
@@ -246,8 +246,29 @@ describe('file library', () => {
     expect(screen.queryByRole('button', { name: 'Source' })).toBeNull()
   })
 
+  it('removes a folder with every file in it and closes their tabs', async () => {
+    const user = userEvent.setup({ delay: null })
+    await writeStoredTextFile('guide/intro.md', '# Intro')
+    await writeStoredTextFile('guide/parts/one.md', '# One')
+    render(
+      <MemoryRouter initialEntries={['/files/guide/parts/one.md']}>
+        <Workbench project={testProject} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('tab', { name: 'one.md' })).toBeInTheDocument()
+
+    await user.click(filesList().getByRole('button', { name: 'Remove folder guide from Files' }))
+    const dialog = screen.getByRole('dialog', { name: 'Remove folder guide' })
+    expect(dialog).toHaveTextContent('the 2 files in guide')
+    await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
+
+    await waitFor(() => expect(filesList().queryByRole('button', { name: 'guide' })).toBeNull())
+    expect(screen.queryByRole('tab', { name: 'one.md' })).not.toBeInTheDocument()
+    expect(filesList().getByRole('button', { name: 'Start here.md' })).toBeVisible()
+  })
+
   it('keeps the add-files action in the toolbar when the library is empty', async () => {
-    await Promise.all(samples.map(file => removeStoredFile(file.id)))
+    await Promise.all(samples.map(file => removeStoredFiles([file.id])))
     render(
       <MemoryRouter>
         <Workbench project={testProject} />

@@ -19,6 +19,7 @@ type ResourceTreeProps = {
   activeId: string | null
   onOpen: (id: string) => void
   onRemove: (file: StoredFileMetadata) => void
+  onRemoveFolder: (path: string) => void
   onSaveAs: (id: string) => void
   savingFileId: string | null
   exportBusy: boolean
@@ -112,16 +113,29 @@ const TreeRows = ({
     const open = context.expanded.has(node.key)
     return (
       <li key={node.key}>
-        <button
-          type="button"
-          className="resource-item resource-folder"
-          style={indent(depth)}
-          aria-expanded={open}
-          onClick={() => context.onToggle(node.key)}
-        >
-          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-          <span>{node.name}</span>
-        </button>
+        <div className="resource-row">
+          <button
+            type="button"
+            className="resource-item resource-folder"
+            style={indent(depth)}
+            aria-expanded={open}
+            onClick={() => context.onToggle(node.key)}
+          >
+            {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+            <span>{node.name}</span>
+          </button>
+          <span className="resource-actions">
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={`Remove folder ${node.path} from ${context.label}`}
+              title="Remove folder"
+              onClick={() => context.onRemoveFolder(node.path)}
+            >
+              <Trash2 size={13} />
+            </button>
+          </span>
+        </div>
         {open && (
           <ul>
             <TreeRows nodes={node.children} depth={depth + 1} context={context} />
