@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { maximumFolderFiles } from '../../core/folder-import'
-import { entriesFromInput, readPickedFolder } from './pick-folder'
+import { entriesFromInput, readDroppedEntries, readPickedFolder } from './pick-folder'
 
 type Tree = { [name: string]: Tree | string }
 
@@ -47,6 +47,36 @@ describe('picking a folder', () => {
 
     expect(entries).toHaveLength(maximumFolderFiles + 1)
     expect(opened).not.toContain('b')
+  })
+
+  it('reads dropped folders in every batch they list, never entering ignored ones', async () => {
+    const file = (name: string) => ({
+      isDirectory: false,
+      name,
+      file: (resolve: (file: File) => void) => resolve(new File(['x'], name)),
+    })
+    const ignoredReader = vi.fn()
+    const folder = (name: string, batches: unknown[][], createReader?: () => unknown) => ({
+      isDirectory: true,
+      name,
+      createReader:
+        createReader ??
+        (() => {
+          const pending = [...batches, []]
+          return {
+            readEntries: (resolve: (batch: unknown[]) => void) => resolve(pending.shift() ?? []),
+          }
+        }),
+    })
+    const dropped = [
+      folder('notes', [[file('a.md')], [file('b.md'), folder('node_modules', [], ignoredReader)]]),
+      file('loose.txt'),
+    ] as unknown as FileSystemEntry[]
+
+    const entries = await readDroppedEntries(dropped)
+
+    expect(entries.map(item => item.path)).toEqual(['notes/a.md', 'notes/b.md', 'loose.txt'])
+    expect(ignoredReader).not.toHaveBeenCalled()
   })
 
   it('reads a folder chosen through an input by each file’s relative path', () => {
