@@ -53,13 +53,15 @@ const resultStatus = (result: ImportResult): LibraryStatus | null => {
   }
 }
 
+const fileCount = (count: number) => `${count.toLocaleString()} ${count === 1 ? 'file' : 'files'}`
+
 // Like files, a folder speaks up only when something did not come in: refused or left out.
 const folderStatus = (result: ImportResult, skipped: number): LibraryStatus | null => {
   const refused = resultStatus(result)
   if (skipped === 0) return refused
   const imported = result.addedIds.length + result.replacedIds.length
   return {
-    message: `${refused?.message ?? `${imported} files added.`} Left out ${skipped} hidden, oversized or unreadable files.`,
+    message: `${refused?.message ?? `${fileCount(imported)} added.`} Left out ${fileCount(skipped)} that were hidden, oversized or unreadable.`,
   }
 }
 
@@ -111,7 +113,7 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     setImporting(true)
     setStatus(null)
     try {
-      setProgress(`Adding ${sources.length.toLocaleString()} files…`)
+      setProgress(`Adding ${fileCount(sources.length)}…`)
       const prepared = sources.map(source => ({ ...source, file: prepareFile(source.file) }))
       const result = await importStoredFiles(prepared, 'replace')
       await reload()

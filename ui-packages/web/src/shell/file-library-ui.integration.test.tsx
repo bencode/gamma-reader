@@ -213,7 +213,7 @@ describe('file library', () => {
       ])
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        '2 files added. Left out 2 hidden, oversized or unreadable files.',
+        '2 files added. Left out 2 files that were hidden, oversized or unreadable.',
       )
       await user.click(filesList().getByRole('button', { name: 'tool' }))
       expect(filesList().getByRole('button', { name: 'main.py' })).toBeVisible()
