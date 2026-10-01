@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { openDB } from 'idb'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -94,7 +94,8 @@ describe('projects', () => {
   it('deletes only what this tab asked for, once other tabs let go of it', async () => {
     const birds = await createProject('Bird notes')
     const page = visit(projectDeletionPath(birds.id))
-    await screen.findByRole('list', { name: 'Files' })
+    // Which project opens depends on recency, and a new one is empty, so wait for the panel only.
+    await screen.findByRole('complementary', { name: 'Files' })
     expect(await getProject(birds.id)).not.toBeNull()
     page.unmount()
     await closeWorkspaceDatabase()
@@ -108,6 +109,23 @@ describe('projects', () => {
     otherTab.close()
     expect(await screen.findByRole('button', { name: 'My reading' })).toBeInTheDocument()
     expect(await getProject(birds.id)).toBeNull()
+  })
+
+  it('opens another project when the address names one whose deletion is still waiting', async () => {
+    const birds = await createProject('Bird notes')
+    // Another tab holds the library, so its deletion waits.
+    const otherTab = await openDB(birds.databaseName)
+    schedulePendingDeletion(birds.id)
+    visit(projectDeletionPath(birds.id))
+    expect(
+      await screen.findByText('Waiting for other tabs that have Bird notes open to close.'),
+    ).toBeVisible()
+
+    // The project is already gone, so its address leads elsewhere instead of to a blank page.
+    cleanup()
+    visit(`/p/${birds.id}`)
+    expect(await screen.findByRole('button', { name: 'My reading' })).toBeInTheDocument()
+    otherTab.close()
   })
 
   it('waits for an older tab to let go before upgrading the library, then opens it', async () => {
