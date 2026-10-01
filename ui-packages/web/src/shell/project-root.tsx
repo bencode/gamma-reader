@@ -15,13 +15,14 @@ import {
   listProjects,
   touchProject,
 } from '../data/project-store'
-import { setWorkspaceDatabaseName } from '../data/workspace-database'
+import { openWorkspaceDatabase, setWorkspaceDatabaseName } from '../data/workspace-database'
 import { EmptyWorkbench } from './empty-workbench'
 import { Workbench } from './workbench'
 
 type Boot =
   | { kind: 'loading' }
   | { kind: 'deleting'; project: Project; waiting: boolean }
+  | { kind: 'waiting'; project: Project }
   | { kind: 'project'; project: Project }
   | { kind: 'empty' }
   | { kind: 'error'; message: string }
@@ -98,7 +99,13 @@ export const ProjectRoot = () => {
           setWorkspaceDatabaseName(project.databaseName)
           document.title = projectTitle(project)
           window.name = projectWindowName(project.id)
-          setBoot({ kind: 'project', project })
+          // Opening here, before anything reads, lets an upgrade held up by an older tab say so.
+          // A failure is left to the readers below, which already explain it and offer a retry.
+          void openWorkspaceDatabase(() => show({ kind: 'waiting', project }))
+            .catch(error => {
+              console.error('Unable to open the project library', error)
+            })
+            .then(() => show({ kind: 'project', project }))
         },
         error => {
           console.error('Unable to open projects', error)
@@ -116,10 +123,10 @@ export const ProjectRoot = () => {
     }
   }, [])
   if (boot.kind === 'loading') return null
-  if (boot.kind === 'deleting')
+  if (boot.kind === 'deleting' || boot.kind === 'waiting')
     return (
       <p className="resource-state" role="status">
-        {boot.waiting
+        {boot.kind === 'waiting' || boot.waiting
           ? `Waiting for other tabs that have ${boot.project.name} open to close.`
           : `Deleting ${boot.project.name}…`}
       </p>
