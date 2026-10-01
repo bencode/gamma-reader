@@ -64,6 +64,19 @@ const textExtensions = new Set(
     'erl r jl gradle properties env lock diff patch',
   ].flatMap(line => line.split(' ')),
 )
+// Text that is read as code: line by line, highlighted, laid out as written.
+const codeExtensions = new Set(
+  [
+    'ts tsx js jsx mjs cjs py rb go rs java kt kts swift c h cc cpp hpp cs php sh bash zsh fish',
+    'sql css scss less vue svelte lua dart scala clj cljs cljc edn el lisp scm rkt hs ml ex exs',
+    'erl r jl json jsonl toml yaml yml xml ini conf gradle properties diff patch',
+  ].flatMap(line => line.split(' ')),
+)
+const codeFileNames = new Set(['dockerfile', 'makefile'])
+
+export const isCodePath = (path: string) =>
+  codeExtensions.has(extensionOf(path)) || codeFileNames.has(baseName(path).toLowerCase())
+
 // Files a project keeps as text without an extension.
 const textFileNames = new Set([
   'changelog',

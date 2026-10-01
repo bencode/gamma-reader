@@ -1,4 +1,4 @@
-import { type ComponentType, type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ComponentType, type ReactNode, Suspense, useEffect, useRef, useState } from 'react'
 import type { MarkdownImageResolver } from '../../components/markdown-image'
 import type { SourceLanguage } from '../../components/source-editor'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
@@ -31,7 +31,8 @@ export type DocumentScopeProps = {
 export type TextReaderDefinition = {
   Scope?: ComponentType<DocumentScopeProps>
   Preview: TextReaderComponent
-  sourceLanguage: SourceLanguage
+  // Absent for formats that are only read, which then open without a Source view or drafts.
+  sourceLanguage?: SourceLanguage
 }
 
 export const TextFileReader = ({
@@ -100,6 +101,19 @@ export const TextFileReader = ({
         <h1>Preview unavailable</h1>
         <p>{state.message}</p>
       </div>
+    )
+  if (!sourceLanguage)
+    return (
+      <Suspense fallback={<div className="preview-state">Opening {document.path}…</div>}>
+        <Preview
+          document={{ ...document, revision: state.revision }}
+          content={state.content}
+          files={files}
+          active={active}
+          defaultPosition={defaultPosition}
+          onPositionChange={onPositionChange}
+        />
+      </Suspense>
     )
   return (
     <TextDocumentWorkspace
