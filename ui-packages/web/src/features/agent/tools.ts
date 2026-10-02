@@ -1,18 +1,7 @@
-import {
-  type AgentHarnessTool,
-  type AgentHarnessToolInvocation,
-  type AgentTool,
-  createWriteTool,
-  type ExecutionToolContext,
-  FileError,
-  TODO_CONTEXT,
-  withAbortSignal,
-} from '@earendil-works/pi-agent-core'
-import { type Static, type TSchema, Type } from '@earendil-works/pi-ai'
+import { Type } from '@earendil-works/pi-ai'
 import type { createDocumentTools } from './document-tools'
 import type { LocalTools } from './local-tools'
 import { bind } from './tool'
-import { createWorkspaceWriteEnv } from './workspace-write-env'
 
 const cursor = Type.Optional(
   Type.String({ description: 'Opaque cursor from next. Copy it unchanged.' }),
@@ -24,53 +13,10 @@ const range = Type.Object({
   end: Type.Integer({ minimum: 1 }),
 })
 
-const bindHarnessTool = <P extends TSchema, D>(
-  tool: AgentHarnessTool<ExecutionToolContext, P, D>,
-  toolContext: ExecutionToolContext,
-): AgentTool<TSchema, D> => ({
-  name: tool.name,
-  label: tool.label,
-  description: tool.description,
-  parameters: tool.parameters,
-  executionMode: 'sequential',
-  execute: async (id, args, signal, onUpdate) => {
-    const invocation: AgentHarnessToolInvocation = {
-      invocationId: id,
-      operationId: id,
-      turnId: id,
-      getMemo: async () => undefined,
-      setMemo: async () => undefined,
-    }
-    const context = signal ? withAbortSignal(signal, TODO_CONTEXT) : TODO_CONTEXT
-    try {
-      return await tool.execute(
-        id,
-        args as Static<P>,
-        onUpdate ?? (() => undefined),
-        toolContext,
-        invocation,
-        context,
-      )
-    } catch (cause) {
-      if (cause instanceof Error && cause.cause instanceof FileError)
-        throw new Error(`${cause.message} ${cause.cause.message}`, { cause })
-      throw cause
-    }
-  },
-})
-
 export const createReaderTools = (
   local: LocalTools,
   documents: ReturnType<typeof createDocumentTools>,
 ) => {
-  const piWrite = bindHarnessTool(createWriteTool(), {
-    env: createWorkspaceWriteEnv(local.writeTextFile),
-  })
-  const write = {
-    ...piWrite,
-    description:
-      'Create or completely overwrite one UTF-8 text file in the browser workspace. Use a workspace path such as notes.md or docs/notes.md; folders follow from the path.',
-  }
   const tools = [
     bind(
       'list',
@@ -128,7 +74,12 @@ export const createReaderTools = (
       Type.Object({ fileId, path: Type.String({ minLength: 1 }) }),
       local.move,
     ),
-    write,
+    bind(
+      'write',
+      'Create or completely overwrite one UTF-8 text file in the browser workspace. Use a workspace path such as notes.md or docs/notes.md; folders follow from the path. Returns the fileId and path of the written file.',
+      Type.Object({ path: Type.String({ minLength: 1 }), content: Type.String() }),
+      local.write,
+    ),
   ]
   return tools
 }

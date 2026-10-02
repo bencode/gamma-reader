@@ -69,6 +69,25 @@ describe('local reader tools', () => {
     expect((await listStoredFiles()).find(file => file.id === id)?.path).toBe('notes/draft.md')
   })
 
+  it('writes a file to a path the model names and replaces it on the same path', async () => {
+    const local = createLocalTools(
+      () => ({ openFiles: [], activeFile: null, viewport: null }),
+      writeStoredTextFile,
+      moveStoredFile,
+    )
+
+    const created = await local.write({ path: '/workspace/docs/notes.md', content: '# Draft' })
+    expect(created.path).toBe('docs/notes.md')
+    await expect(local.write({ path: './docs/notes.md', content: '# Final' })).resolves.toEqual(
+      created,
+    )
+    expect(await (await getStoredFile(created.fileId))?.blob.text()).toBe('# Final')
+    for (const path of ['../outside.md', '/outside.md', 'docs//a.md', 'a\\b.md'])
+      await expect(local.write({ path, content: 'blocked' })).rejects.toThrow(
+        'without parent traversal',
+      )
+  })
+
   it('lists capabilities, filters names, and paginates without losing files', async () => {
     await importStoredFiles(
       rootSources(

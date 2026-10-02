@@ -9,8 +9,8 @@ describe('model configuration', () => {
     })
     expect(publicConfig).toEqual({
       enabled: true,
-      providers: [{ id: 'deepseek', chatModels: ['deepseek-v4-flash', 'deepseek-v4-pro'] }],
-      defaultModel: { provider: 'deepseek', modelId: 'deepseek-v4-flash' },
+      providers: [{ id: 'deepseek', chatModels: ['deepseek-flash', 'deepseek-v4-pro'] }],
+      defaultModel: { provider: 'deepseek', modelId: 'deepseek-flash' },
     })
     expect(resolveModelProxyConfig(settings, {}).publicConfig).toEqual({ enabled: false })
   })

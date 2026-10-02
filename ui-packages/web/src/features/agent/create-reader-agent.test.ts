@@ -13,7 +13,11 @@ import {
 } from '../../data/file-store'
 import { modelConfig } from '../../test/model-config'
 import { resolveModelSelection } from '../conversation/model-selection'
-import { createReaderAgent, createReaderDocumentAccess } from './create-reader-agent'
+import {
+  conversationMessages,
+  createReaderAgent,
+  createReaderDocumentAccess,
+} from './create-reader-agent'
 import { createLocalTools } from './local-tools'
 import { createModelRuntime } from './model-runtime'
 import { createPdfRuntime } from './pdf/runtime'
@@ -91,7 +95,7 @@ describe('reader agent', () => {
     })
 
     expect(agent.sessionId).toBe('restored-conversation')
-    expect(agent.state.messages).toEqual([message])
+    expect(conversationMessages(agent)).toEqual([message])
   })
 
   it('sends the restored transcript as context for the next prompt', async () => {
@@ -109,7 +113,7 @@ describe('reader agent', () => {
     const restored = createReaderAgent(config, localTools(), {
       ...session,
       id: 'restored-context',
-      messages: first.state.messages,
+      messages: conversationMessages(first),
     })
 
     await restored.prompt(createReaderUserMessage('Follow-up question', []))
@@ -123,7 +127,7 @@ describe('reader agent', () => {
     ])
   })
 
-  it('writes a browser-local text file through the native Pi tool', async () => {
+  it('writes a browser-local text file through the write tool', async () => {
     const requests: Array<{ messages: Array<{ role: string; content: string }> }> = []
     const fetchModel = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
       const body = JSON.parse(String(init?.body))
@@ -150,7 +154,7 @@ describe('reader agent', () => {
     if (!written) throw new Error('Written file is missing')
     expect(written.previewKind).toBe('html')
     expect(await (await getStoredFileContent(written.id))?.text()).toBe('<main>Saved</main>')
-    expect(requests[1]?.messages.at(-1)?.content).toContain('Successfully wrote')
+    expect(requests[1]?.messages.at(-1)?.content).toContain('"path":"Study notes.html"')
     expect(agent.state.messages.findLast(message => message.role === 'toolResult')).toMatchObject({
       isError: false,
     })
@@ -211,7 +215,7 @@ describe('reader agent', () => {
     const result = agent.state.messages.findLast(message => message.role === 'toolResult')
     expect(result).toMatchObject({ content: [{ type: 'text', text: JSON.stringify(state) }] })
     expect(agent.state.messages.filter(message => message.role === 'user')).toHaveLength(2)
-    expect(createReaderAgent(config, localTools(), session).state.messages).toEqual([])
+    expect(conversationMessages(createReaderAgent(config, localTools(), session))).toEqual([])
   })
 
   it('returns tool errors to the model without hiding a failed read', async () => {

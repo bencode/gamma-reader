@@ -63,7 +63,7 @@ describe('conversation', () => {
     network.mockResolvedValue(
       Response.json({
         ...config,
-        defaultModel: { provider: 'deepseek', modelId: 'deepseek-v4-flash' },
+        defaultModel: { provider: 'deepseek', modelId: 'deepseek-flash' },
       }),
     )
     open()
@@ -73,7 +73,7 @@ describe('conversation', () => {
     await user.click(screen.getByRole('button', { name: 'New conversation' }))
     await waitFor(() =>
       expect(screen.getByRole('combobox', { name: 'Chat model' })).toHaveDisplayValue(
-        'DeepSeek V4 Flash',
+        'DeepSeek V4.1 Flash',
       ),
     )
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('off')
@@ -91,7 +91,7 @@ describe('conversation', () => {
     const page = open()
     const model = await screen.findByRole('combobox', { name: 'Chat model' })
     expect(within(model).getByRole('group', { name: 'DeepSeek' })).toBeInTheDocument()
-    await user.selectOptions(model, 'DeepSeek V4 Flash')
+    await user.selectOptions(model, 'DeepSeek V4.1 Flash')
     const effort = screen.getByRole('combobox', { name: 'Reasoning effort' })
     expect(
       within(effort)
@@ -105,7 +105,7 @@ describe('conversation', () => {
     await waitFor(() => expect(model).toBeEnabled())
     expect(requests[0]?.url).toContain('/api/agent/providers/deepseek/chat/completions')
     expect(requests[0]?.body).toMatchObject({
-      model: 'deepseek-v4-flash',
+      model: 'deepseek-flash',
       thinking: { type: 'disabled' },
     })
     expect(requests[0]?.body).not.toHaveProperty('reasoning_effort')
@@ -113,7 +113,7 @@ describe('conversation', () => {
 
     open()
     const restored = await screen.findByRole('combobox', { name: 'Chat model' })
-    expect(restored).toHaveDisplayValue('DeepSeek V4 Flash')
+    expect(restored).toHaveDisplayValue('DeepSeek V4.1 Flash')
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('off')
     await user.selectOptions(restored, 'DeepSeek V4 Pro')
     await user.selectOptions(screen.getByRole('combobox', { name: 'Reasoning effort' }), 'max')
@@ -130,8 +130,8 @@ describe('conversation', () => {
 
   it.each([
     {
-      selection: { provider: 'zai-coding-cn', modelId: 'glm-5.2', effort: 'max' as const },
-      model: 'GLM-5.2',
+      selection: { provider: 'zai-coding-cn', modelId: 'glm-5.3', effort: 'max' as const },
+      model: 'GLM-5.3',
       effort: 'max',
     },
     {
@@ -212,24 +212,27 @@ describe('conversation', () => {
       thinking: { type: 'enabled' },
     })
 
-    await user.selectOptions(model, 'GLM-5.2')
+    await user.selectOptions(model, 'DeepSeek V4.1 Flash')
     expect(effort).toHaveValue('max')
     await user.selectOptions(effort, 'off')
     await user.type(question(), 'Answer directly')
     await user.click(send())
     await waitFor(() => expect(model).toBeEnabled())
-    expect(requests[1]).toMatchObject({ model: 'glm-5.2', thinking: { type: 'disabled' } })
+    expect(requests[1]).toMatchObject({
+      model: 'deepseek-flash',
+      thinking: { type: 'disabled' },
+    })
     expect(requests[1]).not.toHaveProperty('reasoning_effort')
     page.unmount()
 
     open()
     const restored = await screen.findByRole('combobox', { name: 'Chat model' })
-    expect(restored).toHaveDisplayValue('GLM-5.2')
+    expect(restored).toHaveDisplayValue('DeepSeek V4.1 Flash')
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('off')
     await user.selectOptions(restored, 'GLM-5.3')
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('low')
-    await user.selectOptions(restored, 'GLM-5.2')
-    expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('high')
+    await user.selectOptions(restored, 'DeepSeek V4.1 Flash')
+    expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('low')
     await user.click(screen.getByRole('button', { name: 'New conversation' }))
     await waitFor(() => expect(restored).toHaveDisplayValue('GLM-5.3'))
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('low')
