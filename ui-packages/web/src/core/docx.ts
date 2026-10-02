@@ -60,23 +60,39 @@ const promoteHeaderRow = (root: Document) => {
   }
 }
 
+// Turndown drops the ids these anchors point at, which would leave links that go nowhere:
+// a reference keeps its number as text, and the back link to it has nothing left to say.
+// Numbers move from [1] to (1) because escaped square brackets render as display math.
+const commentNumber = (text: string) => text.replace(/\[(\d+)\]/, '($1)')
+
+const unlinkComments = (root: Document) => {
+  for (const back of root.querySelectorAll('a[href^="#comment-ref-"]')) back.remove()
+  for (const link of root.querySelectorAll('a[href^="#comment-"]'))
+    link.replaceWith(commentNumber(link.textContent ?? ''))
+  for (const term of root.querySelectorAll('dt[id^="comment-"]'))
+    term.textContent = commentNumber(term.textContent ?? '')
+}
+
 export const convertDocxToMarkdown = async (
   blob: Blob,
   { images: withImages = true }: DocxConversionOptions = {},
 ): Promise<DocxConversion> => {
-  const [{ default: mammoth }, { default: TurndownService }, { gfm }] = await Promise.all([
-    import('mammoth'),
-    import('turndown'),
-    import('turndown-plugin-gfm'),
-  ])
+  const [{ default: mammoth }, { default: TurndownService }, { gfm }, { markUnconvertedContent }] =
+    await Promise.all([
+      import('mammoth'),
+      import('turndown'),
+      import('turndown-plugin-gfm'),
+      import('./docx-unconverted'),
+    ])
 
   const images = new Map<string, Blob>()
   const { value, messages } = await mammoth.convertToHtml(
-    { arrayBuffer: await blob.arrayBuffer() },
+    { arrayBuffer: await markUnconvertedContent(await blob.arrayBuffer()) },
     {
       // A manual page break is the author separating sections; Mammoth drops it otherwise.
-      // This is added to the default style map, not a replacement for it.
-      styleMap: ["br[type='page'] => hr"],
+      // Comments are dropped unless their references are mapped; Mammoth then lists them at the end.
+      // These are added to the default style map, not a replacement for it.
+      styleMap: ["br[type='page'] => hr", 'comment-reference => sup'],
       convertImage: mammoth.images.imgElement(async image => {
         if (!withImages) return { src: '' }
         const reference = imageReference(images.size + 1)
@@ -92,6 +108,7 @@ export const convertDocxToMarkdown = async (
   const parsed = new DOMParser().parseFromString(value, 'text/html')
   flattenTableCells(parsed)
   promoteHeaderRow(parsed)
+  unlinkComments(parsed)
 
   const turndown = new TurndownService({
     headingStyle: 'atx',
