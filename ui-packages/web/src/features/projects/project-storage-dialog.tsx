@@ -23,7 +23,7 @@ const BrowserStorageNote = ({ usage, quota, persisted }: BrowserStorage) => (
   </p>
 )
 
-export const ProjectInfoDialog = ({
+export const ProjectStorageDialog = ({
   project,
   onClose,
 }: {
@@ -53,7 +53,7 @@ export const ProjectInfoDialog = ({
       {failed && <p role="alert">Unable to read this project's storage.</p>}
       {summary && (
         <>
-          <dl className={styles.info}>
+          <dl className={styles.storage}>
             <dt>Database</dt>
             <dd>{summary.databaseName}</dd>
             <dt>Library</dt>
