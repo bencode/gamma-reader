@@ -6,6 +6,7 @@ import { listProjects, renameProject } from '../../data/project-store'
 import type { FileExportController } from '../resources/use-file-export'
 import { DeleteProjectDialog } from './delete-project-dialog'
 import { NewProjectForm } from './new-project-form'
+import { ProjectInfoDialog } from './project-info-dialog'
 import { ProjectLink } from './project-link'
 import styles from './style.module.scss'
 
@@ -72,6 +73,7 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [showingInfo, setShowingInfo] = useState(false)
   const others = (projects ?? []).filter(project => project.id !== current?.id)
 
   const loadProjects = () => {
@@ -172,6 +174,15 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
                     type="button"
                     onClick={() => {
                       setOpen(false)
+                      setShowingInfo(true)
+                    }}
+                  >
+                    Project info…
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false)
                       setDeleting(true)
                     }}
                   >
@@ -183,6 +194,9 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
           )}
         </Popover.Content>
       </Popover.Root>
+      {showingInfo && current && (
+        <ProjectInfoDialog project={current} onClose={() => setShowingInfo(false)} />
+      )}
       {deleting && props.project && current && (
         <DeleteProjectDialog
           project={current}
