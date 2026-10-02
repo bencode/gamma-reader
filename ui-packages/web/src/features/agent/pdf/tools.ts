@@ -1,6 +1,6 @@
 import { Type } from '@earendil-works/pi-ai'
 import { documentPagePixels, prepareImage } from '../../../core/image-input'
-import { bind } from '../tool'
+import { bind, Metered } from '../tool'
 import { LocalToolError } from '../tool-types'
 import type { VisionAnalyzer } from '../vision'
 import type { PdfRuntime } from './runtime'
@@ -32,13 +32,18 @@ export const createPdfTools = (pdf: PdfRuntime, analyze?: VisionAnalyzer) => {
             pageNumber: Type.Integer({ minimum: 1 }),
             question: Type.String({ minLength: 1, maxLength: 2000 }),
           }),
-          async (input, signal): Promise<AnalyzePdfPageResult> => {
+          async (input, signal) => {
             if (!input.question.trim())
               throw new LocalToolError('Provide a focused question for the PDF page.')
             const blob = await pdf.renderPage(input.fileId, input.pageNumber, signal)
             const image = await prepareImage(blob, blob.type, documentPagePixels, signal)
-            const analysis = await analyze(image, input.question, signal)
-            return { fileId: input.fileId, pageNumber: input.pageNumber, analysis }
+            const { analysis, usage } = await analyze(image, input.question, signal)
+            const result: AnalyzePdfPageResult = {
+              fileId: input.fileId,
+              pageNumber: input.pageNumber,
+              analysis,
+            }
+            return new Metered(result, usage)
           },
         ),
       ]

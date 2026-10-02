@@ -163,6 +163,29 @@ describe('conversation', () => {
     },
   )
 
+  it('shows the context size and the tokens a conversation used, and restores them', async () => {
+    const user = userEvent.setup({ delay: null })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      if (isTitleRequest(init)) return Response.json({}, { status: 503 })
+      const usage = { prompt_tokens: 41_000, completion_tokens: 1_200, total_tokens: 42_200 }
+      return new Response(
+        `${event({ content: 'A reply' })}${`data: ${JSON.stringify({ id: 'answer', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage })}\n\n`}data: [DONE]\n\n`,
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      )
+    })
+    const page = open()
+    await screen.findByRole('combobox', { name: 'Chat model' })
+    expect(screen.queryByText(/used$/)).not.toBeInTheDocument()
+    await user.type(question(), 'Summarize this')
+    await user.click(send())
+
+    expect(await screen.findByText('42.2K / 1M · 42.2K used')).toBeInTheDocument()
+    page.unmount()
+    open()
+    expect(await screen.findByText('42.2K / 1M · 42.2K used')).toBeInTheDocument()
+  })
+
   it('shows SDK configuration errors while keeping saved conversation history', async () => {
     await saveStoredConversationDraft({
       id: 'existing',

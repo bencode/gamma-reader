@@ -11,6 +11,7 @@ import {
 import type { ConversationDraft } from '../../../core/conversations'
 import { DraftAttachmentTray } from '../conversation-attachments'
 import { ConversationModelControl, type ModelControlProps } from '../model-control'
+import type { ConversationTokenUsage } from '../token-usage'
 import type { ConversationPhase } from '../use-conversation'
 import type { DraftAttachment } from '../use-draft-attachments'
 import { QueuedMessages } from './queued-messages'
@@ -22,12 +23,14 @@ import {
   SlashCommandMenu,
 } from './slash-command-menu'
 import styles from './style.module.scss'
+import { TokenUsageStatus } from './token-usage-status'
 
 type ComposerProps = {
   modelConfiguration: Pick<ModelControlProps, 'providers' | 'selection'> | null
   onModelChange: ModelControlProps['onModelChange']
   onEffortChange: ModelControlProps['onEffortChange']
   onConfigureModels: ModelControlProps['onConfigure']
+  tokenUsage: ConversationTokenUsage | null
   inputRef: RefObject<HTMLTextAreaElement | null>
   draft: string
   phase: ConversationPhase
@@ -58,6 +61,7 @@ export const ConversationComposer = ({
   onModelChange,
   onEffortChange,
   onConfigureModels,
+  tokenUsage,
   draft,
   phase,
   queued,
@@ -179,52 +183,81 @@ export const ConversationComposer = ({
       }}
       onDrop={addDroppedFiles}
     >
-      <QueuedMessages queued={queued} onRemove={onRemoveQueued} />
-      <DraftAttachmentTray
-        attachments={attachments}
-        onOpen={onOpenFile}
-        onRetry={onRetry}
-        onRemove={onRemove}
-        availableFileIds={availableFileIds}
-      />
-      {menuOpen && (
-        <SlashCommandMenu id={menuId} commands={matches} selected={selected} onRun={runCommand} />
-      )}
-      <textarea
-        ref={inputRef}
-        disabled={phase === 'loading' || phase === 'switching'}
-        aria-label="Your question"
-        placeholder="Ask about what you are reading, / for commands"
-        aria-controls={menuOpen ? menuId : undefined}
-        aria-activedescendant={menuOpen ? commandOptionId(menuId, selected) : undefined}
-        value={value}
-        onChange={event => {
-          resizeTextarea(event.currentTarget)
-          changeText(event.target.value)
-        }}
-        onPaste={event => {
-          const files = Array.from(event.clipboardData.files)
-          if (!files.length) return
-          event.preventDefault()
-          onAdd(files)
-        }}
-        rows={1}
-        onKeyDown={event => {
-          if (event.nativeEvent.isComposing || event.keyCode === 229) return
-          if (menuOpen && !event.shiftKey && handleMenuKey(event.key)) {
-            event.preventDefault()
-            return
-          }
-          if (event.key === 'Escape' && running) {
-            event.preventDefault()
-            onStop()
-            return
-          }
-          if (event.key !== 'Enter' || event.shiftKey) return
-          event.preventDefault()
-          submit()
-        }}
-      />
+      <div className={styles.box}>
+        <QueuedMessages queued={queued} onRemove={onRemoveQueued} />
+        <DraftAttachmentTray
+          attachments={attachments}
+          onOpen={onOpenFile}
+          onRetry={onRetry}
+          onRemove={onRemove}
+          availableFileIds={availableFileIds}
+        />
+        {menuOpen && (
+          <SlashCommandMenu id={menuId} commands={matches} selected={selected} onRun={runCommand} />
+        )}
+        <div className={styles.input}>
+          <textarea
+            ref={inputRef}
+            disabled={phase === 'loading' || phase === 'switching'}
+            aria-label="Your question"
+            placeholder="Ask about what you are reading, / for commands"
+            aria-controls={menuOpen ? menuId : undefined}
+            aria-activedescendant={menuOpen ? commandOptionId(menuId, selected) : undefined}
+            value={value}
+            onChange={event => {
+              resizeTextarea(event.currentTarget)
+              changeText(event.target.value)
+            }}
+            onPaste={event => {
+              const files = Array.from(event.clipboardData.files)
+              if (!files.length) return
+              event.preventDefault()
+              onAdd(files)
+            }}
+            rows={1}
+            onKeyDown={event => {
+              if (event.nativeEvent.isComposing || event.keyCode === 229) return
+              if (menuOpen && !event.shiftKey && handleMenuKey(event.key)) {
+                event.preventDefault()
+                return
+              }
+              if (event.key === 'Escape' && running) {
+                event.preventDefault()
+                onStop()
+                return
+              }
+              if (event.key !== 'Enter' || event.shiftKey) return
+              event.preventDefault()
+              submit()
+            }}
+          />
+          {running && (
+            <button
+              type="button"
+              className={styles.sendButton}
+              aria-label="Stop generation"
+              title="Stop generation"
+              disabled={phase === 'stopping'}
+              onClick={onStop}
+            >
+              <Square size={13} />
+            </button>
+          )}
+          {(!running || canSend) && (
+            <button
+              type="button"
+              className={styles.sendButton}
+              aria-label={running ? 'Queue message' : 'Send question'}
+              title={running ? 'Queue message' : 'Send question'}
+              disabled={!canSend}
+              onClick={submit}
+            >
+              <ArrowUp size={17} />
+            </button>
+          )}
+        </div>
+        {dragging && <span className={styles.dropHint}>Drop files to attach</span>}
+      </div>
       <div className={styles.bottom}>
         <button
           type="button"
@@ -257,32 +290,8 @@ export const ConversationComposer = ({
           />
         )}
         {limitReached && <span className={styles.attachmentLimit}>10 attachments maximum</span>}
-        {running && (
-          <button
-            type="button"
-            className={styles.sendButton}
-            aria-label="Stop generation"
-            title="Stop generation"
-            disabled={phase === 'stopping'}
-            onClick={onStop}
-          >
-            <Square size={13} />
-          </button>
-        )}
-        {(!running || canSend) && (
-          <button
-            type="button"
-            className={styles.sendButton}
-            aria-label={running ? 'Queue message' : 'Send question'}
-            title={running ? 'Queue message' : 'Send question'}
-            disabled={!canSend}
-            onClick={submit}
-          >
-            <ArrowUp size={17} />
-          </button>
-        )}
+        {tokenUsage && <TokenUsageStatus usage={tokenUsage} />}
       </div>
-      {dragging && <span className={styles.dropHint}>Drop files to attach</span>}
     </fieldset>
   )
 }

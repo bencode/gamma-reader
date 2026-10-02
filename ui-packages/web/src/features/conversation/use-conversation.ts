@@ -36,6 +36,7 @@ import type { LocalTools } from '../agent/local-tools'
 import { createModelRuntime, type ModelRuntime } from '../agent/model-runtime'
 import type { FileLibrary } from '../resources/use-file-library'
 import { resolveModelSelection } from './model-selection'
+import { type TokenUsage, tokenUsage } from './token-usage'
 import { useDraftAttachments } from './use-draft-attachments'
 
 type ToolStatus = 'Pending' | 'Running' | 'Completed' | 'Failed' | 'Stopped'
@@ -189,6 +190,7 @@ export const useConversation = (
   const [historyCursor, setHistoryCursor] = useState<readonly [number, string] | null>(null)
   const [historyLoading, setHistoryLoading] = useState(true)
   const [historyError, setHistoryError] = useState<string | null>(null)
+  const [usage, setUsage] = useState<TokenUsage | null>(null)
   const activeRef = useRef(active)
   const draftRef = useRef('')
   const rawMessages = useRef<AgentMessage[]>([])
@@ -340,6 +342,7 @@ export const useConversation = (
       ? [...rawMessages.current, agent.state.streamingMessage]
       : rawMessages.current
     setMessages(displayMessages(all, statuses.current))
+    setUsage(tokenUsage(rawMessages.current))
   }, [])
 
   const persistAgentMessages = useCallback(
@@ -407,6 +410,7 @@ export const useConversation = (
       persistedMessageCount.current = storedMessages.length
       statuses.current = statusMap(storedMessages)
       setMessages(displayMessages(storedMessages, statuses.current))
+      setUsage(tokenUsage(storedMessages))
       if (configState.kind === 'loading') {
         setPhase('connecting')
         return
@@ -536,6 +540,7 @@ export const useConversation = (
       persistedMessageCount.current = storedMessages.length
       statuses.current = statusMap(storedMessages)
       setMessages(displayMessages(storedMessages, statuses.current))
+      setUsage(tokenUsage(storedMessages))
       initialized.current = true
       setPhase('connecting')
       configRef.current = await configPromise
@@ -795,6 +800,11 @@ export const useConversation = (
 
   const runtime = configRef.current.kind === 'enabled' ? configRef.current.runtime : null
   const selection = active.selection
+  const contextWindow = runtime?.providers
+    .flatMap(provider => provider.models)
+    .find(
+      model => model.provider === selection?.provider && model.id === selection.modelId,
+    )?.contextWindow
 
   const stop = () => {
     if (!busy.current) return
@@ -829,6 +839,8 @@ export const useConversation = (
     queued: active.queued ?? [],
     removeQueued,
     draftAttachments,
+    // A window of 0 is one the catalog does not know.
+    tokenUsage: usage && { ...usage, contextWindow: contextWindow || undefined },
     modelConfiguration: runtime && selection ? { providers: runtime.providers, selection } : null,
     selectModel: (model: ModelReference) => {
       if (selection) configureModel({ ...model, effort: selection.effort })

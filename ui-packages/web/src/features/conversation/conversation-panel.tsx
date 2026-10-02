@@ -136,6 +136,7 @@ export const ConversationPanel = ({
               onModelChange={conversation.selectModel}
               onEffortChange={conversation.selectEffort}
               onConfigureModels={() => setConfiguringModels(true)}
+              tokenUsage={conversation.tokenUsage}
               inputRef={inputRef}
               draft={draft}
               phase={phase}
