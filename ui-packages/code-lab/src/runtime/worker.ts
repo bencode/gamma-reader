@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import type { CodeLabLanguage } from '../types'
+import { clampResult } from './clamp-output'
 import type { LanguageRuntime, RuntimeRequest, RuntimeResponse } from './protocol'
 
 const runtimeLoaders: Readonly<Record<CodeLabLanguage, () => Promise<LanguageRuntime>>> = {
@@ -30,7 +31,7 @@ const run = async (request: RuntimeRequest): Promise<void> => {
     const result = await languageRuntime.run(request.source, (message, phase = 'loading') => {
       respond({ type: 'progress', requestId: request.requestId, message, phase })
     })
-    respond({ type: 'result', requestId: request.requestId, result })
+    respond({ type: 'result', requestId: request.requestId, result: clampResult(result) })
   } catch (error) {
     console.error(`The ${request.language} runtime failed`, error)
     respond({
