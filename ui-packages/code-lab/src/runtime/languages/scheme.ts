@@ -29,8 +29,11 @@ const defineLatexProcedure = (runtime: BiwaSchemeRuntime): void => {
   })
 }
 
+// BiwaScheme catches every error and hands it to this callback; rethrowing lets runScheme report it.
 const createInterpreter = (runtime: BiwaSchemeRuntime): InterpreterInstance =>
-  new runtime.Interpreter(error => console.error('BiwaScheme interpreter error', error))
+  new runtime.Interpreter(error => {
+    throw error
+  })
 
 const initialize = async (progress: RuntimeProgress): Promise<void> => {
   if (biwaScheme && interpreter) return
