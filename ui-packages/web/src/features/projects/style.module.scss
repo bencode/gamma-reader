@@ -130,3 +130,38 @@ a.project,
     padding: 0;
   }
 }
+.storage {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  dt {
+    color: var(--muted);
+  }
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+.stores {
+  width: 100%;
+  margin-bottom: 14px;
+  border-collapse: collapse;
+  font-size: 13px;
+  th,
+  td {
+    padding: 4px 0;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+  }
+  th {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  th:last-child,
+  td:last-child {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+}

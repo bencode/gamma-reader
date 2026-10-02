@@ -7,6 +7,7 @@ import type { FileExportController } from '../resources/use-file-export'
 import { DeleteProjectDialog } from './delete-project-dialog'
 import { NewProjectForm } from './new-project-form'
 import { ProjectLink } from './project-link'
+import { ProjectStorageDialog } from './project-storage-dialog'
 import styles from './style.module.scss'
 
 type Mode = 'list' | 'create' | 'rename'
@@ -72,6 +73,7 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [showingStorage, setShowingStorage] = useState(false)
   const others = (projects ?? []).filter(project => project.id !== current?.id)
 
   const loadProjects = () => {
@@ -165,9 +167,20 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
               </button>
               {current && (
                 <>
+                  <div className={styles.separator} />
                   <button type="button" onClick={() => setMode('rename')}>
-                    Rename…
+                    Rename project…
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false)
+                      setShowingStorage(true)
+                    }}
+                  >
+                    View storage
+                  </button>
+                  <div className={styles.separator} />
                   <button
                     type="button"
                     onClick={() => {
@@ -183,6 +196,9 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
           )}
         </Popover.Content>
       </Popover.Root>
+      {showingStorage && current && (
+        <ProjectStorageDialog project={current} onClose={() => setShowingStorage(false)} />
+      )}
       {deleting && props.project && current && (
         <DeleteProjectDialog
           project={current}
