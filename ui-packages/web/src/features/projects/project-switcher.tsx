@@ -167,8 +167,9 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
               </button>
               {current && (
                 <>
+                  <div className={styles.separator} />
                   <button type="button" onClick={() => setMode('rename')}>
-                    Rename…
+                    Rename project…
                   </button>
                   <button
                     type="button"
@@ -177,8 +178,9 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
                       setShowingInfo(true)
                     }}
                   >
-                    Project info…
+                    View storage
                   </button>
+                  <div className={styles.separator} />
                   <button
                     type="button"
                     onClick={() => {

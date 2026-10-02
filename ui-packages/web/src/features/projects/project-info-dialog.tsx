@@ -48,8 +48,8 @@ export const ProjectInfoDialog = ({
     }
   }, [])
   return (
-    <Modal label={`${project.name} info`} onCancel={onClose}>
-      <h2>{project.name}</h2>
+    <Modal label={`${project.name} storage`} onCancel={onClose}>
+      <h2>{project.name} storage</h2>
       {failed && <p role="alert">Unable to read this project's storage.</p>}
       {summary && (
         <>
