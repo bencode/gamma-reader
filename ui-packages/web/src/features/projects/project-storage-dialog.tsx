@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ConfirmationDialog as Modal } from '../../components/confirmation-dialog'
-import { formatBytes } from '../../core/files'
+import { formatBytes, maximumLibraryBytes } from '../../core/files'
 import type { Project } from '../../core/projects'
 import {
   type BrowserStorage,
@@ -57,7 +57,9 @@ export const ProjectStorageDialog = ({
             <dt>Database</dt>
             <dd>{summary.databaseName}</dd>
             <dt>Library</dt>
-            <dd>{formatBytes(summary.fileBytes)} of 1 GiB</dd>
+            <dd>
+              {formatBytes(summary.fileBytes)} of {maximumLibraryBytes / 1024 ** 3} GiB
+            </dd>
           </dl>
           <table className={styles.stores}>
             <thead>
