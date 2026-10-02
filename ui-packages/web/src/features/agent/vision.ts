@@ -1,4 +1,4 @@
-import { type Api, clampThinkingLevel, type Model } from '@earendil-works/pi-ai'
+import { type Api, clampThinkingLevel, type Model, type Usage } from '@earendil-works/pi-ai'
 import type { PreparedImage } from '../../core/image-input'
 import { apiKeyFor, models, proxyRequestOptions } from './model-runtime'
 
@@ -8,7 +8,7 @@ export type VisionAnalyzer = (
   image: PreparedImage,
   question: string,
   signal?: AbortSignal,
-) => Promise<string>
+) => Promise<{ analysis: string; usage: Usage }>
 
 export const createVisionAnalyzer = (model: Model<Api>): VisionAnalyzer => {
   const thinkingLevel = clampThinkingLevel(model, 'off')
@@ -43,6 +43,6 @@ export const createVisionAnalyzer = (model: Model<Api>): VisionAnalyzer => {
       .join('')
       .trim()
     if (!analysis) throw new Error('The vision model returned no image analysis.')
-    return analysis
+    return { analysis, usage: response.usage }
   }
 }

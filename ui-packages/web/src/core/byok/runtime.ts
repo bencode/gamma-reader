@@ -50,7 +50,8 @@ const customModel = (id: string, provider: string, baseUrl: string): Model<Api> 
   // table and the reader names the model that handles them.
   input: ['text', 'image'],
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  contextWindow: 128_000,
+  // Unknown. Pi reads 0 as no known window, rather than capping replies against a guessed one.
+  contextWindow: 0,
   maxTokens: 4_096,
 })
 

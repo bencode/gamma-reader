@@ -87,7 +87,7 @@
     border: 1px solid oklch(0.84 0 0);
     border-radius: 5px;
     padding: 4px 6px;
-    background: var(--surface);
+    background-color: var(--surface);
     color: inherit;
     font: inherit;
     font-size: 12px;
@@ -96,6 +96,10 @@
       outline: 2px solid var(--accent);
       outline-offset: 1px;
     }
+  }
+
+  select {
+    padding-right: 22px;
   }
 
   &:disabled input,

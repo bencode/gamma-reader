@@ -1,7 +1,7 @@
 import { Type } from '@earendil-works/pi-ai'
 import { prepareImage, readerImagePixels } from '../../core/image-input'
 import type { getStoredFile } from '../../data/file-store'
-import { bind } from './tool'
+import { bind, Metered } from './tool'
 import { LocalToolError } from './tool-types'
 import type { VisionAnalyzer } from './vision'
 
@@ -25,12 +25,15 @@ export const createImageTools = (loadFile: typeof getStoredFile, analyze: Vision
         readerImagePixels,
         signal,
       )
-      const analysis = await analyze(
+      const { analysis, usage } = await analyze(
         image,
         input.question?.trim() || 'Describe this image and transcribe any important visible text.',
         signal,
       )
-      return { fileId: stored.metadata.id, path: stored.metadata.path, analysis }
+      return new Metered(
+        { fileId: stored.metadata.id, path: stored.metadata.path, analysis },
+        usage,
+      )
     },
   ),
 ]
