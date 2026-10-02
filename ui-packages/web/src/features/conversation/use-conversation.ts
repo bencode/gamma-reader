@@ -31,7 +31,7 @@ import {
 } from '../../data/conversation-store'
 import { workspaceStorageBases, workspaceStorageKey } from '../../data/workspace-database'
 import { generateConversationTitle } from '../agent/conversation-title'
-import { createReaderAgent } from '../agent/create-reader-agent'
+import { conversationMessages, createReaderAgent } from '../agent/create-reader-agent'
 import type { LocalTools } from '../agent/local-tools'
 import { createModelRuntime, type ModelRuntime } from '../agent/model-runtime'
 import type { FileLibrary } from '../resources/use-file-library'
@@ -335,16 +335,16 @@ export const useConversation = (
   }, [draftAttachments.attachments, updateActiveDraft])
 
   const refresh = useCallback((agent: Agent) => {
-    rawMessages.current = [...agent.state.messages]
+    rawMessages.current = conversationMessages(agent)
     const all = agent.state.streamingMessage
-      ? [...agent.state.messages, agent.state.streamingMessage]
-      : agent.state.messages
+      ? [...rawMessages.current, agent.state.streamingMessage]
+      : rawMessages.current
     setMessages(displayMessages(all, statuses.current))
   }, [])
 
   const persistAgentMessages = useCallback(
     async (agent: Agent) => {
-      const pending = agent.state.messages.slice(persistedMessageCount.current)
+      const pending = conversationMessages(agent).slice(persistedMessageCount.current)
       if (!pending.length) return
       const current = activeRef.current
       const firstUser = pending.find(isReaderUserMessage)

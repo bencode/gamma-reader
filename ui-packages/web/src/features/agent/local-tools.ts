@@ -1,4 +1,8 @@
-import type { StoredFileMetadata } from '../../core/files'
+import {
+  containsControlCharacter,
+  isWorkspacePath,
+  type StoredFileMetadata,
+} from '../../core/files'
 import type { ReaderState } from '../../core/reader-state'
 import {
   boundedText,
@@ -24,8 +28,25 @@ import {
   type ReadActiveSourceInput,
   type ReadActiveSourceResult,
   type SourceLineRange,
+  type WriteInput,
+  type WriteResult,
 } from './tool-types'
-import { agentWorkspacePath } from './workspace-write-env'
+
+const root = '/workspace'
+
+// Every path the model names goes through here, so write and move accept the same paths.
+const agentWorkspacePath = (path: string) => {
+  const relative = path.startsWith(`${root}/`)
+    ? path.slice(root.length + 1)
+    : path.replace(/^\.\//, '')
+  // An absolute path outside the workspace keeps its leading '/', which the check rejects. The
+  // model must also stay clear of characters that read as separators or are invisible.
+  if (!isWorkspacePath(relative) || relative.includes('\\') || containsControlCharacter(relative))
+    throw new LocalToolError(
+      'Use a relative workspace path such as notes.md or docs/notes.md without parent traversal.',
+    )
+  return relative
+}
 
 type SourceCursor = {
   operation: 'read-active-source'
@@ -175,7 +196,10 @@ export const createLocalTools = (
   activeSource?: ActiveSourceAccess,
 ) => ({
   get_reader_state: getReaderState,
-  writeTextFile,
+  write: async (input: WriteInput, signal?: AbortSignal): Promise<WriteResult> => {
+    const metadata = await writeTextFile(agentWorkspacePath(input.path), input.content, signal)
+    return { fileId: metadata.id, path: metadata.path }
+  },
   move: async (input: MoveInput, signal?: AbortSignal): Promise<MoveResult> => {
     const { from, metadata } = await moveFile(input.fileId, agentWorkspacePath(input.path), signal)
     return { fileId: metadata.id, from, path: metadata.path }

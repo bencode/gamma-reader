@@ -82,6 +82,11 @@ const skills: SkillDefinition[] = [
   },
 ]
 
+// Pi keeps the system prompt and tool declarations at the head of the transcript. Each agent
+// rebuilds them from the current prompt and tools, so only the conversation is shown and stored.
+export const conversationMessages = (agent: Agent) =>
+  agent.state.messages.filter(message => message.role !== 'system')
+
 export const createReaderAgent = (
   runtime: ModelRuntime,
   local: LocalTools,

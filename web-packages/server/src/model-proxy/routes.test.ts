@@ -265,8 +265,8 @@ describe('model proxy', () => {
     expect(await publicConfig.json()).toEqual({
       enabled: true,
       providers: [
-        { id: 'zai-coding-cn', chatModels: ['glm-5.3', 'glm-5.2'] },
-        { id: 'deepseek', chatModels: ['deepseek-v4-flash', 'deepseek-v4-pro'] },
+        { id: 'zai-coding-cn', chatModels: ['glm-5.3'] },
+        { id: 'deepseek', chatModels: ['deepseek-flash', 'deepseek-v4-pro'] },
       ],
       defaultModel: { provider: 'zai-coding-cn', modelId: 'glm-5.3' },
       visionModel: { provider: 'zai-coding-cn', modelId: 'glm-5.3-flash' },
@@ -300,7 +300,7 @@ describe('model proxy', () => {
       )
     const selected = {
       ...body,
-      model: 'glm-5.2',
+      model: 'glm-5.3',
       thinking: { type: 'enabled' },
       reasoning_effort: 'max',
     }
