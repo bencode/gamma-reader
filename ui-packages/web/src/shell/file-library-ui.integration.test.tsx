@@ -186,6 +186,44 @@ describe('file library', () => {
     expect(filesList().queryByRole('button', { name: 'files.ts' })).toBeNull()
   })
 
+  it('filters files by every word of their path and opens the first match', async () => {
+    const user = userEvent.setup({ delay: null })
+    await writeStoredTextFile('knowledge/pi/README.md', '# Pi')
+    await writeStoredTextFile('knowledge/pi/loop.md', '# Loop')
+    await writeStoredTextFile('journal/README.md', '# Journal')
+    render(
+      <MemoryRouter>
+        <Workbench project={testProject} />
+      </MemoryRouter>,
+    )
+    await waitForFiles()
+
+    const filter = screen.getByRole('searchbox', { name: 'Filter files' })
+    await user.type(filter, 'pi readme')
+
+    await waitFor(() => expect(filesList().queryByRole('button', { name: 'journal' })).toBeNull())
+    expect(filesList().getByRole('button', { name: 'knowledge' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    expect(filesList().queryByRole('button', { name: 'loop.md' })).toBeNull()
+    expect(filesList().getByRole('button', { name: 'README.md' })).toHaveAttribute(
+      'title',
+      expect.stringContaining('knowledge/pi/README.md'),
+    )
+
+    await user.keyboard('{Enter}')
+    expect(await screen.findByRole('tab', { name: 'README.md' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+
+    await user.click(filter)
+    await user.keyboard('{Escape}')
+    expect(filter).toHaveValue('')
+    expect(await filesList().findByRole('button', { name: 'journal' })).toBeInTheDocument()
+  })
+
   it('adds a chosen folder, leaving out dependencies and reporting what it skipped', async () => {
     const user = userEvent.setup({ delay: null })
     // jsdom has no folder input; a browser without the folder picker offers one.

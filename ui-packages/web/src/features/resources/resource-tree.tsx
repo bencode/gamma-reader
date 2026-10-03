@@ -15,6 +15,8 @@ import { ancestorFolders, buildFileTree, type FileTreeNode } from './file-tree'
 
 type ResourceTreeProps = {
   files: StoredFileMetadata[]
+  // The normalized filter the files were chosen by; empty when nothing is filtered.
+  filter: string
   label: 'Files' | 'Attachments'
   activeId: string | null
   onOpen: (id: string) => void
@@ -25,8 +27,8 @@ type ResourceTreeProps = {
   exportBusy: boolean
 }
 
-type RowContext = Omit<ResourceTreeProps, 'files'> & {
-  expanded: ReadonlySet<string>
+type RowContext = Omit<ResourceTreeProps, 'files' | 'filter'> & {
+  isOpen: (key: string) => boolean
   onToggle: (key: string) => void
 }
 
@@ -110,7 +112,7 @@ const TreeRows = ({
           context={context}
         />
       )
-    const open = context.expanded.has(node.key)
+    const open = context.isOpen(node.key)
     return (
       <li key={node.key}>
         <div className="resource-row">
@@ -145,8 +147,23 @@ const TreeRows = ({
     )
   })
 
-export const ResourceTree = ({ files, ...props }: ResourceTreeProps) => {
+const toggled = (set: ReadonlySet<string>, key: string) => {
+  const next = new Set(set)
+  if (!next.delete(key)) next.add(key)
+  return next
+}
+
+export const ResourceTree = ({ files, filter, ...props }: ResourceTreeProps) => {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
+  // A filtered tree shows every folder holding a match open. Folding one there is kept apart from
+  // the folders opened by hand, and forgotten when the filter changes, so clearing the filter
+  // leaves the tree as it was.
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
+  const [collapsedFor, setCollapsedFor] = useState(filter)
+  if (filter !== collapsedFor) {
+    setCollapsedFor(filter)
+    setCollapsed(new Set())
+  }
   const activePath = files.find(file => file.id === props.activeId)?.path ?? null
   const [revealedPath, setRevealedPath] = useState<string | null>(null)
 
@@ -158,16 +175,15 @@ export const ResourceTree = ({ files, ...props }: ResourceTreeProps) => {
     if (ancestors.some(key => !expanded.has(key))) setExpanded(new Set([...expanded, ...ancestors]))
   }
 
+  const isOpen = (key: string) => (filter ? !collapsed.has(key) : expanded.has(key))
   const onToggle = (key: string) =>
-    setExpanded(current => {
-      const next = new Set(current)
-      if (!next.delete(key)) next.add(key)
-      return next
-    })
+    filter
+      ? setCollapsed(current => toggled(current, key))
+      : setExpanded(current => toggled(current, key))
 
   return (
     <ul aria-label={props.label}>
-      <TreeRows nodes={buildFileTree(files)} depth={0} context={{ ...props, expanded, onToggle }} />
+      <TreeRows nodes={buildFileTree(files)} depth={0} context={{ ...props, isOpen, onToggle }} />
     </ul>
   )
 }

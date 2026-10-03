@@ -1,5 +1,6 @@
 import { PanelLeft, X } from 'lucide-react'
 import { type DragEvent, useEffect, useRef, useState } from 'react'
+import { normalizeSearchText } from '../../core/document-text'
 import type { StoredFileMetadata } from '../../core/files'
 import type { Project } from '../../core/projects'
 import { useSourceDrafts } from '../../shell/workspace-context'
@@ -9,7 +10,8 @@ import { SourceSyncStatus } from '../source/sync-status'
 import { AddFromUrlDialog } from './add-from-url-dialog'
 import { AddMenu } from './add-menu'
 import { DuplicateFilesDialog, RemoveFileDialog, RemoveFolderDialog } from './file-dialogs'
-import { filesInFolder } from './file-tree'
+import { FileFilter } from './file-filter'
+import { buildFileTree, filesInFolder, firstFile, matchesFilter } from './file-tree'
 import { FolderExportControl } from './folder-export-control'
 import {
   entriesFromInput,
@@ -80,11 +82,22 @@ export const ResourcePanel = ({
     setOpenWhenListed(null)
     onOpen(openWhenListed)
   }, [openWhenListed, library.files, onOpen])
+  const [query, setQuery] = useState('')
+  const filter = normalizeSearchText(query)
   const files = library.files.filter(file => (file.collection ?? 'files') === 'files')
   // A folder's files are read when the dialog renders and when it confirms, so anything added to
   // the folder while it is open is counted and removed too.
   const folderFiles = removal?.kind === 'folder' ? filesInFolder(files, removal.path) : []
   const attachments = library.files.filter(file => file.collection === 'attachments')
+  const shownFiles = files.filter(file => matchesFilter(file.path, filter))
+  const shownAttachments = attachments.filter(file => matchesFilter(file.path, filter))
+  // Enter reads what is in the box, not the filter still being drawn.
+  const openFirstMatch = (typed: string) => {
+    const match = (pool: StoredFileMetadata[]) =>
+      firstFile(buildFileTree(pool.filter(file => matchesFilter(file.path, typed))))
+    const first = match(files) ?? match(attachments)
+    if (first) onOpen(first.id)
+  }
 
   const dropFiles = (event: DragEvent<HTMLElement>) => {
     event.preventDefault()
@@ -198,6 +211,14 @@ export const ResourcePanel = ({
           </button>
         </div>
       )}
+      {/* Kept while it holds a filter, so what is typed never filters the library unseen. */}
+      {(query || (!library.loading && !library.error && library.files.length > 0)) && (
+        <FileFilter
+          count={library.files.length}
+          onQueryChange={setQuery}
+          onSubmit={openFirstMatch}
+        />
+      )}
       <div className="resource-list">
         {library.loading ? (
           <p className="resource-state" role="status">
@@ -214,11 +235,14 @@ export const ResourcePanel = ({
           <div className="resource-state empty-files">
             <p>Add a document when you are ready to read.</p>
           </div>
+        ) : filter && shownFiles.length === 0 && shownAttachments.length === 0 ? (
+          <p className="resource-state">No matching files</p>
         ) : (
           <>
-            {files.length > 0 && (
+            {shownFiles.length > 0 && (
               <ResourceTree
-                files={files}
+                files={shownFiles}
+                filter={filter}
                 label="Files"
                 activeId={activeId}
                 onOpen={onOpen}
@@ -229,11 +253,12 @@ export const ResourcePanel = ({
                 exportBusy={exporter.phase === 'saving' || exporter.savingFileId !== null}
               />
             )}
-            {attachments.length > 0 && (
+            {shownAttachments.length > 0 && (
               <section className="resource-group" aria-labelledby="attachments-heading">
                 <h3 id="attachments-heading">Attachments</h3>
                 <ResourceTree
-                  files={attachments}
+                  files={shownAttachments}
+                  filter={filter}
                   label="Attachments"
                   activeId={activeId}
                   onOpen={onOpen}
