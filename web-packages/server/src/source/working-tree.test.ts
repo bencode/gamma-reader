@@ -35,7 +35,7 @@ rmSync(join(dir, 'knowledge/gone.md'))
 
 const app = new Hono().route(
   '/api/library',
-  createRoutes(openWorkingTree({ dir, include: ['knowledge'] })),
+  createRoutes(await openWorkingTree({ dir, include: ['knowledge'] })),
 )
 const listing = async () => (await (await app.request('/api/library')).json()) as SourceListing
 const fileUrl = (path: string) =>
@@ -53,7 +53,7 @@ describe('working tree source', () => {
   })
 
   it('lists the whole repository when no folder is named', async () => {
-    const { files } = await openWorkingTree({ dir, include: [] }).listing()
+    const { files } = await (await openWorkingTree({ dir, include: [] })).listing()
 
     expect(files.map(file => file.path)).toEqual([
       '.gitignore',
@@ -61,6 +61,12 @@ describe('working tree source', () => {
       'knowledge/新 笔记.md',
       'meta/index.json',
     ])
+  })
+
+  it('refuses a folder that is not a git working tree', async () => {
+    await expect(openWorkingTree({ dir: join(dir, 'missing'), include: [] })).rejects.toThrow(
+      `${join(dir, 'missing')} is not a git working tree`,
+    )
   })
 
   it('changes versions when a file is saved, without a commit', async () => {

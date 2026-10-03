@@ -1,5 +1,6 @@
 import { execFile, spawn } from 'node:child_process'
 import { access } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { Readable } from 'node:stream'
 import { promisify } from 'node:util'
 
@@ -41,6 +42,11 @@ const exists = (path: string) =>
     },
   )
 
+// git records a local repository by the path it was given, joined to where it ran, so local
+// paths are compared once resolved; any other address as it is written.
+const sameRepository = async (origin: string, repo: string) =>
+  (await exists(repo)) ? resolve(origin) === resolve(repo) : origin === repo
+
 export const openRepository = ({
   repo,
   dir,
@@ -67,9 +73,18 @@ export const openRepository = ({
   }
 
   return {
+    // A clone left by another repository is refused rather than served in its place.
     update: async () => {
-      if (await exists(`${dir}/.git`)) await git(dir, ['pull', '--ff-only', '--quiet'])
-      else await git(undefined, ['clone', '--quiet', repo, dir])
+      if (!(await exists(`${dir}/.git`))) {
+        await git(undefined, ['clone', '--quiet', repo, dir])
+        return
+      }
+      const origin = (await git(dir, ['remote', 'get-url', 'origin'])).trim()
+      if (!(await sameRepository(origin, repo)))
+        throw new Error(
+          `${dir} holds a clone of ${origin}, not ${repo}; remove it or clone into another directory`,
+        )
+      await git(dir, ['pull', '--ff-only', '--quiet'])
     },
     listing: async () => (await current()).listing,
     // Streamed, so a large PDF is never held whole in memory. Only a listed path can be read.

@@ -23,13 +23,18 @@ const fileAt = (path: string, stats: { mtimeMs: number; size: number }): SourceF
 
 // A working tree someone edits, listed as it is on disk: committed or not, every file git would
 // keep, so ignored ones stay out. A version is when the file last changed and how big it is.
-export const openWorkingTree = ({
+export const openWorkingTree = async ({
   dir,
   include,
 }: {
   dir: string
   include: readonly string[]
-}): Source => {
+}): Promise<Source> => {
+  try {
+    await git(dir, ['rev-parse', '--is-inside-work-tree'])
+  } catch (cause) {
+    throw new Error(`${dir} is not a git working tree`, { cause })
+  }
   let listed = new Map<string, SourceFile>()
 
   const listing = async (): Promise<SourceListing> => {

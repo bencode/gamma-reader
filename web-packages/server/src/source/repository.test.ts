@@ -87,4 +87,11 @@ describe('cloned source', () => {
       '# Agents, revised',
     )
   })
+
+  it('refuses a clone of another repository', async () => {
+    const other = join(root, 'other')
+    const elsewhere = openRepository({ repo: other, dir: join(root, 'clone'), include: [] })
+
+    await expect(elsewhere.update()).rejects.toThrow(`holds a clone of ${upstream}, not ${other}`)
+  })
 })
