@@ -118,13 +118,22 @@ const nameAtEnd = (node: Parent) => {
 
 const withoutName = (text: string) => text.replace(trailingName, '')
 
-const linksIn = (text: Text, source: readonly string[]): ParsedLink[] =>
-  [...text.value.matchAll(linkPattern())].flatMap(match => {
+const linksIn = (text: Text, source: readonly string[]): ParsedLink[] => {
+  const { value } = text
+  let line = text.position?.start.line ?? 1
+  let counted = 0
+  return [...value.matchAll(linkPattern())].flatMap(match => {
+    // Only the line breaks since the previous link are counted, so a long paragraph stays linear.
+    for (
+      let at = value.indexOf('\n', counted);
+      at !== -1 && at < match.index;
+      at = value.indexOf('\n', at + 1)
+    )
+      line += 1
+    counted = match.index
     const { target, label } = parseTarget(match[3] ?? '')
     // [[#heading]] points inside its own page, which is not a link between pages.
     if (!target.page) return []
-    const before = text.value.slice(0, match.index)
-    const line = (text.position?.start.line ?? 1) + (before.match(/\n/g)?.length ?? 0)
     return [
       {
         target,
@@ -136,6 +145,7 @@ const linksIn = (text: Text, source: readonly string[]): ParsedLink[] =>
       },
     ]
   })
+}
 
 // A heading's section runs to the next heading at its level or above, without trailing blanks.
 const headingsIn = (root: Root, source: readonly string[]): ParsedHeading[] => {
@@ -143,14 +153,12 @@ const headingsIn = (root: Root, source: readonly string[]): ParsedHeading[] => {
   return headings.map((heading, index) => {
     const [start] = linesOf(heading)
     const next = headings.slice(index + 1).find(later => later.depth <= heading.depth)
-    const limit = next ? linesOf(next)[0] - 1 : source.length
-    const end = Array.from({ length: limit - start + 1 }, (_, i) => limit - i).find(
-      line => line === start || (source[line - 1] ?? '').trim() !== '',
-    )
+    let end = next ? linesOf(next)[0] - 1 : source.length
+    while (end > start && (source[end - 1] ?? '').trim() === '') end -= 1
     return {
       title: compact(withoutName(plainText(heading))),
       level: heading.depth,
-      lines: [start, end ?? start],
+      lines: [start, end],
     }
   })
 }

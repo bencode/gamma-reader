@@ -74,8 +74,21 @@ describe('links in a note', () => {
     ])
   })
 
-  it('counts lines within a paragraph that spans several', () => {
-    expect(note('first line', 'second [[B]] line').links[0]?.line).toBe(2)
+  it('counts lines within a paragraph that spans several, with several links to a line', () => {
+    const { links } = note(
+      'first line',
+      'second [[B]] line',
+      'third',
+      '[[C]] and [[D]]',
+      'last [[E]]',
+    )
+
+    expect(links.map(link => [link.target.page, link.line])).toEqual([
+      ['B', 2],
+      ['C', 4],
+      ['D', 4],
+      ['E', 5],
+    ])
   })
 })
 
