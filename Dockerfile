@@ -22,6 +22,12 @@ RUN pnpm --filter @gamma-reader/server deploy --prod --legacy /prod/server
 
 FROM ${NODE_IMAGE} AS runtime
 
+# A deployment that serves a repository (GAMMA_SOURCE_REPO) reads it with git, over SSH for a
+# private one.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git openssh-client ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3302
