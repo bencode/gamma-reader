@@ -7,7 +7,13 @@ import {
   rootSources,
   type StoredFileMetadata,
 } from '../../core/files'
-import { type FolderEntry, maximumFolderFiles, selectFolderFiles } from '../../core/folder-import'
+import {
+  type FolderEntry,
+  type FolderSelection,
+  maximumFolderFiles,
+  selectFolderFiles,
+} from '../../core/folder-import'
+import type { ImportTarget } from '../../core/url-import'
 import {
   importStoredFiles,
   listStoredFiles,
@@ -16,6 +22,7 @@ import {
   updateStoredTextFile,
   writeStoredTextFile,
 } from '../../data/file-store'
+import { downloadFile, downloadRepository, RemoteFileError } from '../../data/remote-files'
 import { requestPersistentStorage } from '../../data/workspace-database'
 
 type LibraryStatus = { message: string }
@@ -109,7 +116,10 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
   }, [])
 
   // Paths already in the library were settled before this point, so anything left replaces.
-  const commitImport = async ({ sources, skipped }: PendingImport) => {
+  const commitImport = async ({
+    sources,
+    skipped,
+  }: PendingImport): Promise<ImportResult | null> => {
     setImporting(true)
     setStatus(null)
     try {
@@ -119,9 +129,11 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
       await reload()
       setStatus(skipped === null ? resultStatus(result) : folderStatus(result, skipped))
       rememberPersistence(result.imported.length > 0)
+      return result
     } catch (cause) {
       console.error('Unable to import files', cause)
       setStatus({ message: 'Files could not be added. Try again.' })
+      return null
     } finally {
       setImporting(false)
       setProgress(null)
@@ -173,14 +185,26 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     [reload, rememberPersistence],
   )
 
+  // Null while the duplicate question is open, or when the import failed.
   const queueImport = async (next: PendingImport) => {
-    if (duplicatePaths(next.sources, files).length > 0) setPending(next)
-    else await commitImport(next)
+    if (duplicatePaths(next.sources, files).length === 0) return commitImport(next)
+    setPending(next)
+    return null
   }
 
   const addFiles = (selected: readonly File[]) => {
     if (selected.length === 0 || importing) return
     void queueImport({ sources: rootSources(selected), skipped: null })
+  }
+
+  const settleFolder = async (selection: FolderSelection) => {
+    if (selection.status === 'too-many')
+      setStatus({
+        message: `This folder has more than ${maximumFolderFiles} readable files. Choose a smaller folder.`,
+      })
+    else if (selection.sources.length === 0)
+      setStatus({ message: 'This folder has no files that can be read here.' })
+    else await queueImport({ sources: selection.sources, skipped: selection.skipped })
   }
 
   // Reading a large folder takes a moment, so the library counts as importing while it does.
@@ -192,16 +216,11 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     setStatus(null)
     setProgress('Reading folder…')
     try {
-      const selection = selectFolderFiles(
-        await load(count => setProgress(`Reading folder… ${count.toLocaleString()} files`)),
+      await settleFolder(
+        selectFolderFiles(
+          await load(count => setProgress(`Reading folder… ${count.toLocaleString()} files`)),
+        ),
       )
-      if (selection.status === 'too-many')
-        setStatus({
-          message: `This folder has more than ${maximumFolderFiles} readable files. Choose a smaller folder.`,
-        })
-      else if (selection.sources.length === 0)
-        setStatus({ message: 'This folder has no files that can be read here.' })
-      else await queueImport({ sources: selection.sources, skipped: selection.skipped })
     } catch (cause) {
       if (!pickerCancelled(cause)) {
         console.error('Unable to read the folder', cause)
@@ -211,6 +230,48 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
       setImporting(false)
       setProgress(null)
     }
+  }
+
+  const download = async <T>(name: string, run: () => Promise<T>) => {
+    setImporting(true)
+    setStatus(null)
+    setProgress(`Downloading ${name}…`)
+    try {
+      return await run()
+    } catch (cause) {
+      console.error('Unable to download from the address', cause)
+      setStatus({
+        message:
+          cause instanceof RemoteFileError
+            ? cause.message
+            : 'The address could not be downloaded. Try again.',
+      })
+      return null
+    } finally {
+      setImporting(false)
+      setProgress(null)
+    }
+  }
+
+  // A GitHub folder comes in as a chosen folder would. A single file resolves to its id, so it can
+  // be opened, unless the duplicate question is still open.
+  const addFromUrl = async (target: ImportTarget) => {
+    if (importing) return undefined
+    if (target.kind === 'repository') {
+      const selection = await download(target.name, () =>
+        downloadRepository(target, (done, total) =>
+          setProgress(
+            `Downloading ${target.name}… ${done.toLocaleString()} of ${fileCount(total)}`,
+          ),
+        ),
+      )
+      if (selection) await settleFolder(selection)
+      return undefined
+    }
+    const file = await download(target.name, () => downloadFile(target))
+    if (!file) return undefined
+    const result = await queueImport({ sources: rootSources([file]), skipped: null })
+    return result?.addedIds[0] ?? result?.replacedIds[0]
   }
 
   const resolveDuplicates = (choice: DuplicateChoice | null) => {
@@ -248,6 +309,7 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     duplicatePaths: pending ? duplicatePaths(pending.sources, files) : [],
     addFiles,
     addFolder,
+    addFromUrl,
     addAttachments,
     writeTextFile,
     moveFile,

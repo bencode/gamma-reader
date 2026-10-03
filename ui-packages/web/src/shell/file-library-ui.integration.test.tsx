@@ -205,7 +205,7 @@ describe('file library', () => {
         </MemoryRouter>,
       )
       await waitForFiles()
-      await user.click(screen.getByRole('button', { name: 'Add files or a folder' }))
+      await user.click(screen.getByRole('button', { name: 'Add to Files' }))
       expect(screen.getByRole('menuitem', { name: 'Add files…' })).toBeVisible()
       expect(screen.getByRole('menuitem', { name: 'Add folder…' })).toBeVisible()
       await user.keyboard('{Escape}')
@@ -267,6 +267,61 @@ describe('file library', () => {
     expect(filesList().getByRole('button', { name: 'Start here.md' })).toBeVisible()
   })
 
+  it('adds a GitHub file and folder from their addresses and opens the file', async () => {
+    const user = userEvent.setup({ delay: null })
+    const listing = {
+      truncated: false,
+      tree: [
+        { path: 'README.md', type: 'blob', size: 6 },
+        { path: 'src', type: 'tree' },
+        { path: 'src/eval.scm', type: 'blob', size: 27 },
+        { path: 'src/.hidden', type: 'blob', size: 6 },
+      ],
+    }
+    const requested: string[] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+      const url = String(input)
+      if (url === '/api/agent/config') return Response.json({ enabled: false })
+      requested.push(url)
+      if (url.endsWith('/missing.scm')) return new Response('Not Found', { status: 404 })
+      if (url.startsWith('https://api.github.com/')) return Response.json(listing)
+      return new Response('(define (square x) (* x x))')
+    })
+    render(
+      <MemoryRouter>
+        <Workbench project={testProject} />
+      </MemoryRouter>,
+    )
+    await waitForFiles()
+    const addFrom = async (address: string) => {
+      await user.click(screen.getByRole('button', { name: 'Add to Files' }))
+      await user.click(screen.getByRole('menuitem', { name: 'Add from URL…' }))
+      await user.type(screen.getByRole('textbox', { name: 'Address' }), address)
+      await user.click(screen.getByRole('button', { name: 'Add' }))
+    }
+
+    await addFrom('https://github.com/sicp/book/blob/main/square.scm')
+    expect(await screen.findByRole('tab', { name: 'square.scm' })).toBeInTheDocument()
+
+    await addFrom('https://github.com/sicp/book/tree/main/src')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '1 file added. Left out 1 file that were hidden, oversized or unreadable.',
+    )
+    await user.click(filesList().getByRole('button', { name: 'book' }))
+    await user.click(filesList().getByRole('button', { name: 'src' }))
+    expect(filesList().getByRole('button', { name: 'eval.scm' })).toBeVisible()
+    expect(filesList().queryByRole('button', { name: 'README.md' })).toBeNull()
+
+    await addFrom('https://github.com/sicp/book/blob/main/missing.scm')
+    expect(await screen.findByText('Nothing was found at that address.')).toBeInTheDocument()
+    expect(requested).toEqual([
+      'https://raw.githubusercontent.com/sicp/book/main/square.scm',
+      'https://api.github.com/repos/sicp/book/git/trees/main?recursive=1',
+      'https://raw.githubusercontent.com/sicp/book/main/src/eval.scm',
+      'https://raw.githubusercontent.com/sicp/book/main/missing.scm',
+    ])
+  })
+
   it('keeps the add-files action in the toolbar when the library is empty', async () => {
     await Promise.all(samples.map(file => removeStoredFiles([file.id])))
     render(
@@ -276,9 +331,7 @@ describe('file library', () => {
     )
 
     await screen.findByText('Add a document when you are ready to read.')
-    const addFiles = screen.getByRole('button', { name: 'Add files' })
-    expect(addFiles).toBeEnabled()
-    expect(addFiles).toHaveAttribute('title', 'Add files')
+    expect(screen.getByRole('button', { name: 'Add to Files' })).toBeEnabled()
   })
 
   it('confirms new name conflicts before saving Files to a remembered folder', async () => {

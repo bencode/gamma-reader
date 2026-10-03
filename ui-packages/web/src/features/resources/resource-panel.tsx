@@ -1,10 +1,11 @@
 import { PanelLeft, X } from 'lucide-react'
-import { type DragEvent, useRef, useState } from 'react'
+import { type DragEvent, useEffect, useRef, useState } from 'react'
 import type { StoredFileMetadata } from '../../core/files'
 import type { Project } from '../../core/projects'
 import { useSourceDrafts } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
 import { ProjectSwitcher } from '../projects/project-switcher'
+import { AddFromUrlDialog } from './add-from-url-dialog'
 import { AddMenu } from './add-menu'
 import { DuplicateFilesDialog, RemoveFileDialog, RemoveFolderDialog } from './file-dialogs'
 import { filesInFolder } from './file-tree'
@@ -70,6 +71,14 @@ export const ResourcePanel = ({
       setRemoval(null)
     })
   const [dropping, setDropping] = useState(false)
+  const [addingUrl, setAddingUrl] = useState(false)
+  // A file from an address opens once the library lists it; opening checks that list.
+  const [openWhenListed, setOpenWhenListed] = useState<string | null>(null)
+  useEffect(() => {
+    if (!openWhenListed || !library.files.some(file => file.id === openWhenListed)) return
+    setOpenWhenListed(null)
+    onOpen(openWhenListed)
+  }, [openWhenListed, library.files, onOpen])
   const files = library.files.filter(file => (file.collection ?? 'files') === 'files')
   // A folder's files are read when the dialog renders and when it confirms, so anything added to
   // the folder while it is open is counted and removed too.
@@ -123,6 +132,7 @@ export const ResourcePanel = ({
             disabled={library.loading || library.importing}
             onAddFiles={() => inputRef.current?.click()}
             onAddFolder={addFolder}
+            onAddFromUrl={() => setAddingUrl(true)}
           />
         </div>
         <input
@@ -234,6 +244,17 @@ export const ResourcePanel = ({
           </>
         )}
       </div>
+      {addingUrl && (
+        <AddFromUrlDialog
+          onCancel={() => setAddingUrl(false)}
+          onAdd={target => {
+            setAddingUrl(false)
+            void library.addFromUrl(target).then(id => {
+              if (id) setOpenWhenListed(id)
+            })
+          }}
+        />
+      )}
       {library.duplicatePaths.length > 0 && (
         <DuplicateFilesDialog
           names={library.duplicatePaths}
