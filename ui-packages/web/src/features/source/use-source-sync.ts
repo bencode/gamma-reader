@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { baseName } from '../../core/files'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { baseName, type StoredFileMetadata } from '../../core/files'
 import type { ProjectSource } from '../../core/projects'
 import { importStoredFiles, listStoredFiles, removeStoredFiles } from '../../data/file-store'
 import { workspaceStorageBases, workspaceStorageKey } from '../../data/workspace-database'
-import { planSync, type SyncSnapshot, snapshotAfter } from './plan'
+import { localChanges, planSync, type SyncSnapshot, snapshotAfter } from './plan'
 import { isSourceListing, type SourceFile, sourceFileUrl } from './protocol'
 
 export type SourceSyncState =
@@ -41,8 +41,9 @@ const fetchListing = async (source: ProjectSource) => {
   return listing
 }
 
-const libraryFiles = async () =>
-  (await listStoredFiles()).filter(file => (file.collection ?? 'files') === 'files')
+const inLibrary = (file: StoredFileMetadata) => (file.collection ?? 'files') === 'files'
+
+const libraryFiles = async () => (await listStoredFiles()).filter(inLibrary)
 
 const downloadAll = async (
   source: ProjectSource,
@@ -75,7 +76,11 @@ const failure = (cause: unknown) => {
   } as const
 }
 
-export const useSourceSync = (source: ProjectSource, reload: () => Promise<void>) => {
+export const useSourceSync = (
+  source: ProjectSource,
+  reload: () => Promise<void>,
+  files: readonly StoredFileMetadata[],
+) => {
   const [state, setState] = useState<SourceSyncState>({ kind: 'checking' })
   const busy = useRef(false)
   const checkedAt = useRef(0)
@@ -115,7 +120,7 @@ export const useSourceSync = (source: ProjectSource, reload: () => Promise<void>
       if (plan.remove.length) await removeStoredFiles(plan.remove)
       localStorage.setItem(
         snapshotKey(),
-        JSON.stringify(snapshotAfter(listing, await libraryFiles())),
+        JSON.stringify(snapshotAfter(listing, await libraryFiles(), plan.kept)),
       )
       await reload()
       checkedAt.current = Date.now()
@@ -127,5 +132,12 @@ export const useSourceSync = (source: ProjectSource, reload: () => Promise<void>
     }
   }
 
-  return { state, sync }
+  // The snapshot changes only when a sync ends, which also sets the state, so the two together say
+  // when to count again.
+  const changes = useMemo(
+    () => (state.kind === 'syncing' ? 0 : localChanges(readSnapshot(), files.filter(inLibrary))),
+    [files, state],
+  )
+
+  return { state, sync, localChanges: changes }
 }

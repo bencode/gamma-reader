@@ -4,7 +4,8 @@ import type { SourceFile, SourceListing } from './protocol'
 // library gave it, so a later edit in the library can be told apart from the copy that arrived.
 export type SyncSnapshot = {
   version: string
-  files: Record<string, { version: string; revision: number }>
+  // kept marks an edit made here that a sync left in place, so it still differs from the source.
+  files: Record<string, { version: string; revision: number; kept?: true }>
 }
 
 type LocalFile = { id: string; path: string; revision: number }
@@ -49,15 +50,31 @@ export const planSync = (
 export const snapshotAfter = (
   listing: SourceListing,
   local: readonly LocalFile[],
+  kept: readonly string[] = [],
 ): SyncSnapshot => {
   const here = byPath(local)
+  const keptHere = new Set(kept)
   return {
     version: listing.version,
     files: Object.fromEntries(
       listing.files.flatMap(file => {
         const held = here.get(file.path.toLowerCase())
-        return held ? [[file.path, { version: file.version, revision: held.revision }]] : []
+        if (!held) return []
+        const entry = { version: file.version, revision: held.revision }
+        return [[file.path, keptHere.has(file.path) ? { ...entry, kept: true as const } : entry]]
       }),
     ),
   }
+}
+
+// Files that exist only in this library or differ from the source: added here, edited since the
+// last sync, or kept by it. None of them reach the source on their own.
+export const localChanges = (snapshot: SyncSnapshot | null, local: readonly LocalFile[]) => {
+  const synced = new Map(
+    Object.entries(snapshot?.files ?? {}).map(([path, entry]) => [path.toLowerCase(), entry]),
+  )
+  return local.filter(file => {
+    const entry = synced.get(file.path.toLowerCase())
+    return !entry || entry.kept === true || entry.revision !== file.revision
+  }).length
 }

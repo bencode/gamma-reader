@@ -61,10 +61,10 @@ describe('projects', () => {
     }
 
     visit('/')
-    expect(await screen.findByText('brain2 has changes.')).toBeVisible()
+    expect(await screen.findByText('brain2 has updates.')).toBeVisible()
     expect(window.location.pathname).toMatch(/^\/p\/source-brain2(\/|$)/)
     expect(await fileNames()).toEqual([])
-    await user.click(screen.getByRole('button', { name: 'Sync' }))
+    await user.click(screen.getByRole('button', { name: 'Update' }))
     expect(await screen.findByText('brain2 is up to date.')).toBeVisible()
     expect((await fileNames()).sort()).toEqual([
       'journal/today.md',
@@ -79,11 +79,14 @@ describe('projects', () => {
     version = 'v2'
     cleanup()
     visit('/')
-    await user.click(await screen.findByRole('button', { name: 'Sync' }))
+    await user.click(await screen.findByRole('button', { name: 'Update' }))
 
     expect(
       await screen.findByText('brain2 is up to date. Kept your edits to 1 file: journal/today.md.'),
     ).toBeVisible()
+    expect(screen.getByText('1 file changed only in this browser.')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'About changes made here' }))
+    expect(await screen.findByText(/Files added or edited here stay in this browser/)).toBeVisible()
     expect(await text('knowledge/agents.md')).toBe('# Agents, revised')
     expect(await text('journal/today.md')).toBe('# Today, edited here')
     expect(await fileNames()).not.toContain('knowledge/old.md')
@@ -93,7 +96,7 @@ describe('projects', () => {
     visit('/')
 
     expect(await screen.findByRole('button', { name: 'My reading' })).toBeInTheDocument()
-    expect(screen.queryByText(/has changes|is up to date/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/has updates|is up to date/)).not.toBeInTheDocument()
   })
 
   it('opens the library kept before projects as the first project', async () => {

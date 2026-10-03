@@ -764,6 +764,29 @@ svg {
   padding: 0;
   font-size: 11px;
 }
+.source-sync .source-sync-info {
+  display: inline-flex;
+  vertical-align: -1px;
+  margin-left: 3px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+}
+.source-sync .source-sync-info:hover {
+  color: var(--accent);
+}
+.source-sync-note {
+  z-index: 20;
+  width: 240px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px oklch(0 0 0 / 0.12);
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+}
 .file-progress {
   margin: 0 10px 6px;
   color: var(--muted);

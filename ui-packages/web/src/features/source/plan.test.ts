@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planSync, type SyncSnapshot, snapshotAfter } from './plan'
+import { localChanges, planSync, type SyncSnapshot, snapshotAfter } from './plan'
 
 const listing = (files: Record<string, string>) => ({
   version: Object.values(files).join('-'),
@@ -57,5 +57,28 @@ describe('source sync plan', () => {
       files: { 'notes/edited.md': { version: 'c2', revision: 2 } },
     })
     expect(planSync(snapshot, listing({ 'notes/edited.md': 'c3' }), local).download).toHaveLength(1)
+  })
+
+  it('counts the files that differ from the source only here', () => {
+    const synced: SyncSnapshot = {
+      version: 'v1',
+      files: {
+        'notes/same.md': { version: 'a', revision: 1 },
+        'notes/edited.md': { version: 'b', revision: 1 },
+        'notes/kept.md': { version: 'c', revision: 2, kept: true },
+      },
+    }
+    const here = [
+      { id: 'same', path: 'Notes/same.md', revision: 1 },
+      { id: 'edited', path: 'notes/edited.md', revision: 2 },
+      { id: 'kept', path: 'notes/kept.md', revision: 2 },
+      { id: 'mine', path: 'notes/mine.md', revision: 1 },
+    ]
+
+    expect(localChanges(synced, here)).toBe(3)
+    expect(localChanges(null, here)).toBe(4)
+    expect(snapshotAfter(listing({ 'notes/kept.md': 'c' }), here, ['notes/kept.md']).files).toEqual(
+      { 'notes/kept.md': { version: 'c', revision: 2, kept: true } },
+    )
   })
 })
