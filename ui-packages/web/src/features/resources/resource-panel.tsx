@@ -5,6 +5,7 @@ import type { Project } from '../../core/projects'
 import { useSourceDrafts } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
 import { ProjectSwitcher } from '../projects/project-switcher'
+import { SourceSyncStatus } from '../source/sync-status'
 import { AddFromUrlDialog } from './add-from-url-dialog'
 import { AddMenu } from './add-menu'
 import { DuplicateFilesDialog, RemoveFileDialog, RemoveFolderDialog } from './file-dialogs'
@@ -163,6 +164,7 @@ export const ResourcePanel = ({
           }}
         />
       </div>
+      {project.source && <SourceSyncStatus source={project.source} reload={library.reload} />}
       {library.progress && (
         <p className="file-progress" role="status">
           {library.progress}

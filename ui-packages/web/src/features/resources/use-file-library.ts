@@ -316,6 +316,7 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     updateTextFile,
     resolveDuplicates,
     removeFiles,
+    reload,
     retry: () => {
       setLoading(true)
       void reload()

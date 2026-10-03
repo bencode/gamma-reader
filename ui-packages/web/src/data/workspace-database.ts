@@ -43,6 +43,7 @@ export const setWorkspaceDatabaseName = (name: string) => {
 export const workspaceStorageBases = {
   workspace: 'gamma-reader.workspace',
   activeConversation: 'gamma-reader.active-conversation',
+  sourceSync: 'gamma-reader.source-sync',
 } as const
 
 // Settings saved before projects existed belong to the legacy library and keep their keys.

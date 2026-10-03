@@ -4,7 +4,12 @@ import { openDB } from 'idb'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { rootSources } from '../core/files'
 import { legacyDatabaseName, projectDeletionPath, projectWindowName } from '../core/projects'
-import { importStoredFiles, listStoredFiles } from '../data/file-store'
+import {
+  getStoredFileContent,
+  importStoredFiles,
+  listStoredFiles,
+  writeStoredTextFile,
+} from '../data/file-store'
 import {
   createProject,
   getProject,
@@ -26,6 +31,71 @@ const visit = (path: string) => {
 const fileNames = async () => (await listStoredFiles()).map(file => file.path)
 
 describe('projects', () => {
+  it('opens a deployment source as its project and brings in its changes on request', async () => {
+    const user = userEvent.setup({ delay: null })
+    const contents: Record<string, string> = {
+      'knowledge/agents.md': '# Agents',
+      'knowledge/old.md': '# Old',
+      'journal/today.md': '# Today',
+    }
+    let version = 'v1'
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+      const url = String(input)
+      if (url === '/api/agent/config') return Response.json({ enabled: false })
+      if (url === '/api/source') return Response.json({ name: 'brain2', url: '/source/brain2' })
+      if (url === '/source/brain2')
+        return Response.json({
+          version,
+          files: Object.entries(contents).map(([path, text]) => ({
+            path,
+            version: `${version}:${text}`,
+            size: text.length,
+          })),
+        })
+      const path = decodeURIComponent(url.replace('/source/brain2/files/', ''))
+      return new Response(contents[path] ?? '', { headers: { 'Content-Type': 'text/markdown' } })
+    })
+    const text = async (path: string) => {
+      const file = (await listStoredFiles()).find(candidate => candidate.path === path)
+      return file ? (await getStoredFileContent(file.id))?.text() : undefined
+    }
+
+    visit('/')
+    expect(await screen.findByText('brain2 has changes.')).toBeVisible()
+    expect(window.location.pathname).toMatch(/^\/p\/source-brain2(\/|$)/)
+    expect(await fileNames()).toEqual([])
+    await user.click(screen.getByRole('button', { name: 'Sync' }))
+    expect(await screen.findByText('brain2 is up to date.')).toBeVisible()
+    expect((await fileNames()).sort()).toEqual([
+      'journal/today.md',
+      'knowledge/agents.md',
+      'knowledge/old.md',
+    ])
+
+    await writeStoredTextFile('journal/today.md', '# Today, edited here')
+    contents['journal/today.md'] = '# Today, from the source'
+    contents['knowledge/agents.md'] = '# Agents, revised'
+    delete contents['knowledge/old.md']
+    version = 'v2'
+    cleanup()
+    visit('/')
+    await user.click(await screen.findByRole('button', { name: 'Sync' }))
+
+    expect(
+      await screen.findByText('brain2 is up to date. Kept your edits to 1 file: journal/today.md.'),
+    ).toBeVisible()
+    expect(await text('knowledge/agents.md')).toBe('# Agents, revised')
+    expect(await text('journal/today.md')).toBe('# Today, edited here')
+    expect(await fileNames()).not.toContain('knowledge/old.md')
+  })
+
+  it('opens as before when the deployment has no source', async () => {
+    visit('/')
+
+    expect(await screen.findByRole('button', { name: 'My reading' })).toBeInTheDocument()
+    expect(screen.queryByText(/has changes|is up to date/)).not.toBeInTheDocument()
+  })
+
   it('opens the library kept before projects as the first project', async () => {
     await importStoredFiles(
       rootSources([new File(['# Notes'], 'Notes.md', { type: 'text/markdown' })]),
