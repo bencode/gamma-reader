@@ -20,13 +20,7 @@ COPY . .
 RUN pnpm --filter @gamma-reader/server --filter @gamma-reader/web build
 RUN pnpm --filter @gamma-reader/server deploy --prod --legacy /prod/server
 
-FROM ${NODE_IMAGE} AS runtime
-
-# A deployment that serves a repository (GAMMA_SOURCE_REPO) reads it with git, over SSH for a
-# private one.
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends git openssh-client ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+FROM ${NODE_IMAGE} AS base
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
@@ -48,3 +42,17 @@ USER node
 EXPOSE 3302
 
 CMD ["node", "web-packages/server/dist/main.js"]
+
+# A deployment that serves a repository (GAMMA_SOURCE_REPO) reads it with git, over SSH for a
+# private one; build it with --target runtime-git. Git adds about 100 MB other deployments
+# do not need.
+FROM base AS runtime-git
+
+USER root
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git openssh-client ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+USER node
+
+# The default, and what compose.production.yml builds: no git.
+FROM base AS runtime
