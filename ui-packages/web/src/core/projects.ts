@@ -1,9 +1,13 @@
+// A remote source the project's library is kept in step with, named by the deployment.
+export type ProjectSource = { name: string; url: string }
+
 export type Project = {
   id: string
   name: string
   databaseName: string
   createdAt: number
   lastActiveAt: number
+  source?: ProjectSource
 }
 
 // The library that existed before projects keeps its name, so upgrading moves no data.
@@ -11,6 +15,10 @@ export const legacyDatabaseName = 'gamma-reader-files'
 export const defaultProjectName = 'My reading'
 
 export const projectPath = (projectId: string) => `/p/${projectId}`
+
+// One project per source, found again by its name on every visit.
+export const sourceProjectId = (source: ProjectSource) =>
+  `source-${encodeURIComponent(source.name.toLowerCase())}`
 
 export const projectDeletionPath = (projectId: string) =>
   `/?delete=${encodeURIComponent(projectId)}`

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from './app.js'
 import { createQuotaGuard } from './quota/guard.js'
 import { openQuotaStore } from './quota/store.js'
+import { readSourceConfig } from './source-config.js'
 
 const guard = createQuotaGuard(
   openQuotaStore(':memory:'),
@@ -93,5 +94,16 @@ describe('application HTTP boundaries', () => {
 
     expect(response.status).toBe(404)
     expect(await response.text()).not.toBe(page)
+  })
+
+  it('names the source a deployment syncs from, and has none by default', async () => {
+    expect((await build().request('/api/source')).status).toBe(404)
+    const source = readSourceConfig({
+      GAMMA_SOURCE_NAME: 'brain2',
+      GAMMA_SOURCE_URL: '/source/brain2',
+    })
+    const response = await createApp(guard, undefined, undefined, source).request('/api/source')
+    expect(await response.json()).toEqual({ name: 'brain2', url: '/source/brain2' })
+    expect(() => readSourceConfig({ GAMMA_SOURCE_NAME: 'brain2' })).toThrow()
   })
 })

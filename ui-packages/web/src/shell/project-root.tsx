@@ -13,9 +13,11 @@ import {
   getProject,
   isPendingDeletion,
   listProjects,
+  openSourceProject,
   touchProject,
 } from '../data/project-store'
 import { openWorkspaceDatabase, setWorkspaceDatabaseName } from '../data/workspace-database'
+import { loadProjectSource } from '../features/source/load-source'
 import { EmptyWorkbench } from './empty-workbench'
 import { Workbench } from './workbench'
 
@@ -41,6 +43,13 @@ const resolveProject = async (): Promise<Project | null> => {
   if (requested) {
     const project = await touchProject(decodeURIComponent(requested))
     if (project) return project
+  }
+  // A deployment bound to a source opens its project unless another one was asked for.
+  const source = await loadProjectSource()
+  if (source) {
+    const project = await openSourceProject(source)
+    window.history.replaceState(null, '', `${projectPath(project.id)}${search}${hash}`)
+    return project
   }
   const projects = await listProjects()
   // Links from before projects existed all point into the library that became the first one.

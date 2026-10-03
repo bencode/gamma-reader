@@ -5,6 +5,8 @@ import {
   legacyDatabaseName,
   normalizeProjectName,
   type Project,
+  type ProjectSource,
+  sourceProjectId,
 } from '../core/projects'
 import {
   deleteIndexedDatabase,
@@ -19,8 +21,7 @@ type ProjectDatabase = DBSchema & {
 const registryName = 'gamma-reader-projects'
 let registryPromise: Promise<IDBPDatabase<ProjectDatabase>> | undefined
 
-const newProject = (name: string, databaseName?: string): Project => {
-  const id = nanoid(10)
+const newProject = (name: string, databaseName?: string, id = nanoid(10)): Project => {
   const now = Date.now()
   return {
     id,
@@ -63,6 +64,21 @@ export const createProject = async (name: string) => {
   const project = newProject(name)
   const database = await openRegistry()
   await database.add('projects', project)
+  return project
+}
+
+// The deployment's source decides the project, so a visit always lands in the same library, and
+// the address it records follows the deployment if that changes.
+export const openSourceProject = async (source: ProjectSource) => {
+  const database = await openRegistry()
+  const id = sourceProjectId(source)
+  const existing = await database.get('projects', id)
+  const project = {
+    ...(existing ?? newProject(source.name, undefined, id)),
+    source,
+    lastActiveAt: Date.now(),
+  }
+  await database.put('projects', project)
   return project
 }
 

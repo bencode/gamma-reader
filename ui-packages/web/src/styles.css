@@ -742,6 +742,28 @@ svg {
 .resource-row:focus-within .resource-actions {
   opacity: 1;
 }
+.source-sync {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 10px 6px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.source-sync span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.source-sync button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  font-size: 11px;
+}
 .file-progress {
   margin: 0 10px 6px;
   color: var(--muted);
