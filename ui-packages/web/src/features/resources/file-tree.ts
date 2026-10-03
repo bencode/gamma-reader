@@ -1,3 +1,4 @@
+import { normalizeSearchText } from '../../core/document-text'
 import { baseName, type StoredFileMetadata } from '../../core/files'
 
 export type FileTreeNode =
@@ -59,4 +60,21 @@ export const ancestorFolders = (path: string) => {
 export const filesInFolder = (files: readonly StoredFileMetadata[], folder: string) => {
   const prefix = `${folder.toLowerCase()}/`
   return files.filter(file => file.path.toLowerCase().startsWith(prefix))
+}
+
+// Each word of the filter must appear somewhere in the path, ignoring case, so `pi readme` finds
+// knowledge/ai-agent-systems/pi/README.md. An empty filter keeps every file.
+export const matchesFilter = (path: string, query: string) => {
+  const terms = normalizeSearchText(query).split(' ').filter(Boolean)
+  const target = path.toLowerCase()
+  return terms.every(term => target.includes(term))
+}
+
+// The first file in the order the tree shows them: folders first, each one in turn.
+export const firstFile = (nodes: readonly FileTreeNode[]): StoredFileMetadata | null => {
+  for (const node of nodes) {
+    const file = node.kind === 'file' ? node.file : firstFile(node.children)
+    if (file) return file
+  }
+  return null
 }
