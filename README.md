@@ -13,10 +13,12 @@ The shared key comes with a daily allowance. [Add a key of your own](#chat-model
 - **Read** PDF, Word, Excel, Markdown, HTML, images, source code, and text in tabs, each with the navigation its own format allows — an outline, sheet tabs, page controls, a reading theme, highlighted code with line numbers. [Document support](#document-support) lists what each format offers.
 - **Run code inside documents** — `.lab.md` articles carry executable Scheme, Clojure, Python, and TypeScript cells, and `.p5.js` sketches are interactive. A cell can show its result as a typeset formula, and language runtimes load on demand.
 - **Ask about what you are reading.** The assistant searches and reads your open documents, explains images, and compares sources; its agent loop runs in the browser, not on a server.
-- **Keep questions apart.** Conversations are separate, each with its own history, chat model, and thinking level. The model names each one after its first reply, and you can rename it from history.
+- **Keep questions apart.** Conversations are separate, each with its own history, chat model, and thinking level. The model names each one after its first reply, and you can rename it from history. A line under the message box shows how much of the model's context the conversation fills and how many tokens it has used.
 - **Keep talking while it answers.** A message sent during a reply waits in a queue and reaches the model at its next step; Escape stops the reply and sends the queue at once. Type `/` for commands — `/clear` starts a new conversation.
 - **Work in projects.** Each project keeps its own files, conversations, and tabs, and the assistant sees only the project it is in. A project opens in its own browser tab, so assistants in different projects can work at the same time — see [Projects](#projects).
-- **Bring in whole folders.** Add or drop a folder, such as a source repository, and Files keeps its tree while leaving out dependencies and build output — see [Folders](#folders).
+- **Bring in whole folders, or a link.** Add or drop a folder, such as a source repository, and Files keeps its tree while leaving out dependencies and build output. Paste an arXiv paper, a GitHub file or repository, or any other link to bring it in — see [Folders](#folders).
+- **Find a file by its path.** A filter above Files narrows a large library as you type, keeping each match in its folders.
+- **Follow a repository.** A project can stay in step with a git repository on your machine or a server, offering **Update** when it changes — see [Sync from a repository](#sync-from-a-repository).
 - **Write, not just read.** Edit any text document in the Source panel, or let the assistant draft into it, and ask it to move or rename files to tidy a project. Save to the browser with ⌘/Ctrl+S, and write copies back to your computer with **Save as…** or folder export.
 - **Bring your own model key** and run outside the shared allowance — see [Chat models and limits](#chat-models-and-limits).
 - **Keep your files local.** Documents are stored in the browser and are never uploaded to an application server.
@@ -44,7 +46,7 @@ The first project includes **Start here.md**, a PDF essay, a Word document with 
 
 ## Projects
 
-The name at the top of Files is the current project. Open it to switch to another project, create one, rename this one, or delete it. Another project opens in its own browser tab, and choosing it again returns to that tab instead of loading the project a second time, so a reply in progress there carries on. A new project's link appears once the project is saved.
+The name at the top of Files is the current project. Open it to switch to another project, create one, rename this one, or delete it. **View storage** shows what the project keeps in this browser: its database, its size against the 1 GiB limit, and how many records each table holds. Another project opens in its own browser tab, and choosing it again returns to that tab instead of loading the project a second time, so a reply in progress there carries on. A new project's link appears once the project is saved.
 
 The address names the project — `/p/<id>/files/<document>` — so a bookmark or a second tab opens the same one. `/` opens the project used most recently, and links from before projects existed open in **My reading**.
 
@@ -53,6 +55,19 @@ Deleting a project removes its files, conversations, and saved tabs from this br
 ## Folders
 
 Files are kept on folder paths and shown as a tree whose folders start collapsed; the open document's folders unfold on their own. **+ → Add folder…** brings in a folder with its structure, and so does dropping one onto Files. Desktop Chrome and Edge read the folder directly; other desktop browsers use their folder upload, and iPhone and iPad offer only files.
+
+Type in **Filter** above the tree to show only the files whose path holds every word typed, ignoring case — `pi readme` finds `notes/pi/README.md`. Folders holding a match open while the filter is on and return to how you left them when it is cleared. **Enter** opens the first match and **Escape** clears the filter.
+
+**+ → Add from URL…** brings in a file or folder from an address. The browser downloads it directly:
+
+| Address | Result |
+| --- | --- |
+| arXiv paper (`abs/<id>` or `pdf/<id>`) | The paper's PDF, opened |
+| GitHub file (`blob/<ref>/<path>`) | The file, opened |
+| GitHub repository or folder (`tree/<ref>/<dir>`) | Added as a folder, under the rules below |
+| Any other `https` link | Downloaded as it is, if the site allows cross-origin reads |
+
+GitHub lists at most 60 folders an hour for each network, and private repositories cannot be read.
 
 A folder is imported for reading, not mirrored, so some of it stays out:
 
@@ -91,11 +106,11 @@ Browser storage belongs to this site and browser profile. Export work you want t
 | Excel (`.xlsx`) | Read-only grid with sheet tabs, column letters, and row numbers | Search, and read by sheet and A1 range |
 | Other formats | Stored in Files | No preview or text reading yet |
 
-Word and Excel are read from the modern `.docx` and `.xlsx` only; the older binary `.doc` and `.xls` are stored but not read. Both keep structure and drop presentation: a document loses page layout, fonts, headers and footers, tracked changes, and equations, while a sheet arrives without cell colours, charts, or images and a formula shows the value it was saved with. Neither is decoded as text, so the 5 MiB limit below does not reach them — a large illustrated document takes a few seconds to open, and a very wide sheet is previewed to a hundred columns while the assistant reads them all.
+Word and Excel are read from the modern `.docx` and `.xlsx` only; the older binary `.doc` and `.xls` are stored but not read. Both keep structure and drop presentation: a document loses page layout, fonts, headers and footers, and tracked changes, while a sheet arrives without cell colours, charts, or images and a formula shows the value it was saved with. Neither is decoded as text, so the 5 MiB limit below does not reach them — a large illustrated document takes a few seconds to open, and a very wide sheet is previewed to a hundred columns while the assistant reads them all. Equations, charts, SmartArt, and embedded objects that cannot be shown are marked where they stood, such as *(Equation not converted)*, so neither you nor the assistant reads past a gap; comments are numbered in the text and listed at the end.
 
 A `.csv` is plain text, so the 5 MiB limit applies and the assistant reads it as text. Its fields may be separated by commas, semicolons, or tabs, whichever its first line uses.
 
-Limits: 200 MiB per file, 1 GiB per project (including attachments), and 5 MiB for text preview and reading. Available storage also depends on the browser's quota and device space. Python and Clojure require runtime downloads on first use. Folder export requires desktop Chrome or Edge; individual files can also be downloaded.
+Limits: 200 MiB per file, 1 GiB per project (including attachments), and 5 MiB for text preview and reading. Available storage also depends on the browser's quota and device space. Python and Clojure require runtime downloads on first use. A Lab cell's printed output keeps its first and last 32,000 characters, with a note of what was left out between. Folder export requires desktop Chrome or Edge; individual files can also be downloaded.
 
 ## Chat models and limits
 
