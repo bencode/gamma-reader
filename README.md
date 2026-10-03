@@ -132,12 +132,39 @@ Create an untracked root `.env` with `GLM_API_KEY`, `DEEPSEEK_API_KEY`, or both.
 | `GAMMA_TOTAL_DAILY_TOKENS` | `20000000` | Tokens everyone together may spend per day |
 | `GAMMA_DATA_DIR` | `data` | Directory holding the usage database |
 | `GAMMA_TRUST_PROXY` | Unset | Set to `1` when a reverse proxy sets `X-Forwarded-For` |
+| `GAMMA_SOURCE_NAME` | Unset | Name of the source the library syncs from; see [Sync from a repository](#sync-from-a-repository) |
+| `GAMMA_SOURCE_WORKTREE` | Unset | A git working tree on this machine, served as it is on disk |
+| `GAMMA_SOURCE_REPO` | Unset | A git repository the server clones and keeps pulling |
+| `GAMMA_SOURCE_URL` | Unset | Or an address that already serves a source |
+| `GAMMA_SOURCE_INCLUDE` | Unset (all) | Folders of the repository to list, comma separated |
+| `GAMMA_SOURCE_DIR` | `$GAMMA_DATA_DIR/source` | Where a cloned repository lives |
+| `GAMMA_SOURCE_PULL_SECONDS` | `120` | How often a cloned repository is pulled |
 
 Configure enabled providers, chat models, the default chat model, and the independent vision model in [`providers.json`](web-packages/server/src/model-proxy/providers.json). Credentials stay in the environment; the JSON references their variable names. Model names, supported thinking levels, upstream API addresses, and request mappings come from pi's native provider definitions. There are no model environment overrides or application-defined effort lists.
 
 The initial configuration enables GLM-5.3 / GLM-5.2 and DeepSeek V4 Flash / V4 Pro, with GLM-5.3 as the default and GLM-5.3-Flash for vision. Providers without a key are omitted from the selector. If the default provider is unavailable, the first available model in configuration order is used. If the vision provider is unavailable, text chat remains usable without vision tools.
 
 Thinking levels are normalized with pi's `clampThinkingLevel`; new conversations start from pi Agent's `off` level, normalized for the selected model. For example, GLM-5.3 starts at `low`, while DeepSeek starts at `off`.
+
+## Sync from a repository
+
+A project can follow a git repository instead of files added by hand. Name the source and point at the repository:
+
+```sh
+GAMMA_SOURCE_NAME=notes GAMMA_SOURCE_WORKTREE=$HOME/notes pnpm dev
+```
+
+The reader opens a project named after the source and offers **Update** whenever the repository has changed; it checks when the library opens and when its tab comes back into view, at most once a minute. Sync only brings files in: what is added or edited in the browser stays there.
+
+Set exactly one of these with `GAMMA_SOURCE_NAME`:
+
+| Variable | Serves | Changes show |
+| --- | --- | --- |
+| `GAMMA_SOURCE_WORKTREE` | The files on disk, committed or not, leaving out what git ignores | As soon as they are saved |
+| `GAMMA_SOURCE_REPO` | The committed files of a clone the server keeps under `GAMMA_SOURCE_DIR` | After the next pull, every `GAMMA_SOURCE_PULL_SECONDS` |
+| `GAMMA_SOURCE_URL` | Whatever that address serves: `GET <url>` lists `{ version, files: [{ path, version, size }] }`, and `GET <url>/files/<path>` returns a file | When that address says so |
+
+`GAMMA_SOURCE_INCLUDE=knowledge,journal` limits a repository to those folders. For a private repository, give git its key with `GIT_SSH_COMMAND`. The server does not check who asks for the files, so a deployment that serves a repository must sit behind a sign-in.
 
 ## Operating the proxy
 

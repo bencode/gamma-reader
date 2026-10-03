@@ -7,7 +7,9 @@ import providers from './model-proxy/providers.json' with { type: 'json' }
 import { readQuotaConfig } from './quota/config.js'
 import { createQuotaGuard } from './quota/guard.js'
 import { openQuotaStore } from './quota/store.js'
-import { readSourceConfig } from './source-config.js'
+import { openRepository, type Source } from './source/repository.js'
+import { openWorkingTree } from './source/working-tree.js'
+import { readSourceConfig, type SourceConfig } from './source-config.js'
 
 const port = Number(process.env.PORT ?? 3302)
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -34,7 +36,21 @@ const config = resolveModelProxyConfig(providers, process.env)
 const quota = readQuotaConfig(process.env)
 const store = openQuotaStore(quota.databaseFile)
 const guard = createQuotaGuard(store, quota)
-const source = readSourceConfig(process.env)
+// A remote source is only named; a repository is served from here.
+const openSource = async (config: SourceConfig): Promise<Source | null> => {
+  if (config.kind === 'remote') return null
+  if (config.kind === 'worktree') return openWorkingTree(config)
+  const repository = openRepository(config)
+  await repository.update()
+  // A failed pull keeps serving the last commit; the next one tries again.
+  setInterval(() => {
+    repository.update().catch(cause => console.error('Unable to update the source', cause))
+  }, config.pullSeconds * 1000)
+  return repository
+}
+
+const sourceConfig = readSourceConfig(process.env)
+const source = sourceConfig ? { config: sourceConfig, files: await openSource(sourceConfig) } : null
 
 serve({ fetch: createApp(guard, webRoot, config, source).fetch, port, hostname }, info => {
   console.info(`Gamma Reader: http://${hostname}:${info.port}`)

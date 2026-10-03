@@ -98,12 +98,39 @@ describe('application HTTP boundaries', () => {
 
   it('names the source a deployment syncs from, and has none by default', async () => {
     expect((await build().request('/api/source')).status).toBe(404)
-    const source = readSourceConfig({
+    const config = readSourceConfig({
       GAMMA_SOURCE_NAME: 'brain2',
       GAMMA_SOURCE_URL: '/source/brain2',
     })
-    const response = await createApp(guard, undefined, undefined, source).request('/api/source')
+    if (!config) throw new Error('A source was configured')
+    const response = await createApp(guard, undefined, undefined, { config, files: null }).request(
+      '/api/source',
+    )
     expect(await response.json()).toEqual({ name: 'brain2', url: '/source/brain2' })
+    expect((await build().request('/api/library')).status).toBe(404)
     expect(() => readSourceConfig({ GAMMA_SOURCE_NAME: 'brain2' })).toThrow()
+    expect(() =>
+      readSourceConfig({
+        GAMMA_SOURCE_NAME: 'brain2',
+        GAMMA_SOURCE_URL: '/source/brain2',
+        GAMMA_SOURCE_WORKTREE: '/notes',
+      }),
+    ).toThrow()
+  })
+
+  it('points the reader at a repository it serves itself', async () => {
+    const config = readSourceConfig({ GAMMA_SOURCE_NAME: 'notes', GAMMA_SOURCE_WORKTREE: '/notes' })
+    if (!config) throw new Error('A source was configured')
+    const files = {
+      listing: async () => ({ version: '1', files: [{ path: 'a.md', version: '1', size: 3 }] }),
+      blob: async () => null,
+    }
+    const app = createApp(guard, undefined, undefined, { config, files })
+
+    expect(await (await app.request('/api/source')).json()).toEqual({
+      name: 'notes',
+      url: '/api/library',
+    })
+    expect(await (await app.request('/api/library')).json()).toEqual(await files.listing())
   })
 })
