@@ -164,7 +164,7 @@ Set exactly one of these with `GAMMA_SOURCE_NAME`:
 | `GAMMA_SOURCE_REPO` | The committed files of a clone the server keeps under `GAMMA_SOURCE_DIR` | After the next pull, every `GAMMA_SOURCE_PULL_SECONDS` |
 | `GAMMA_SOURCE_URL` | Whatever that address serves: `GET <url>` lists `{ version, files: [{ path, version, size }] }`, and `GET <url>/files/<path>` returns a file | When that address says so |
 
-Give paths in full: `.env` does not expand `~` or `$HOME`. `GAMMA_SOURCE_INCLUDE=knowledge,journal` limits a repository to those folders. For a private repository, give git its key with `GIT_SSH_COMMAND`. The server does not check who asks for the files, so a deployment that serves a repository must sit behind a sign-in.
+Give paths in full: `.env` does not expand `~` or `$HOME`. `GAMMA_SOURCE_INCLUDE=knowledge,journal` limits a repository to those folders. For a private repository, give git its key with `GIT_SSH_COMMAND`. The default container image has no git; build one that serves a repository with `docker build --target runtime-git`. The server does not check who asks for the files, so a deployment that serves a repository must sit behind a sign-in.
 
 ## Operating the proxy
 
