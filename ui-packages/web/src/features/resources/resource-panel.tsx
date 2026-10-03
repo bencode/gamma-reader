@@ -6,7 +6,9 @@ import type { Project } from '../../core/projects'
 import { useSourceDrafts } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
 import { ProjectSwitcher } from '../projects/project-switcher'
+import { SourceSaveControl } from '../source/source-save-control'
 import { SourceSyncStatus } from '../source/sync-status'
+import type { SourceSync } from '../source/use-source-sync'
 import { AddFromUrlDialog } from './add-from-url-dialog'
 import { AddMenu } from './add-menu'
 import { DuplicateFilesDialog, RemoveFileDialog, RemoveFolderDialog } from './file-dialogs'
@@ -30,6 +32,7 @@ type ResourcePanelProps = {
   activeId: string | null
   library: FileLibrary
   exporter: FileExportController
+  sourceSync: SourceSync
   onOpen: (id: string) => void
   onRemoved: (ids: readonly string[]) => void
   onClose: () => void
@@ -50,6 +53,7 @@ export const ResourcePanel = ({
   activeId,
   library,
   exporter,
+  sourceSync,
   onOpen,
   onRemoved,
   onClose,
@@ -141,7 +145,17 @@ export const ResourcePanel = ({
       <div className="resource-toolbar">
         <h2>Files</h2>
         <div className="resource-toolbar-actions">
-          <FolderExportControl exporter={exporter} disabled={files.length === 0} />
+          {project.source?.writable ? (
+            <div className="folder-save-control">
+              <SourceSaveControl
+                name={project.source.name}
+                sync={sourceSync}
+                className="folder-save-main"
+              />
+            </div>
+          ) : (
+            <FolderExportControl exporter={exporter} disabled={files.length === 0} />
+          )}
           <AddMenu
             disabled={library.loading || library.importing}
             onAddFiles={() => inputRef.current?.click()}
@@ -177,9 +191,7 @@ export const ResourcePanel = ({
           }}
         />
       </div>
-      {project.source && (
-        <SourceSyncStatus source={project.source} reload={library.reload} files={library.files} />
-      )}
+      {project.source && <SourceSyncStatus name={project.source.name} sync={sourceSync} />}
       {library.progress && (
         <p className="file-progress" role="status">
           {library.progress}
