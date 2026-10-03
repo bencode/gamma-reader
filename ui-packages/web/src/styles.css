@@ -804,6 +804,25 @@ svg {
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
+.dialog-input {
+  width: 100%;
+  min-height: 32px;
+  margin-top: 14px;
+  padding: 5px 8px;
+  border: 1px solid oklch(0.84 0 0);
+  border-radius: 5px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+.dialog-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.dialog-input + p {
+  margin-top: 8px;
+}
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -1261,7 +1280,8 @@ svg {
   .composer-area {
     padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
-  .preview-toolbar input[type="text"] {
+  .preview-toolbar input[type="text"],
+  .dialog-input {
     font-size: 16px;
   }
   .image-lightbox-toolbar {

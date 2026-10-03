@@ -1,30 +1,18 @@
 import * as Popover from '@radix-ui/react-popover'
-import { FilePlus, FolderPlus, Plus } from 'lucide-react'
+import { FilePlus, FolderPlus, Link, Plus } from 'lucide-react'
 import { useState } from 'react'
 
 type AddMenuProps = {
   disabled: boolean
-  // Absent where the browser cannot choose a folder; the button then adds files directly.
+  // Absent where the browser cannot choose a folder.
   onAddFolder?: () => void
   onAddFiles: () => void
+  onAddFromUrl: () => void
 }
 
 // One entry point for bringing things in, so it never reads like the folder save beside it.
-export const AddMenu = ({ disabled, onAddFolder, onAddFiles }: AddMenuProps) => {
+export const AddMenu = ({ disabled, onAddFolder, onAddFiles, onAddFromUrl }: AddMenuProps) => {
   const [open, setOpen] = useState(false)
-  if (!onAddFolder)
-    return (
-      <button
-        className="icon-button"
-        type="button"
-        aria-label="Add files"
-        title="Add files"
-        disabled={disabled}
-        onClick={onAddFiles}
-      >
-        <Plus size={16} />
-      </button>
-    )
   // Closing first keeps the picker that follows from opening behind the menu.
   const choose = (action: () => void) => () => {
     setOpen(false)
@@ -36,7 +24,7 @@ export const AddMenu = ({ disabled, onAddFolder, onAddFiles }: AddMenuProps) => 
         <button
           className="icon-button"
           type="button"
-          aria-label="Add files or a folder"
+          aria-label="Add to Files"
           title="Add"
           disabled={disabled}
         >
@@ -49,9 +37,15 @@ export const AddMenu = ({ disabled, onAddFolder, onAddFiles }: AddMenuProps) => 
             <FilePlus size={14} aria-hidden="true" />
             Add files…
           </button>
-          <button type="button" role="menuitem" onClick={choose(onAddFolder)}>
-            <FolderPlus size={14} aria-hidden="true" />
-            Add folder…
+          {onAddFolder && (
+            <button type="button" role="menuitem" onClick={choose(onAddFolder)}>
+              <FolderPlus size={14} aria-hidden="true" />
+              Add folder…
+            </button>
+          )}
+          <button type="button" role="menuitem" onClick={choose(onAddFromUrl)}>
+            <Link size={14} aria-hidden="true" />
+            Add from URL…
           </button>
         </Popover.Content>
       </Popover.Portal>
