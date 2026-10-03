@@ -118,7 +118,7 @@ describe('application HTTP boundaries', () => {
     ).toThrow()
   })
 
-  it('points the reader at a repository it serves itself', async () => {
+  it('points the reader at a working tree it serves itself and takes changes back', async () => {
     const config = readSourceConfig({ GAMMA_SOURCE_NAME: 'notes', GAMMA_SOURCE_WORKTREE: '/notes' })
     if (!config) throw new Error('A source was configured')
     const files = {
@@ -130,6 +130,8 @@ describe('application HTTP boundaries', () => {
     expect(await (await app.request('/api/source')).json()).toEqual({
       name: 'notes',
       url: '/api/library',
+      writable: true,
+      id: expect.stringMatching(/^[0-9a-f]{40}$/),
     })
     expect(await (await app.request('/api/library')).json()).toEqual(await files.listing())
   })

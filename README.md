@@ -169,7 +169,7 @@ A project can follow a git repository instead of files added by hand. Name the s
 GAMMA_SOURCE_NAME=notes GAMMA_SOURCE_WORKTREE=$HOME/notes pnpm dev
 ```
 
-The reader opens a project named after the source and offers **Update** whenever the repository has changed; it checks when the library opens and when its tab comes back into view, at most once a minute. Sync only brings files in: what is added or edited in the browser stays there.
+The reader opens a project named after the source and offers **Update** whenever the repository has changed; it checks when the library opens and when its tab comes back into view, at most once a minute. Sync from a clone or an address only brings files in: what is added or edited in the browser stays there. A working tree can also take changes back — see [Saving back to a working tree](#saving-back-to-a-working-tree).
 
 Set exactly one of these with `GAMMA_SOURCE_NAME`:
 
@@ -180,6 +180,18 @@ Set exactly one of these with `GAMMA_SOURCE_NAME`:
 | `GAMMA_SOURCE_URL` | Whatever that address serves: `GET <url>` lists `{ version, files: [{ path, version, size }] }`, and `GET <url>/files/<path>` returns a file | When that address says so |
 
 Give paths in full: `.env` does not expand `~` or `$HOME`. `GAMMA_SOURCE_INCLUDE=knowledge,journal` limits a repository to those folders. For a private repository, give git its key with `GIT_SSH_COMMAND`. The default container image has no git; build one that serves a repository with `docker build --target runtime-git`. The server does not check who asks for the files, so a deployment that serves a repository must sit behind a sign-in.
+
+### Saving back to a working tree
+
+A working tree also takes changes back. Its project checks for updates every minute and brings them in without asking, and the **Save** button above Files writes what changed in the browser since the last update to the folder: edits, new files, moves, and deletions. Deleting files on disk is confirmed first. Nothing is committed; review and commit the changes with git as usual.
+
+Save compares the library with what it last brought in, so any change made here counts, however it was made. Each file is sent with the version it started from:
+
+- A file nobody else changed is written as it is.
+- A file someone changed on disk meanwhile — in an editor, or by an agent — is merged with `git merge-file`. Edits to different lines combine on their own; edits to the same line leave conflict markers in the file, and the reader names it so you can resolve it in your editor. The resolved file comes back with the next update.
+- A file you edited that was deleted on disk meanwhile stays deleted; your copy remains here as a new file, and saving again writes it back. A file you deleted that was changed on disk meanwhile is kept, and the next update brings it back here. The reader says which files these are.
+
+A project saves only to the folder it was synced from. Pointing the same source name at another folder blocks Save for that project; give the new folder its own name.
 
 ## Operating the proxy
 

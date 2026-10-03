@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto'
+import { resolve } from 'node:path'
+
 // A deployment can bind its library to a source, which the reader keeps in sync. The source is
 // either any address serving the listing the reader asks for, or a git repository this server
 // serves itself: a working tree read as it is on disk, or a clone it keeps pulling.
@@ -64,8 +67,14 @@ export const readSourceConfig = (env: Env): SourceConfig | null => {
   }
 }
 
-// What the reader is told: where to fetch the listing from.
-export const sourceLocation = (config: SourceConfig) => ({
-  name: config.name,
-  url: config.kind === 'remote' ? config.url : libraryPath,
-})
+// What the reader is told: where to fetch the listing from. A working tree also takes changes
+// back, and names which folder it is, so a library synced from one is never saved into another.
+export const sourceLocation = (config: SourceConfig) =>
+  config.kind === 'worktree'
+    ? {
+        name: config.name,
+        url: libraryPath,
+        writable: true,
+        id: createHash('sha1').update(resolve(config.dir)).digest('hex'),
+      }
+    : { name: config.name, url: config.kind === 'remote' ? config.url : libraryPath }

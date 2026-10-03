@@ -1,5 +1,6 @@
-// A remote source the project's library is kept in step with, named by the deployment.
-export type ProjectSource = { name: string; url: string }
+// A remote source the project's library is kept in step with, named by the deployment. A
+// writable one also takes the library's changes back, and its id names the folder it serves.
+export type ProjectSource = { name: string; url: string; writable?: boolean; id?: string }
 
 export type Project = {
   id: string

@@ -3,8 +3,22 @@ import { baseName, type StoredFileMetadata } from '../../core/files'
 import type { ProjectSource } from '../../core/projects'
 import { importStoredFiles, listStoredFiles, removeStoredFiles } from '../../data/file-store'
 import { workspaceStorageBases, workspaceStorageKey } from '../../data/workspace-database'
-import { localChanges, planSync, type SyncSnapshot, snapshotAfter } from './plan'
-import { isSourceListing, type SourceFile, sourceFileUrl } from './protocol'
+import {
+  planSave,
+  planSync,
+  type SyncSnapshot,
+  saveReady,
+  snapshotAfter,
+  snapshotAfterSave,
+} from './plan'
+import {
+  isSourceListing,
+  type SaveResult,
+  SourceError,
+  type SourceFile,
+  sourceFileUrl,
+} from './protocol'
+import { saveToSource } from './save'
 
 export type SourceSyncState =
   | { kind: 'checking' }
@@ -12,14 +26,15 @@ export type SourceSyncState =
   | { kind: 'available' }
   | { kind: 'syncing'; done: number; total: number }
   | { kind: 'synced'; kept: string[]; refused: number }
+  | { kind: 'saving'; total: number }
+  | { kind: 'saved'; results: SaveResult[] }
   | { kind: 'failed'; message: string }
 
 // The source is checked when the library opens and whenever the reader comes back to it, but
-// not more than once a minute.
+// not more than once a minute. A writable source is also checked every minute, and its changes
+// come in without asking: what is edited here stays until Save, so nothing here is lost.
 const checkInterval = 60_000
 const downloadsAtOnce = 6
-
-class SourceError extends Error {}
 
 const snapshotKey = () => workspaceStorageKey(workspaceStorageBases.sourceSync)
 
@@ -27,6 +42,9 @@ const readSnapshot = (): SyncSnapshot | null => {
   const raw = localStorage.getItem(snapshotKey())
   return raw ? (JSON.parse(raw) as SyncSnapshot) : null
 }
+
+const writeSnapshot = (snapshot: SyncSnapshot) =>
+  localStorage.setItem(snapshotKey(), JSON.stringify(snapshot))
 
 const fetchOk = async (url: string) => {
   const response = await fetch(url, { cache: 'no-store' })
@@ -76,26 +94,70 @@ const failure = (cause: unknown) => {
   } as const
 }
 
+// Brings the source in and records what the library then holds.
+const pull = async (source: ProjectSource, onProgress: (done: number, total: number) => void) => {
+  const previous = readSnapshot()
+  const listing = await fetchListing(source)
+  const plan = planSync(previous, listing, await libraryFiles())
+  onProgress(0, plan.download.length)
+  const downloaded = await downloadAll(source, plan.download, done =>
+    onProgress(done, plan.download.length),
+  )
+  const result = await importStoredFiles(downloaded, 'replace')
+  if (plan.remove.length) await removeStoredFiles(plan.remove)
+  writeSnapshot(snapshotAfter(listing, await libraryFiles(), { kept: plan.kept, previous, source }))
+  return { kept: plan.kept, refused: result.rejected.length }
+}
+
 export const useSourceSync = (
-  source: ProjectSource,
+  source: ProjectSource | null,
   reload: () => Promise<void>,
   files: readonly StoredFileMetadata[],
 ) => {
   const [state, setState] = useState<SourceSyncState>({ kind: 'checking' })
+  const [confirming, setConfirming] = useState<string[] | null>(null)
   const busy = useRef(false)
   const checkedAt = useRef(0)
 
-  const check = useCallback(async () => {
-    if (busy.current || Date.now() - checkedAt.current < checkInterval) return
-    checkedAt.current = Date.now()
+  const sync = async () => {
+    if (!source || busy.current) return
+    busy.current = true
     try {
-      const listing = await fetchListing(source)
-      if (!busy.current)
-        setState({ kind: readSnapshot()?.version === listing.version ? 'current' : 'available' })
+      const { kept, refused } = await pull(source, (done, total) =>
+        setState({ kind: 'syncing', done, total }),
+      )
+      await reload()
+      checkedAt.current = Date.now()
+      setState({ kind: 'synced', kept, refused })
     } catch (cause) {
-      if (!busy.current) setState(failure(cause))
+      setState(failure(cause))
+    } finally {
+      busy.current = false
     }
-  }, [source])
+  }
+  // The latest sync, for a check that finds updates to bring in on its own.
+  const latestSync = useRef(sync)
+  useEffect(() => {
+    latestSync.current = sync
+  })
+
+  const check = useCallback(
+    async (scheduled = false) => {
+      if (!source || busy.current) return
+      if (!scheduled && Date.now() - checkedAt.current < checkInterval) return
+      checkedAt.current = Date.now()
+      try {
+        const listing = await fetchListing(source)
+        if (busy.current) return
+        if (readSnapshot()?.version === listing.version) setState({ kind: 'current' })
+        else if (source.writable) await latestSync.current()
+        else setState({ kind: 'available' })
+      } catch (cause) {
+        if (!busy.current) setState(failure(cause))
+      }
+    },
+    [source],
+  )
 
   useEffect(() => {
     void check()
@@ -103,28 +165,28 @@ export const useSourceSync = (
       if (document.visibilityState === 'visible') void check()
     }
     document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [check])
+    const timer = source?.writable ? setInterval(() => void check(true), checkInterval) : undefined
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      clearInterval(timer)
+    }
+  }, [check, source])
 
-  const sync = async () => {
-    if (busy.current) return
+  const save = async () => {
+    const snapshot = readSnapshot()
+    if (!source || busy.current || !saveReady(snapshot, source) || !snapshot) return
     busy.current = true
     try {
-      const listing = await fetchListing(source)
-      const plan = planSync(readSnapshot(), listing, await libraryFiles())
-      setState({ kind: 'syncing', done: 0, total: plan.download.length })
-      const downloaded = await downloadAll(source, plan.download, done =>
-        setState({ kind: 'syncing', done, total: plan.download.length }),
-      )
-      const result = await importStoredFiles(downloaded, 'replace')
-      if (plan.remove.length) await removeStoredFiles(plan.remove)
-      localStorage.setItem(
-        snapshotKey(),
-        JSON.stringify(snapshotAfter(listing, await libraryFiles(), plan.kept)),
-      )
+      const local = await libraryFiles()
+      const changes = planSave(snapshot, local)
+      if (changes.length === 0) return
+      setState({ kind: 'saving', total: changes.length })
+      const results = await saveToSource(source, changes)
+      writeSnapshot(snapshotAfterSave(snapshot, results, local))
+      await pull(source, () => undefined)
       await reload()
       checkedAt.current = Date.now()
-      setState({ kind: 'synced', kept: plan.kept, refused: result.rejected.length })
+      setState({ kind: 'saved', results })
     } catch (cause) {
       setState(failure(cause))
     } finally {
@@ -132,12 +194,43 @@ export const useSourceSync = (
     }
   }
 
-  // The snapshot changes only when a sync ends, which also sets the state, so the two together say
-  // when to count again.
-  const changes = useMemo(
-    () => (state.kind === 'syncing' ? 0 : localChanges(readSnapshot(), files.filter(inLibrary))),
-    [files, state],
+  // The snapshot changes only when a sync or save ends, which also sets the state, so the two
+  // together say when to work the changes out again.
+  // A project without a source has no snapshot, and is not asked for one: its storage may be
+  // blocked.
+  const pending = useMemo(() => {
+    if (!source || state.kind === 'syncing' || state.kind === 'saving')
+      return { changes: null, ready: false }
+    const snapshot = readSnapshot()
+    return {
+      changes: snapshot ? planSave(snapshot, files.filter(inLibrary)) : null,
+      ready: saveReady(snapshot, source),
+    }
+  }, [files, source, state])
+  const deletions = (pending.changes ?? []).flatMap(change =>
+    change.kind === 'delete' ? [change.path] : [],
   )
 
-  return { state, sync, localChanges: changes }
+  return {
+    state,
+    sync,
+    localChanges: pending.changes?.length ?? files.filter(inLibrary).length,
+    writable: source?.writable === true,
+    // A library synced from another folder, or whose sync record is gone, is never saved.
+    saveBlocked: source?.writable === true && !pending.ready,
+    busy: state.kind === 'syncing' || state.kind === 'saving',
+    // Deleting files on disk is asked about first; everything else saves at once.
+    requestSave: () => {
+      if (deletions.length > 0) setConfirming(deletions)
+      else void save()
+    },
+    confirming,
+    confirmSave: () => {
+      setConfirming(null)
+      void save()
+    },
+    cancelSave: () => setConfirming(null),
+  }
 }
+
+export type SourceSync = ReturnType<typeof useSourceSync>

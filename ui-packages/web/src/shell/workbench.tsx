@@ -15,6 +15,8 @@ import {
 import { ResourcePanel } from '../features/resources/resource-panel'
 import { useFileExport } from '../features/resources/use-file-export'
 import { useFileLibrary } from '../features/resources/use-file-library'
+import { SaveDeletionsDialog, SourceSaveControl } from '../features/source/source-save-control'
+import { useSourceSync } from '../features/source/use-source-sync'
 import { usePanelWidths } from './use-panel-widths'
 import { useWorkspace } from './use-workspace'
 import { WorkspaceProvider } from './workspace-context'
@@ -41,6 +43,7 @@ export const Workbench = ({ project }: { project: Project }) => {
   const rootRef = useRef<HTMLDivElement>(null)
   const library = useFileLibrary(prepareP5SourceFile)
   const exporter = useFileExport(library.files)
+  const sourceSync = useSourceSync(project.source ?? null, library.reload, library.files)
   const workspace = useWorkspace(library.files, library.loading)
   const { widths, saveWidths } = usePanelWidths()
   const groupElementRef = useRef<HTMLDivElement>(null)
@@ -124,6 +127,7 @@ export const Workbench = ({ project }: { project: Project }) => {
       activeId={workspace.activeId}
       library={library}
       exporter={exporter}
+      sourceSync={sourceSync}
       onClose={closeFiles}
       onOpen={id => {
         workspace.openDocument(id)
@@ -176,24 +180,35 @@ export const Workbench = ({ project }: { project: Project }) => {
               >
                 <Plus size={18} />
               </button>
-              <button
-                type="button"
-                className="icon-button rail-save"
-                aria-label={folderExportLabel(exporter)}
-                title={folderExportTitle(exporter)}
-                disabled={
-                  !exporter.supported ||
-                  exporter.phase !== 'idle' ||
-                  exporter.savingFileId !== null ||
-                  exportableFileCount === 0
-                }
-                onClick={event => {
-                  triggerRef.current = event.currentTarget
-                  void exporter.saveToFolder()
-                }}
-              >
-                <FolderExportIcon exporter={exporter} />
-              </button>
+              {project.source?.writable ? (
+                <SourceSaveControl
+                  name={project.source.name}
+                  sync={sourceSync}
+                  className="rail-save"
+                  onClick={event => {
+                    triggerRef.current = event.currentTarget
+                  }}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="icon-button rail-save"
+                  aria-label={folderExportLabel(exporter)}
+                  title={folderExportTitle(exporter)}
+                  disabled={
+                    !exporter.supported ||
+                    exporter.phase !== 'idle' ||
+                    exporter.savingFileId !== null ||
+                    exportableFileCount === 0
+                  }
+                  onClick={event => {
+                    triggerRef.current = event.currentTarget
+                    void exporter.saveToFolder()
+                  }}
+                >
+                  <FolderExportIcon exporter={exporter} />
+                </button>
+              )}
             </nav>
           )}
           <Group
@@ -269,6 +284,9 @@ export const Workbench = ({ project }: { project: Project }) => {
               onCancel={exporter.cancelOverwrite}
               onReplace={() => void exporter.confirmOverwrite()}
             />
+          )}
+          {sourceSync.confirming && project.source && (
+            <SaveDeletionsDialog name={project.source.name} sync={sourceSync} />
           )}
           <p className="visually-hidden" role="status" aria-live="polite">
             {exporter.announcement}

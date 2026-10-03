@@ -3,21 +3,51 @@ import { access } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { Readable } from 'node:stream'
 import { promisify } from 'node:util'
+import type { SaveChange, SaveContent, SaveResult } from './save.js'
 
 // The listing the reader syncs from. Versions are opaque; each one changes when the content does.
 export type SourceFile = { path: string; version: string; size: number }
 export type SourceListing = { version: string; files: SourceFile[] }
 
 // What the routes serve, whichever way the files are kept. A file is read only by a listed path.
+// A source that takes changes back also saves them.
 export type Source = {
   listing: () => Promise<SourceListing>
   blob: (path: string) => Promise<{ file: SourceFile; stream: ReadableStream<Uint8Array> } | null>
+  save?: (changes: readonly SaveChange[], content: SaveContent) => Promise<SaveResult[]>
 }
 
 const run = promisify(execFile)
 
 export const git = async (cwd: string | undefined, args: string[]) =>
   (await run('git', args, { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })).stdout
+
+// For commands that read their arguments from standard input, such as --stdin-paths.
+export const gitWithInput = (cwd: string, args: string[], input: string) =>
+  new Promise<string>((done, fail) => {
+    const child = execFile(
+      'git',
+      args,
+      { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+      (cause, stdout) => (cause ? fail(cause) : done(stdout)),
+    )
+    // A git that exits before reading everything closes the pipe; that fails this call, not
+    // the service.
+    child.stdin?.on('error', fail)
+    child.stdin?.end(input)
+  })
+
+// Streamed, so a large PDF is never held whole in memory.
+export const streamObject = (cwd: string, object: string) => {
+  const child = spawn('git', ['cat-file', 'blob', object], {
+    cwd,
+    stdio: ['ignore', 'pipe', 'inherit'],
+  })
+  // Without a listener a process that fails to start would bring the whole service down;
+  // the request it was serving ends with an empty body instead.
+  child.on('error', cause => console.error('Unable to read a source file', cause))
+  return Readable.toWeb(child.stdout) as ReadableStream<Uint8Array>
+}
 
 // `ls-tree -l -z` writes "<mode> <type> <object> <size>\t<path>" records ended by NUL. Links and
 // submodules are left out; only files have content to read.
@@ -87,18 +117,10 @@ export const openRepository = ({
       await git(dir, ['pull', '--ff-only', '--quiet'])
     },
     listing: async () => (await current()).listing,
-    // Streamed, so a large PDF is never held whole in memory. Only a listed path can be read.
+    // Only a listed path can be read.
     blob: async (path: string) => {
       const file = (await current()).byPath.get(path)
-      if (!file) return null
-      const child = spawn('git', ['cat-file', 'blob', file.version], {
-        cwd: dir,
-        stdio: ['ignore', 'pipe', 'inherit'],
-      })
-      // Without a listener a process that fails to start would bring the whole service down;
-      // the request it was serving ends with an empty body instead.
-      child.on('error', cause => console.error('Unable to read a source file', cause))
-      return { file, stream: Readable.toWeb(child.stdout) as ReadableStream<Uint8Array> }
+      return file ? { file, stream: streamObject(dir, file.version) } : null
     },
   }
 }

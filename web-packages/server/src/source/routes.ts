@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import type { Source } from './repository.js'
+import type { SaveChange } from './save.js'
 
 const contentTypes: Record<string, string> = {
   pdf: 'application/pdf',
@@ -30,12 +31,51 @@ const filePath = (url: string) => {
   }
 }
 
+const isString = (value: unknown): value is string => typeof value === 'string'
+
+const isSaveChange = (value: unknown): value is SaveChange => {
+  if (typeof value !== 'object' || value === null || !('kind' in value)) return false
+  const change = value as Record<string, unknown>
+  if (change.kind === 'write')
+    return (
+      isString(change.path) &&
+      isString(change.part) &&
+      (change.base === null || isString(change.base))
+    )
+  if (change.kind === 'move') return isString(change.from) && isString(change.to)
+  if (change.kind === 'delete') return isString(change.path) && isString(change.base)
+  return false
+}
+
+// The changes arrive as one JSON list, each write's bytes in the part it names.
+const readSave = async (request: Request) => {
+  const form = await request.formData()
+  const raw = form.get('changes')
+  const changes: unknown = isString(raw) ? JSON.parse(raw) : null
+  if (!Array.isArray(changes) || !changes.every(isSaveChange)) return null
+  const content = async (part: string) => {
+    const value = form.get(part)
+    return value instanceof Blob ? new Uint8Array(await value.arrayBuffer()) : null
+  }
+  return { changes, content }
+}
+
 export const createRoutes = (source: Source) => {
   const app = new Hono()
   app.get('/', async c => {
     c.header('Cache-Control', 'no-store')
     return c.json(await source.listing())
   })
+  const save = source.save
+  if (save)
+    app.post('/save', async c => {
+      const request = await readSave(c.req.raw).catch((cause: unknown) => {
+        if (cause instanceof SyntaxError || cause instanceof TypeError) return null
+        throw cause
+      })
+      if (!request) return c.json({ error: 'The changes could not be read.' }, 400)
+      return c.json(await save(request.changes, request.content))
+    })
   app.get('/files/*', async c => {
     const path = filePath(c.req.url)
     const blob = path ? await source.blob(path) : null
