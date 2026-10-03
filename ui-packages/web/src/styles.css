@@ -844,6 +844,10 @@ svg {
   background: var(--accent);
   color: var(--surface);
 }
+/* Grey text on the accent would be unreadable, so a disabled action greys out as the send button does. */
+.primary-button:disabled {
+  background: oklch(0.93 0 0);
+}
 .secondary-button,
 .toolbar-button,
 .toolbar-value {
