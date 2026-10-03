@@ -70,6 +70,12 @@ export default defineConfig({
         target: process.env.GAMMA_BACKEND ?? 'http://127.0.0.1:3302',
         changeOrigin: true,
       },
+      // A source served locally by lesscap/work, at the address it has in production
+      // (GAMMA_SOURCE_URL=/work/brain2).
+      '/work': {
+        target: process.env.GAMMA_WORK ?? 'http://127.0.0.1:3310',
+        changeOrigin: true,
+      },
     },
   },
 })
