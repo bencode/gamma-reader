@@ -343,6 +343,8 @@ describe('active source tools', () => {
       },
     )
     const first = local.read_active_source()
+    // A model may send an empty cursor to mean none.
+    expect(local.read_active_source({ cursor: '' })).toEqual(first)
     let content = first.content
     let next = first.next
     while (next) {

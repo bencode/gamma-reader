@@ -16,4 +16,14 @@ describe('schemeRuntime', () => {
 
     expect(await run('(+ 1 2)')).toEqual({ outputs: [{ kind: 'text', text: '3' }], error: null })
   })
+
+  it('prints what display and newline write, in pieces as written, before the value', async () => {
+    expect(await run('(display "a") (display 1) (newline) (display "b") (+ 1 2)')).toEqual({
+      outputs: [
+        { kind: 'stdout', text: 'a1\nb' },
+        { kind: 'text', text: '3' },
+      ],
+      error: null,
+    })
+  })
 })

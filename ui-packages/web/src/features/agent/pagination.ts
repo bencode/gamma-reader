@@ -25,7 +25,8 @@ export const decodeCursor = <T>(
   token: string | undefined,
   validate: (value: unknown) => value is T,
 ) => {
-  if (token === undefined) return null
+  // A model may send an empty cursor to mean none.
+  if (token === undefined || !token.trim()) return null
   try {
     if (token.length > 16 * 1024) throw new LocalToolError('Cursor is too long.')
     const value: unknown = JSON.parse(
@@ -85,7 +86,7 @@ const requestHash = (operation: string, request: Record<string, unknown>) => {
 // Cursors stay short, as a model copies them by hand: where the list resumes, and which request
 // it continues, such as 100.k3f9a2.
 const readCursor = (token: string | undefined, hash: string) => {
-  if (token === undefined) return 0
+  if (token === undefined || !token.trim()) return 0
   const match = /^(\d+)\.([0-9a-z]+)$/.exec(token.trim())
   if (!match) throw new LocalToolError('Invalid cursor. Restart the call without a cursor.')
   if (match[2] !== hash) throw mismatchedCursor()
