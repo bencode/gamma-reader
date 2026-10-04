@@ -2,7 +2,7 @@ import type { Link, Parent, Root, RootContent, Text } from 'mdast'
 import type {} from 'mdast-util-to-hast'
 import { descendants, type Node, plainText } from './markdown'
 import { headingKey } from './names'
-import { linkPattern, namingsAmong, parseTarget, trailingName } from './parse'
+import { namingsAmong, type TextPiece, textPieces, trailingName } from './parse'
 
 // What the reader is given to work with, on the element a node becomes.
 const setProperty = (node: Node, key: string, value: string) => {
@@ -37,41 +37,27 @@ const markHeadings = (root: Root) => {
 
 // A link becomes a button holding what was written, so a click can follow it once the library
 // knows where it leads. It is a link node so Markdown keeps it inline; the empty url is not used.
-const linkNode = (raw: string, embed: boolean, tag: boolean): Link => {
-  const { label } = parseTarget(raw)
-  const written = (raw.split('|')[0] ?? raw).trim()
-  const shown = label ?? written
-  return {
-    type: 'link',
-    url: '',
-    children: [{ type: 'text', value: tag ? `#${shown}` : shown }],
-    data: {
-      hName: 'button',
-      hProperties: {
-        type: 'button',
-        dataLink: raw,
-        dataKind: embed ? 'embed' : tag ? 'tag' : 'link',
-      },
+const linkNode = ({ link, shown, embed, tag }: Extract<TextPiece, { link: string }>): Link => ({
+  type: 'link',
+  url: '',
+  children: [{ type: 'text', value: shown }],
+  data: {
+    hName: 'button',
+    hProperties: {
+      type: 'button',
+      dataLink: link,
+      dataKind: embed ? 'embed' : tag ? 'tag' : 'link',
     },
-  }
-}
+  },
+})
 
-// Text split around its links. [[#heading]] names no page, so it stays text, as it does in the
-// index.
+// A text node split around its links, kept as it was when it has none.
 const splitLinks = (text: Text): (Text | Link)[] => {
-  const pieces: (Text | Link)[] = []
-  let from = 0
-  for (const match of text.value.matchAll(linkPattern())) {
-    const raw = match[3] ?? ''
-    if (!parseTarget(raw).target.page) continue
-    if (match.index > from)
-      pieces.push({ type: 'text', value: text.value.slice(from, match.index) })
-    pieces.push(linkNode(raw, match[1] === '!', match[2] === '#'))
-    from = match.index + match[0].length
-  }
-  if (from === 0) return [text]
-  if (from < text.value.length) pieces.push({ type: 'text', value: text.value.slice(from) })
-  return pieces
+  const pieces = textPieces(text.value)
+  if (pieces.every(piece => 'text' in piece)) return [text]
+  return pieces.map(piece =>
+    'text' in piece ? { type: 'text', value: piece.text } : linkNode(piece),
+  )
 }
 
 // Text inside a Markdown link stays text, as a link inside a link cannot be followed.

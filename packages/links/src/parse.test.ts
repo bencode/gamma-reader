@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseNote, parseTarget } from './parse'
+import { parseNote, parseTarget, textPieces } from './parse'
 
 const note = (...lines: string[]) => parseNote(lines.join('\n'))
 
@@ -160,5 +160,28 @@ describe('headings and frontmatter', () => {
     expect(parsed.name).toBe('RAG index')
     expect(parsed.headings).toEqual([{ title: 'Title', level: 1, lines: [5, 6] }])
     expect(parsed.links[0]?.line).toBe(6)
+  })
+})
+
+describe('text as a reader sees it', () => {
+  it('splits text around its links, each showing its label, what was written, or its tag', () => {
+    expect(
+      textPieces('Per [[RAG#^def|the definition]], #[[agents]] and ![[Plan]]; [[#Local]] stays.'),
+    ).toEqual([
+      { text: 'Per ' },
+      {
+        link: 'RAG#^def|the definition',
+        shown: 'the definition',
+        target: { page: 'RAG', block: 'def' },
+        embed: false,
+        tag: false,
+      },
+      { text: ', ' },
+      { link: 'agents', shown: '#agents', target: { page: 'agents' }, embed: false, tag: true },
+      { text: ' and ' },
+      { link: 'Plan', shown: 'Plan', target: { page: 'Plan' }, embed: true, tag: false },
+      { text: '; [[#Local]] stays.' },
+    ])
+    expect(textPieces('No links here.')).toEqual([{ text: 'No links here.' }])
   })
 })

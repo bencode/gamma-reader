@@ -36,11 +36,27 @@ const dedent = (lines: readonly string[]) => {
   return lines.map(line => line.slice(shared.length)).join('\n')
 }
 
-// What an embed shows of a note: all of it below its frontmatter, or the lines of the block or
-// section it names, as the index counts them; null when the note has no such block or section.
-const partOf = (input: string, target: LinkTarget) => {
+// A whole note shown in an embed, below its frontmatter and without a first heading that only
+// repeats its name, which the embed already shows.
+const wholeNote = (source: string, page: string) => {
+  const lines = splitFrontmatter(source).body.split('\n')
+  const [first] = parseNote(source).headings
+  const at = first ? first.lines[0] - 1 : -1
+  const repeated =
+    first !== undefined &&
+    headingKey(first.title) === headingKey(page) &&
+    lines.slice(0, at).every(line => !line.trim())
+  // A heading underlined with === or --- takes its underline with it.
+  const underlined = /^\s*(=+|-+)\s*$/.test(lines[at + 1] ?? '')
+  const dropped = new Set(repeated ? (underlined ? [at, at + 1] : [at]) : [])
+  return lines.filter((_, index) => !dropped.has(index)).join('\n')
+}
+
+// What an embed shows of a note: all of it, or the lines of the block or section it names, as the
+// index counts them; null when the note has no such block or section.
+const partOf = (input: string, target: Pick<LinkTarget, 'block' | 'heading'>, page: string) => {
   const source = input.replace(/\r\n?/g, '\n')
-  if (!target.block && !target.heading) return splitFrontmatter(source).body
+  if (!target.block && !target.heading) return wholeNote(source, page)
   const note = parseNote(source)
   const wanted = headingKey(target.heading ?? '')
   const lines = target.block
@@ -51,15 +67,18 @@ const partOf = (input: string, target: LinkTarget) => {
 
 type Part = { status: 'loading' } | { status: 'ready'; text: string } | { status: 'missing' }
 
-// The note's saved text. It is keyed by revision where it is shown, so a new save reads it anew.
+// The note's saved text, read again when its metadata changes, as it does with each save. What
+// was shown stays until the new text replaces it, so a save does not blank the embed for a moment.
 const EmbeddedNote = ({
   file,
   target,
+  page,
   scope,
   label,
 }: {
   file: StoredFileMetadata
   target: LinkTarget
+  page: string
   scope: EmbedScope
   label: string
 }) => {
@@ -67,11 +86,10 @@ const EmbeddedNote = ({
   const { block, heading } = target
   useEffect(() => {
     let current = true
-    setPart({ status: 'loading' })
     getStoredFileContent(file.id)
       .then(async blob => {
         const text = blob ? decodeUtf8(await blob.arrayBuffer()) : null
-        const shown = text === null ? null : partOf(text, { page: '', block, heading })
+        const shown = text === null ? null : partOf(text, { block, heading }, page)
         if (current)
           setPart(shown === null ? { status: 'missing' } : { status: 'ready', text: shown })
       })
@@ -82,7 +100,7 @@ const EmbeddedNote = ({
     return () => {
       current = false
     }
-  }, [block, file.id, heading])
+  }, [block, file, heading, page])
 
   const inner = useMemo<EmbedScope>(
     () => ({
@@ -194,6 +212,12 @@ export const WikiEmbed = ({
       </button>,
     )
   return shown(
-    <EmbeddedNote key={file.revision} file={file} target={target} scope={scope} label={name} />,
+    <EmbeddedNote
+      file={file}
+      target={target}
+      page={graph?.page(file.id) ?? name}
+      scope={scope}
+      label={name}
+    />,
   )
 }
