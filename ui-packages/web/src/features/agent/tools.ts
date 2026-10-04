@@ -7,6 +7,10 @@ const cursor = Type.Optional(
   Type.String({ description: 'Opaque cursor from next. Copy it unchanged.' }),
 )
 const fileId = Type.String({ description: 'File ID returned by list, search or get_reader_state.' })
+const node = Type.String({
+  minLength: 1,
+  description: 'A node named as a link names it: Page, Page#Heading or Page#^name.',
+})
 const range = Type.Object({
   unit: Type.Union([Type.Literal('line'), Type.Literal('page')]),
   start: Type.Integer({ minimum: 1 }),
@@ -79,6 +83,29 @@ export const createReaderTools = (
       'Create or completely overwrite one UTF-8 text file in the browser workspace. Use a workspace path such as notes.md or docs/notes.md; folders follow from the path. Returns the fileId and path of the written file.',
       Type.Object({ path: Type.String({ minLength: 1 }), content: Type.String() }),
       local.write,
+    ),
+    bind(
+      'find_nodes',
+      'Find nodes of the link graph whose name contains query, ignoring case, the most linked first. Nodes are pages (notes, other files, and virtual pages that are only linked to), sections under a heading (Page#Heading) and named blocks (Page#^name). An empty query lists pages. Follow next to continue.',
+      Type.Object({ query: Type.String(), cursor }),
+      local.find_nodes,
+    ),
+    bind(
+      'get_node',
+      'Look inside a node named as a link names it, such as RAG, RAG#Heading or RAG#^name. A page shows its files and an outline of its sections and named blocks, each with the node to pass on; a section or block shows its file, source lines and text. Pass fileId when several files share a page name.',
+      Type.Object({ node, fileId: Type.Optional(fileId), cursor }),
+      local.get_node,
+    ),
+    bind(
+      'get_links',
+      "Follow a node's links. in: links pointing to it; for a page these include links to its sections and blocks. out: links written inside it. Each link starts at from.node, the innermost named block or the page, which can be followed again. line is a Markdown source line, not a read range; locate the text with search on context. Covers saved files only.",
+      Type.Object({
+        node,
+        direction: Type.Union([Type.Literal('in'), Type.Literal('out')]),
+        fileId: Type.Optional(fileId),
+        cursor,
+      }),
+      local.get_links,
     ),
   ]
   return tools

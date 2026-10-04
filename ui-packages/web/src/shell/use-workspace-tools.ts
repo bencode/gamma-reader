@@ -7,6 +7,7 @@ import {
   type WorkspaceTextWriter,
 } from '../features/agent/local-tools'
 import { LocalToolError } from '../features/agent/tool-types'
+import type { NoteIndexStore } from '../features/links/use-note-index'
 import type { Workspace } from './use-workspace'
 import { sourceDirty } from './workspace-store'
 
@@ -22,10 +23,11 @@ type WorkspaceToolsOptions = {
   readers: RefObject<Map<string, ReaderBinding>>
   writeTextFile: WorkspaceTextWriter
   moveFile: WorkspaceFileMover
+  noteIndex?: NoteIndexStore
 }
 
 export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
-  const { workspace, rootRef, readers } = options
+  const { workspace, rootRef, readers, noteIndex } = options
   const current = useRef(workspace)
   const writer = useRef(options.writeTextFile)
   const mover = useRef(options.moveFile)
@@ -97,7 +99,8 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
         (path, content, signal) => writer.current(path, content, signal),
         (fileId, path, signal) => mover.current(fileId, path, signal),
         activeSource,
+        noteIndex ? () => noteIndex.getState() : undefined,
       ),
-    [activeSource, readers, rootRef],
+    [activeSource, noteIndex, readers, rootRef],
   )
 }

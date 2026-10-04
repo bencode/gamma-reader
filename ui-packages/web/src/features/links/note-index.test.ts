@@ -1,4 +1,4 @@
-import { parseNote } from '@gamma-reader/links'
+import { nodeRef, parseNote } from '@gamma-reader/links'
 import { describe, expect, it, vi } from 'vitest'
 import { maximumTextPreviewBytes } from '../../core/files'
 import { deleteNotes, listNotes, type NoteRecord, putNote } from '../../data/notes-store'
@@ -78,7 +78,9 @@ describe('running an index', () => {
     expect(progress).toEqual([0, 1, 2, 3, 4].map(done => ({ done, total: 4 })))
     const graph = graphOf(files, records)
     expect(graph.resolve({ page: 'rag' })).toEqual({ kind: 'file', fileId: 'rag' })
-    expect(graph.backlinks('RAG', 'def').map(reference => reference.fileId)).toEqual(['journal'])
+    expect(graph.edges(nodeRef('RAG#^def'), 'in').map(edge => edge.from.fileId)).toEqual([
+      'journal',
+    ])
     expect(planIndex(files, records).parse.map(entry => entry.id)).toEqual(['left'])
   })
 
