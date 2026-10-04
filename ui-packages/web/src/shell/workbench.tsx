@@ -158,6 +158,7 @@ export const Workbench = ({ project }: { project: Project }) => {
       writeTextFile={library.writeTextFile}
       moveFile={library.moveFile}
       updateTextFile={library.updateTextFile}
+      noteIndex={noteIndex}
     >
       <ConversationProvider addAttachments={library.addAttachments}>
         <div className="workbench" ref={rootRef}>

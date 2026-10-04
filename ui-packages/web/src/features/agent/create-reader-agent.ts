@@ -80,6 +80,12 @@ const skills: SkillDefinition[] = [
       'Read and understand spreadsheets by sheet and A1 range, with guidance on locating values, merged and empty cells, and formulas.',
     load: async () => (await import('./xlsx/SKILL.md?raw')).default,
   },
+  {
+    name: 'links',
+    description:
+      'Follow and write links between notes: pages, sections and named blocks, what links to them and what they link to, and the link syntax to use.',
+    load: async () => (await import('./links/SKILL.md?raw')).default,
+  },
 ]
 
 // Pi keeps the system prompt and tool declarations at the head of the transcript. Each agent

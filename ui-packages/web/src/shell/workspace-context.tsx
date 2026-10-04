@@ -17,6 +17,7 @@ import type {
   WorkspaceFileMover,
   WorkspaceTextWriter,
 } from '../features/agent/local-tools'
+import type { NoteIndexStore } from '../features/links/use-note-index'
 import type { Workspace } from './use-workspace'
 import { type ReaderBinding, useWorkspaceTools } from './use-workspace-tools'
 import { sourceDirty, type WorkspaceActions, type WorkspaceStore } from './workspace-store'
@@ -36,6 +37,7 @@ export const WorkspaceProvider = ({
   writeTextFile,
   moveFile,
   updateTextFile,
+  noteIndex,
   children,
 }: {
   workspace: Workspace
@@ -48,11 +50,19 @@ export const WorkspaceProvider = ({
     content: string,
     signal?: AbortSignal,
   ) => Promise<UpdateStoredTextFileResult>
+  noteIndex?: NoteIndexStore
   children: ReactNode
 }) => {
   const { actions, store } = workspace
   const readers = useRef(new Map<string, ReaderBinding>())
-  const tools = useWorkspaceTools({ workspace, rootRef, readers, writeTextFile, moveFile })
+  const tools = useWorkspaceTools({
+    workspace,
+    rootRef,
+    readers,
+    writeTextFile,
+    moveFile,
+    noteIndex,
+  })
   const hasDirtySource = useStore(store, state =>
     Object.values(state.sourceDrafts).some(sourceDirty),
   )

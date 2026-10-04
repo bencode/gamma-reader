@@ -1,12 +1,20 @@
 export {
   buildGraph,
+  type Edge,
+  type FoundNode,
+  formatNode,
   isNotePath,
   type LinkGraph,
+  type Location,
+  type NodeKind,
+  type NodeRef,
+  type NodeView,
   type NoteFile,
-  type PageEntry,
+  nodeKind,
+  nodeRef,
+  type OutlineEntry,
   pageKey,
   pageNameOf,
-  type Reference,
   type Resolution,
 } from './graph'
 export {
