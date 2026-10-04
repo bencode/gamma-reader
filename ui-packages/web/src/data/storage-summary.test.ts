@@ -28,6 +28,7 @@ describe('storage summary', () => {
       files: files.length,
       folderExports: 0,
       messages: 0,
+      notes: 0,
     })
     expect(summary.fileBytes).toBe(files.reduce((total, file) => total + file.size, 0))
   })

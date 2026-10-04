@@ -5,6 +5,8 @@ import type { StoredFileMetadata } from '../../core/files'
 import type { Project } from '../../core/projects'
 import { useSourceDrafts } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
+import { IndexStatus } from '../links/index-status'
+import type { NoteIndexStore } from '../links/use-note-index'
 import { ProjectSwitcher } from '../projects/project-switcher'
 import { SourceSaveControl } from '../source/source-save-control'
 import { SourceSyncStatus } from '../source/sync-status'
@@ -33,6 +35,7 @@ type ResourcePanelProps = {
   library: FileLibrary
   exporter: FileExportController
   sourceSync: SourceSync
+  noteIndex: NoteIndexStore
   onOpen: (id: string) => void
   onRemoved: (ids: readonly string[]) => void
   onClose: () => void
@@ -54,6 +57,7 @@ export const ResourcePanel = ({
   library,
   exporter,
   sourceSync,
+  noteIndex,
   onOpen,
   onRemoved,
   onClose,
@@ -197,6 +201,7 @@ export const ResourcePanel = ({
           {library.progress}
         </p>
       )}
+      <IndexStatus index={noteIndex} />
       {library.status && (
         <div className="file-status" role="alert">
           <span>{library.status.message}</span>

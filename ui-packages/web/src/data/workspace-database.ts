@@ -3,6 +3,7 @@ import type { StoredConversation, StoredConversationMessage } from '../core/conv
 import type { FolderExportRecord } from '../core/file-export'
 import { previewKindFor, type StoredFileContent, type StoredFileMetadata } from '../core/files'
 import { legacyDatabaseName } from '../core/projects'
+import type { NoteRecord } from './notes-store'
 
 export type WorkspaceDatabase = DBSchema & {
   files: {
@@ -22,6 +23,9 @@ export type WorkspaceDatabase = DBSchema & {
     indexes: { 'by-conversation': string }
   }
   folderExports: { key: string; value: FolderExportRecord }
+  // What each Markdown file links to, parsed at a revision. A cache: dropping it only costs a
+  // fresh parse.
+  notes: { key: string; value: NoteRecord }
 }
 
 // Records written before version 7 named a file instead of placing it on a path.
@@ -80,7 +84,7 @@ const seedSamples = async (database: IDBPDatabase<WorkspaceDatabase>) => {
 export const openWorkspaceDatabase = (onBlocked?: () => void) => {
   if (databasePromise) return databasePromise
   let seeding = false
-  databasePromise = openDB<WorkspaceDatabase>(databaseName, 8, {
+  databasePromise = openDB<WorkspaceDatabase>(databaseName, 9, {
     upgrade(database, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         const files = database.createObjectStore('files', { keyPath: 'id' })
@@ -98,6 +102,7 @@ export const openWorkspaceDatabase = (onBlocked?: () => void) => {
         messages.createIndex('by-conversation', 'conversationId')
       }
       if (oldVersion < 4) database.createObjectStore('folderExports', { keyPath: 'id' })
+      if (oldVersion < 9) database.createObjectStore('notes', { keyPath: 'fileId' })
       // One pass rewrites every older record, so no two cursors write back stale copies of it:
       // version 1 lacked a collection, files from before version 8 may carry an outdated preview
       // kind (source code was not read as text before then), and files from before version 7
