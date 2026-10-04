@@ -442,6 +442,31 @@
   }
 }
 
+// Headings of an embedded note sit below the note being read, so they read smaller. The selector
+// matches the reader's own heading sizes in weight and comes after them, so it takes their place.
+.reader .article .embed {
+  :global(:is(h1, h2, h3, h4, h5, h6)) {
+    margin: 0.75em 0 0.25em;
+    line-height: 1.3;
+  }
+
+  :global(h1) {
+    font-size: 1.25em;
+  }
+
+  :global(h2) {
+    font-size: 1.15em;
+  }
+
+  :global(h3) {
+    font-size: 1.05em;
+  }
+
+  :global(:is(h4, h5, h6)) {
+    font-size: 1em;
+  }
+}
+
 .embedTitle,
 .embedExpand {
   padding: 0;

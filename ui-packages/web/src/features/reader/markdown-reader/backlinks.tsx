@@ -1,5 +1,5 @@
-import { type Edge, headingKey } from '@gamma-reader/links'
-import { useMemo, useState } from 'react'
+import { type Edge, headingKey, pageKey, textPieces } from '@gamma-reader/links'
+import { Fragment, useMemo, useState } from 'react'
 import { useLinkGraph, useOpenFile } from '../../../shell/workspace-context'
 import type { RevealTarget } from '../../../shell/workspace-store'
 import styles from './style.module.scss'
@@ -15,9 +15,23 @@ const whereLinkStands = (edge: Edge): RevealTarget | null =>
       ? { heading: headingKey(edge.from.section) }
       : null
 
-// The line a link stands on, without the list marker before it or a block name after it.
-const lineOf = (edge: Edge) =>
-  edge.context.replace(/^(?:[-*+]|\d+[.)])\s+/, '').replace(/\s\^[A-Za-z0-9-]+$/, '')
+// The line a link stands on as it reads, without the list marker before it or a block name after
+// it, and with links shown as their text; those that lead here stand out.
+const LinkLine = ({ edge, page }: { edge: Edge; page: string }) => {
+  const line = edge.context.replace(/^(?:[-*+]|\d+[.)])\s+/, '').replace(/\s\^[A-Za-z0-9-]+$/, '')
+  return textPieces(line).map((piece, index) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: the pieces of one line never reorder
+    <Fragment key={index}>
+      {'text' in piece ? (
+        piece.text
+      ) : pageKey(piece.target.page) === pageKey(page) ? (
+        <strong>{piece.shown}</strong>
+      ) : (
+        piece.shown
+      )}
+    </Fragment>
+  ))
+}
 
 // The links into this note from other notes, grouped by the note they stand in, from the index of
 // saved notes. Links to a block or section of this note count, as they lead here too.
@@ -73,7 +87,7 @@ export const Backlinks = ({ fileId }: { fileId: string }) => {
                     type="button"
                     onClick={() => openFile(edge.from.fileId, whereLinkStands(edge))}
                   >
-                    {lineOf(edge)}
+                    <LinkLine edge={edge} page={page ?? ''} />
                   </button>
                 </li>
               ))}

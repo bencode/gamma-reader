@@ -59,6 +59,36 @@ export const parseTarget = (raw: string): { target: LinkTarget; label?: string }
   return label ? { target, label } : { target }
 }
 
+// A stretch of text as a reader sees it: plain, or a link with what it shows.
+export type TextPiece =
+  | { text: string }
+  | { link: string; shown: string; target: LinkTarget; embed: boolean; tag: boolean }
+
+// Text split around its links, each showing its label, else what was written, and a tag its #.
+// [[#heading]] names no page, so it stays text, as it does in the index.
+export const textPieces = (value: string): TextPiece[] => {
+  const pieces: TextPiece[] = []
+  let from = 0
+  for (const match of value.matchAll(linkPattern())) {
+    const raw = match[3] ?? ''
+    const { target, label } = parseTarget(raw)
+    if (!target.page) continue
+    if (match.index > from) pieces.push({ text: value.slice(from, match.index) })
+    const tag = match[2] === '#'
+    const shown = label ?? (raw.split('|')[0] ?? raw).trim()
+    pieces.push({
+      link: raw,
+      shown: tag ? `#${shown}` : shown,
+      target,
+      embed: match[1] === '!',
+      tag,
+    })
+    from = match.index + match[0].length
+  }
+  if (from < value.length) pieces.push({ text: value.slice(from) })
+  return pieces
+}
+
 const compact = (text: string) => text.replace(/\s+/g, ' ').trim().slice(0, contextLength)
 
 const lastText = (node: Parent): Text | undefined => {

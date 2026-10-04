@@ -32,5 +32,7 @@ export {
   type ParsedNote,
   parseNote,
   parseTarget,
+  type TextPiece,
+  textPieces,
 } from './parse'
 export { remarkLinks } from './remark'

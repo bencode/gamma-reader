@@ -256,7 +256,28 @@ describe('embeds and backlinks in a Markdown note', () => {
         onPositionChange={() => undefined}
       />,
     )
+    // What was shown stays until the new text replaces it.
+    expect(screen.getByText('Before saving.')).toBeInTheDocument()
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument()
     expect(await screen.findByText('After saving.')).toBeInTheDocument()
+  })
+
+  it('shows a whole note without a first heading that only repeats its name', async () => {
+    save({ rag })
+    renderNote('![[RAG]]\n\n![[RAG#Methods]]')
+
+    expect(await screen.findAllByText('Dense')).toHaveLength(2)
+    expect(screen.queryByRole('heading', { name: 'RAG' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { name: 'Methods' })).toHaveLength(2)
+  })
+
+  it('drops a repeated title written with an underline, underline and all', async () => {
+    save({ rag: 'RAG\n===\n\nUnder the title.' })
+    renderNote('![[RAG]]')
+
+    expect(await screen.findByText('Under the title.')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'RAG' })).not.toBeInTheDocument()
+    expect(screen.queryByText('===')).not.toBeInTheDocument()
   })
 
   it('names a note already shown around an embed instead of showing it again', async () => {
@@ -305,11 +326,19 @@ describe('embeds and backlinks in a Markdown note', () => {
     renderNote('# Guide')
 
     expect(screen.getByText('2 links to this note')).toBeInTheDocument()
-    expect(
-      screen.getAllByRole('button', { name: 'See [[Guide]] and [[Guide#Setup]].' }),
-    ).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'See Guide and Guide#Setup.' })).toHaveLength(1)
     expect(errors).not.toHaveBeenCalled()
     errors.mockRestore()
+  })
+
+  it('reads a line that links here as text, with the links that lead here standing out', () => {
+    save({ rag: '- Block: [[Guide#^def|the definition]] and [[Other]] ^b' })
+    renderNote('# Guide')
+
+    const entry = screen.getByRole('button', { name: 'Block: the definition and Other' })
+    expect([...entry.querySelectorAll('strong')].map(strong => strong.textContent)).toEqual([
+      'the definition',
+    ])
   })
 
   it('lists the notes that link here, each line leading to where it stands', async () => {
@@ -327,12 +356,12 @@ describe('embeds and backlinks in a Markdown note', () => {
     renderNote('See [[Guide]] here.', [...library, hub])
 
     expect(screen.getByText('62 links to this note')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Per [[Guide]] first' }))
+    await user.click(screen.getByRole('button', { name: 'Per Guide first' }))
     expect(links.openFile).toHaveBeenCalledWith('rag', { block: 'per' })
-    await user.click(screen.getByRole('button', { name: 'Follow [[guide#Setup]].' }))
+    await user.click(screen.getByRole('button', { name: 'Follow guide#Setup.' }))
     expect(links.openFile).toHaveBeenCalledWith('plan', { heading: 'steps' })
-    expect(screen.queryByRole('button', { name: '[[Guide]] 59' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Guide 59' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Show 12 more' }))
-    expect(screen.getByRole('button', { name: '[[Guide]] 59' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guide 59' })).toBeInTheDocument()
   })
 })

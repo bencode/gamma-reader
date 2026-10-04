@@ -80,7 +80,7 @@ describe('following links between notes', () => {
     const route = screen.getByLabelText('Current route')
     await waitFor(() => expect(route).toHaveTextContent('/files/notes/Topic.md'))
     expect(await screen.findByText('2 links to this note')).toBeInTheDocument()
-    await user.click(within(article()).getByRole('button', { name: 'Uses [[Topic]] here' }))
+    await user.click(within(article()).getByRole('button', { name: 'Uses Topic here' }))
     await waitFor(() => expect(route).toHaveTextContent('/files/notes/Linker.md'))
   })
 })
