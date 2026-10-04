@@ -187,6 +187,25 @@ describe('local workspace navigation', () => {
     expect(tabNames()).toEqual([])
   })
 
+  it('opens a page no note holds from its address, and keeps its tab across a reload', async () => {
+    const page = openReader('/pages/RAG')
+    await waitForWorkspace()
+    await waitFor(() => expect(tabNames()).toEqual(['rag']))
+    expect(screen.getByLabelText('Current route')).toHaveTextContent('/pages/RAG')
+    expect(screen.getByText('No note named rag yet.')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(savedWorkspace()).toMatchObject({ tabs: ['page:rag'], lastActiveId: 'page:rag' }),
+    )
+    page.unmount()
+
+    openReader()
+    await waitForWorkspace()
+    await waitFor(() =>
+      expect(screen.getByLabelText('Current route')).toHaveTextContent('/pages/rag'),
+    )
+    expect(tabNames()).toEqual(['rag'])
+  })
+
   it('does not open an unknown route as a file or create a tab', async () => {
     openReader('/files/not-in-this-browser')
     await waitForWorkspace()

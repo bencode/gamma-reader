@@ -545,3 +545,14 @@
   margin-top: 0.5em;
   text-decoration: underline dotted;
 }
+
+// A page no note holds, as its tab shows it.
+.page {
+  max-width: 74ch;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.pageNote {
+  color: var(--muted);
+}

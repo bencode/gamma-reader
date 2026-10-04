@@ -2,18 +2,24 @@ import * as Tabs from '@radix-ui/react-tabs'
 import { BookOpen, Code2, MessageSquare, Save } from 'lucide-react'
 import { lazy, useEffect, useRef, useState } from 'react'
 import { baseName, isCodePath, type StoredFileMetadata } from '../../core/files'
+import { pageName, pageOfTab } from '../../shell/page-tab'
 import type { Workspace } from '../../shell/use-workspace'
-import { useSourceDrafts, useWorkspaceSourceActions } from '../../shell/workspace-context'
+import {
+  useLinkGraph,
+  useSourceDrafts,
+  useWorkspaceSourceActions,
+} from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
 import { CsvReader } from './csv-reader'
 import { DocumentPane } from './document-pane'
-import { DocumentTabBar } from './document-tab-bar'
+import { DocumentTabBar, type DocumentTabItem } from './document-tab-bar'
 import type { PdfSourceCacheEntry } from './file-preview'
 import { HtmlReader } from './html-reader'
 import { SvgReader } from './image-reader'
 import { MarkdownReader } from './markdown-reader'
 import { StandardMarkdownReader } from './markdown-reader/standard-reader'
 import { isP5SourceName } from './p5-file'
+import { PagePane } from './page-pane'
 import type { TextReaderDefinition } from './text-file-reader'
 import { UnsavedSourceDialog } from './unsaved-source-dialog'
 
@@ -85,6 +91,7 @@ export const DocumentTabs = ({
   onOpenAssistant,
 }: DocumentTabsProps) => {
   const drafts = useSourceDrafts()
+  const graph = useLinkGraph()
   const actions = useWorkspaceSourceActions()
   const activeDraft = workspace.activeId ? drafts[workspace.activeId] : undefined
   const [pendingCloseIds, setPendingCloseIds] = useState<readonly string[] | null>(null)
@@ -117,12 +124,25 @@ export const DocumentTabs = ({
     return file ? [file] : []
   })
   const openPaths = openFiles.map(file => file.path)
-  const items = openFiles.map(file => ({
-    id: file.id,
-    label: tabLabel(file.path, openPaths),
-    title: file.path,
-    dirty: sourceDirty(drafts[file.id]),
-  }))
+  // Tabs keep their order whether they hold a file or a page no note holds.
+  const items = workspace.tabs.flatMap((id): DocumentTabItem[] => {
+    const page = pageOfTab(id)
+    if (page !== null) {
+      const name = pageName(graph, page)
+      return [{ id, label: name, title: `Page: ${name}`, dirty: false }]
+    }
+    const file = openFiles.find(candidate => candidate.id === id)
+    return file
+      ? [
+          {
+            id: file.id,
+            label: tabLabel(file.path, openPaths),
+            title: file.path,
+            dirty: sourceDirty(drafts[file.id]),
+          },
+        ]
+      : []
+  })
   const pdfSources = useRef(new Map<string, PdfSourceCacheEntry>())
 
   useEffect(() => {
@@ -243,6 +263,9 @@ export const DocumentTabs = ({
           </div>
         ) : null}
         {workspace.tabs.map(id => {
+          const page = pageOfTab(id)
+          if (page !== null)
+            return <PagePane key={id} id={id} page={page} active={workspace.activeId === id} />
           const source = workspace.files.find(document => document.id === id)
           return source ? (
             <DocumentPane

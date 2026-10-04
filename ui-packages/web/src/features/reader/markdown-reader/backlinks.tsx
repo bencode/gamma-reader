@@ -33,17 +33,16 @@ const LinkLine = ({ edge, page }: { edge: Edge; page: string }) => {
   ))
 }
 
-// The links into this note from other notes, grouped by the note they stand in, from the index of
-// saved notes. Links to a block or section of this note count, as they lead here too.
-export const Backlinks = ({ fileId }: { fileId: string }) => {
+// The links into a page from notes, grouped by the note they stand in, from the index of saved
+// notes; for a note, its own links to itself are left out. Links to a block or section of the
+// page count, as they lead there too.
+export const Backlinks = ({ page, exclude }: { page: string; exclude?: string }) => {
   const graph = useLinkGraph()
   const openFile = useOpenFile()
   const [shownCount, setShownCount] = useState(firstShown)
-  const page = graph?.page(fileId)
   const links = useMemo(
-    () =>
-      graph && page ? graph.edges({ page }, 'in').filter(edge => edge.from.fileId !== fileId) : [],
-    [fileId, graph, page],
+    () => (graph ? graph.edges({ page }, 'in').filter(edge => edge.from.fileId !== exclude) : []),
+    [exclude, graph, page],
   )
   // A line that links here more than once is listed once.
   const lines = useMemo(() => {
@@ -87,7 +86,7 @@ export const Backlinks = ({ fileId }: { fileId: string }) => {
                     type="button"
                     onClick={() => openFile(edge.from.fileId, whereLinkStands(edge))}
                   >
-                    <LinkLine edge={edge} page={page ?? ''} />
+                    <LinkLine edge={edge} page={page} />
                   </button>
                 </li>
               ))}

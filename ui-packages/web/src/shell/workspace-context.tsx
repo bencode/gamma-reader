@@ -20,6 +20,7 @@ import type {
 } from '../features/agent/local-tools'
 import type { NoteIndexState } from '../features/links/note-index'
 import type { NoteIndexStore } from '../features/links/use-note-index'
+import { pageTabId } from './page-tab'
 import type { Workspace } from './use-workspace'
 import { type ReaderBinding, useWorkspaceTools } from './use-workspace-tools'
 import {
@@ -37,6 +38,7 @@ type WorkspaceContextValue = {
   saveSource: (fileId: string, overwrite?: boolean) => Promise<'saved' | 'conflict' | 'failed'>
   noteIndex: NoteIndexStore
   openFile: (fileId: string, place: RevealTarget | null) => void
+  openPage: (name: string) => void
 }
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
 
@@ -145,6 +147,8 @@ export const WorkspaceProvider = ({
     },
     [actions],
   )
+  // Opens a page no note holds, in a tab of its own that lists what links to it.
+  const openPage = useCallback((name: string) => openDocument.current(pageTabId(name)), [])
   const value = useMemo<WorkspaceContextValue>(
     () => ({
       store,
@@ -160,8 +164,9 @@ export const WorkspaceProvider = ({
       saveSource,
       noteIndex: noteIndex ?? withoutIndex,
       openFile,
+      openPage,
     }),
-    [actions, noteIndex, openFile, saveSource, store, tools],
+    [actions, noteIndex, openFile, openPage, saveSource, store, tools],
   )
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
 }
@@ -210,6 +215,8 @@ export const useReaderBinding = (binding: ReaderBinding, active: boolean) => {
 export const useLinkGraph = () => useStore(useWorkspaceContext().noteIndex, state => state.graph)
 
 export const useOpenFile = () => useWorkspaceContext().openFile
+
+export const useOpenPage = () => useWorkspaceContext().openPage
 
 // The place a link asked this file's reader to show, if any, and how to say it was shown.
 export const useReveal = (fileId: string) => {

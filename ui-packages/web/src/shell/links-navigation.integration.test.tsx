@@ -83,4 +83,32 @@ describe('following links between notes', () => {
     await user.click(within(article()).getByRole('button', { name: 'Uses Topic here' }))
     await waitFor(() => expect(route).toHaveTextContent('/files/notes/Linker.md'))
   })
+
+  it('opens a tag no note holds as a page of what links to it, which leads back', async () => {
+    await writeStoredTextFile('notes/Tagged.md', '# Tagged\n\nAbout #[[Retrieval ideas]] today.')
+    const user = userEvent.setup({ delay: null })
+    render(
+      <MemoryRouter initialEntries={['/files/notes%2FTagged.md']}>
+        <Workbench project={testProject} />
+        <Navigation />
+      </MemoryRouter>,
+    )
+
+    const tag = await screen.findByRole('button', { name: '#Retrieval ideas' })
+    await waitFor(() =>
+      expect(tag).toHaveAttribute('title', 'No note named Retrieval ideas yet. Open its page.'),
+    )
+    await user.click(tag)
+
+    const route = screen.getByLabelText('Current route')
+    await waitFor(() => expect(route).toHaveTextContent('/pages/retrieval ideas'))
+    expect(await screen.findByRole('tab', { name: 'Retrieval ideas' })).toBeInTheDocument()
+    expect(screen.getByText('No note named Retrieval ideas yet.')).toBeInTheDocument()
+    expect(screen.getByText('1 link to this note')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'About #Retrieval ideas today.' }))
+    await waitFor(() => expect(route).toHaveTextContent('/files/notes/Tagged.md'))
+    await user.click(screen.getByRole('button', { name: 'Close Page: Retrieval ideas' }))
+    expect(screen.queryByRole('tab', { name: 'Retrieval ideas' })).not.toBeInTheDocument()
+  })
 })
