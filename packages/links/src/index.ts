@@ -15,8 +15,10 @@ export {
   type OutlineEntry,
   pageKey,
   pageNameOf,
+  pageTitleOf,
   type Resolution,
 } from './graph'
+export { NameBlockError, nameBlock } from './name-block'
 export {
   type BlockKind,
   type LinkTarget,

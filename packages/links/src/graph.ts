@@ -59,11 +59,11 @@ const headingKey = (heading: string) => heading.replace(/\s+/g, ' ').trim().toLo
 
 // A note is named by its frontmatter name, else its file name without .md or .lab.md; any other
 // file keeps its whole name, as in [[paper.pdf]].
-const titleOf = (file: NoteFile, note?: ParsedNote) =>
+export const pageTitleOf = (file: NoteFile, note?: ParsedNote) =>
   note?.name ??
   (isNotePath(file.path) ? fileName(file.path).replace(/(\.lab)?\.md$/i, '') : fileName(file.path))
 
-export const pageNameOf = (file: NoteFile, note?: ParsedNote) => pageKey(titleOf(file, note))
+export const pageNameOf = (file: NoteFile, note?: ParsedNote) => pageKey(pageTitleOf(file, note))
 
 export const nodeKind = (ref: NodeRef): NodeKind =>
   ref.block !== undefined ? 'block' : ref.heading !== undefined ? 'section' : 'page'
@@ -131,7 +131,7 @@ const outlineOf = (note: ParsedNote): OutlineEntry[] =>
   ].sort((a, b) => a.lines[0] - b.lines[0] || (a.kind === 'section' ? -1 : 1))
 
 const edgesOf = (file: NoteFile, note: ParsedNote): Edge[] => {
-  const page = titleOf(file, note)
+  const page = pageTitleOf(file, note)
   const sections = note.headings.map(heading => ({ ...heading, name: heading.title }))
   return note.links.map(link => {
     const block = innermost(note.blocks, link.line)?.name
@@ -179,7 +179,7 @@ export const buildGraph = (files: readonly NoteFile[], notes: ReadonlyMap<string
   const titleFor = (key: string) => {
     const owner = byPage.get(key)?.[0]
     return owner
-      ? titleOf(owner, notes.get(owner.id))
+      ? pageTitleOf(owner, notes.get(owner.id))
       : (incoming.get(key)?.[0]?.to.page.trim() ?? key)
   }
 
@@ -261,7 +261,7 @@ export const buildGraph = (files: readonly NoteFile[], notes: ReadonlyMap<string
       ? files.flatMap(file => {
           const note = notes.get(file.id)
           if (!note) return []
-          const page = titleOf(file, note)
+          const page = pageTitleOf(file, note)
           const found = (ref: NodeRef): FoundNode => ({
             ref,
             kind: nodeKind(ref),

@@ -34,12 +34,12 @@ export type ParsedNote = {
 }
 
 // The same plugins the reader renders with, so a block here is the block shown there.
-const parser = unified().use(remarkParse).use(remarkGfm).use(remarkMath)
+export const parser = unified().use(remarkParse).use(remarkGfm).use(remarkMath)
 
 const contextLength = 200
-const nameSyntax = '[A-Za-z0-9-]+'
+export const nameSyntax = '[A-Za-z0-9-]+'
 const trailingName = new RegExp(`\\s\\^(${nameSyntax})$`)
-const standaloneName = new RegExp(`^\\^(${nameSyntax})$`)
+export const standaloneName = new RegExp(`^\\^(${nameSyntax})$`)
 
 // [[...]], ![[...]] for an embed, #[[...]] for a tag. A fresh expression each time, since a global
 // one carries its position from one search to the next.
@@ -69,7 +69,7 @@ const unquote = (value: string) => value.replace(/^(['"])(.*)\1$/, '$2')
 
 // Only a frontmatter name is read. The frontmatter is blanked rather than removed, so line
 // numbers still match the source, and so its closing --- is not taken for a heading underline.
-const splitFrontmatter = (source: string) => {
+export const splitFrontmatter = (source: string) => {
   const lines = source.split('\n')
   const end =
     lines[0]?.trim() === '---' ? lines.findIndex((line, i) => i > 0 && line.trim() === '---') : -1
@@ -82,16 +82,16 @@ const splitFrontmatter = (source: string) => {
   return { body, name: name ? unquote(name) : undefined }
 }
 
-type Node = Root | RootContent
+export type Node = Root | RootContent
 
-const childrenOf = (node: Node): RootContent[] =>
+export const childrenOf = (node: Node): RootContent[] =>
   'children' in node ? (node.children as RootContent[]) : []
 
-const descendants = (node: Node): RootContent[] =>
+export const descendants = (node: Node): RootContent[] =>
   childrenOf(node).flatMap(child => [child, ...descendants(child)])
 
 // Readable text of any node; code and math keep their source, raw HTML is left out.
-const plainText = (node: Node): string => {
+export const plainText = (node: Node): string => {
   if (node.type === 'html') return ''
   if ('value' in node) return node.value
   return childrenOf(node)
@@ -101,7 +101,7 @@ const plainText = (node: Node): string => {
 
 const compact = (text: string) => text.replace(/\s+/g, ' ').trim().slice(0, contextLength)
 
-const linesOf = (node: Node): [number, number] => [
+export const linesOf = (node: Node): [number, number] => [
   node.position?.start.line ?? 1,
   node.position?.end.line ?? 1,
 ]
@@ -111,7 +111,7 @@ const lastText = (node: Parent): Text | undefined => {
   return last?.type === 'text' ? last : undefined
 }
 
-const nameAtEnd = (node: Parent) => {
+export const nameAtEnd = (node: Parent) => {
   const text = lastText(node)
   return text ? trailingName.exec(text.value)?.[1] : undefined
 }

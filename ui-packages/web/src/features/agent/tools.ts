@@ -107,6 +107,16 @@ export const createReaderTools = (
       }),
       local.get_links,
     ),
+    bind(
+      'name_block',
+      'Give the passage that holds quote a block name, so it can be linked as Page#^name. quote is text of that one passage as read, search or get_node shows it. name uses letters, digits and hyphens and describes the passage, such as retrieval-first. A passage that already has a name keeps it. Changes the saved note, not a draft, and returns the link to write with edit_active_source.',
+      Type.Object({
+        fileId,
+        quote: Type.String({ minLength: 1 }),
+        name: Type.String({ minLength: 1 }),
+      }),
+      local.name_block,
+    ),
   ]
   return tools
 }

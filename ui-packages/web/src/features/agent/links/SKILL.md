@@ -23,5 +23,6 @@ Use this guidance when a question is about how notes connect: what links to a pa
 ## Write a link
 
 - Link to a page by its name. Before linking to a block or section, check with get_node that it exists, and use the node it lists.
-- To link to a passage that has no name yet, add ` ^name` at the end of its paragraph in the current source with edit_active_source. Use letters, digits and hyphens, unique in that note, and describe the content, such as `^retrieval-first`.
+- To link to a passage that has no name yet, call name_block with the note's fileId, a quote of that one passage as read, search or get_node shows it, and a name of letters, digits and hyphens that describes it, such as `retrieval-first`. It saves the name into the note and returns the link; a passage already named keeps its name.
+- Then write that link where the reader wants it, in the current source with edit_active_source. name_block changes the saved note, not drafts: if the note has unsaved edits in a tab, ask the reader to save or discard them first.
 - Prefer `[[Page]]` over a path: links by name keep working when files move.
