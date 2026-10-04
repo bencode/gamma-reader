@@ -1,0 +1,199 @@
+import {
+  headingKey,
+  isNotePath,
+  type LinkTarget,
+  parseNote,
+  parseTarget,
+  remarkLinks,
+  splitFrontmatter,
+} from '@gamma-reader/links'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { Markdown } from '../../../components/markdown'
+import { MarkdownImage } from '../../../components/markdown-image'
+import { decodeUtf8 } from '../../../core/document-text'
+import type { StoredFileMetadata } from '../../../core/files'
+import { getStoredFileContent } from '../../../data/file-store'
+import { useLinkGraph, useOpenFile } from '../../../shell/workspace-context'
+import { createMarkdownImageResolver } from '../markdown-image-resolver'
+import { type EmbedScope, EmbedScopeContext, placeKey, useEmbedScope } from './embed-context'
+import styles from './style.module.scss'
+import { placeOf } from './wiki-link'
+
+// Embeds written in the note being read show at once; those inside an embed wait to be opened,
+// so a note that embeds many others costs only what the reader opens, and past this depth an
+// embed is only a link.
+const maximumDepth = 5
+const embedPlugins = [remarkLinks]
+
+// Lines indented as they were in the note, as a nested list item is, would read as code alone.
+const dedent = (lines: readonly string[]) => {
+  const indents = lines.filter(line => line.trim()).map(line => /^[ \t]*/.exec(line)?.[0] ?? '')
+  const shared = indents.reduce((common, indent) => {
+    let length = 0
+    while (length < common.length && common[length] === indent[length]) length += 1
+    return common.slice(0, length)
+  }, indents[0] ?? '')
+  return lines.map(line => line.slice(shared.length)).join('\n')
+}
+
+// What an embed shows of a note: all of it below its frontmatter, or the lines of the block or
+// section it names, as the index counts them; null when the note has no such block or section.
+const partOf = (input: string, target: LinkTarget) => {
+  const source = input.replace(/\r\n?/g, '\n')
+  if (!target.block && !target.heading) return splitFrontmatter(source).body
+  const note = parseNote(source)
+  const wanted = headingKey(target.heading ?? '')
+  const lines = target.block
+    ? note.blocks.find(block => block.name === target.block)?.lines
+    : note.headings.find(heading => headingKey(heading.title) === wanted)?.lines
+  return lines ? dedent(source.split('\n').slice(lines[0] - 1, lines[1])) : null
+}
+
+type Part = { status: 'loading' } | { status: 'ready'; text: string } | { status: 'missing' }
+
+// The note's saved text. It is keyed by revision where it is shown, so a new save reads it anew.
+const EmbeddedNote = ({
+  file,
+  target,
+  scope,
+  label,
+}: {
+  file: StoredFileMetadata
+  target: LinkTarget
+  scope: EmbedScope
+  label: string
+}) => {
+  const [part, setPart] = useState<Part>({ status: 'loading' })
+  const { block, heading } = target
+  useEffect(() => {
+    let current = true
+    setPart({ status: 'loading' })
+    getStoredFileContent(file.id)
+      .then(async blob => {
+        const text = blob ? decodeUtf8(await blob.arrayBuffer()) : null
+        const shown = text === null ? null : partOf(text, { page: '', block, heading })
+        if (current)
+          setPart(shown === null ? { status: 'missing' } : { status: 'ready', text: shown })
+      })
+      .catch((cause: unknown) => {
+        console.error('Unable to read an embedded note', cause)
+        if (current) setPart({ status: 'missing' })
+      })
+    return () => {
+      current = false
+    }
+  }, [block, file.id, heading])
+
+  const inner = useMemo<EmbedScope>(
+    () => ({
+      ...scope,
+      chain: [...scope.chain, placeKey(file.id, { block, heading })],
+      depth: scope.depth + 1,
+    }),
+    [block, file.id, heading, scope],
+  )
+  const images = useMemo(
+    () => ({ basePath: file.path, resolve: createMarkdownImageResolver(scope.files) }),
+    [file.path, scope.files],
+  )
+
+  if (part.status === 'loading') return <p className={styles.embedNote}>Loading…</p>
+  if (part.status === 'missing')
+    return (
+      <p className={styles.embedNote}>
+        {block
+          ? `${label} has no ^${block}.`
+          : heading
+            ? `${label} has no section ${heading}.`
+            : `${label} could not be read.`}
+      </p>
+    )
+  return (
+    <EmbedScopeContext.Provider value={inner}>
+      <Markdown
+        text={part.text}
+        variant="reader"
+        images={images}
+        components={scope.components}
+        remarkPlugins={embedPlugins}
+      />
+    </EmbedScopeContext.Provider>
+  )
+}
+
+// ![[...]] alone in its paragraph: the note, block or section it names, or the image, shown in
+// place, carrying the paragraph's own name if it has one. Anything it cannot show — no single
+// file, another kind of file, too deep — stays the link it holds, and a place already shown around
+// it is named rather than shown again.
+export const WikiEmbed = ({
+  raw,
+  block,
+  children,
+}: {
+  raw: string
+  block?: string
+  children: ReactNode
+}) => {
+  const scope = useEmbedScope()
+  const graph = useLinkGraph()
+  const openFile = useOpenFile()
+  const { target, label } = parseTarget(raw)
+  const resolution = graph?.resolve(target)
+  const file =
+    resolution?.kind === 'file'
+      ? scope?.files.find(candidate => candidate.id === resolution.fileId)
+      : undefined
+  const depth = (scope?.depth ?? 0) + 1
+  const [open, setOpen] = useState(depth === 1)
+  // An image is read by its id; the same context while the file stays the same keeps it loaded.
+  const fileId = file?.id
+  const imageContext = useMemo(
+    () => ({
+      basePath: '',
+      resolve: async () => (fileId ? getStoredFileContent(fileId) : null),
+    }),
+    [fileId],
+  )
+
+  const note = file && isNotePath(file.path)
+  const image = file?.previewKind === 'image'
+  // The link stays in the paragraph it was written as, keeping any name that paragraph has.
+  if (!scope || !file || depth > maximumDepth || !(note || image))
+    return <p data-block={block}>{children}</p>
+
+  const name = label ?? (raw.split('|')[0] ?? raw).trim()
+  const title = (
+    <button
+      type="button"
+      className={styles.embedTitle}
+      title={file.path}
+      onClick={() => openFile(file.id, placeOf(target))}
+    >
+      {name} ›
+    </button>
+  )
+  const shown = (body: ReactNode) => (
+    <aside className={styles.embed} data-embed={raw} data-block={block}>
+      {title}
+      {body}
+    </aside>
+  )
+
+  if (image)
+    return shown(
+      <MarkdownImage alt={name} context={imageContext} fallback={name} src={file.path} />,
+    )
+  if (scope.chain.includes(placeKey(file.id, target)))
+    return shown(
+      <p className={styles.embedNote}>↻ Circular embed: {name} is already shown above.</p>,
+    )
+  if (!open)
+    return shown(
+      <button type="button" className={styles.embedExpand} onClick={() => setOpen(true)}>
+        Expand
+      </button>,
+    )
+  return shown(
+    <EmbeddedNote key={file.revision} file={file} target={target} scope={scope} label={name} />,
+  )
+}

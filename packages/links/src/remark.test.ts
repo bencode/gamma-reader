@@ -12,7 +12,7 @@ import { remarkLinks } from './remark'
 const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkLinks)
 
 // The elements a reader would render, as HTML-like text with only the attributes links add.
-const kept = ['dataLink', 'dataKind', 'dataBlock', 'dataHeading']
+const kept = ['dataLink', 'dataKind', 'dataBlock', 'dataHeading', 'dataEmbed']
 const html = (node: Nodes): string => {
   if (node.type === 'text') return node.value
   if (node.type !== 'element' && node.type !== 'root') return ''
@@ -54,6 +54,22 @@ describe('rendering links', () => {
         /\n/g,
         '',
       ),
+    )
+  })
+})
+
+describe('rendering embeds', () => {
+  it('makes an embed alone in its paragraph or list item a block, and one within text a link', () => {
+    expect(render('![[RAG#^def]]', '', '- ![[Plan]]', '', 'As ![[RAG]] says.')).toBe(
+      '<aside dataEmbed="RAG#^def"><button dataLink="RAG#^def" dataKind="embed">RAG#^def</button></aside>' +
+        '<ul><li><aside dataEmbed="Plan"><button dataLink="Plan" dataKind="embed">Plan</button></aside></li></ul>' +
+        '<p>As <button dataLink="RAG" dataKind="embed">RAG</button> says.</p>',
+    )
+  })
+
+  it('keeps the name of an embed that has one', () => {
+    expect(render('![[RAG]] ^ref')).toBe(
+      '<aside dataBlock="ref" dataEmbed="RAG"><button dataLink="RAG" dataKind="embed">RAG</button></aside>',
     )
   })
 })

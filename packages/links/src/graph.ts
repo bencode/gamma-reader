@@ -250,7 +250,14 @@ export const buildGraph = (files: readonly NoteFile[], notes: ReadonlyMap<string
     )
   }
 
-  return { resolve, node, edges: edgesOfNode, find }
+  // The page a file is, named as links name it.
+  const byId = new Map(files.map(file => [file.id, file]))
+  const page = (fileId: string) => {
+    const file = byId.get(fileId)
+    return file ? pageTitleOf(file, notes.get(fileId)) : undefined
+  }
+
+  return { resolve, node, edges: edgesOfNode, find, page }
 }
 
 export type LinkGraph = ReturnType<typeof buildGraph>

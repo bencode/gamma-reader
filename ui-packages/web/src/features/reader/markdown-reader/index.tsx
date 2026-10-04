@@ -1,15 +1,6 @@
 import { remarkLinks } from '@gamma-reader/links'
 import { PanelLeft } from 'lucide-react'
-import {
-  type ComponentProps,
-  type ReactNode,
-  useCallback,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
-import type { ExtraProps } from 'react-markdown'
+import { type ReactNode, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Markdown, type MarkdownExtensions } from '../../../components/markdown'
 import { normalizeMath } from '../../../core/markdown-math'
 import { useReaderBinding, useReveal } from '../../../shell/workspace-context'
@@ -17,12 +8,14 @@ import type { RevealTarget } from '../../../shell/workspace-store'
 import { createMarkdownImageResolver } from '../markdown-image-resolver'
 import { readViewport } from '../reader-viewport'
 import type { TextReaderProps } from '../text-file-reader'
+import { Backlinks } from './backlinks'
+import { EmbedScopeContext, placeKey } from './embed-context'
 import { parseMarkdownHeadings } from './heading-model'
+import { linkComponents } from './link-components'
 import { MarkdownOutline } from './outline'
 import type { MarkdownReadingPreferences } from './reading-preferences'
 import styles from './style.module.scss'
 import { useFlowPosition } from './use-flow-position'
-import { WikiLink } from './wiki-link'
 
 const embeddedOutlineMinimumWidth = 640
 
@@ -40,6 +33,13 @@ const activeHeadingFrom = (elements: readonly HTMLElement[], scroll: HTMLElement
   )
 }
 
+// Elements of this note, not of the notes it embeds, which keep their own headings and names. An
+// embed is this note's own, so it can be named; only what it shows belongs to another note.
+const ownElements = (article: HTMLElement, selector: string) =>
+  [...article.querySelectorAll<HTMLElement>(selector)].filter(
+    element => !element.parentElement?.closest('[data-embed]'),
+  )
+
 // The rendered element a reveal names: a block by its name, a heading by its key.
 const revealed = (article: HTMLElement, target: RevealTarget) => {
   const [attribute, value] =
@@ -49,23 +49,8 @@ const revealed = (article: HTMLElement, target: RevealTarget) => {
         ? ['heading', target.heading]
         : []
   if (!attribute) return undefined
-  return [...article.querySelectorAll<HTMLElement>(`[data-${attribute}]`)].find(
+  return ownElements(article, `[data-${attribute}]`).find(
     element => element.dataset[attribute] === value,
-  )
-}
-
-// Links render as buttons that remarkLinks marks with what was written; any other button is kept.
-const LinkButton = ({ node: _node, children, ...props }: ComponentProps<'button'> & ExtraProps) => {
-  const data = props as Record<string, unknown>
-  const raw = data['data-link']
-  return typeof raw === 'string' ? (
-    <WikiLink raw={raw} kind={String(data['data-kind'])}>
-      {children}
-    </WikiLink>
-  ) : (
-    <button type="button" {...props}>
-      {children}
-    </button>
   )
 }
 
@@ -100,9 +85,19 @@ export const MarkdownReader = ({
     }),
     [document, files, imageResolver],
   )
+  // The note being read is the first place an embed chain holds, so it cannot embed itself.
+  const embedScope = useMemo(
+    () => ({
+      chain: [placeKey(document.id, {})],
+      depth: 0,
+      files,
+      components: linkComponents,
+    }),
+    [document.id, files],
+  )
   const extensions = useMemo<MarkdownExtensions>(
     () => ({
-      components: { ...markdownOptions?.components, button: LinkButton },
+      components: { ...markdownOptions?.components, ...linkComponents },
       remarkPlugins: [...(markdownOptions?.remarkPlugins ?? []), remarkLinks],
     }),
     [markdownOptions],
@@ -148,7 +143,7 @@ export const MarkdownReader = ({
 
   useLayoutEffect(() => {
     if (!markdown || !articleRef.current || !previewScrollRef.current) return
-    const elements = [...articleRef.current.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')]
+    const elements = ownElements(articleRef.current, 'h1, h2, h3, h4, h5, h6')
     elements.forEach((element, index) => {
       const heading = headings[index]
       if (heading) element.id = heading.id
@@ -242,7 +237,10 @@ export const MarkdownReader = ({
                 : undefined
             }
           >
-            <Markdown text={content} variant="reader" images={images} {...extensions} />
+            <EmbedScopeContext.Provider value={embedScope}>
+              <Markdown text={content} variant="reader" images={images} {...extensions} />
+            </EmbedScopeContext.Provider>
+            <Backlinks fileId={document.id} />
           </article>
         </div>
       </div>

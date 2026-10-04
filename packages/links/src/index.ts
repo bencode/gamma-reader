@@ -8,6 +8,7 @@ export {
   type OutlineEntry,
   type Resolution,
 } from './graph'
+export { splitFrontmatter } from './markdown'
 export { NameBlockError, nameBlock } from './name-block'
 export {
   formatNode,

@@ -53,9 +53,34 @@ describe('following links between notes', () => {
       return element as HTMLElement
     })
     expect(named).toHaveTextContent('Retrieval comes first.')
-    expect(within(article()).queryByText(/\^first|\^item/)).not.toBeInTheDocument()
+    const body = article().querySelector('.markdown-content') as HTMLElement
+    expect(within(body).queryByText(/\^first|\^item/)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Back' }))
     await waitFor(() => expect(route).toHaveTextContent('/files/notes/Reading.md'))
+  })
+
+  it('shows an embedded block in place, and leads back from a note to those that link to it', async () => {
+    await writeStoredTextFile('notes/Hub.md', '# Hub\n\n![[Topic#^core]]')
+    await writeStoredTextFile('notes/Topic.md', '# Topic\n\nCore idea. ^core\n\nMore.')
+    await writeStoredTextFile('notes/Linker.md', '# Linker\n\n- Uses [[Topic]] here ^uses')
+    const user = userEvent.setup({ delay: null })
+    render(
+      <MemoryRouter initialEntries={['/files/notes%2FHub.md']}>
+        <Workbench project={testProject} />
+        <Navigation />
+      </MemoryRouter>,
+    )
+
+    // The embed shows the block alone, read from the saved note once the library is indexed.
+    expect(await screen.findByText('Core idea.')).toBeInTheDocument()
+    expect(within(article()).queryByText('More.')).not.toBeInTheDocument()
+
+    await user.click(within(article()).getByRole('button', { name: 'Topic#^core ›' }))
+    const route = screen.getByLabelText('Current route')
+    await waitFor(() => expect(route).toHaveTextContent('/files/notes/Topic.md'))
+    expect(await screen.findByText('2 links to this note')).toBeInTheDocument()
+    await user.click(within(article()).getByRole('button', { name: 'Uses [[Topic]] here' }))
+    await waitFor(() => expect(route).toHaveTextContent('/files/notes/Linker.md'))
   })
 })
