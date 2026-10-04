@@ -28,18 +28,14 @@ import { createVisionAnalyzer } from './vision'
 import { createXlsxRuntime, type XlsxRuntime } from './xlsx/runtime'
 import { createXlsxTools } from './xlsx/tools'
 
-const textReadableKinds = new Set<PreviewKind>(['markdown', 'text', 'docx', 'xlsx'])
-// A converted format is not decoded into memory, so the text budget does not describe its cost.
-const convertedKinds = new Set<PreviewKind>(['docx', 'xlsx'])
+// Converted formats read through their own runtimes; any other file is read as text when its bytes
+// decode as UTF-8, so only the size of the decoded text needs a bound up front.
+const convertedKinds = new Set<PreviewKind>(['pdf', 'docx', 'xlsx'])
 
-const getReadability = (file: StoredFileMetadata) => {
-  if (file.previewKind === 'pdf') return { textReadable: true }
-  if (!textReadableKinds.has(file.previewKind))
-    return { textReadable: false, reason: 'Text reading is not supported for this format yet.' }
-  if (!convertedKinds.has(file.previewKind) && file.size > maximumTextPreviewBytes)
-    return { textReadable: false, reason: 'Text reading is limited to files of 5 MiB or less.' }
-  return { textReadable: true }
-}
+const getReadability = (file: StoredFileMetadata) =>
+  convertedKinds.has(file.previewKind) || file.size <= maximumTextPreviewBytes
+    ? { textReadable: true }
+    : { textReadable: false, reason: 'Text reading is limited to files of 5 MiB or less.' }
 
 export const createReaderDocumentAccess = (
   pdf: PdfRuntime,

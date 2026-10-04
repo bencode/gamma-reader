@@ -15,7 +15,10 @@ export const openTextSource = async (
   const bytes = await blob.arrayBuffer()
   signal?.throwIfAborted()
   const text = decodeUtf8(bytes)
-  if (text === null) throw new LocalToolError('This file is not valid UTF-8. Import a UTF-8 copy.')
+  if (text === null)
+    throw new LocalToolError(
+      'This file is not UTF-8 text. If it is text in another encoding, import a UTF-8 copy.',
+    )
   const content = transform(text)
   return { file, unit: 'line', pageCount: 1, readPage: async () => content, close: async () => {} }
 }
