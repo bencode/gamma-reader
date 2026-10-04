@@ -6,7 +6,6 @@ import {
   useWorkspaceSourceActions,
   useWorkspaceStore,
 } from '../../../shell/workspace-context'
-import type { LabRunner } from '../../agent/lab-tools'
 import type { DocumentScopeProps } from '../text-file-reader'
 import {
   ensureLabCellIds,
@@ -22,7 +21,7 @@ const LabContext = createContext<{ model: LabDocument; editError: EditError } | 
 const LabRunnerBinding = ({ fileId }: { fileId: string }) => {
   const store = useWorkspaceStore()
   const runtime = useCodeLabRuntime()
-  const runner = useMemo<LabRunner>(
+  const runner = useMemo(
     () => ({
       fileId,
       document: () => {

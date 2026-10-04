@@ -70,6 +70,8 @@ const runScheme = async (
   progress('Running Scheme…', 'running')
   const capture = createConsoleCapture()
   const restoreConsole = installConsoleCapture(capture)
+  // The browser build writes display and newline into a #bs-console element, which a worker lacks.
+  biwaScheme.Port.current_output = new biwaScheme.Port.CustomOutput(capture.write)
   try {
     const value = interpreter.evaluate(source)
     const output = schemeValueOutput(biwaScheme, value)

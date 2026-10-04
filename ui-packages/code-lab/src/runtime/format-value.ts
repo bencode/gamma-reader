@@ -28,28 +28,32 @@ export const formatValue = (value: unknown): string => {
 
 export type ConsoleCapture = {
   runtimeConsole: Pick<Console, 'log' | 'info' | 'debug' | 'warn' | 'error'>
+  // Appends to stdout as written, for runtimes that print in pieces rather than lines.
+  write: (text: string) => void
   outputs(): readonly CodeLabOutput[]
 }
 
 export const createConsoleCapture = (): ConsoleCapture => {
-  const stdout: string[] = []
+  let stdout = ''
   const stderr: string[] = []
-  const append = (target: string[], values: readonly unknown[]): void => {
-    target.push(
-      values.map(value => (typeof value === 'string' ? value : formatValue(value))).join(' '),
-    )
+  const line = (values: readonly unknown[]) =>
+    values.map(value => (typeof value === 'string' ? value : formatValue(value))).join(' ')
+  const write = (text: string) => {
+    stdout += text
   }
+  const log = (...values: unknown[]) => write(`${line(values)}\n`)
 
   return {
     runtimeConsole: {
-      log: (...values) => append(stdout, values),
-      info: (...values) => append(stdout, values),
-      debug: (...values) => append(stdout, values),
-      warn: (...values) => append(stderr, values),
-      error: (...values) => append(stderr, values),
+      log,
+      info: log,
+      debug: log,
+      warn: (...values) => stderr.push(line(values)),
+      error: (...values) => stderr.push(line(values)),
     },
+    write,
     outputs: () => [
-      ...(stdout.length > 0 ? [{ kind: 'stdout' as const, text: `${stdout.join('\n')}\n` }] : []),
+      ...(stdout ? [{ kind: 'stdout' as const, text: stdout }] : []),
       ...(stderr.length > 0 ? [{ kind: 'stderr' as const, text: `${stderr.join('\n')}\n` }] : []),
     ],
   }

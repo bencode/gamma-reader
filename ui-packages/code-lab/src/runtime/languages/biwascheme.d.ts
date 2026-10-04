@@ -15,6 +15,10 @@ declare module 'biwascheme' {
       fn: (args: readonly unknown[]) => unknown,
     ): void
     assert_string(value: unknown): asserts value is string
+    Port: {
+      CustomOutput: new (write: (text: string) => void) => unknown
+      current_output: unknown
+    }
   }
 
   const runtime: BiwaSchemeRuntime

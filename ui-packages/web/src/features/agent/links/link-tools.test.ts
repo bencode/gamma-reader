@@ -118,7 +118,8 @@ describe('link tools', () => {
 
     const first = paged.get_links({ node: 'Target', direction: 'in' })
     const cursor = first.next?.cursor as string
-    // A model may reorder the fields it copies back, or drop an empty one.
+    // A model may reorder the fields it copies back, drop an empty one, or send an empty cursor.
+    expect(paged.get_links({ node: 'Target', direction: 'in', cursor: '' })).toEqual(first)
     const second = paged.get_links({ direction: 'in', node: 'Target', fileId: undefined, cursor })
 
     expect(first.total).toBe(250)
