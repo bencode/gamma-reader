@@ -1,4 +1,4 @@
-import type { Heading, Parent, PhrasingContent, Root, RootContent, Text } from 'mdast'
+import type { Heading, Paragraph, Parent, PhrasingContent, Root, RootContent, Text } from 'mdast'
 import { descendants, linesOf, type Node, parser, plainText, splitFrontmatter } from './markdown'
 
 // Where a link points: a page by name, and optionally a named block, a heading or a PDF page in
@@ -32,12 +32,12 @@ export type ParsedNote = {
 
 const contextLength = 200
 export const nameSyntax = '[A-Za-z0-9-]+'
-const trailingName = new RegExp(`\\s\\^(${nameSyntax})$`)
+export const trailingName = new RegExp(`\\s\\^(${nameSyntax})$`)
 export const standaloneName = new RegExp(`^\\^(${nameSyntax})$`)
 
 // [[...]], ![[...]] for an embed, #[[...]] for a tag. A fresh expression each time, since a global
 // one carries its position from one search to the next.
-const linkPattern = () => /(!?)(#?)\[\[([^[\]\n]+)\]\]/g
+export const linkPattern = () => /(!?)(#?)\[\[([^[\]\n]+)\]\]/g
 
 // The inside of [[...]]: a page, then #^block, #page=N or #heading, then |label.
 export const parseTarget = (raw: string): { target: LinkTarget; label?: string } => {
@@ -130,11 +130,20 @@ const headingsIn = (root: Root, source: readonly string[]): ParsedHeading[] => {
   })
 }
 
-// Blocks named among one parent's children. A name ending a paragraph or heading names it; one
-// ending the first paragraph of a list item names the item; a paragraph that is only ^name names
-// the block before it, which is how a table, code block or quote is named.
-const blocksAmong = (parent: Parent, headings: readonly ParsedHeading[]): ParsedBlock[] =>
-  parent.children.flatMap((child, index): ParsedBlock[] => {
+// A ^name and what it names. A name ending a paragraph or heading names it; one ending the first
+// paragraph of a list item names the item; a paragraph that is only ^name names the block before
+// it, which is how a table, code block or quote is named. mark is the paragraph or heading that
+// holds the name, so a reader can hide it: its trailing ^name, or all of it when it stands alone.
+export type Naming = {
+  name: string
+  kind: BlockKind
+  owner: RootContent
+  mark: Paragraph | Heading
+  alone: boolean
+}
+
+export const namingsAmong = (parent: Parent): Naming[] =>
+  parent.children.flatMap((child, index): Naming[] => {
     if (child.type === 'paragraph') {
       const alone = standaloneName.exec(plainText(child).trim())?.[1]
       const previous = parent.children[index - 1]
@@ -143,8 +152,9 @@ const blocksAmong = (parent: Parent, headings: readonly ParsedHeading[]): Parsed
           {
             name: alone,
             kind: previous.type === 'paragraph' ? 'paragraph' : 'other',
-            lines: linesOf(previous),
-            text: compact(plainText(previous)),
+            owner: previous,
+            mark: child,
+            alone: true,
           },
         ]
       const name = nameAtEnd(child)
@@ -154,21 +164,28 @@ const blocksAmong = (parent: Parent, headings: readonly ParsedHeading[]): Parsed
         {
           name,
           kind: item ? 'item' : 'paragraph',
-          lines: linesOf(item ? (parent as Node) : child),
-          text: compact(withoutName(plainText(child))),
+          owner: item ? (parent as RootContent) : child,
+          mark: child,
+          alone: false,
         },
       ]
     }
-    if (child.type === 'heading') {
-      const name = nameAtEnd(child)
-      const [start] = linesOf(child)
-      const section = headings.find(heading => heading.lines[0] === start)
-      return name && section
-        ? [{ name, kind: 'heading', lines: section.lines, text: section.title }]
-        : []
-    }
-    return []
+    const name = child.type === 'heading' ? nameAtEnd(child) : undefined
+    return child.type === 'heading' && name
+      ? [{ name, kind: 'heading', owner: child, mark: child, alone: false }]
+      : []
   })
+
+// A named block covers its owner's lines, and a heading its whole section.
+const blockOf = (naming: Naming, headings: readonly ParsedHeading[]): ParsedBlock[] => {
+  const { name, kind, owner, mark, alone } = naming
+  if (kind === 'heading') {
+    const section = headings.find(heading => heading.lines[0] === linesOf(owner)[0])
+    return section ? [{ name, kind, lines: section.lines, text: section.title }] : []
+  }
+  const text = alone ? plainText(owner) : withoutName(plainText(mark))
+  return [{ name, kind, lines: linesOf(owner), text: compact(text) }]
+}
 
 // One Markdown note's headings, named blocks and links, with one-based source lines. Code and
 // inline code are left alone, since only text nodes are read.
@@ -185,7 +202,9 @@ export const parseNote = (input: string): ParsedNote => {
   return {
     ...(name ? { name } : {}),
     headings,
-    blocks: parents.flatMap(parent => blocksAmong(parent, headings)),
+    blocks: parents.flatMap(parent =>
+      namingsAmong(parent).flatMap(naming => blockOf(naming, headings)),
+    ),
     links: nodes
       .filter((node): node is Text => node.type === 'text')
       .flatMap(text => linksIn(text, source)),

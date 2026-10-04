@@ -1,3 +1,4 @@
+import { buildGraph, type LinkGraph } from '@gamma-reader/links'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,7 +7,19 @@ import { parseMarkdownHeadings } from './heading-model'
 import { MarkdownReader } from './index'
 import { StandardMarkdownReader } from './standard-reader'
 
-vi.mock('../../../shell/workspace-context', () => ({ useReaderBinding: vi.fn() }))
+const links = vi.hoisted(() => ({
+  graph: null as LinkGraph | null,
+  openLink: vi.fn(),
+  reveal: null as { fileId: string; target: { block: string } } | null,
+  shown: vi.fn(),
+}))
+
+vi.mock('../../../shell/workspace-context', () => ({
+  useReaderBinding: vi.fn(),
+  useLinkGraph: () => links.graph,
+  useOpenLink: () => links.openLink,
+  useReveal: () => ({ reveal: links.reveal, shown: links.shown }),
+}))
 
 const document: StoredFileMetadata = {
   id: 'guide',
@@ -32,6 +45,10 @@ const renderReader = (content: string) =>
 
 describe('Markdown file reader', () => {
   beforeEach(() => {
+    links.graph = null
+    links.reveal = null
+    links.openLink.mockReset()
+    links.shown.mockReset()
     HTMLElement.prototype.scrollIntoView = vi.fn()
     Range.prototype.getClientRects = () =>
       [new DOMRect(100, 100, 160, 24)] as unknown as DOMRectList
@@ -113,5 +130,61 @@ describe('Markdown file reader', () => {
     render(<StandardMarkdownReader {...props} />)
     expect(screen.getByRole('article')).toHaveStyle({ fontSize: '18px', maxWidth: 'none' })
     expect(screen.getByRole('article').parentElement).toHaveAttribute('data-reading-theme', 'paper')
+  })
+})
+
+describe('links in a Markdown note', () => {
+  const shared = (id: string, path: string): StoredFileMetadata => ({ ...document, id, path })
+  const library = [document, shared('one', 'one/Shared.md'), shared('two', 'two/Shared.md')]
+
+  beforeEach(() => {
+    links.graph = buildGraph(library, new Map())
+    links.reveal = null
+    links.openLink.mockReset()
+    links.shown.mockReset()
+  })
+
+  const renderNote = (content: string) =>
+    render(
+      <MarkdownReader
+        document={document}
+        content={content}
+        files={library}
+        active
+        onPositionChange={() => undefined}
+      />,
+    )
+
+  it('opens the note a link names, at the place it names, and hides names', async () => {
+    const user = userEvent.setup({ delay: null })
+    renderNote('See [[guide#^def|the definition]]. ^def')
+
+    expect(screen.queryByText(/\^def/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'the definition' }))
+
+    expect(links.openLink).toHaveBeenCalledWith({ page: 'guide', block: 'def' }, 'guide')
+  })
+
+  it('leaves a page with no note inert and offers the notes that share a name', async () => {
+    const user = userEvent.setup({ delay: null })
+    renderNote('[[Nowhere]] and [[Shared]]')
+
+    await user.click(screen.getByRole('button', { name: 'Nowhere' }))
+    expect(screen.getByRole('button', { name: 'Nowhere' })).toHaveAttribute(
+      'title',
+      'No note named Nowhere yet.',
+    )
+    expect(links.openLink).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Shared' }))
+    await user.click(screen.getByRole('button', { name: 'two/Shared.md' }))
+    expect(links.openLink).toHaveBeenCalledWith({ page: 'Shared' }, 'two')
+  })
+
+  it('shows the block a link asked for and says it was shown', () => {
+    links.reveal = { fileId: 'guide', target: { block: 'def' } }
+    renderNote('# Guide\n\nRetrieval first. ^def')
+
+    expect(links.shown).toHaveBeenCalledWith(links.reveal)
   })
 })

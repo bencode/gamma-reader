@@ -1,8 +1,19 @@
+import { remarkLinks } from '@gamma-reader/links'
 import { PanelLeft } from 'lucide-react'
-import { type ReactNode, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  type ComponentProps,
+  type ReactNode,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import type { ExtraProps } from 'react-markdown'
 import { Markdown, type MarkdownExtensions } from '../../../components/markdown'
 import { normalizeMath } from '../../../core/markdown-math'
-import { useReaderBinding } from '../../../shell/workspace-context'
+import { useReaderBinding, useReveal } from '../../../shell/workspace-context'
+import type { RevealTarget } from '../../../shell/workspace-store'
 import { createMarkdownImageResolver } from '../markdown-image-resolver'
 import { readViewport } from '../reader-viewport'
 import type { TextReaderProps } from '../text-file-reader'
@@ -11,6 +22,7 @@ import { MarkdownOutline } from './outline'
 import type { MarkdownReadingPreferences } from './reading-preferences'
 import styles from './style.module.scss'
 import { useFlowPosition } from './use-flow-position'
+import { WikiLink } from './wiki-link'
 
 const embeddedOutlineMinimumWidth = 640
 
@@ -25,6 +37,35 @@ const activeHeadingFrom = (elements: readonly HTMLElement[], scroll: HTMLElement
     elements.findLast(element => element.getBoundingClientRect().top <= threshold)?.id ??
     elements[0]?.id ??
     null
+  )
+}
+
+// The rendered element a reveal names: a block by its name, a heading by its key.
+const revealed = (article: HTMLElement, target: RevealTarget) => {
+  const [attribute, value] =
+    'block' in target
+      ? ['block', target.block]
+      : 'heading' in target
+        ? ['heading', target.heading]
+        : []
+  if (!attribute) return undefined
+  return [...article.querySelectorAll<HTMLElement>(`[data-${attribute}]`)].find(
+    element => element.dataset[attribute] === value,
+  )
+}
+
+// Links render as buttons that remarkLinks marks with what was written; any other button is kept.
+const LinkButton = ({ node: _node, children, ...props }: ComponentProps<'button'> & ExtraProps) => {
+  const data = props as Record<string, unknown>
+  const raw = data['data-link']
+  return typeof raw === 'string' ? (
+    <WikiLink raw={raw} kind={String(data['data-kind'])}>
+      {children}
+    </WikiLink>
+  ) : (
+    <button type="button" {...props}>
+      {children}
+    </button>
   )
 }
 
@@ -59,6 +100,13 @@ export const MarkdownReader = ({
     }),
     [document, files, imageResolver],
   )
+  const extensions = useMemo<MarkdownExtensions>(
+    () => ({
+      components: { ...markdownOptions?.components, button: LinkButton },
+      remarkPlugins: [...(markdownOptions?.remarkPlugins ?? []), remarkLinks],
+    }),
+    [markdownOptions],
+  )
   const closeOutline = useCallback(() => setOutlineOpen(false), [])
   const binding = useMemo(
     () => ({
@@ -79,7 +127,7 @@ export const MarkdownReader = ({
     return () => observer.disconnect()
   }, [markdown])
 
-  const recordPosition = useFlowPosition({
+  const position = useFlowPosition({
     rootRef,
     scrollRef: previewScrollRef,
     contentRef: articleRef,
@@ -87,6 +135,16 @@ export const MarkdownReader = ({
     defaultPosition,
     onPositionChange,
   })
+
+  // A link that led here asked for a place in this note; it is shown once the note is on screen.
+  const { reveal, shown } = useReveal(document.id)
+  useLayoutEffect(() => {
+    const article = articleRef.current
+    if (!reveal || !active || !article) return
+    const element = revealed(article, reveal.target)
+    if (element) position.show(element)
+    shown(reveal)
+  }, [active, position, reveal, shown])
 
   useLayoutEffect(() => {
     if (!markdown || !articleRef.current || !previewScrollRef.current) return
@@ -102,7 +160,7 @@ export const MarkdownReader = ({
   if (!markdown)
     return (
       <div className="reader-content" ref={rootRef}>
-        <div className="document-scroll" ref={previewScrollRef} onScroll={recordPosition}>
+        <div className="document-scroll" ref={previewScrollRef} onScroll={position.record}>
           <article className="markdown-body plain-text-body" ref={articleRef}>
             <pre>{content}</pre>
           </article>
@@ -167,7 +225,7 @@ export const MarkdownReader = ({
           ref={previewScrollRef}
           onScroll={event => {
             if (!active) return
-            recordPosition()
+            position.record()
             setActiveHeadingId(activeHeadingFrom(headingElements.current, event.currentTarget))
           }}
         >
@@ -184,7 +242,7 @@ export const MarkdownReader = ({
                 : undefined
             }
           >
-            <Markdown text={content} variant="reader" images={images} {...markdownOptions} />
+            <Markdown text={content} variant="reader" images={images} {...extensions} />
           </article>
         </div>
       </div>

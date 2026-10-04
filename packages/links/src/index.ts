@@ -11,6 +11,7 @@ export {
 export { NameBlockError, nameBlock } from './name-block'
 export {
   formatNode,
+  headingKey,
   isNotePath,
   type NodeKind,
   type NodeRef,
@@ -31,3 +32,4 @@ export {
   parseNote,
   parseTarget,
 } from './parse'
+export { remarkLinks } from './remark'
