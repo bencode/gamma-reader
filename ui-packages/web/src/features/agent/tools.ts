@@ -86,7 +86,7 @@ export const createReaderTools = (
     ),
     bind(
       'find_nodes',
-      'Find nodes of the link graph whose name contains query, ignoring case, the most linked first. Nodes are pages (notes, other files, and virtual pages that are only linked to), sections under a heading (Page#Heading) and named blocks (Page#^name). An empty query lists pages. Follow next to continue.',
+      'Find nodes of the link graph whose name contains query, ignoring case, the most linked first. Nodes are pages (notes, other files, and virtual pages that are only linked to), sections under a heading (Page#Heading) and named blocks (Page#^name). An empty query lists pages. total counts every match; call again with next to continue.',
       Type.Object({ query: Type.String(), cursor }),
       local.find_nodes,
     ),
@@ -98,7 +98,7 @@ export const createReaderTools = (
     ),
     bind(
       'get_links',
-      "Follow a node's links. in: links pointing to it; for a page these include links to its sections and blocks. out: links written inside it. Each link starts at from.node, the innermost named block or the page, which can be followed again. line is a Markdown source line, not a read range; locate the text with search on context. Covers saved files only.",
+      "Follow a node's links. in: links pointing to it; for a page these include links to its sections and blocks. out: links written inside it. Each link starts at from.node, the innermost named block or the page. To learn what linking notes discuss or link to, call get_links out on their from.node values instead of reading whole files. total counts every link. Results come in batches: while next is non-null the batch is incomplete, so call again with next before saying something is absent. line is a Markdown source line, not a read range; locate the text with search on context. Covers saved files only.",
       Type.Object({
         node,
         direction: Type.Union([Type.Literal('in'), Type.Literal('out')]),

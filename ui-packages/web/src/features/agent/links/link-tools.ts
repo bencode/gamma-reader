@@ -8,14 +8,7 @@ import {
   type OutlineEntry,
 } from '@gamma-reader/links'
 import type { IndexProgress } from '../../links/note-index'
-import {
-  decodeCursor,
-  encodeCursor,
-  fitsResult,
-  integer,
-  mismatchedCursor,
-  record,
-} from '../pagination'
+import { fitsResult, mismatchedCursor } from '../pagination'
 import { LocalToolError } from '../tool-types'
 
 export type LinkState = { graph: LinkGraph | null; progress: IndexProgress | null }
@@ -29,39 +22,62 @@ export type GetLinksInput = {
   cursor?: string
 }
 
-type LinkCursor = { operation: string; request: string; index: number }
-
-const validCursor = (value: unknown): value is LinkCursor =>
-  record(value) &&
-  typeof value.operation === 'string' &&
-  typeof value.request === 'string' &&
-  integer(value.index, 0)
-
 const maximumEntries = 100
 
-// One page of a list: as many entries as fit the result limit from where the cursor left off.
-// A cursor is tied to the request it continues, so it cannot carry over to another.
+// A request named by its fields in a fixed order, so a model that reorders or drops an empty
+// field still continues the same request.
+const requestHash = (operation: string, request: Record<string, unknown>) => {
+  const canonical = JSON.stringify([
+    operation,
+    ...Object.keys(request)
+      .filter(key => request[key] !== undefined && request[key] !== '')
+      .sort()
+      .map(key => [key, request[key]]),
+  ])
+  let hash = 0x811c9dc5
+  for (let index = 0; index < canonical.length; index++)
+    hash = Math.imul(hash ^ canonical.charCodeAt(index), 0x01000193)
+  return (hash >>> 0).toString(36)
+}
+
+// Cursors stay short, as a model copies them by hand: where the list resumes, and which request
+// it continues, such as 100.k3f9a2.
+const readCursor = (token: string | undefined, hash: string) => {
+  if (token === undefined) return 0
+  const match = /^(\d+)\.([0-9a-z]+)$/.exec(token.trim())
+  if (!match) throw new LocalToolError('Invalid cursor. Restart the call without a cursor.')
+  if (match[2] !== hash) throw mismatchedCursor()
+  return Number(match[1])
+}
+
+// One page of a list: as many entries as fit the result limit from where the cursor left off,
+// with the size of the whole list so a count never depends on reading every page.
 const paginate = <T, R extends object>(
   operation: string,
   input: { cursor?: string } & Record<string, unknown>,
   items: readonly T[],
-  wrap: (entries: T[], next: ({ cursor: string } & Record<string, unknown>) | null) => R,
+  wrap: (
+    entries: T[],
+    next: ({ cursor: string } & Record<string, unknown>) | null,
+    total: number,
+  ) => R,
 ): R => {
   const { cursor: token, ...request } = input
-  const key = JSON.stringify(request)
-  const cursor = decodeCursor(token, validCursor)
-  if (cursor && (cursor.operation !== operation || cursor.request !== key)) throw mismatchedCursor()
+  const hash = requestHash(operation, request)
   const entries: T[] = []
-  for (let index = cursor?.index ?? 0; index < items.length; index++) {
-    const next = { ...request, cursor: encodeCursor({ operation, request: key, index }) }
+  for (let index = readCursor(token, hash); index < items.length; index++) {
+    const next = { ...request, cursor: `${index}.${hash}` }
     const item = items[index] as T
-    if (entries.length >= maximumEntries || !fitsResult(wrap([...entries, item], next))) {
+    if (
+      entries.length >= maximumEntries ||
+      !fitsResult(wrap([...entries, item], next, items.length))
+    ) {
       if (!entries.length) throw new LocalToolError('One entry exceeds the result limit.')
-      return wrap(entries, next)
+      return wrap(entries, next, items.length)
     }
     entries.push(item)
   }
-  return wrap(entries, null)
+  return wrap(entries, null, items.length)
 }
 
 const graphOf = (state: LinkState) => {
@@ -133,7 +149,8 @@ export const createLinkTools = (getState: () => LinkState) => ({
         references: node.references,
         ...(node.virtual ? { virtual: true } : {}),
       }))
-    return paginate('find_nodes', input, found, (nodes, next) => ({
+    return paginate('find_nodes', input, found, (nodes, next, total) => ({
+      total,
       nodes,
       next,
       ...indexing(state),
@@ -182,9 +199,10 @@ export const createLinkTools = (getState: () => LinkState) => ({
     const graph = graphOf(state)
     const ref = parseNode(input.node)
     const links = graph.edges(ref, input.direction, input.fileId).map(describeEdge)
-    return paginate('get_links', input, links, (entries, next) => ({
+    return paginate('get_links', input, links, (entries, next, total) => ({
       node: formatNode(ref),
       direction: input.direction,
+      total,
       links: entries,
       next,
       ...indexing(state),

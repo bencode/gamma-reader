@@ -24,6 +24,7 @@ const tools = createLinkTools(ready)
 describe('link tools', () => {
   it('finds nodes by name as links write them, virtual pages included', () => {
     expect(tools.find_nodes({ query: 'agent' })).toEqual({
+      total: 1,
       nodes: [{ node: 'agents', kind: 'page', references: 1, virtual: true }],
       next: null,
     })
@@ -112,18 +113,21 @@ describe('link tools', () => {
     }))
 
     const first = paged.get_links({ node: 'Target', direction: 'in' })
-    const second = paged.get_links({
-      node: 'Target',
-      direction: 'in',
-      cursor: first.next?.cursor as string,
-    })
+    const cursor = first.next?.cursor as string
+    // A model may reorder the fields it copies back, or drop an empty one.
+    const second = paged.get_links({ direction: 'in', node: 'Target', fileId: undefined, cursor })
 
+    expect(first.total).toBe(250)
     expect(first.links).toHaveLength(100)
+    expect(cursor).toMatch(/^100\.[0-9a-z]+$/)
     expect(first.indexing).toEqual({ done: 1, total: 3 })
     expect(second.links[0]?.from.line).toBe(101)
-    expect(() =>
-      paged.get_links({ node: 'Target', direction: 'out', cursor: first.next?.cursor as string }),
-    ).toThrow('Cursor does not match')
+    expect(() => paged.get_links({ node: 'Target', direction: 'out', cursor })).toThrow(
+      'Cursor does not match',
+    )
+    expect(() => paged.get_links({ node: 'Target', direction: 'in', cursor: 'x1Zx' })).toThrow(
+      'Invalid cursor',
+    )
   })
 
   it('waits for the first index', () => {
