@@ -120,12 +120,16 @@ export const createReaderAgent = (
         ...createSkillTools(skills),
       ],
     },
-    streamFn: (model, context, options) =>
-      models.streamSimple(model, context, {
+    streamFn: (model, context, options) => {
+      // A run stopped during a tool still asks for one more reply; pi-ai would report that
+      // request as an error, so end it here and let the agent record the run as stopped.
+      options?.signal?.throwIfAborted()
+      return models.streamSimple(model, context, {
         ...options,
         ...proxyRequestOptions,
         apiKey: apiKeyFor(model),
-      }),
+      })
+    },
   })
   agent.subscribe(async event => {
     if (event.type !== 'agent_end') return

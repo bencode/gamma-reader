@@ -11,6 +11,11 @@ const node = Type.String({
   minLength: 1,
   description: 'A node named as a link names it: Page, Page#Heading or Page#^name.',
 })
+const cellIds = Type.Optional(
+  Type.Array(Type.String({ minLength: 1 }), {
+    description: 'Cell ids from the id= in each fence. Omit, or pass [], for every cell.',
+  }),
+)
 const range = Type.Object({
   unit: Type.Union([Type.Literal('line'), Type.Literal('page')]),
   start: Type.Integer({ minimum: 1 }),
@@ -71,6 +76,29 @@ export const createReaderTools = (
         newText: Type.String(),
       }),
       local.edit_active_source,
+    ),
+    bind(
+      'run_active_lab_cells',
+      [
+        "Run code cells of the lab (.lab.md) in the active tab and return each cell's outputs and error.",
+        'cellIds: run these cells in the given order; omit it or pass [] to run every cell from the top.',
+        'Runs the code as it is in the draft now, including unsaved edits. Stops at the first cell that does not succeed; the cells after it are skipped.',
+        "Cells run in the reader's own lab session, visible to the reader: Scheme, Clojure and Python definitions carry over between cells and runs, TypeScript cells share nothing.",
+        "status: succeeded | failed (error holds the message; the session is kept) | stopped (with error: the cell did not start, call again; without error: the reader pressed Stop and that language's session was cleared, so run from the top) | skipped.",
+        'Cell ids are the id= in each fence; read_active_source shows them.',
+      ].join(' '),
+      Type.Object({ cellIds }),
+      local.run_active_lab_cells,
+    ),
+    bind(
+      'read_active_lab_cells',
+      [
+        'Read the latest result of code cells of the lab in the active tab without running them, whoever ran them.',
+        'cellIds: these cells; omit it or pass [] for every cell.',
+        "status: idle (never run) | running | succeeded | failed | stopped, with outputs and error. stale is true when the cell's code changed after that run.",
+      ].join(' '),
+      Type.Object({ cellIds }),
+      local.read_active_lab_cells,
     ),
     bind(
       'move',

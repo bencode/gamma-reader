@@ -54,7 +54,7 @@ describe('Code Lab execution', () => {
     runtime.synchronizeMembership([python, scheme])
     expect(FakeWorker.instances).toHaveLength(0)
     const run = runtime.runCell(python)
-    await runtime.runCell({ ...python, id: 'another' })
+    expect(await runtime.runCell({ ...python, id: 'another' })).toBe(false)
     expect(workerAt(0).requests).toHaveLength(1)
     const parallel = runtime.runCell(scheme)
     expect(FakeWorker.instances).toHaveLength(2)
@@ -70,7 +70,7 @@ describe('Code Lab execution', () => {
     expect(FakeWorker.instances).toHaveLength(2)
     expect(workerAt(0).requests).toHaveLength(2)
     workerAt(0).complete('43')
-    await next
+    expect(await next).toBe(true)
     runtime.dispose()
   })
 

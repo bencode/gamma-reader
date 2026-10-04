@@ -4,6 +4,7 @@ import {
   type StoredFileMetadata,
 } from '../../core/files'
 import type { ReaderState } from '../../core/reader-state'
+import { type LabAccess, type LabCellsInput, readLabCells, runLabCells } from './lab-tools'
 import { createLinkTools, type LinkAccess, noLinks } from './links/link-tools'
 import {
   boundedText,
@@ -196,6 +197,7 @@ export const createLocalTools = (
   moveFile: WorkspaceFileMover,
   activeSource?: ActiveSourceAccess,
   links: LinkAccess = noLinks,
+  labs?: LabAccess,
 ) => ({
   ...createLinkTools(links),
   get_reader_state: getReaderState,
@@ -214,6 +216,14 @@ export const createLocalTools = (
   edit_active_source: (input: EditActiveSourceInput) => {
     if (!activeSource) throw new LocalToolError('Active source editing is unavailable.')
     return editActiveSource(activeSource, input)
+  },
+  run_active_lab_cells: (input: LabCellsInput, signal?: AbortSignal) => {
+    if (!labs) throw new LocalToolError('Running lab cells is unavailable.')
+    return runLabCells(labs, input, signal)
+  },
+  read_active_lab_cells: (input: LabCellsInput) => {
+    if (!labs) throw new LocalToolError('Reading lab cells is unavailable.')
+    return readLabCells(labs, input)
   },
 })
 export type LocalTools = ReturnType<typeof createLocalTools>

@@ -2,6 +2,7 @@ import { type RefObject, useLayoutEffect, useMemo, useRef } from 'react'
 import { decodeUtf8 } from '../core/document-text'
 import type { ReaderState } from '../core/reader-state'
 import { getStoredFile, type UpdateStoredTextFileResult } from '../data/file-store'
+import type { LabAccess, LabRunner } from '../features/agent/lab-tools'
 import type { LinkAccess } from '../features/agent/links/link-tools'
 import {
   type ActiveSourceSnapshot,
@@ -25,6 +26,7 @@ type WorkspaceToolsOptions = {
   workspace: Workspace
   rootRef: RefObject<HTMLDivElement | null>
   readers: RefObject<Map<string, ReaderBinding>>
+  labs: RefObject<Map<string, LabRunner>>
   writeTextFile: WorkspaceTextWriter
   moveFile: WorkspaceFileMover
   noteIndex?: NoteIndexStore
@@ -45,7 +47,7 @@ const readSavedText = async (fileId: string) => {
 }
 
 export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
-  const { workspace, rootRef, readers, noteIndex } = options
+  const { workspace, rootRef, readers, labs, noteIndex } = options
   const current = useRef(workspace)
   const writer = useRef(options.writeTextFile)
   const mover = useRef(options.moveFile)
@@ -101,6 +103,19 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
     [noteIndex],
   )
 
+  const labAccess = useMemo<LabAccess>(
+    () => ({
+      active: () => {
+        const latest = current.current
+        const file = latest.files.find(candidate => candidate.id === latest.activeId)
+        const runner = file ? labs.current.get(file.id) : undefined
+        return file && runner ? { path: file.path, runner } : null
+      },
+      runner: fileId => labs.current.get(fileId),
+    }),
+    [labs],
+  )
+
   return useMemo(
     () =>
       createLocalTools(
@@ -135,7 +150,8 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
         (fileId, path, signal) => mover.current(fileId, path, signal),
         activeSource,
         links,
+        labAccess,
       ),
-    [activeSource, links, noteIndex, readers, rootRef],
+    [activeSource, labAccess, links, noteIndex, readers, rootRef],
   )
 }

@@ -161,6 +161,34 @@ describe('reader agent', () => {
     expect(fetchModel).toHaveBeenCalledTimes(2)
   })
 
+  it('records a run stopped during a tool as stopped, without asking the model again', async () => {
+    const fetchModel = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => call('write', { path: 'notes.md', content: 'x' }))
+    let started = () => {}
+    const writing = new Promise<void>(resolve => {
+      started = resolve
+    })
+    const writer = (_path: string, _content: string, signal?: AbortSignal) =>
+      new Promise<never>((_resolve, reject) => {
+        started()
+        signal?.addEventListener('abort', () => reject(signal.reason), { once: true })
+      })
+    const agent = createReaderAgent(
+      config,
+      createLocalTools(emptyState, writer, moveStoredFile),
+      session,
+    )
+
+    const run = agent.prompt('Save notes')
+    await writing
+    agent.abort()
+    await run
+
+    expect(agent.state.messages.at(-1)).toMatchObject({ role: 'assistant', stopReason: 'aborted' })
+    expect(fetchModel).toHaveBeenCalledTimes(1)
+  })
+
   it('runs local tools through Pi and supplies context only after a tool request', async () => {
     const imported = await importStoredFiles(
       rootSources([new File(['# Local secret\n\nThe fox reads quietly.'], 'private.md')]),

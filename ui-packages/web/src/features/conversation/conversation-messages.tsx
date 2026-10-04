@@ -11,6 +11,8 @@ const toolLabel = (name: string) => {
   if (name === 'read') return 'Reading document'
   if (name === 'analyze_image') return 'Analyzing image'
   if (name === 'write') return 'Writing file'
+  if (name === 'run_active_lab_cells') return 'Running lab cells'
+  if (name === 'read_active_lab_cells') return 'Reading lab results'
   return name
 }
 
