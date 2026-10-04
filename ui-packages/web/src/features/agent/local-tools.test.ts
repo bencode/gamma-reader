@@ -98,7 +98,7 @@ describe('local reader tools', () => {
       ),
       'keep',
     )
-    await add('Fixture unsupported.html', '<p>text</p>', 'text/html')
+    await add('Fixture page.html', '<p>text</p>', 'text/html')
     await importStoredFiles(
       rootSources([new File(['context'], 'Fixture attachment.txt', { type: 'text/plain' })]),
       'keep',
@@ -118,10 +118,7 @@ describe('local reader tools', () => {
       collection: 'attachments',
       textReadable: true,
     })
-    expect(files.find(file => file.type === 'html')).toMatchObject({
-      textReadable: false,
-      reason: expect.any(String),
-    })
+    expect(files.find(file => file.type === 'html')).toMatchObject({ textReadable: true })
   })
 
   it('searches across files and returns directly readable, one-based ranges', async () => {
@@ -201,8 +198,8 @@ describe('local reader tools', () => {
         Array.from(
           { length: 130 },
           (_, index) =>
-            new File(['<p>Unreadable fixture</p>'], `Unreadable ${index}.html`, {
-              type: 'text/html',
+            new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff])], `Unreadable ${index}.bin`, {
+              type: 'application/octet-stream',
             }),
         ),
       ),
@@ -218,9 +215,9 @@ describe('local reader tools', () => {
       issueCount += result.issues.length
       ids.push(...result.matches.map(match => match.fileId))
       next = result.next
-      expect(issueCount).toBeLessThanOrEqual(131)
+      expect(issueCount).toBeLessThanOrEqual(130)
     }
-    expect(issueCount).toBe(131)
+    expect(issueCount).toBe(130)
     expect(ids).toEqual([id])
     const bad = await importStoredFiles(
       rootSources([new File([new Uint8Array([255])], 'Broken.txt', { type: 'text/plain' })]),
