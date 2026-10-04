@@ -14,11 +14,9 @@ import {
 } from '@gamma-reader/links'
 import type { StoredFileMetadata } from '../../../core/files'
 import type { UpdateStoredTextFileResult } from '../../../data/file-store'
-import type { IndexProgress } from '../../links/note-index'
-import { fitsResult, mismatchedCursor } from '../pagination'
+import type { NoteIndexState } from '../../links/note-index'
+import { paginate } from '../pagination'
 import { LocalToolError } from '../tool-types'
-
-export type LinkState = { graph: LinkGraph | null; progress: IndexProgress | null }
 
 export type FindNodesInput = { query: string; cursor?: string }
 export type GetNodeInput = { node: string; fileId?: string; cursor?: string }
@@ -33,6 +31,9 @@ export type LinkWrites = {
   update: (fileId: string, revision: number, content: string) => Promise<UpdateStoredTextFileResult>
 }
 
+// What the link tools read and write: the index of saved notes, and the library to name blocks in.
+export type LinkAccess = { state: () => NoteIndexState } & LinkWrites
+
 export type GetLinksInput = {
   node: string
   direction: 'in' | 'out'
@@ -40,71 +41,13 @@ export type GetLinksInput = {
   cursor?: string
 }
 
-const maximumEntries = 100
-
-// A request named by its fields in a fixed order, so a model that reorders or drops an empty
-// field still continues the same request.
-const requestHash = (operation: string, request: Record<string, unknown>) => {
-  const canonical = JSON.stringify([
-    operation,
-    ...Object.keys(request)
-      .filter(key => request[key] !== undefined && request[key] !== '')
-      .sort()
-      .map(key => [key, request[key]]),
-  ])
-  let hash = 0x811c9dc5
-  for (let index = 0; index < canonical.length; index++)
-    hash = Math.imul(hash ^ canonical.charCodeAt(index), 0x01000193)
-  return (hash >>> 0).toString(36)
-}
-
-// Cursors stay short, as a model copies them by hand: where the list resumes, and which request
-// it continues, such as 100.k3f9a2.
-const readCursor = (token: string | undefined, hash: string) => {
-  if (token === undefined) return 0
-  const match = /^(\d+)\.([0-9a-z]+)$/.exec(token.trim())
-  if (!match) throw new LocalToolError('Invalid cursor. Restart the call without a cursor.')
-  if (match[2] !== hash) throw mismatchedCursor()
-  return Number(match[1])
-}
-
-// One page of a list: as many entries as fit the result limit from where the cursor left off,
-// with the size of the whole list so a count never depends on reading every page.
-const paginate = <T, R extends object>(
-  operation: string,
-  input: { cursor?: string } & Record<string, unknown>,
-  items: readonly T[],
-  wrap: (
-    entries: T[],
-    next: ({ cursor: string } & Record<string, unknown>) | null,
-    total: number,
-  ) => R,
-): R => {
-  const { cursor: token, ...request } = input
-  const hash = requestHash(operation, request)
-  const entries: T[] = []
-  for (let index = readCursor(token, hash); index < items.length; index++) {
-    const next = { ...request, cursor: `${index}.${hash}` }
-    const item = items[index] as T
-    if (
-      entries.length >= maximumEntries ||
-      !fitsResult(wrap([...entries, item], next, items.length))
-    ) {
-      if (!entries.length) throw new LocalToolError('One entry exceeds the result limit.')
-      return wrap(entries, next, items.length)
-    }
-    entries.push(item)
-  }
-  return wrap(entries, null, items.length)
-}
-
-const graphOf = (state: LinkState) => {
+const readyGraph = (state: NoteIndexState) => {
   if (!state.graph) throw new LocalToolError('Links are still being indexed. Try again shortly.')
   return state.graph
 }
 
 // A partial index answers with what it has and says so.
-const indexing = (state: LinkState) => (state.progress ? { indexing: state.progress } : {})
+const indexing = (state: NoteIndexState) => (state.progress ? { indexing: state.progress } : {})
 
 const parseNode = (raw: string) => {
   const ref = nodeRef(raw)
@@ -154,15 +97,17 @@ const missing = (graph: LinkGraph, ref: NodeRef) => {
   return new LocalToolError(`No node named ${formatNode(ref)}. Use find_nodes to look it up.`)
 }
 
-// The link graph as tools: find a node, look inside one, and follow its links in or out. Each
-// answers from the index of saved files, with lines of Markdown source.
-const noWrites: LinkWrites = {
-  file: () => {
-    throw new LocalToolError('Naming blocks is unavailable here.')
-  },
-  dirty: () => false,
-  read: async () => '',
-  update: async () => ({ status: 'missing' }),
+const unavailable = () => {
+  throw new LocalToolError('Links are unavailable here.')
+}
+
+// Where there is no library to link, as in a conversation without a workspace.
+export const noLinks: LinkAccess = {
+  state: unavailable,
+  file: unavailable,
+  dirty: unavailable,
+  read: unavailable,
+  update: unavailable,
 }
 
 const named = (source: string, input: NameBlockInput) => {
@@ -174,10 +119,12 @@ const named = (source: string, input: NameBlockInput) => {
   }
 }
 
-export const createLinkTools = (getState: () => LinkState, writes: LinkWrites = noWrites) => ({
+// The link graph as tools: find a node, look inside one, and follow its links in or out. Each
+// answers from the index of saved files, with lines of Markdown source.
+export const createLinkTools = (links: LinkAccess) => ({
   find_nodes: (input: FindNodesInput) => {
-    const state = getState()
-    const found = graphOf(state)
+    const state = links.state()
+    const found = readyGraph(state)
       .find(input.query)
       .map(node => ({
         node: formatNode(node.ref),
@@ -194,8 +141,8 @@ export const createLinkTools = (getState: () => LinkState, writes: LinkWrites = 
   },
 
   get_node: (input: GetNodeInput) => {
-    const state = getState()
-    const graph = graphOf(state)
+    const state = links.state()
+    const graph = readyGraph(state)
     const ref = parseNode(input.node)
     const view = graph.node(ref, input.fileId)
     if (!view) throw missing(graph, ref)
@@ -231,11 +178,11 @@ export const createLinkTools = (getState: () => LinkState, writes: LinkWrites = 
   },
 
   get_links: (input: GetLinksInput) => {
-    const state = getState()
-    const graph = graphOf(state)
+    const state = links.state()
+    const graph = readyGraph(state)
     const ref = parseNode(input.node)
-    const links = graph.edges(ref, input.direction, input.fileId).map(describeEdge)
-    return paginate('get_links', input, links, (entries, next, total) => ({
+    const edges = graph.edges(ref, input.direction, input.fileId).map(describeEdge)
+    return paginate('get_links', input, edges, (entries, next, total) => ({
       node: formatNode(ref),
       direction: input.direction,
       total,
@@ -248,16 +195,16 @@ export const createLinkTools = (getState: () => LinkState, writes: LinkWrites = 
   // Names a passage of a saved note so it can be linked. Only the saved file changes; a note with
   // unsaved edits in a tab is left to the reader, so neither copy overwrites the other.
   name_block: async (input: NameBlockInput) => {
-    const file = writes.file(input.fileId)
+    const file = links.file(input.fileId)
     if (!file || !isNotePath(file.path))
       throw new LocalToolError('Name blocks in a Markdown note. Pass its fileId.')
-    if (writes.dirty(file.id))
+    if (links.dirty(file.id))
       throw new LocalToolError(
         `${file.path} has unsaved changes in an open tab. Ask the reader to save or discard them first.`,
       )
-    const result = named(await writes.read(file.id), input)
+    const result = named(await links.read(file.id), input)
     if (result.created) {
-      const saved = await writes.update(file.id, file.revision, result.source)
+      const saved = await links.update(file.id, file.revision, result.source)
       if (saved.status === 'conflict')
         throw new LocalToolError(
           `${file.path} changed while it was being named. Call name_block again.`,

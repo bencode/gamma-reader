@@ -25,6 +25,16 @@ export const auxiliaryTextSelector =
   'button, [data-footnote-ref], [data-footnote-backref], #footnote-label'
 export const normalizeSearchText = (text: string) => text.replace(/\s+/gu, ' ').trim().toLowerCase()
 export const normalizeNewlines = (text: string) => text.replace(/\r\n?/g, '\n')
+
+// Text that is valid UTF-8, or null when it is not; any other failure is thrown.
+export const decodeUtf8 = (bytes: ArrayBuffer) => {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch (cause) {
+    if (cause instanceof TypeError) return null
+    throw cause
+  }
+}
 export const imagePlaceholder = (alt?: string) => (alt ? `[Image: ${alt}]` : '[Image omitted]')
 
 const parser = unified().use(remarkParse).use(markdownPlugins).use(remarkRehype)

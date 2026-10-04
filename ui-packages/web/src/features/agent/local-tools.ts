@@ -4,7 +4,7 @@ import {
   type StoredFileMetadata,
 } from '../../core/files'
 import type { ReaderState } from '../../core/reader-state'
-import { createLinkTools, type LinkState, type LinkWrites } from './links/link-tools'
+import { createLinkTools, type LinkAccess, noLinks } from './links/link-tools'
 import {
   boundedText,
   changedSource,
@@ -190,19 +190,14 @@ const editActiveSource = (
   return { version: access.replace(input.fileId, input.expectedVersion, content).version }
 }
 
-const noLinks = (): LinkState => {
-  throw new LocalToolError('Links are unavailable here.')
-}
-
 export const createLocalTools = (
   getReaderState: () => ReaderState,
   writeTextFile: WorkspaceTextWriter,
   moveFile: WorkspaceFileMover,
   activeSource?: ActiveSourceAccess,
-  links: () => LinkState = noLinks,
-  linkWrites?: LinkWrites,
+  links: LinkAccess = noLinks,
 ) => ({
-  ...createLinkTools(links, linkWrites),
+  ...createLinkTools(links),
   get_reader_state: getReaderState,
   write: async (input: WriteInput, signal?: AbortSignal): Promise<WriteResult> => {
     const metadata = await writeTextFile(agentWorkspacePath(input.path), input.content, signal)

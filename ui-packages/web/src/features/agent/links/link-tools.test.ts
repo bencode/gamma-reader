@@ -1,6 +1,7 @@
 import { buildGraph, type ParsedNote, parseNote } from '@gamma-reader/links'
 import { describe, expect, it } from 'vitest'
-import { createLinkTools, type LinkState, type LinkWrites } from './link-tools'
+import type { NoteIndexState } from '../../links/note-index'
+import { createLinkTools, type LinkWrites, noLinks } from './link-tools'
 
 const files = [
   { id: 'rag', path: 'knowledge/RAG.md' },
@@ -18,8 +19,8 @@ const notes = new Map<string, ParsedNote>([
   ['a', parseNote('# A\n\nOne. ^x')],
   ['b', parseNote('# B')],
 ])
-const ready = (): LinkState => ({ graph: buildGraph(files, notes), progress: null })
-const tools = createLinkTools(ready)
+const ready = (): NoteIndexState => ({ graph: buildGraph(files, notes), progress: null })
+const tools = createLinkTools({ ...noLinks, state: ready })
 
 describe('link tools', () => {
   it('finds nodes by name as links write them, virtual pages included', () => {
@@ -107,10 +108,13 @@ describe('link tools', () => {
     const many = new Map([
       ['hub', parseNote(Array.from({ length: 250 }, (_, i) => `- [[Target]] ${i}`).join('\n'))],
     ])
-    const paged = createLinkTools(() => ({
-      graph: buildGraph([{ id: 'hub', path: 'hub.md' }], many),
-      progress: { done: 1, total: 3 },
-    }))
+    const paged = createLinkTools({
+      ...noLinks,
+      state: () => ({
+        graph: buildGraph([{ id: 'hub', path: 'hub.md' }], many),
+        progress: { done: 1, total: 3 },
+      }),
+    })
 
     const first = paged.get_links({ node: 'Target', direction: 'in' })
     const cursor = first.next?.cursor as string
@@ -131,7 +135,10 @@ describe('link tools', () => {
   })
 
   it('waits for the first index', () => {
-    const waiting = createLinkTools(() => ({ graph: null, progress: { done: 0, total: 9 } }))
+    const waiting = createLinkTools({
+      ...noLinks,
+      state: () => ({ graph: null, progress: { done: 0, total: 9 } }),
+    })
 
     expect(() => waiting.find_nodes({ query: '' })).toThrow('still being indexed')
   })
@@ -163,7 +170,7 @@ describe('naming a block', () => {
         return { status: 'saved', metadata: writes.file('rag') as never }
       },
     }
-    return { saved, tools: createLinkTools(ready, writes) }
+    return { saved, tools: createLinkTools({ ...writes, state: ready }) }
   }
 
   it('names the passage in the saved note and returns the link to write', async () => {

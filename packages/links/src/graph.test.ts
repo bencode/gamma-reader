@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildGraph, formatNode, nodeRef, pageNameOf } from './graph'
+import { buildGraph } from './graph'
+import { formatNode, nodeRef, pageNameOf } from './names'
 import { type ParsedNote, parseNote } from './parse'
 
 const files = [
