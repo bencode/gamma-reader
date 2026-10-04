@@ -170,6 +170,9 @@ importers:
       '@gamma-reader/code-lab':
         specifier: workspace:*
         version: link:../code-lab
+      '@gamma-reader/links':
+        specifier: workspace:*
+        version: link:../../packages/links
       '@radix-ui/react-context-menu':
         specifier: ^2.3.7
         version: 2.3.7(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

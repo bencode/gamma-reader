@@ -4,6 +4,7 @@ import { Group, Panel, Separator } from 'react-resizable-panels'
 import type { Project } from '../core/projects'
 import { ConversationProvider } from '../features/conversation/conversation-context'
 import { ConversationPanel } from '../features/conversation/conversation-panel'
+import { useNoteIndex } from '../features/links/use-note-index'
 import { DocumentTabs } from '../features/reader/document-tabs'
 import { prepareP5SourceFile } from '../features/reader/p5-file'
 import { ReplaceExportedFilesDialog } from '../features/resources/file-dialogs'
@@ -44,6 +45,7 @@ export const Workbench = ({ project }: { project: Project }) => {
   const library = useFileLibrary(prepareP5SourceFile)
   const exporter = useFileExport(library.files)
   const sourceSync = useSourceSync(project.source ?? null, library.reload, library.files)
+  const noteIndex = useNoteIndex(library.files)
   const workspace = useWorkspace(library.files, library.loading)
   const { widths, saveWidths } = usePanelWidths()
   const groupElementRef = useRef<HTMLDivElement>(null)
@@ -128,6 +130,7 @@ export const Workbench = ({ project }: { project: Project }) => {
       library={library}
       exporter={exporter}
       sourceSync={sourceSync}
+      noteIndex={noteIndex}
       onClose={closeFiles}
       onOpen={id => {
         workspace.openDocument(id)
