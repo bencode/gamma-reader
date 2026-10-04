@@ -127,7 +127,11 @@ describe('naming a block', () => {
     const result = nameBlock(logseq, 'Work', 'work')
 
     expect(result.source).toBe(note('- Work ^work', '\t-', '- Learn'))
-    expect(parseNote(result.source).blocks[0]).toMatchObject({ name: 'work', kind: 'heading' })
+    expect(parseNote(result.source).blocks[0]).toMatchObject({
+      name: 'work',
+      kind: 'heading',
+      lines: [1, 2],
+    })
   })
 
   it('will not name an outline that Markdown reads as indented code', () => {

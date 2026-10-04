@@ -1,4 +1,4 @@
-import type { Heading, Parent, PhrasingContent, Root, Text } from 'mdast'
+import type { Heading, Parent, PhrasingContent, Root, RootContent, Text } from 'mdast'
 import { descendants, linesOf, type Node, parser, plainText, splitFrontmatter } from './markdown'
 
 // Where a link points: a page by name, and optionally a named block, a heading or a PDF page in
@@ -102,13 +102,25 @@ const linksIn = (text: Text, source: readonly string[]): ParsedLink[] => {
   })
 }
 
+// Headings in document order, each with the last line its section may reach: a heading inside a
+// list item or quote, as in a Logseq outline, ends with that item or quote.
+const placedHeadings = (node: Node, limit: number): { heading: Heading; limit: number }[] =>
+  ('children' in node ? (node.children as RootContent[]) : []).flatMap(child =>
+    child.type === 'heading'
+      ? [{ heading: child, limit }]
+      : placedHeadings(
+          child,
+          child.type === 'listItem' || child.type === 'blockquote' ? linesOf(child)[1] : limit,
+        ),
+  )
+
 // A heading's section runs to the next heading at its level or above, without trailing blanks.
 const headingsIn = (root: Root, source: readonly string[]): ParsedHeading[] => {
-  const headings = descendants(root).filter((node): node is Heading => node.type === 'heading')
-  return headings.map((heading, index) => {
+  const placed = placedHeadings(root, source.length)
+  return placed.map(({ heading, limit }, index) => {
     const [start] = linesOf(heading)
-    const next = headings.slice(index + 1).find(later => later.depth <= heading.depth)
-    let end = next ? linesOf(next)[0] - 1 : source.length
+    const next = placed.slice(index + 1).find(later => later.heading.depth <= heading.depth)
+    let end = Math.min(next ? linesOf(next.heading)[0] - 1 : source.length, limit)
     while (end > start && (source[end - 1] ?? '').trim() === '') end -= 1
     return {
       title: compact(withoutName(plainText(heading))),
