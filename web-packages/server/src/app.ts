@@ -28,11 +28,15 @@ export const createApp = (
   app.all('/api/*', c => c.json({ error: 'Not found' }, 404))
 
   if (webRoot) {
-    app.get('/files', serveStatic({ root: webRoot, path: 'index.html' }))
-    app.get('/files/:documentId', serveStatic({ root: webRoot, path: 'index.html' }))
-    app.get('/p/:projectId', serveStatic({ root: webRoot, path: 'index.html' }))
-    app.get('/p/:projectId/files', serveStatic({ root: webRoot, path: 'index.html' }))
-    app.get('/p/:projectId/files/:documentId', serveStatic({ root: webRoot, path: 'index.html' }))
+    // The routes the application handles itself; a file route holds its whole path, folders too.
+    const entry = serveStatic({ root: webRoot, path: 'index.html' })
+    app.get('/files', entry)
+    app.get('/files/*', entry)
+    app.get('/pages/:name', entry)
+    app.get('/p/:projectId', entry)
+    app.get('/p/:projectId/files', entry)
+    app.get('/p/:projectId/files/*', entry)
+    app.get('/p/:projectId/pages/:name', entry)
     app.use('*', serveStatic({ root: webRoot }))
   }
 

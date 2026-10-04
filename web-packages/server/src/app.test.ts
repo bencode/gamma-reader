@@ -75,6 +75,10 @@ describe('application HTTP boundaries', () => {
     '/p/bird-notes',
     '/p/bird-notes/files',
     '/p/bird-notes/files/reading-notes',
+    '/files/sicm-lab/01-1.4-computing-actions.lab.md',
+    '/p/bird-notes/files/sicm-lab/01-1.4-computing-actions.lab.md',
+    '/pages/RAG',
+    '/p/bird-notes/pages/RAG',
   ])('serves the application entry for direct navigation to %s', async path => {
     const response = await build(webRoot).request(path)
     expect(response.status).toBe(200)
@@ -82,19 +86,17 @@ describe('application HTTP boundaries', () => {
     expect(await response.text()).toBe(page)
   })
 
-  it.each([
-    '/assets/missing.js',
-    '/missing-page',
-    '/files/reading-notes/missing.js',
-    '/p/bird-notes/files/reading-notes/missing.js',
-  ])('returns 404 instead of the welcome page for %s', async path => {
-    const response = await build(webRoot).request(path, {
-      headers: { Accept: 'text/html' },
-    })
+  it.each(['/assets/missing.js', '/missing-page', '/p/bird-notes/missing-page'])(
+    'returns 404 instead of the welcome page for %s',
+    async path => {
+      const response = await build(webRoot).request(path, {
+        headers: { Accept: 'text/html' },
+      })
 
-    expect(response.status).toBe(404)
-    expect(await response.text()).not.toBe(page)
-  })
+      expect(response.status).toBe(404)
+      expect(await response.text()).not.toBe(page)
+    },
+  )
 
   it('names the source a deployment syncs from, and has none by default', async () => {
     expect((await build().request('/api/source')).status).toBe(404)
