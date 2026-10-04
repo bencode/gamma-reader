@@ -1,4 +1,4 @@
-import { type RefObject, useLayoutEffect, useRef } from 'react'
+import { type RefObject, useCallback, useLayoutEffect, useRef } from 'react'
 import {
   type BlockBox,
   type FlowPosition,
@@ -55,48 +55,74 @@ export const useFlowPosition = ({
     defaultPosition?.kind === 'flow' ? defaultPosition : null,
   )
   const restoring = useRef(false)
+  const release = useRef<(() => void) | null>(null)
 
   // Images, formulas and diagrams finish after the text, pushing it down, so the place is applied
   // again whenever the content changes size — until the reader does anything, from which point
   // the position is theirs.
-  useLayoutEffect(() => {
-    const root = rootRef.current
-    const scroll = scrollRef.current
-    const content = contentRef.current
-    if (!active || !root || !scroll || !content) return
-    const target = place.current
-    if (!target) {
-      scroll.scrollTop = 0
-      return
-    }
+  const hold = useCallback((root: HTMLElement, scroll: HTMLElement, content: HTMLElement) => {
+    release.current?.()
     const apply = () => {
+      const target = place.current
+      if (!target) return
       const blocks = blocksOf(content)
       scroll.scrollTop = flowScrollTop(target, blocks.length, measure(blocks, scroll))
     }
     const observer = new ResizeObserver(apply)
-    const release = () => {
+    const stop = () => {
       restoring.current = false
       observer.disconnect()
       readerInput.forEach(name => {
-        root.removeEventListener(name, release)
+        root.removeEventListener(name, stop)
       })
+      if (release.current === stop) release.current = null
     }
     restoring.current = true
     apply()
     observer.observe(content)
     readerInput.forEach(name => {
-      root.addEventListener(name, release, { passive: true })
+      root.addEventListener(name, stop, { passive: true })
     })
-    return release
-  }, [active, contentRef, rootRef, scrollRef])
+    release.current = stop
+  }, [])
 
-  // Browsers deliver scroll at most once a frame, and finding the block takes a handful of reads.
-  return () => {
+  useLayoutEffect(() => {
+    const root = rootRef.current
     const scroll = scrollRef.current
     const content = contentRef.current
-    if (!active || restoring.current || !scroll || !content) return
+    if (!active || !root || !scroll || !content) return
+    if (!place.current) {
+      scroll.scrollTop = 0
+      return
+    }
+    hold(root, scroll, content)
+    return () => release.current?.()
+  }, [active, contentRef, hold, rootRef, scrollRef])
+
+  const placeAt = (scroll: HTMLElement, content: HTMLElement) => {
     const blocks = blocksOf(content)
     place.current = flowAnchorAt(blocks.length, measure(blocks, scroll), scroll.scrollTop)
     onPositionChange(place.current)
+  }
+
+  return {
+    // Browsers deliver scroll at most once a frame, and finding the block takes a handful of reads.
+    record: () => {
+      const scroll = scrollRef.current
+      const content = contentRef.current
+      if (!active || restoring.current || !scroll || !content) return
+      placeAt(scroll, content)
+    },
+    // Brings an element to the top and holds it there as the reading place, as a restored place
+    // is held, so content that settles afterwards does not carry it away.
+    show: (element: HTMLElement) => {
+      const root = rootRef.current
+      const scroll = scrollRef.current
+      const content = contentRef.current
+      if (!root || !scroll || !content) return
+      scroll.scrollTop = pageTop(element) - pageTop(scroll)
+      placeAt(scroll, content)
+      hold(root, scroll, content)
+    },
   }
 }

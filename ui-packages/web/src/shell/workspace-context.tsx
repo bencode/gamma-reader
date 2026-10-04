@@ -1,3 +1,4 @@
+import { headingKey, type LinkTarget } from '@gamma-reader/links'
 import {
   createContext,
   type ReactNode,
@@ -10,6 +11,7 @@ import {
   useRef,
 } from 'react'
 import { useStore } from 'zustand'
+import { createStore } from 'zustand/vanilla'
 import type { UpdateStoredTextFileResult } from '../data/file-store'
 import { getStoredFile } from '../data/file-store'
 import type {
@@ -17,10 +19,16 @@ import type {
   WorkspaceFileMover,
   WorkspaceTextWriter,
 } from '../features/agent/local-tools'
+import type { NoteIndexState } from '../features/links/note-index'
 import type { NoteIndexStore } from '../features/links/use-note-index'
 import type { Workspace } from './use-workspace'
 import { type ReaderBinding, useWorkspaceTools } from './use-workspace-tools'
-import { sourceDirty, type WorkspaceActions, type WorkspaceStore } from './workspace-store'
+import {
+  type RevealTarget,
+  sourceDirty,
+  type WorkspaceActions,
+  type WorkspaceStore,
+} from './workspace-store'
 
 type WorkspaceContextValue = {
   tools: LocalTools
@@ -28,8 +36,22 @@ type WorkspaceContextValue = {
   actions: WorkspaceActions
   register: (binding: ReaderBinding) => () => void
   saveSource: (fileId: string, overwrite?: boolean) => Promise<'saved' | 'conflict' | 'failed'>
+  noteIndex: NoteIndexStore
+  openLink: (target: LinkTarget, fileId: string) => void
 }
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
+
+// A workspace without a link index, where links lead nowhere yet.
+const withoutIndex = createStore<NoteIndexState>(() => ({ graph: null, progress: null }))
+
+const placeOf = (target: LinkTarget): RevealTarget | null =>
+  target.block
+    ? { block: target.block }
+    : target.heading
+      ? { heading: headingKey(target.heading) }
+      : target.pdfPage
+        ? { page: target.pdfPage }
+        : null
 
 export const WorkspaceProvider = ({
   workspace,
@@ -55,6 +77,10 @@ export const WorkspaceProvider = ({
 }) => {
   const { actions, store } = workspace
   const readers = useRef(new Map<string, ReaderBinding>())
+  const openDocument = useRef(workspace.openDocument)
+  useLayoutEffect(() => {
+    openDocument.current = workspace.openDocument
+  }, [workspace.openDocument])
   const tools = useWorkspaceTools({
     workspace,
     rootRef,
@@ -121,6 +147,15 @@ export const WorkspaceProvider = ({
     },
     [actions, store, updateTextFile],
   )
+  // Opens the file a link leads to, showing the place it names, if any, once the file is read.
+  const openLink = useCallback(
+    (target: LinkTarget, fileId: string) => {
+      const place = placeOf(target)
+      if (place) actions.reveal(fileId, place)
+      openDocument.current(fileId)
+    },
+    [actions],
+  )
   const value = useMemo<WorkspaceContextValue>(
     () => ({
       store,
@@ -134,8 +169,10 @@ export const WorkspaceProvider = ({
       },
       tools,
       saveSource,
+      noteIndex: noteIndex ?? withoutIndex,
+      openLink,
     }),
-    [actions, saveSource, store, tools],
+    [actions, noteIndex, openLink, saveSource, store, tools],
   )
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
 }
@@ -178,4 +215,16 @@ export const useSourceDrafts = () => {
 export const useReaderBinding = (binding: ReaderBinding, active: boolean) => {
   const { register } = useWorkspaceContext()
   useLayoutEffect(() => (active ? register(binding) : undefined), [active, binding, register])
+}
+
+// The link graph as it stands, null until the library is first indexed.
+export const useLinkGraph = () => useStore(useWorkspaceContext().noteIndex, state => state.graph)
+
+export const useOpenLink = () => useWorkspaceContext().openLink
+
+// The place a link asked this file's reader to show, if any, and how to say it was shown.
+export const useReveal = (fileId: string) => {
+  const { store, actions } = useWorkspaceContext()
+  const reveal = useStore(store, state => (state.reveal?.fileId === fileId ? state.reveal : null))
+  return { reveal, shown: actions.clearReveal }
 }

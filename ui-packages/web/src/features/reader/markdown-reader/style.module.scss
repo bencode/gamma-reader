@@ -362,3 +362,69 @@
     animation: none;
   }
 }
+
+// A [[link]] reads as a link within the text, though it is a button that opens a note.
+.wikiLink {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+
+  &[aria-disabled='true'] {
+    cursor: default;
+  }
+}
+
+.tag {
+  text-decoration: none;
+}
+
+.virtual {
+  color: var(--muted);
+}
+
+.linkChoices {
+  z-index: 20;
+  width: min(360px, calc(100vw - 16px));
+  max-height: var(--radix-popover-content-available-height);
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  font-size: 12px;
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  button {
+    width: 100%;
+    padding: 8px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--selected);
+      color: var(--accent);
+    }
+  }
+}

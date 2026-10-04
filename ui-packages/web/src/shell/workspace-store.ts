@@ -17,10 +17,16 @@ export type SourceDraft = {
   saveError: string | null
 }
 
+// A place in a file that a link asked to show: a named block, a heading by its key, or a PDF
+// page. The file's reader shows it once and clears it.
+export type RevealTarget = { block: string } | { heading: string } | { page: number }
+export type Reveal = { fileId: string; target: RevealTarget }
+
 export type WorkspaceState = {
   tabs: string[]
   sourceDrafts: Record<string, SourceDraft>
   positions: Record<string, ReadingPosition>
+  reveal: Reveal | null
 }
 
 export type WorkspaceActions = {
@@ -35,6 +41,8 @@ export type WorkspaceActions = {
   reloadIncomingSource: (fileId: string) => void
   forgetSource: (fileId: string) => void
   setPosition: (fileId: string, position: ReadingPosition) => void
+  reveal: (fileId: string, target: RevealTarget) => void
+  clearReveal: (reveal: Reveal) => void
 }
 
 export const sourceDirty = (draft: SourceDraft | undefined) =>
@@ -59,6 +67,7 @@ export const createWorkspaceStore = (
     tabs,
     sourceDrafts: {},
     positions,
+    reveal: null,
   }))
 
 export type WorkspaceStore = ReturnType<typeof createWorkspaceStore>
@@ -199,5 +208,8 @@ export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions 
       }),
     setPosition: (fileId, position) =>
       set(state => ({ positions: { ...state.positions, [fileId]: position } })),
+    reveal: (fileId, target) => set({ reveal: { fileId, target } }),
+    // Only the reveal that was shown is cleared, not a newer one asked for meanwhile.
+    clearReveal: reveal => set(state => (state.reveal === reveal ? { reveal: null } : state)),
   }
 }

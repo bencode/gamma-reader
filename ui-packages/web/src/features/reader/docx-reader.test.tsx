@@ -5,7 +5,10 @@ import type { DocxConversion } from '../../core/docx'
 import type { StoredFileMetadata } from '../../core/files'
 import { DocxReader } from './docx-reader'
 
-vi.mock('../../shell/workspace-context', () => ({ useReaderBinding: vi.fn() }))
+vi.mock('../../shell/workspace-context', () => ({
+  useReaderBinding: vi.fn(),
+  useReveal: () => ({ reveal: null, shown: vi.fn() }),
+}))
 
 const mocks = vi.hoisted(() => ({ convert: vi.fn() }))
 // Only the conversion is stubbed, so adding an export to the module cannot break this file.
