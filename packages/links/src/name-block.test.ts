@@ -121,6 +121,19 @@ describe('naming a block', () => {
     expect(() => nameBlock(twice, 'words', 'x')).toThrow('2 passages hold that quote')
   })
 
+  it('names a heading underlined with dashes on its text line, as a Logseq empty child makes', () => {
+    // An empty child item under an item reads as a --- underline, making the item a heading.
+    const logseq = note('- Work', '\t-', '- Learn')
+    const result = nameBlock(logseq, 'Work', 'work')
+
+    expect(result.source).toBe(note('- Work ^work', '\t-', '- Learn'))
+    expect(parseNote(result.source).blocks[0]).toMatchObject({
+      name: 'work',
+      kind: 'heading',
+      lines: [1, 2],
+    })
+  })
+
   it('will not name an outline that Markdown reads as indented code', () => {
     // As in a Logseq page whose blocks sit tab-indented under a heading.
     const outline = note(

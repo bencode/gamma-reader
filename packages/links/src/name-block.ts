@@ -70,7 +70,10 @@ export const nameBlock = (input: string, quote: string, name: string) => {
     throw new NameBlockError(`${name} already names another block in this note.`)
 
   if (match.node.type === 'paragraph' || match.node.type === 'heading') {
-    lines[end.line - 1] = `${(lines[end.line - 1] ?? '').replace(/\s+$/, '')} ^${name}`
+    // The name ends the text, which for a heading underlined with --- or === is the line above.
+    const last = ('children' in match.node ? match.node.children.at(-1) : undefined)?.position
+    const line = last?.end.line ?? end.line
+    lines[line - 1] = `${(lines[line - 1] ?? '').replace(/\s+$/, '')} ^${name}`
   } else {
     // A name on its own line needs a blank line before it, and after it unless one follows, or
     // it would run into the text around it.

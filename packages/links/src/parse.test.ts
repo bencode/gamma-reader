@@ -147,6 +147,13 @@ describe('headings and frontmatter', () => {
     ])
   })
 
+  it('ends a heading inside a list item with that item, as in a Logseq outline', () => {
+    expect(note('- ## Reading', '\t- one', '- ## Plans', '\t- two', '- Learn').headings).toEqual([
+      { title: 'Reading', level: 2, lines: [1, 2] },
+      { title: 'Plans', level: 2, lines: [3, 4] },
+    ])
+  })
+
   it('reads a name from frontmatter and keeps line numbers', () => {
     const parsed = note('---', 'name: "RAG index"', 'tags: x', '---', '# Title', 'See [[B]]')
 
