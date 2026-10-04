@@ -428,3 +428,95 @@
     }
   }
 }
+
+// An embed shows another note in place, set off from the note around it.
+.embed {
+  margin: 0.75em 0;
+  padding: 0.25em 1em 0.5em;
+  border-left: 3px solid var(--line);
+  background: var(--selected);
+  border-radius: 0 4px 4px 0;
+
+  > :global(.markdown-content) > :first-child {
+    margin-top: 0.25em;
+  }
+}
+
+.embedTitle,
+.embedExpand {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.embedTitle:hover,
+.embedExpand:hover {
+  color: var(--accent);
+}
+
+.embedExpand {
+  display: block;
+  margin-top: 0.25em;
+  text-decoration: underline dotted;
+}
+
+.embedNote {
+  margin: 0.25em 0 0;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+// The notes that link here, after the note's own text.
+.backlinks {
+  margin-top: 3em;
+  padding-top: 1em;
+  border-top: 1px solid var(--line);
+  font-size: 0.9em;
+
+  > summary {
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  ul {
+    margin: 0.25em 0 0.75em;
+    padding-left: 1.25em;
+  }
+
+  li button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--accent);
+    }
+  }
+}
+
+.backlinkSource {
+  margin-top: 0.75em;
+}
+
+.backlinkPath,
+.backlinksMore {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.backlinksMore {
+  margin-top: 0.5em;
+  text-decoration: underline dotted;
+}

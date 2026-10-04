@@ -84,11 +84,31 @@ const linkText = (parent: Parent) => {
   }) as Parent['children']
 }
 
+// A paragraph that holds only an embed is the embed: a block of its own that shows what it names,
+// keeping the link inside for when it cannot be shown.
+const markEmbeds = (root: Root) => {
+  for (const node of descendants(root)) {
+    if (node.type !== 'paragraph') continue
+    const parts = node.children.filter(child => child.type !== 'text' || child.value.trim())
+    const [only] = parts
+    const raw = only?.data?.hProperties?.dataLink
+    if (
+      parts.length !== 1 ||
+      only?.data?.hProperties?.dataKind !== 'embed' ||
+      typeof raw !== 'string'
+    )
+      continue
+    node.data = { ...node.data, hName: 'aside', hProperties: { dataEmbed: raw } }
+    node.children = [only]
+  }
+}
+
 // The reader's view of a note's links and names, as remark plugin: [[...]], #[[...]] and ![[...]]
-// become buttons that know their target, named blocks and headings carry the names links use,
-// and ^name is hidden. Code and inline code are left alone, since only text nodes are read.
+// become buttons that know their target, an embed alone in its paragraph becomes a block, named
+// blocks and headings carry the names links use, and ^name is hidden. Code and inline code are left alone, since only text nodes are read.
 export const remarkLinks = () => (root: Root) => {
   hideNames(root)
   markHeadings(root)
   linkText(root)
+  markEmbeds(root)
 }

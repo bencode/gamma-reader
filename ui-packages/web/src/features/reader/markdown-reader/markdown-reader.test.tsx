@@ -1,5 +1,5 @@
-import { buildGraph, type LinkGraph } from '@gamma-reader/links'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { buildGraph, type LinkGraph, type ParsedNote, parseNote } from '@gamma-reader/links'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StoredFileMetadata } from '../../../core/files'
@@ -9,7 +9,8 @@ import { StandardMarkdownReader } from './standard-reader'
 
 const links = vi.hoisted(() => ({
   graph: null as LinkGraph | null,
-  openLink: vi.fn(),
+  openFile: vi.fn(),
+  saved: {} as Record<string, string>,
   reveal: null as { fileId: string; target: { block: string } } | null,
   shown: vi.fn(),
 }))
@@ -17,8 +18,14 @@ const links = vi.hoisted(() => ({
 vi.mock('../../../shell/workspace-context', () => ({
   useReaderBinding: vi.fn(),
   useLinkGraph: () => links.graph,
-  useOpenLink: () => links.openLink,
+  useOpenFile: () => links.openFile,
   useReveal: () => ({ reveal: links.reveal, shown: links.shown }),
+}))
+
+// Embeds read a note's saved text by its id.
+vi.mock('../../../data/file-store', () => ({
+  getStoredFileContent: async (id: string) =>
+    id in links.saved ? new Blob([links.saved[id] as string]) : null,
 }))
 
 const document: StoredFileMetadata = {
@@ -47,7 +54,7 @@ describe('Markdown file reader', () => {
   beforeEach(() => {
     links.graph = null
     links.reveal = null
-    links.openLink.mockReset()
+    links.openFile.mockReset()
     links.shown.mockReset()
     HTMLElement.prototype.scrollIntoView = vi.fn()
     Range.prototype.getClientRects = () =>
@@ -140,7 +147,7 @@ describe('links in a Markdown note', () => {
   beforeEach(() => {
     links.graph = buildGraph(library, new Map())
     links.reveal = null
-    links.openLink.mockReset()
+    links.openFile.mockReset()
     links.shown.mockReset()
   })
 
@@ -162,7 +169,7 @@ describe('links in a Markdown note', () => {
     expect(screen.queryByText(/\^def/)).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'the definition' }))
 
-    expect(links.openLink).toHaveBeenCalledWith({ page: 'guide', block: 'def' }, 'guide')
+    expect(links.openFile).toHaveBeenCalledWith('guide', { block: 'def' })
   })
 
   it('leaves a page with no note inert and offers the notes that share a name', async () => {
@@ -174,11 +181,11 @@ describe('links in a Markdown note', () => {
       'title',
       'No note named Nowhere yet.',
     )
-    expect(links.openLink).not.toHaveBeenCalled()
+    expect(links.openFile).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole('button', { name: 'Shared' }))
     await user.click(screen.getByRole('button', { name: 'two/Shared.md' }))
-    expect(links.openLink).toHaveBeenCalledWith({ page: 'Shared' }, 'two')
+    expect(links.openFile).toHaveBeenCalledWith('two', null)
   })
 
   it('shows the block a link asked for and says it was shown', () => {
@@ -186,5 +193,122 @@ describe('links in a Markdown note', () => {
     renderNote('# Guide\n\nRetrieval first. ^def')
 
     expect(links.shown).toHaveBeenCalledWith(links.reveal)
+  })
+})
+
+describe('embeds and backlinks in a Markdown note', () => {
+  const note = (id: string, path: string): StoredFileMetadata => ({ ...document, id, path })
+  const library = [document, note('rag', 'knowledge/RAG.md'), note('plan', 'Plan.md')]
+  const library2 = [...library, note('a', 'A.md'), note('b', 'B.md')]
+
+  // The library's saved notes, indexed as the reader's index would have them.
+  const save = (texts: Record<string, string>, files = library2) => {
+    links.saved = texts
+    links.graph = buildGraph(
+      files,
+      new Map<string, ParsedNote>(Object.entries(texts).map(([id, text]) => [id, parseNote(text)])),
+    )
+  }
+
+  beforeEach(() => {
+    links.reveal = null
+    links.openFile.mockReset()
+  })
+
+  const renderNote = (content: string, files = library2) =>
+    render(
+      <MarkdownReader
+        document={document}
+        content={content}
+        files={files}
+        active
+        onPositionChange={() => undefined}
+      />,
+    )
+
+  const rag = '# RAG\n\nRetrieval first. ^def\n\n## Methods\n\n- BM25\n- Dense'
+
+  it('shows a whole note, a block or a section in place, and a missing block as missing', async () => {
+    save({ rag, plan: '---\nname: Plan\n---\nThe plan body.' })
+    renderNote('![[RAG#^def]]\n\n![[RAG#Methods]]\n\n![[Plan]]\n\n![[RAG#^gone]]')
+
+    expect(await screen.findByText('Retrieval first.')).toBeInTheDocument()
+    expect(await screen.findByText('Dense')).toBeInTheDocument()
+    expect(await screen.findByText('The plan body.')).toBeInTheDocument()
+    expect(screen.queryByText(/name: Plan/)).not.toBeInTheDocument()
+    expect(await screen.findByText('RAG#^gone has no ^gone.')).toBeInTheDocument()
+  })
+
+  it('reads an embedded note again when it is saved anew', async () => {
+    save({ rag: 'Before saving.' })
+    const page = renderNote('![[RAG]]')
+    expect(await screen.findByText('Before saving.')).toBeInTheDocument()
+
+    save({ rag: 'After saving.' })
+    const saved = library2.map(file => (file.id === 'rag' ? { ...file, revision: 2 } : file))
+    page.rerender(
+      <MarkdownReader
+        document={document}
+        content="![[RAG]]"
+        files={saved}
+        active
+        onPositionChange={() => undefined}
+      />,
+    )
+    expect(await screen.findByText('After saving.')).toBeInTheDocument()
+  })
+
+  it('names a note already shown around an embed instead of showing it again', async () => {
+    const user = userEvent.setup({ delay: null })
+    save({ guide: '![[Guide]]', a: 'In A.\n\n![[B]]', b: 'In B.\n\n![[A]]' })
+    renderNote('![[Guide]]\n\n![[A]]')
+
+    expect(screen.getByText(/Circular embed: Guide/)).toBeInTheDocument()
+    expect(await screen.findByText('In A.')).toBeInTheDocument()
+    // An embed inside an embed waits to be opened.
+    expect(screen.queryByText('In B.')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Expand' }))
+    expect(await screen.findByText('In B.')).toBeInTheDocument()
+    expect(screen.getByText(/Circular embed: A/)).toBeInTheDocument()
+  })
+
+  it('keeps the outline to the note’s own headings', async () => {
+    const user = userEvent.setup({ delay: null })
+    save({ rag })
+    renderNote('# Guide\n\n![[RAG]]\n\n## After')
+
+    await screen.findByText('Retrieval first.')
+    await user.click(screen.getByRole('button', { name: 'Show table of contents' }))
+    const outline = screen.getByRole('complementary', { name: 'Markdown contents' })
+    expect(
+      within(outline)
+        .getAllByRole('button')
+        .map(button => button.textContent),
+    ).toEqual(expect.arrayContaining(['Guide', 'After']))
+    expect(within(outline).queryByText('Methods')).not.toBeInTheDocument()
+  })
+
+  it('lists the notes that link here, each line leading to where it stands', async () => {
+    const user = userEvent.setup({ delay: null })
+    const hub = note('hub', 'Hub.md')
+    save(
+      {
+        guide: 'See [[Guide]] here.',
+        rag: '# RAG\n\n- Per [[Guide]] first ^per',
+        plan: '# Plan\n\n## Steps\n\nFollow [[guide#Setup]].',
+        hub: Array.from({ length: 60 }, (_, i) => `- [[Guide]] ${i}`).join('\n'),
+      },
+      [...library, hub],
+    )
+    renderNote('See [[Guide]] here.', [...library, hub])
+
+    expect(screen.getByText('62 links to this note')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Per [[Guide]] first' }))
+    expect(links.openFile).toHaveBeenCalledWith('rag', { block: 'per' })
+    await user.click(screen.getByRole('button', { name: 'Follow [[guide#Setup]].' }))
+    expect(links.openFile).toHaveBeenCalledWith('plan', { heading: 'steps' })
+    expect(screen.queryByRole('button', { name: '[[Guide]] 59' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Show 12 more' }))
+    expect(screen.getByRole('button', { name: '[[Guide]] 59' })).toBeInTheDocument()
   })
 })

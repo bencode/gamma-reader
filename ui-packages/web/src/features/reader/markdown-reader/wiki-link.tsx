@@ -1,8 +1,19 @@
-import { parseTarget } from '@gamma-reader/links'
+import { headingKey, type LinkTarget, parseTarget } from '@gamma-reader/links'
 import * as Popover from '@radix-ui/react-popover'
 import { type ReactNode, useState } from 'react'
-import { useLinkGraph, useOpenLink } from '../../../shell/workspace-context'
+import { useLinkGraph, useOpenFile } from '../../../shell/workspace-context'
+import type { RevealTarget } from '../../../shell/workspace-store'
 import styles from './style.module.scss'
+
+// The place in its file a link names, for the file's reader to show.
+export const placeOf = (target: LinkTarget): RevealTarget | null =>
+  target.block
+    ? { block: target.block }
+    : target.heading
+      ? { heading: headingKey(target.heading) }
+      : target.pdfPage
+        ? { page: target.pdfPage }
+        : null
 
 type WikiLinkProps = { raw: string; kind: string; children: ReactNode }
 
@@ -11,7 +22,7 @@ type WikiLinkProps = { raw: string; kind: string; children: ReactNode }
 // a page that is only linked has nothing to open yet.
 export const WikiLink = ({ raw, kind, children }: WikiLinkProps) => {
   const graph = useLinkGraph()
-  const openLink = useOpenLink()
+  const openFile = useOpenFile()
   const [choosing, setChoosing] = useState(false)
   const { target } = parseTarget(raw)
   const resolution = graph?.resolve(target)
@@ -42,7 +53,7 @@ export const WikiLink = ({ raw, kind, children }: WikiLinkProps) => {
         type="button"
         className={className}
         title={owners[0]?.path}
-        onClick={() => openLink(target, resolution.fileId)}
+        onClick={() => openFile(resolution.fileId, placeOf(target))}
       >
         {children}
       </button>
@@ -75,7 +86,7 @@ export const WikiLink = ({ raw, kind, children }: WikiLinkProps) => {
                   title={file.path}
                   onClick={() => {
                     setChoosing(false)
-                    openLink(target, file.id)
+                    openFile(file.id, placeOf(target))
                   }}
                 >
                   {file.path}

@@ -81,6 +81,15 @@ describe('nodes and names', () => {
     })
     expect(graph.resolve({ page: 'README' })).toEqual({ kind: 'file', fileId: 'other-readme' })
   })
+
+  it('names the page a file is, as links write it', () => {
+    expect(['rag', 'index', 'paper', 'gone'].map(graph.page)).toEqual([
+      'RAG',
+      'Knowledge index',
+      'Sutton.pdf',
+      undefined,
+    ])
+  })
 })
 
 describe('inside a node', () => {

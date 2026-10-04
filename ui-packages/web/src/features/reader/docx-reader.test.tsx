@@ -8,6 +8,8 @@ import { DocxReader } from './docx-reader'
 vi.mock('../../shell/workspace-context', () => ({
   useReaderBinding: vi.fn(),
   useReveal: () => ({ reveal: null, shown: vi.fn() }),
+  useLinkGraph: () => null,
+  useOpenFile: () => vi.fn(),
 }))
 
 const mocks = vi.hoisted(() => ({ convert: vi.fn() }))
