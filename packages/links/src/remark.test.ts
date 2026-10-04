@@ -66,6 +66,12 @@ describe('rendering embeds', () => {
         '<p>As <button dataLink="RAG" dataKind="embed">RAG</button> says.</p>',
     )
   })
+
+  it('keeps the name of an embed that has one', () => {
+    expect(render('![[RAG]] ^ref')).toBe(
+      '<aside dataBlock="ref" dataEmbed="RAG"><button dataLink="RAG" dataKind="embed">RAG</button></aside>',
+    )
+  })
 })
 
 describe('rendering names', () => {

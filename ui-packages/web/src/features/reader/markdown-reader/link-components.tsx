@@ -28,7 +28,9 @@ const EmbedAside = ({ node: _node, children, ...props }: ComponentProps<'aside'>
   return raw === undefined ? (
     <aside {...props}>{children}</aside>
   ) : (
-    <WikiEmbed raw={raw}>{children}</WikiEmbed>
+    <WikiEmbed raw={raw} block={dataOf(props, 'data-block')}>
+      {children}
+    </WikiEmbed>
   )
 }
 

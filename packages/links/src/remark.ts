@@ -98,14 +98,19 @@ const markEmbeds = (root: Root) => {
       typeof raw !== 'string'
     )
       continue
-    node.data = { ...node.data, hName: 'aside', hProperties: { dataEmbed: raw } }
+    node.data = {
+      ...node.data,
+      hName: 'aside',
+      hProperties: { ...node.data?.hProperties, dataEmbed: raw },
+    }
     node.children = [only]
   }
 }
 
 // The reader's view of a note's links and names, as remark plugin: [[...]], #[[...]] and ![[...]]
 // become buttons that know their target, an embed alone in its paragraph becomes a block, named
-// blocks and headings carry the names links use, and ^name is hidden. Code and inline code are left alone, since only text nodes are read.
+// blocks and headings carry the names links use, and ^name is hidden. Code and inline code are
+// left alone, since only text nodes are read.
 export const remarkLinks = () => (root: Root) => {
   hideNames(root)
   markHeadings(root)

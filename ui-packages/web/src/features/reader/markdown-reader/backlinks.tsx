@@ -31,9 +31,19 @@ export const Backlinks = ({ fileId }: { fileId: string }) => {
       graph && page ? graph.edges({ page }, 'in').filter(edge => edge.from.fileId !== fileId) : [],
     [fileId, graph, page],
   )
+  // A line that links here more than once is listed once.
+  const lines = useMemo(() => {
+    const seen = new Set<string>()
+    return links.filter(edge => {
+      const line = `${edge.from.fileId}:${edge.from.line}`
+      if (seen.has(line)) return false
+      seen.add(line)
+      return true
+    })
+  }, [links])
   if (!links.length) return null
 
-  const groups = links.slice(0, shownCount).reduce((bySource, edge) => {
+  const groups = lines.slice(0, shownCount).reduce((bySource, edge) => {
     const group = bySource.get(edge.from.fileId)
     if (group) group.push(edge)
     else bySource.set(edge.from.fileId, [edge])
@@ -58,7 +68,7 @@ export const Backlinks = ({ fileId }: { fileId: string }) => {
             </button>
             <ul>
               {edges.map(edge => (
-                <li key={`${edge.from.line}:${edge.context}`}>
+                <li key={edge.from.line}>
                   <button
                     type="button"
                     onClick={() => openFile(edge.from.fileId, whereLinkStands(edge))}
@@ -71,13 +81,13 @@ export const Backlinks = ({ fileId }: { fileId: string }) => {
           </div>
         )
       })}
-      {links.length > shownCount && (
+      {lines.length > shownCount && (
         <button
           type="button"
           className={styles.backlinksMore}
-          onClick={() => setShownCount(links.length)}
+          onClick={() => setShownCount(lines.length)}
         >
-          Show {links.length - shownCount} more
+          Show {lines.length - shownCount} more
         </button>
       )}
     </details>

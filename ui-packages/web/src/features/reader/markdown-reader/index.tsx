@@ -33,10 +33,11 @@ const activeHeadingFrom = (elements: readonly HTMLElement[], scroll: HTMLElement
   )
 }
 
-// Elements of this note, not of the notes it embeds, which keep their own headings and names.
+// Elements of this note, not of the notes it embeds, which keep their own headings and names. An
+// embed is this note's own, so it can be named; only what it shows belongs to another note.
 const ownElements = (article: HTMLElement, selector: string) =>
   [...article.querySelectorAll<HTMLElement>(selector)].filter(
-    element => !element.closest('[data-embed]'),
+    element => !element.parentElement?.closest('[data-embed]'),
   )
 
 // The rendered element a reveal names: a block by its name, a heading by its key.

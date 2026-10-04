@@ -213,6 +213,7 @@ describe('embeds and backlinks in a Markdown note', () => {
   beforeEach(() => {
     links.reveal = null
     links.openFile.mockReset()
+    links.shown.mockReset()
   })
 
   const renderNote = (content: string, files = library2) =>
@@ -286,6 +287,29 @@ describe('embeds and backlinks in a Markdown note', () => {
         .map(button => button.textContent),
     ).toEqual(expect.arrayContaining(['Guide', 'After']))
     expect(within(outline).queryByText('Methods')).not.toBeInTheDocument()
+  })
+
+  it('keeps a link it cannot show in its paragraph, and an embed with a name findable', () => {
+    links.reveal = { fileId: 'guide', target: { block: 'ref' } }
+    save({ rag })
+    renderNote('Before.\n\n![[Nowhere]]\n\n![[RAG]] ^ref')
+
+    expect(screen.getByRole('button', { name: 'Nowhere' }).parentElement?.tagName).toBe('P')
+    expect(window.document.querySelector('[data-block="ref"]')).toHaveAttribute('data-embed', 'RAG')
+    expect(links.shown).toHaveBeenCalledWith(links.reveal)
+  })
+
+  it('lists a line that links here twice once', () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    save({ rag: 'See [[Guide]] and [[Guide#Setup]].' })
+    renderNote('# Guide')
+
+    expect(screen.getByText('2 links to this note')).toBeInTheDocument()
+    expect(
+      screen.getAllByRole('button', { name: 'See [[Guide]] and [[Guide#Setup]].' }),
+    ).toHaveLength(1)
+    expect(errors).not.toHaveBeenCalled()
+    errors.mockRestore()
   })
 
   it('lists the notes that link here, each line leading to where it stands', async () => {

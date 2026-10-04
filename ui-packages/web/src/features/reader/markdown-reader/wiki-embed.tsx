@@ -122,9 +122,18 @@ const EmbeddedNote = ({
 }
 
 // ![[...]] alone in its paragraph: the note, block or section it names, or the image, shown in
-// place. Anything it cannot show — no single file, another kind of file, too deep — stays the
-// link it holds, and a place already shown around it is named rather than shown again.
-export const WikiEmbed = ({ raw, children }: { raw: string; children: ReactNode }) => {
+// place, carrying the paragraph's own name if it has one. Anything it cannot show — no single
+// file, another kind of file, too deep — stays the link it holds, and a place already shown around
+// it is named rather than shown again.
+export const WikiEmbed = ({
+  raw,
+  block,
+  children,
+}: {
+  raw: string
+  block?: string
+  children: ReactNode
+}) => {
   const scope = useEmbedScope()
   const graph = useLinkGraph()
   const openFile = useOpenFile()
@@ -148,7 +157,9 @@ export const WikiEmbed = ({ raw, children }: { raw: string; children: ReactNode 
 
   const note = file && isNotePath(file.path)
   const image = file?.previewKind === 'image'
-  if (!scope || !file || depth > maximumDepth || !(note || image)) return <>{children}</>
+  // The link stays in the paragraph it was written as, keeping any name that paragraph has.
+  if (!scope || !file || depth > maximumDepth || !(note || image))
+    return <p data-block={block}>{children}</p>
 
   const name = label ?? (raw.split('|')[0] ?? raw).trim()
   const title = (
@@ -162,7 +173,7 @@ export const WikiEmbed = ({ raw, children }: { raw: string; children: ReactNode 
     </button>
   )
   const shown = (body: ReactNode) => (
-    <aside className={styles.embed} data-embed={raw}>
+    <aside className={styles.embed} data-embed={raw} data-block={block}>
       {title}
       {body}
     </aside>
