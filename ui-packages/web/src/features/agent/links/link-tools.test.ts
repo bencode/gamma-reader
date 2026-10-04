@@ -1,6 +1,6 @@
 import { buildGraph, type ParsedNote, parseNote } from '@gamma-reader/links'
 import { describe, expect, it } from 'vitest'
-import { createLinkTools, type LinkState } from './link-tools'
+import { createLinkTools, type LinkState, type LinkWrites } from './link-tools'
 
 const files = [
   { id: 'rag', path: 'knowledge/RAG.md' },
@@ -134,5 +134,80 @@ describe('link tools', () => {
     const waiting = createLinkTools(() => ({ graph: null, progress: { done: 0, total: 9 } }))
 
     expect(() => waiting.find_nodes({ query: '' })).toThrow('still being indexed')
+  })
+})
+
+describe('naming a block', () => {
+  const library = (text: string, options: { dirty?: boolean; conflict?: boolean } = {}) => {
+    const saved = { text, revision: 4 }
+    const writes: LinkWrites = {
+      file: id =>
+        id === 'rag'
+          ? {
+              id,
+              path: 'knowledge/RAG.md',
+              revision: saved.revision,
+              collection: 'files',
+              mediaType: 'text/markdown',
+              previewKind: 'markdown',
+              size: saved.text.length,
+              lastModified: 0,
+              createdAt: 0,
+            }
+          : undefined,
+      dirty: () => options.dirty ?? false,
+      read: async () => saved.text,
+      update: async (_id, revision, content) => {
+        if (options.conflict || revision !== saved.revision) return { status: 'conflict' }
+        Object.assign(saved, { text: content, revision: revision + 1 })
+        return { status: 'saved', metadata: writes.file('rag') as never }
+      },
+    }
+    return { saved, tools: createLinkTools(ready, writes) }
+  }
+
+  it('names the passage in the saved note and returns the link to write', async () => {
+    const { saved, tools: naming } = library('# RAG\n\nRetrieval comes first.\n')
+
+    expect(
+      await naming.name_block({ fileId: 'rag', quote: 'comes first', name: 'retrieval-first' }),
+    ).toEqual({
+      node: 'RAG#^retrieval-first',
+      link: '[[RAG#^retrieval-first]]',
+      created: true,
+    })
+    expect(saved).toEqual({
+      text: '# RAG\n\nRetrieval comes first. ^retrieval-first\n',
+      revision: 5,
+    })
+  })
+
+  it('keeps a name the passage has without saving anything', async () => {
+    const { saved, tools: naming } = library('Retrieval comes first. ^def')
+
+    expect(await naming.name_block({ fileId: 'rag', quote: 'first', name: 'other' })).toMatchObject(
+      {
+        link: '[[RAG#^def]]',
+        created: false,
+      },
+    )
+    expect(saved.revision).toBe(4)
+  })
+
+  it('leaves a note with unsaved edits, a changed note and a missing quote alone', async () => {
+    const quote = { fileId: 'rag', quote: 'first', name: 'first' }
+
+    await expect(library('First.', { dirty: true }).tools.name_block(quote)).rejects.toThrow(
+      'unsaved changes',
+    )
+    await expect(library('First.', { conflict: true }).tools.name_block(quote)).rejects.toThrow(
+      'changed while it was being named',
+    )
+    await expect(
+      library('First.').tools.name_block({ ...quote, quote: 'nowhere' }),
+    ).rejects.toThrow('No passage holds that quote')
+    await expect(library('First.').tools.name_block({ ...quote, fileId: 'pdf' })).rejects.toThrow(
+      'Markdown note',
+    )
   })
 })

@@ -62,6 +62,7 @@ export const WorkspaceProvider = ({
     writeTextFile,
     moveFile,
     noteIndex,
+    updateTextFile,
   })
   const hasDirtySource = useStore(store, state =>
     Object.values(state.sourceDrafts).some(sourceDirty),

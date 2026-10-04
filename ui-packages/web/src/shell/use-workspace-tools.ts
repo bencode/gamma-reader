@@ -1,5 +1,7 @@
 import { type RefObject, useLayoutEffect, useMemo, useRef } from 'react'
 import type { ReaderState } from '../core/reader-state'
+import { getStoredFile, type UpdateStoredTextFileResult } from '../data/file-store'
+import type { LinkWrites } from '../features/agent/links/link-tools'
 import {
   type ActiveSourceSnapshot,
   createLocalTools,
@@ -24,6 +26,23 @@ type WorkspaceToolsOptions = {
   writeTextFile: WorkspaceTextWriter
   moveFile: WorkspaceFileMover
   noteIndex?: NoteIndexStore
+  updateTextFile?: (
+    id: string,
+    expectedRevision: number,
+    content: string,
+  ) => Promise<UpdateStoredTextFileResult>
+}
+
+// A saved note's text, read as the agent's other text tools read it: UTF-8 or not at all.
+const readSavedText = async (fileId: string) => {
+  const stored = await getStoredFile(fileId)
+  if (!stored) throw new LocalToolError('File not found.')
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(await stored.blob.arrayBuffer())
+  } catch (cause) {
+    if (!(cause instanceof TypeError)) throw cause
+    throw new LocalToolError('This file is not valid UTF-8.', { cause })
+  }
 }
 
 export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
@@ -31,11 +50,13 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
   const current = useRef(workspace)
   const writer = useRef(options.writeTextFile)
   const mover = useRef(options.moveFile)
+  const updater = useRef(options.updateTextFile)
   useLayoutEffect(() => {
     current.current = workspace
     writer.current = options.writeTextFile
     mover.current = options.moveFile
-  }, [workspace, options.writeTextFile, options.moveFile])
+    updater.current = options.updateTextFile
+  }, [workspace, options.writeTextFile, options.moveFile, options.updateTextFile])
   const activeSource = useMemo(
     () => ({
       get: (): ActiveSourceSnapshot | null => {
@@ -63,6 +84,20 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
           version: updated.version,
           content: updated.content,
         }
+      },
+    }),
+    [],
+  )
+
+  const linkWrites = useMemo<LinkWrites>(
+    () => ({
+      file: fileId => current.current.files.find(file => file.id === fileId),
+      dirty: fileId => sourceDirty(current.current.store.getState().sourceDrafts[fileId]),
+      read: readSavedText,
+      update: async (fileId, revision, content) => {
+        const update = updater.current
+        if (!update) throw new LocalToolError('Saving notes is unavailable here.')
+        return update(fileId, revision, content)
       },
     }),
     [],
@@ -100,7 +135,8 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
         (fileId, path, signal) => mover.current(fileId, path, signal),
         activeSource,
         noteIndex ? () => noteIndex.getState() : undefined,
+        linkWrites,
       ),
-    [activeSource, noteIndex, readers, rootRef],
+    [activeSource, linkWrites, noteIndex, readers, rootRef],
   )
 }

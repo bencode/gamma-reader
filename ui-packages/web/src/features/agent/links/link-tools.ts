@@ -1,12 +1,19 @@
 import {
   type Edge,
   formatNode,
+  isNotePath,
   type LinkGraph,
+  NameBlockError,
   type NodeRef,
+  nameBlock,
   nodeKind,
   nodeRef,
   type OutlineEntry,
+  pageTitleOf,
+  parseNote,
 } from '@gamma-reader/links'
+import type { StoredFileMetadata } from '../../../core/files'
+import type { UpdateStoredTextFileResult } from '../../../data/file-store'
 import type { IndexProgress } from '../../links/note-index'
 import { fitsResult, mismatchedCursor } from '../pagination'
 import { LocalToolError } from '../tool-types'
@@ -15,6 +22,17 @@ export type LinkState = { graph: LinkGraph | null; progress: IndexProgress | nul
 
 export type FindNodesInput = { query: string; cursor?: string }
 export type GetNodeInput = { node: string; fileId?: string; cursor?: string }
+export type NameBlockInput = { fileId: string; quote: string; name: string }
+
+// What naming a block needs of the library: a file, whether an open tab holds unsaved edits to
+// it, its saved text, and a save that fails if the file changed since it was read.
+export type LinkWrites = {
+  file: (fileId: string) => StoredFileMetadata | undefined
+  dirty: (fileId: string) => boolean
+  read: (fileId: string) => Promise<string>
+  update: (fileId: string, revision: number, content: string) => Promise<UpdateStoredTextFileResult>
+}
+
 export type GetLinksInput = {
   node: string
   direction: 'in' | 'out'
@@ -138,7 +156,25 @@ const missing = (graph: LinkGraph, ref: NodeRef) => {
 
 // The link graph as tools: find a node, look inside one, and follow its links in or out. Each
 // answers from the index of saved files, with lines of Markdown source.
-export const createLinkTools = (getState: () => LinkState) => ({
+const noWrites: LinkWrites = {
+  file: () => {
+    throw new LocalToolError('Naming blocks is unavailable here.')
+  },
+  dirty: () => false,
+  read: async () => '',
+  update: async () => ({ status: 'missing' }),
+}
+
+const named = (source: string, input: NameBlockInput) => {
+  try {
+    return nameBlock(source, input.quote, input.name)
+  } catch (cause) {
+    if (cause instanceof NameBlockError) throw new LocalToolError(cause.message, { cause })
+    throw cause
+  }
+}
+
+export const createLinkTools = (getState: () => LinkState, writes: LinkWrites = noWrites) => ({
   find_nodes: (input: FindNodesInput) => {
     const state = getState()
     const found = graphOf(state)
@@ -207,5 +243,31 @@ export const createLinkTools = (getState: () => LinkState) => ({
       next,
       ...indexing(state),
     }))
+  },
+
+  // Names a passage of a saved note so it can be linked. Only the saved file changes; a note with
+  // unsaved edits in a tab is left to the reader, so neither copy overwrites the other.
+  name_block: async (input: NameBlockInput) => {
+    const file = writes.file(input.fileId)
+    if (!file || !isNotePath(file.path))
+      throw new LocalToolError('Name blocks in a Markdown note. Pass its fileId.')
+    if (writes.dirty(file.id))
+      throw new LocalToolError(
+        `${file.path} has unsaved changes in an open tab. Ask the reader to save or discard them first.`,
+      )
+    const result = named(await writes.read(file.id), input)
+    if (result.created) {
+      const saved = await writes.update(file.id, file.revision, result.source)
+      if (saved.status === 'conflict')
+        throw new LocalToolError(
+          `${file.path} changed while it was being named. Call name_block again.`,
+        )
+      if (saved.status !== 'saved') throw new LocalToolError(`${file.path} could not be saved.`)
+    }
+    const node = formatNode({
+      page: pageTitleOf(file, parseNote(result.source)),
+      block: result.name,
+    })
+    return { node, link: `[[${node}]]`, created: result.created }
   },
 })
