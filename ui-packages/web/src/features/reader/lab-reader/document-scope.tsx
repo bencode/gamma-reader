@@ -1,10 +1,12 @@
-import { CodeLabProvider } from '@gamma-reader/code-lab'
+import { CodeLabProvider, useCodeLabRuntime } from '@gamma-reader/code-lab'
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState } from 'react'
 import {
+  useLabRunnerBinding,
   useWorkspaceSource,
   useWorkspaceSourceActions,
   useWorkspaceStore,
 } from '../../../shell/workspace-context'
+import type { LabRunner } from '../../agent/lab-tools'
 import type { DocumentScopeProps } from '../text-file-reader'
 import {
   ensureLabCellIds,
@@ -15,6 +17,27 @@ import {
 
 type EditError = { cellId: string; message: string } | null
 const LabContext = createContext<{ model: LabDocument; editError: EditError } | null>(null)
+
+// Hands the agent this lab's runtime, with the cells of the draft as it is at each call.
+const LabRunnerBinding = ({ fileId }: { fileId: string }) => {
+  const store = useWorkspaceStore()
+  const runtime = useCodeLabRuntime()
+  const runner = useMemo<LabRunner>(
+    () => ({
+      fileId,
+      document: () => {
+        const draft = store.getState().sourceDrafts[fileId]
+        return draft
+          ? { version: draft.version, cells: parseLabDocument(draft.content).cells }
+          : null
+      },
+      runtime,
+    }),
+    [fileId, runtime, store],
+  )
+  useLabRunnerBinding(runner)
+  return null
+}
 
 export const LabDocumentScope = ({ fileId, children }: DocumentScopeProps) => {
   const store = useWorkspaceStore()
@@ -53,6 +76,7 @@ export const LabDocumentScope = ({ fileId, children }: DocumentScopeProps) => {
   return (
     <LabContext.Provider value={value}>
       <CodeLabProvider cells={model.cells} onCellChange={onCellChange}>
+        <LabRunnerBinding fileId={fileId} />
         {children}
       </CodeLabProvider>
     </LabContext.Provider>

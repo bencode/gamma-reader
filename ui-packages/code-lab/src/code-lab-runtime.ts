@@ -61,8 +61,9 @@ export const createCodeLabRuntime = () => {
       publish(next)
     },
 
-    runCell: async ({ id, language, source }: CodeLabCell): Promise<void> => {
-      if (running.has(language)) return
+    // Resolves false when the cell could not start because its language is busy.
+    runCell: async ({ id, language, source }: CodeLabCell): Promise<boolean> => {
+      if (running.has(language)) return false
       const task: RunningTask = { cellId: id }
       running.set(language, task)
       publish(
@@ -85,7 +86,7 @@ export const createCodeLabRuntime = () => {
           if (running.get(language) !== task) return
           update(id, execution => ({ ...execution, phase, progress }))
         })
-        if (running.get(language) !== task) return
+        if (running.get(language) !== task) return true
         running.delete(language)
         update(id, execution => ({
           ...execution,
@@ -94,9 +95,9 @@ export const createCodeLabRuntime = () => {
           result,
         }))
       } catch (error) {
-        if (error instanceof RuntimeStoppedError) return
+        if (error instanceof RuntimeStoppedError) return true
         console.error(`Unable to run ${language} cell`, error)
-        if (running.get(language) !== task) return
+        if (running.get(language) !== task) return true
         running.delete(language)
         update(id, execution => ({
           ...execution,
@@ -105,6 +106,7 @@ export const createCodeLabRuntime = () => {
           result: { outputs: [], error: error instanceof Error ? error.message : String(error) },
         }))
       }
+      return true
     },
 
     stopCell: (id: string) => {

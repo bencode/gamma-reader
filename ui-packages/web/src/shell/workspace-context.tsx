@@ -13,6 +13,7 @@ import { useStore } from 'zustand'
 import { createStore } from 'zustand/vanilla'
 import type { UpdateStoredTextFileResult } from '../data/file-store'
 import { getStoredFile } from '../data/file-store'
+import type { LabRunner } from '../features/agent/lab-tools'
 import type {
   LocalTools,
   WorkspaceFileMover,
@@ -35,6 +36,7 @@ type WorkspaceContextValue = {
   store: WorkspaceStore
   actions: WorkspaceActions
   register: (binding: ReaderBinding) => () => void
+  registerLab: (runner: LabRunner) => () => void
   saveSource: (fileId: string, overwrite?: boolean) => Promise<'saved' | 'conflict' | 'failed'>
   noteIndex: NoteIndexStore
   openFile: (fileId: string, place: RevealTarget | null) => void
@@ -69,6 +71,7 @@ export const WorkspaceProvider = ({
 }) => {
   const { actions, store } = workspace
   const readers = useRef(new Map<string, ReaderBinding>())
+  const labs = useRef(new Map<string, LabRunner>())
   const openDocument = useRef(workspace.openDocument)
   useLayoutEffect(() => {
     openDocument.current = workspace.openDocument
@@ -77,6 +80,7 @@ export const WorkspaceProvider = ({
     workspace,
     rootRef,
     readers,
+    labs,
     writeTextFile,
     moveFile,
     noteIndex,
@@ -160,6 +164,12 @@ export const WorkspaceProvider = ({
             readers.current.delete(binding.fileId)
         }
       },
+      registerLab: runner => {
+        labs.current.set(runner.fileId, runner)
+        return () => {
+          if (labs.current.get(runner.fileId) === runner) labs.current.delete(runner.fileId)
+        }
+      },
       tools,
       saveSource,
       noteIndex: noteIndex ?? withoutIndex,
@@ -209,6 +219,12 @@ export const useSourceDrafts = () => {
 export const useReaderBinding = (binding: ReaderBinding, active: boolean) => {
   const { register } = useWorkspaceContext()
   useLayoutEffect(() => (active ? register(binding) : undefined), [active, binding, register])
+}
+
+// Lets the agent run this lab's cells and read their results while the lab is open.
+export const useLabRunnerBinding = (runner: LabRunner) => {
+  const { registerLab } = useWorkspaceContext()
+  useLayoutEffect(() => registerLab(runner), [registerLab, runner])
 }
 
 // The link graph as it stands, null until the library is first indexed.

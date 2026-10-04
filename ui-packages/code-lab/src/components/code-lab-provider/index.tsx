@@ -33,3 +33,6 @@ export const useCodeLabContext = () => {
   if (!context) throw new Error('CodeCell must be rendered inside a CodeLabProvider.')
   return context
 }
+
+// The runtime behind the cells, for code outside them that runs cells or reads their results.
+export const useCodeLabRuntime = () => useCodeLabContext().runtime
