@@ -1,15 +1,13 @@
-import type { LinkGraph } from '@gamma-reader/links'
+import { parseNote } from '@gamma-reader/links'
 import { useEffect, useState } from 'react'
 import { createStore } from 'zustand/vanilla'
+import { decodeUtf8 } from '../../core/document-text'
 import type { StoredFileMetadata } from '../../core/files'
 import { getStoredFileContent } from '../../data/file-store'
 import { deleteNotes, listNotes, putNote } from '../../data/notes-store'
-import { graphOf, type IndexProgress, planIndex, runIndex } from './note-index'
-import { parseBlob } from './parse-blob'
+import { graphOf, type NoteIndexState, planIndex, runIndex } from './note-index'
 
 const progressDelay = 500
-
-type NoteIndexState = { graph: LinkGraph | null; progress: IndexProgress | null }
 
 export type NoteIndexStore = ReturnType<typeof createNoteIndexStore>
 
@@ -34,7 +32,11 @@ export const useNoteIndex = (files: readonly StoredFileMetadata[]) => {
       const started = performance.now()
       await runIndex(planIndex(files, records), {
         read: getStoredFileContent,
-        parse: parseBlob,
+        // A Markdown file that is not UTF-8 is recorded without a note.
+        parse: async blob => {
+          const text = decodeUtf8(await blob.arrayBuffer())
+          return text === null ? null : parseNote(text)
+        },
         store: putNote,
         remove: deleteNotes,
         // Progress shows only for a run that takes a while, such as a first index; a few

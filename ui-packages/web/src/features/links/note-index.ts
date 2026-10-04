@@ -1,4 +1,4 @@
-import { buildGraph, isNotePath, type ParsedNote } from '@gamma-reader/links'
+import { buildGraph, isNotePath, type LinkGraph, type ParsedNote } from '@gamma-reader/links'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
 import type { NoteRecord } from '../../data/notes-store'
 
@@ -7,6 +7,9 @@ type LibraryFile = Pick<StoredFileMetadata, 'id' | 'path' | 'revision' | 'size' 
 export type IndexPlan = { parse: LibraryFile[]; remove: string[] }
 
 export type IndexProgress = { done: number; total: number }
+
+// The graph once indexed, and how far a run that is still going has come.
+export type NoteIndexState = { graph: LinkGraph | null; progress: IndexProgress | null }
 
 const inLibrary = (file: LibraryFile) => (file.collection ?? 'files') === 'files'
 

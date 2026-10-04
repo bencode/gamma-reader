@@ -1,23 +1,22 @@
 import type { Parent, RootContent } from 'mdast'
-import {
-  type Node,
-  nameAtEnd,
-  nameSyntax,
-  parseNote,
-  parser,
-  plainText,
-  splitFrontmatter,
-  standaloneName,
-} from './parse'
+import { parser, plainText, splitFrontmatter } from './markdown'
+import { type BlockKind, nameSyntax, parseNote, standaloneName } from './parse'
 
 // Why a passage could not be named, worded for whoever asked: a reader or a model.
 export class NameBlockError extends Error {}
 
 type Placed = { node: RootContent; parent: Parent; index: number }
 
+// The passages that can be named, and the kinds of named block parseNote reads each as.
 // Paragraphs and headings take a name at the end of their line; the rest take one on a line of
 // their own after them. None of these nests inside another, so a passage falls in at most one.
-const nameable = new Set(['paragraph', 'heading', 'table', 'code', 'math'])
+const namedAs: Record<string, readonly BlockKind[]> = {
+  paragraph: ['paragraph', 'item'],
+  heading: ['heading', 'other'],
+  table: ['other'],
+  code: ['other'],
+  math: ['other'],
+}
 const validName = new RegExp(`^${nameSyntax}$`)
 
 const flat = (text: string) => text.replace(/\s+/g, ' ').trim()
@@ -27,16 +26,6 @@ const placedIn = (parent: Parent): Placed[] =>
     { node: child as RootContent, parent, index },
     ...('children' in child ? placedIn(child as Parent) : []),
   ])
-
-// A name the block already has: at the end of its own line, or alone on the line after it.
-const existingName = ({ node, parent, index }: Placed) => {
-  const own = node.type === 'paragraph' || node.type === 'heading' ? nameAtEnd(node) : undefined
-  const after = parent.children[index + 1] as Node | undefined
-  return (
-    own ??
-    (after?.type === 'paragraph' ? standaloneName.exec(flat(plainText(after)))?.[1] : undefined)
-  )
-}
 
 // Names the one block that holds quote, so it can be linked as Page#^name, and gives back the
 // source with the name in place. A block that already has a name keeps it, and nothing changes.
@@ -49,7 +38,7 @@ export const nameBlock = (input: string, quote: string, name: string) => {
   const root = parser.parse(splitFrontmatter(source).body)
   const matches = placedIn(root).filter(
     place =>
-      nameable.has(place.node.type) &&
+      namedAs[place.node.type] !== undefined &&
       !standaloneName.test(flat(plainText(place.node))) &&
       flat(plainText(place.node)).toLowerCase().includes(wanted),
   )
@@ -68,13 +57,16 @@ export const nameBlock = (input: string, quote: string, name: string) => {
     throw new NameBlockError(
       'That passage sits in an indented code block: Markdown reads lines indented by a tab or four spaces after a heading or paragraph as code, so it cannot be named on its own.',
     )
-  const named = existingName(match)
-  if (named) return { source: input, name: named, created: false }
+  // A name the passage already has is one parseNote reads as naming a block that starts with it.
+  const { blocks } = parseNote(source)
+  const kinds = namedAs[match.node.type] ?? []
+  const named = blocks.find(block => block.lines[0] === start.line && kinds.includes(block.kind))
+  if (named) return { source: input, name: named.name, created: false }
   if (!validName.test(name))
     throw new NameBlockError(
       'Use letters, digits and hyphens for the name, such as retrieval-first.',
     )
-  if (parseNote(source).blocks.some(block => block.name === name))
+  if (blocks.some(block => block.name === name))
     throw new NameBlockError(`${name} already names another block in this note.`)
 
   if (match.node.type === 'paragraph' || match.node.type === 'heading') {

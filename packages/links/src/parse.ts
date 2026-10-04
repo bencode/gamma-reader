@@ -1,8 +1,5 @@
-import type { Heading, Parent, PhrasingContent, Root, RootContent, Text } from 'mdast'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import remarkParse from 'remark-parse'
-import { unified } from 'unified'
+import type { Heading, Parent, PhrasingContent, Root, Text } from 'mdast'
+import { descendants, linesOf, type Node, parser, plainText, splitFrontmatter } from './markdown'
 
 // Where a link points: a page by name, and optionally a named block, a heading or a PDF page in
 // it. A page is named as written; matching it to a file is the graph's concern.
@@ -33,9 +30,6 @@ export type ParsedNote = {
   links: ParsedLink[]
 }
 
-// The same plugins the reader renders with, so a block here is the block shown there.
-export const parser = unified().use(remarkParse).use(remarkGfm).use(remarkMath)
-
 const contextLength = 200
 export const nameSyntax = '[A-Za-z0-9-]+'
 const trailingName = new RegExp(`\\s\\^(${nameSyntax})$`)
@@ -65,53 +59,14 @@ export const parseTarget = (raw: string): { target: LinkTarget; label?: string }
   return label ? { target, label } : { target }
 }
 
-const unquote = (value: string) => value.replace(/^(['"])(.*)\1$/, '$2')
-
-// Only a frontmatter name is read. The frontmatter is blanked rather than removed, so line
-// numbers still match the source, and so its closing --- is not taken for a heading underline.
-export const splitFrontmatter = (source: string) => {
-  const lines = source.split('\n')
-  const end =
-    lines[0]?.trim() === '---' ? lines.findIndex((line, i) => i > 0 && line.trim() === '---') : -1
-  if (end < 0) return { body: source, name: undefined }
-  const name = lines
-    .slice(1, end)
-    .map(line => /^name:\s*(.+?)\s*$/.exec(line)?.[1])
-    .find(value => value !== undefined)
-  const body = [...lines.slice(0, end + 1).map(() => ''), ...lines.slice(end + 1)].join('\n')
-  return { body, name: name ? unquote(name) : undefined }
-}
-
-export type Node = Root | RootContent
-
-export const childrenOf = (node: Node): RootContent[] =>
-  'children' in node ? (node.children as RootContent[]) : []
-
-export const descendants = (node: Node): RootContent[] =>
-  childrenOf(node).flatMap(child => [child, ...descendants(child)])
-
-// Readable text of any node; code and math keep their source, raw HTML is left out.
-export const plainText = (node: Node): string => {
-  if (node.type === 'html') return ''
-  if ('value' in node) return node.value
-  return childrenOf(node)
-    .map(plainText)
-    .join(node.type === 'table' || node.type === 'tableRow' ? ' ' : '')
-}
-
 const compact = (text: string) => text.replace(/\s+/g, ' ').trim().slice(0, contextLength)
-
-export const linesOf = (node: Node): [number, number] => [
-  node.position?.start.line ?? 1,
-  node.position?.end.line ?? 1,
-]
 
 const lastText = (node: Parent): Text | undefined => {
   const last = node.children.at(-1) as PhrasingContent | undefined
   return last?.type === 'text' ? last : undefined
 }
 
-export const nameAtEnd = (node: Parent) => {
+const nameAtEnd = (node: Parent) => {
   const text = lastText(node)
   return text ? trailingName.exec(text.value)?.[1] : undefined
 }
