@@ -1073,6 +1073,9 @@ svg {
   overscroll-behavior: contain;
 }
 .conversation-message {
+  /* Messages scrolled out of view skip layout and paint, so long chats stay responsive. */
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 240px;
   margin: 18px 0;
   font-size: 13px;
   line-height: 1.8;
