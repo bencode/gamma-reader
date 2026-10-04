@@ -1,7 +1,7 @@
 import { headingKey, type LinkTarget, parseTarget } from '@gamma-reader/links'
 import * as Popover from '@radix-ui/react-popover'
 import { type ReactNode, useState } from 'react'
-import { useLinkGraph, useOpenFile } from '../../../shell/workspace-context'
+import { useLinkGraph, useOpenFile, useOpenPage } from '../../../shell/workspace-context'
 import type { RevealTarget } from '../../../shell/workspace-store'
 import styles from './style.module.scss'
 
@@ -18,11 +18,12 @@ export const placeOf = (target: LinkTarget): RevealTarget | null =>
 type WikiLinkProps = { raw: string; kind: string; children: ReactNode }
 
 // A [[link]] as the reader shows it. Its page is found by name in the link graph: one file opens
-// at the place the link names, several are offered to choose from, and none leaves it inert, as
-// a page that is only linked has nothing to open yet.
+// at the place the link names, several are offered to choose from, and a page no note holds yet
+// opens as a page of its own that lists what links to it.
 export const WikiLink = ({ raw, kind, children }: WikiLinkProps) => {
   const graph = useLinkGraph()
   const openFile = useOpenFile()
+  const openPage = useOpenPage()
   const [choosing, setChoosing] = useState(false)
   const { target } = parseTarget(raw)
   const resolution = graph?.resolve(target)
@@ -41,8 +42,8 @@ export const WikiLink = ({ raw, kind, children }: WikiLinkProps) => {
       <button
         type="button"
         className={`${className} ${styles.virtual}`}
-        aria-disabled
-        title={`No note named ${target.page} yet.`}
+        title={`No note named ${target.page} yet. Open its page.`}
+        onClick={() => openPage(target.page)}
       >
         {children}
       </button>

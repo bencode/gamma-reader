@@ -11,6 +11,7 @@ import {
 } from '../features/agent/local-tools'
 import { LocalToolError } from '../features/agent/tool-types'
 import type { NoteIndexStore } from '../features/links/use-note-index'
+import { pageName, pageOfTab } from './page-tab'
 import type { Workspace } from './use-workspace'
 import { sourceDirty } from './workspace-store'
 
@@ -114,6 +115,7 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
           const pageNumber = binding?.getPageNumber?.()
           const draft = file ? latest.store.getState().sourceDrafts[file.id] : undefined
           const blocked = !rootRef.current || Boolean(rootRef.current.querySelector('dialog[open]'))
+          const page = latest.activeId ? pageOfTab(latest.activeId) : null
           return {
             openFiles,
             activeFile: file
@@ -125,6 +127,7 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
                   ...(draft ? { source: { dirty: sourceDirty(draft) } } : {}),
                 }
               : null,
+            ...(page !== null ? { activePage: pageName(noteIndex?.getState().graph, page) } : {}),
             viewport: blocked ? null : (binding?.getViewport() ?? null),
           }
         },
@@ -133,6 +136,6 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
         activeSource,
         links,
       ),
-    [activeSource, links, readers, rootRef],
+    [activeSource, links, noteIndex, readers, rootRef],
   )
 }

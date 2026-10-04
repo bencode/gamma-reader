@@ -10,6 +10,7 @@ import { StandardMarkdownReader } from './standard-reader'
 const links = vi.hoisted(() => ({
   graph: null as LinkGraph | null,
   openFile: vi.fn(),
+  openPage: vi.fn(),
   saved: {} as Record<string, string>,
   reveal: null as { fileId: string; target: { block: string } } | null,
   shown: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock('../../../shell/workspace-context', () => ({
   useReaderBinding: vi.fn(),
   useLinkGraph: () => links.graph,
   useOpenFile: () => links.openFile,
+  useOpenPage: () => links.openPage,
   useReveal: () => ({ reveal: links.reveal, shown: links.shown }),
 }))
 
@@ -172,15 +174,17 @@ describe('links in a Markdown note', () => {
     expect(links.openFile).toHaveBeenCalledWith('guide', { block: 'def' })
   })
 
-  it('leaves a page with no note inert and offers the notes that share a name', async () => {
+  it('opens a page no note holds as a page, and offers the notes that share a name', async () => {
     const user = userEvent.setup({ delay: null })
+    links.openPage.mockReset()
     renderNote('[[Nowhere]] and [[Shared]]')
 
     await user.click(screen.getByRole('button', { name: 'Nowhere' }))
     expect(screen.getByRole('button', { name: 'Nowhere' })).toHaveAttribute(
       'title',
-      'No note named Nowhere yet.',
+      'No note named Nowhere yet. Open its page.',
     )
+    expect(links.openPage).toHaveBeenCalledWith('Nowhere')
     expect(links.openFile).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole('button', { name: 'Shared' }))

@@ -3,7 +3,7 @@ import { PanelLeft } from 'lucide-react'
 import { type ReactNode, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Markdown, type MarkdownExtensions } from '../../../components/markdown'
 import { normalizeMath } from '../../../core/markdown-math'
-import { useReaderBinding, useReveal } from '../../../shell/workspace-context'
+import { useLinkGraph, useReaderBinding, useReveal } from '../../../shell/workspace-context'
 import type { RevealTarget } from '../../../shell/workspace-store'
 import { createMarkdownImageResolver } from '../markdown-image-resolver'
 import { readViewport } from '../reader-viewport'
@@ -85,6 +85,8 @@ export const MarkdownReader = ({
     }),
     [document, files, imageResolver],
   )
+  // The page this note is, as links name it, once the library is indexed.
+  const page = useLinkGraph()?.page(document.id)
   // The note being read is the first place an embed chain holds, so it cannot embed itself.
   const embedScope = useMemo(
     () => ({
@@ -240,7 +242,7 @@ export const MarkdownReader = ({
             <EmbedScopeContext.Provider value={embedScope}>
               <Markdown text={content} variant="reader" images={images} {...extensions} />
             </EmbedScopeContext.Provider>
-            <Backlinks fileId={document.id} />
+            {page !== undefined && <Backlinks page={page} exclude={document.id} />}
           </article>
         </div>
       </div>

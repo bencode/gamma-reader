@@ -2,15 +2,22 @@ import { startTransition, useEffect, useRef, useState } from 'react'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import { useStore } from 'zustand'
 import type { StoredFileMetadata } from '../core/files'
+import { pageOfTab, pagePath, pageTabId } from './page-tab'
 import { readWorkspace, writeWorkspace } from './workspace-storage'
 import { createWorkspaceActions, createWorkspaceStore } from './workspace-store'
 
 // The address carries the path the reader sees rather than the id the store keeps, one encoded
-// segment per folder.
+// segment per folder. A page with no note is addressed by its name.
 const documentPath = (files: readonly StoredFileMetadata[], id: string | null) => {
+  const page = id ? pageOfTab(id) : null
+  if (page !== null) return pagePath(page)
   const file = id ? files.find(document => document.id === id) : undefined
   return file ? `/files/${file.path.split('/').map(encodeURIComponent).join('/')}` : '/files'
 }
+
+// A tab holds a file of the library or a page with no note.
+const openable = (files: readonly StoredFileMetadata[], id: string) =>
+  pageOfTab(id) !== null || files.some(file => file.id === id)
 
 // A path is unique in the library apart from case, and the only rename the app performs — the
 // write tool replacing a file it matched case-insensitively — changes nothing else, so matching
@@ -30,7 +37,8 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const routePath = useMatch('/files/*')?.params['*']
-  const activeId = documentIdFor(files, routePath)
+  const pageRoute = useMatch('/pages/:name')?.params.name
+  const activeId = pageRoute ? pageTabId(pageRoute) : documentIdFor(files, routePath)
   const [initialWorkspace] = useState(readWorkspace)
   const [store] = useState(() =>
     createWorkspaceStore(initialWorkspace.tabs, initialWorkspace.positions),
@@ -68,7 +76,7 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
       return
     }
     actions.setTabs(current => {
-      const available = current.filter(id => files.some(file => file.id === id))
+      const available = current.filter(id => openable(files, id))
       return activeId && !available.includes(activeId) ? [...available, activeId] : available
     })
   }, [
@@ -117,7 +125,7 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
   }, [store])
 
   const openDocument = (id: string) => {
-    if (id === navigationTargetRef.current || !files.some(document => document.id === id)) return
+    if (id === navigationTargetRef.current || !openable(files, id)) return
     navigationTargetRef.current = id
     void navigate(documentPath(files, id))
   }

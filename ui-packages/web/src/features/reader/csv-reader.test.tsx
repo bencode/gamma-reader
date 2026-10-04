@@ -6,6 +6,7 @@ import { CsvReader } from './csv-reader'
 vi.mock('../../shell/workspace-context', () => ({
   useReaderBinding: vi.fn(),
   useReveal: () => ({ reveal: null, shown: vi.fn() }),
+  useLinkGraph: () => null,
 }))
 
 const file: StoredFileMetadata = {
