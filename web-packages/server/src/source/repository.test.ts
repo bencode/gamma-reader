@@ -34,6 +34,7 @@ const first = commit({
   'knowledge/学习 笔记.md': '# 笔记',
   'assets/paper.pdf': '%PDF-1.7',
   'meta/index.json': '{}',
+  '.github/ci.yml': 'on: push',
 })
 
 const repository = openRepository({
@@ -93,5 +94,19 @@ describe('cloned source', () => {
     const elsewhere = openRepository({ repo: other, dir: join(root, 'clone'), include: [] })
 
     await expect(elsewhere.update()).rejects.toThrow(`holds a clone of ${upstream}, not ${other}`)
+  })
+
+  it('holds the whole repository but its excluded folders and hidden files', async () => {
+    const whole = openRepository({
+      repo: upstream,
+      dir: join(root, 'whole'),
+      include: [],
+      exclude: ['meta'],
+    })
+    await whole.update()
+
+    const paths = (await whole.listing()).files.map(file => file.path).sort()
+    expect(paths).toEqual(['assets/paper.pdf', 'knowledge/agents.md', 'knowledge/学习 笔记.md'])
+    expect(await whole.blob('meta/index.json')).toBeNull()
   })
 })
