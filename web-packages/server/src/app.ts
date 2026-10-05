@@ -6,6 +6,8 @@ import type { QuotaGuard } from './quota/guard.js'
 import type { Source } from './source/repository.js'
 import { createRoutes as createSourceRoutes } from './source/routes.js'
 import { libraryPath, type SourceConfig, sourceLocation } from './source-config.js'
+import type { SearchProvider } from './web-search/provider.js'
+import { createWebSearchRoutes } from './web-search/routes.js'
 
 export const createApp = (
   guard: QuotaGuard,
@@ -13,11 +15,13 @@ export const createApp = (
   modelConfig: ModelProxyConfig = { providers: {}, publicConfig: { enabled: false } },
   // The source the library syncs from, and its files when this server serves them itself.
   source: { config: SourceConfig; files: Source | null } | null = null,
+  search?: SearchProvider,
 ) => {
   const app = new Hono()
 
   app.get('/api/health', c => c.json({ status: 'ok', service: 'gamma-reader' }))
   app.route('/api/agent', createModelProxyRoutes(modelConfig, guard))
+  app.route('/api/agent', createWebSearchRoutes(search, guard))
   app.get('/api/source', c =>
     source
       ? c.json(sourceLocation(source.config))

@@ -56,6 +56,12 @@
   width: 28px;
   height: 28px;
 }
+// Also while hovered, so the switch shows its new state under the pointer that just turned it on.
+.webSearch[aria-pressed='true'],
+.webSearch[aria-pressed='true']:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--surface) 88%, var(--accent));
+  color: var(--accent);
+}
 .attachmentLimit {
   margin-left: 5px;
 }

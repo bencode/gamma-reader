@@ -13,4 +13,6 @@ export type PublicModelConfig =
       }[]
       defaultModel: ModelReference
       visionModel?: ModelReference
+      // Present only where the server is configured to search the web.
+      webSearch?: true
     }

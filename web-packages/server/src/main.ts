@@ -10,6 +10,7 @@ import { openQuotaStore } from './quota/store.js'
 import { openRepository, type Source } from './source/repository.js'
 import { openWorkingTree } from './source/working-tree.js'
 import { readSourceConfig, type SourceConfig } from './source-config.js'
+import { tavilySearch } from './web-search/provider.js'
 
 const port = Number(process.env.PORT ?? 3302)
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -32,7 +33,16 @@ if (webRoot) {
 }
 
 const hostname = process.env.HOST ?? '127.0.0.1'
-const config = resolveModelProxyConfig(providers, process.env)
+const tavilyKey = process.env.TAVILY_API_KEY?.trim()
+const search = tavilyKey
+  ? tavilySearch(tavilyKey, process.env.GAMMA_SEARCH_PROXY?.trim() || undefined)
+  : undefined
+const models = resolveModelProxyConfig(providers, process.env)
+// The reader sees the web search switch only where a search service is configured.
+const config =
+  search && models.publicConfig.enabled
+    ? { ...models, publicConfig: { ...models.publicConfig, webSearch: true as const } }
+    : models
 const quota = readQuotaConfig(process.env)
 const store = openQuotaStore(quota.databaseFile)
 const guard = createQuotaGuard(store, quota)
@@ -52,6 +62,6 @@ const openSource = async (config: SourceConfig): Promise<Source | null> => {
 const sourceConfig = readSourceConfig(process.env)
 const source = sourceConfig ? { config: sourceConfig, files: await openSource(sourceConfig) } : null
 
-serve({ fetch: createApp(guard, webRoot, config, source).fetch, port, hostname }, info => {
+serve({ fetch: createApp(guard, webRoot, config, source, search).fetch, port, hostname }, info => {
   console.info(`Gamma Reader: http://${hostname}:${info.port}`)
 })

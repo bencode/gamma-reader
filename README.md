@@ -81,7 +81,7 @@ Files already in the library are either replaced or skipped, so importing a fold
 
 Files are copied directly into IndexedDB. Built-in document previewing, parsing, and searching happen in the browser, so adding a large document does not require a file upload to the application server. The pi agent loop and document tools also run in the browser.
 
-AI inference runs at the model provider. On the free allowance, questions, conversation context, and text or images supplied by tools pass through a small Node proxy that holds the model credentials; it has no file library or conversation database. With a key you configured yourself, the browser calls the provider directly and nothing about that conversation reaches this application's server. Code runtimes may download dependencies and executed code can make network requests.
+AI inference runs at the model provider. On the free allowance, questions, conversation context, and text or images supplied by tools pass through a small Node proxy that holds the model credentials; it has no file library or conversation database. With a key you configured yourself, the browser calls the provider directly and nothing about that conversation reaches this application's server. Code runtimes may download dependencies and executed code can make network requests. When a reader turns on web search in a conversation, the agent's search queries go through this application's server to Tavily, even with a key you configured yourself.
 
 ![Browser storage, local tools, and the two routes to a model provider](ui-packages/web/src/assets/samples/how-gamma-reader-works.svg)
 
@@ -140,6 +140,8 @@ Create an untracked root `.env` with `GLM_API_KEY`, `DEEPSEEK_API_KEY`, or both.
 | --- | --- | --- |
 | `GLM_API_KEY` | Unset | Server-side credential for Z.AI Coding CN |
 | `DEEPSEEK_API_KEY` | Unset | Server-side credential for DeepSeek |
+| `TAVILY_API_KEY` | Unset | Server-side credential for Tavily; when set, the chat offers a web search switch |
+| `GAMMA_SEARCH_PROXY` | Unset | HTTP proxy for web search requests only, such as `http://172.17.0.1:1080` |
 | `PORT` | `3302` | Node service port |
 | `HOST` | `127.0.0.1` | Node service host |
 | `GAMMA_BACKEND` | `http://127.0.0.1:3302` | Vite proxy target |

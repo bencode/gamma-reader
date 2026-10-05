@@ -20,6 +20,8 @@ export type StoredConversation = {
   title: string | null
   titledBy?: TitleSource
   selection?: ModelSelection
+  // Whether the reader turned web search on for this conversation; off when absent.
+  webSearch?: boolean
   draft: ConversationDraft
   // Sent while a reply was running and not yet given to the model.
   queued?: ConversationDraft[]
