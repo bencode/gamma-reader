@@ -14,6 +14,7 @@ const lab = (
   cells: CodeLabCell[],
   plan: Record<string, CodeLabExecutionResult | 'busy' | 'hang'> = {},
   previous: Record<string, CellExecution> = {},
+  current: string | null = null,
 ) => {
   let snapshot: ReadonlyMap<string, CellExecution> = new Map(Object.entries(previous))
   const settle = (id: string, execution: CellExecution) => {
@@ -47,6 +48,7 @@ const lab = (
   const runner: LabRunner = {
     fileId: 'lab',
     document: () => ({ version: 'v1', cells }),
+    current: () => current,
     runtime,
   }
   const access: LabAccess = {
@@ -58,7 +60,7 @@ const lab = (
 
 describe('run_lab_cells', () => {
   it('runs every cell in order and skips the rest after the first failure', async () => {
-    // [] means every cell, as omitting cellIds does.
+    // [] means every cell, as omitting cells does.
     const { access } = lab([cell('a'), cell('b'), cell('c')], {
       a: {
         outputs: [
@@ -69,12 +71,14 @@ describe('run_lab_cells', () => {
       },
       b: { outputs: [{ kind: 'stdout', text: 'before' }], error: 'Error: car of 1' },
     })
-    expect(await runLabCells(access, { cellIds: [] })).toEqual({
+    expect(await runLabCells(access, { cells: [] })).toEqual({
       fileId: 'lab',
       path: 'test.lab.md',
       version: 'v1',
+      current: null,
       cells: [
         {
+          number: 1,
           id: 'a',
           language: 'scheme',
           status: 'succeeded',
@@ -84,13 +88,14 @@ describe('run_lab_cells', () => {
           ],
         },
         {
+          number: 2,
           id: 'b',
           language: 'scheme',
           status: 'failed',
           outputs: [{ kind: 'stdout', text: 'before' }],
           error: 'Error: car of 1',
         },
-        { id: 'c', language: 'scheme', status: 'skipped' },
+        { number: 3, id: 'c', language: 'scheme', status: 'skipped' },
       ],
     })
   })
@@ -112,6 +117,7 @@ describe('run_lab_cells', () => {
     const result = await runLabCells(access, {})
     expect(result.cells).toEqual([
       {
+        number: 1,
         id: 'a',
         language: 'scheme',
         status: 'stopped',
@@ -120,10 +126,27 @@ describe('run_lab_cells', () => {
     ])
   })
 
+  it('takes cells by the number the reader sees, by id, or as the one the reader is in', async () => {
+    const { access } = lab([cell('a'), cell('b'), cell('c')], {}, {}, 'b')
+    const run = async (cells: (number | string)[]) =>
+      (await runLabCells(access, { cells })).cells.map(report => `${report.number}:${report.id}`)
+
+    expect(await run([3, 1])).toEqual(['3:c', '1:a'])
+    expect(await run(['current'])).toEqual(['2:b'])
+    expect(await run(['c'])).toEqual(['3:c'])
+    expect(readLabCells(access, { cells: [2] }).current).toBe(2)
+  })
+
   it('rejects unknown cells and an active tab that is not a lab', async () => {
-    const { access } = lab([cell('a')])
-    await expect(runLabCells(access, { cellIds: ['a', 'x'] })).rejects.toThrow(
-      'Unknown cell ids: x. Cells in this lab: a.',
+    const { access } = lab([cell('a'), cell('b')])
+    await expect(runLabCells(access, { cells: ['a', 'x'] })).rejects.toThrow(
+      'Unknown cell x. Cells in this lab: #1 a, #2 b.',
+    )
+    await expect(runLabCells(access, { cells: [3] })).rejects.toThrow(
+      'No cell 3: this lab has cells 1–2.',
+    )
+    await expect(runLabCells(access, { cells: ['current'] })).rejects.toThrow(
+      'There is no current cell',
     )
     await expect(runLabCells({ ...access, active: () => null }, {})).rejects.toThrow(
       'The active tab is not a lab',
@@ -175,6 +198,7 @@ describe('read_lab_cells', () => {
     runtime.runCell = vi.fn()
     expect(readLabCells(access, {}).cells).toEqual([
       {
+        number: 1,
         id: 'a',
         language: 'scheme',
         status: 'failed',
@@ -182,13 +206,14 @@ describe('read_lab_cells', () => {
         stale: false,
       },
       {
+        number: 2,
         id: 'b',
         language: 'scheme',
         status: 'succeeded',
         outputs: [{ kind: 'text', text: '2' }],
         stale: true,
       },
-      { id: 'c', language: 'scheme', status: 'idle' },
+      { number: 3, id: 'c', language: 'scheme', status: 'idle' },
     ])
     expect(runtime.runCell).not.toHaveBeenCalled()
   })

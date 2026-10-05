@@ -1,11 +1,13 @@
 import { type CodeLabLanguage, CodeLabProvider, useCodeLabRuntime } from '@gamma-reader/code-lab'
 import {
   createContext,
+  type RefObject,
   useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import {
@@ -31,8 +33,15 @@ type LabContextValue = {
 }
 const LabContext = createContext<LabContextValue | null>(null)
 
-// Hands the agent this lab's runtime, with the cells of the draft as it is at each call.
-const LabRunnerBinding = ({ fileId }: { fileId: string }) => {
+// Hands the agent this lab's runtime, with the cells of the draft as it is at each call and the
+// cell the reader is in.
+const LabRunnerBinding = ({
+  fileId,
+  current,
+}: {
+  fileId: string
+  current: RefObject<string | null>
+}) => {
   const store = useWorkspaceStore()
   const runtime = useCodeLabRuntime()
   const runner = useMemo(
@@ -44,9 +53,10 @@ const LabRunnerBinding = ({ fileId }: { fileId: string }) => {
           ? { version: draft.version, cells: parseLabDocument(draft.content).cells }
           : null
       },
+      current: () => current.current,
       runtime,
     }),
-    [fileId, runtime, store],
+    [current, fileId, runtime, store],
   )
   useLabRunnerBinding(runner)
   return null
@@ -124,6 +134,14 @@ export const LabDocumentScope = ({ fileId, children }: DocumentScopeProps) => {
     [appendCell, fileId, store],
   )
 
+  // The cell the reader last moved into, kept while they type elsewhere, until it is removed.
+  const [focused, setFocused] = useState<string | null>(null)
+  const currentCellId = model.cells.some(cell => cell.id === focused) ? focused : null
+  const current = useRef(currentCellId)
+  useLayoutEffect(() => {
+    current.current = currentCellId
+  }, [currentCellId])
+
   const value = useMemo(() => ({ model, editError, appendCell }), [model, editError, appendCell])
 
   return (
@@ -132,8 +150,10 @@ export const LabDocumentScope = ({ fileId, children }: DocumentScopeProps) => {
         cells={model.cells}
         onCellChange={onCellChange}
         onCellAdvance={onCellAdvance}
+        currentCellId={currentCellId}
+        onCellFocus={setFocused}
       >
-        <LabRunnerBinding fileId={fileId} />
+        <LabRunnerBinding fileId={fileId} current={current} />
         {children}
       </CodeLabProvider>
     </LabContext.Provider>

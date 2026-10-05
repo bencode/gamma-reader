@@ -26,6 +26,9 @@ export type CodeLabProviderProps = {
   onCellChange?: (cellId: string, source: string) => void
   // Where Shift+Enter goes after running a cell; without it, Shift+Enter only runs.
   onCellAdvance?: (cellId: string) => void
+  // The cell the reader is in, which the host keeps, and how it learns the reader moved into one.
+  currentCellId?: string | null
+  onCellFocus?: (cellId: string) => void
   children: ReactNode
 }
 

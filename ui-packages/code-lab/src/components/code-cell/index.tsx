@@ -23,13 +23,16 @@ const phaseLabels = {
 } as const
 
 export const CodeCell = ({ cellId }: CodeCellProps) => {
-  const { cells, onCellChange, onCellAdvance, runtime } = useCodeLabContext()
+  const { cells, onCellChange, onCellAdvance, currentCellId, onCellFocus, runtime } =
+    useCodeLabContext()
   const executions = useSyncExternalStore(
     runtime.subscribe,
     runtime.getSnapshot,
     runtime.getSnapshot,
   )
-  const cell = cells.find(cell => cell.id === cellId)
+  // A cell is numbered by its place among the cells, as the reader and the assistant call it.
+  const number = cells.findIndex(cell => cell.id === cellId) + 1
+  const cell = cells[number - 1]
   if (!cell) return null
 
   const currentExecution = executions.get(cellId)
@@ -50,9 +53,15 @@ export const CodeCell = ({ cellId }: CodeCellProps) => {
   const label = languageLabels[cell.language]
 
   return (
-    <section className={styles.cell} aria-label={`${label} code cell`}>
+    <section
+      className={styles.cell}
+      aria-label={`${label} code cell ${number}`}
+      data-current={currentCellId === cellId || undefined}
+      onFocus={() => onCellFocus?.(cellId)}
+    >
       <header className={styles.header}>
         <div className={styles.identity}>
+          <span className={styles.number}>#{number}</span>
           <span className={styles.language}>{label}</span>
           <span className={styles.status} aria-live="polite">
             {busy && !executing ? `Waiting for ${label}` : phaseLabels[execution?.phase ?? 'idle']}

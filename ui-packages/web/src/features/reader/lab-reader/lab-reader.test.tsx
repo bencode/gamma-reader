@@ -117,7 +117,7 @@ describe('Lab document integration', () => {
       </MemoryRouter>,
     )
     await screen.findAllByRole('button', { name: 'Run' }, { timeout: 5000 })
-    const [first, second] = screen.getAllByRole('region', { name: 'TypeScript code cell' })
+    const [first, second] = screen.getAllByRole('region', { name: /^TypeScript code cell \d+$/ })
     if (!first || !second || !handles) throw new Error('Lab not mounted')
     const editorOf = (cell: HTMLElement) => within(cell).getByRole('textbox', { name: 'Code' })
 
@@ -133,7 +133,7 @@ describe('Lab document integration', () => {
 
     fireEvent.keyDown(editorOf(second), { key: 'Enter', shiftKey: true })
     expect(workerAt(0).requests.at(-1)?.source).toBe('2 + 2')
-    const cells = await screen.findAllByRole('region', { name: 'TypeScript code cell' })
+    const cells = await screen.findAllByRole('region', { name: /^TypeScript code cell \d+$/ })
     expect(cells).toHaveLength(3)
     expect(parseLabDocument(handles.tools.read_active_source().content).cells.at(-1)).toMatchObject(
       {
@@ -142,6 +142,40 @@ describe('Lab document integration', () => {
       },
     )
     await waitFor(() => expect(cells[2]?.contains(document.activeElement)).toBe(true))
+  })
+
+  it('numbers cells as the reader sees them, and tells the assistant which cell the reader is in', async () => {
+    const original =
+      '# Lab\n\n```typescript run id=one\n1 + 1\n```\n\n```typescript run id=two\n2 + 2\n```\n'
+    const file = await writeStoredTextFile('Numbers.lab.md', original)
+    let handles: Handles | undefined
+    render(
+      <MemoryRouter initialEntries={[`/files/${file.id}`]}>
+        <Harness
+          files={[file]}
+          onReady={next => {
+            handles = next
+          }}
+        />
+      </MemoryRouter>,
+    )
+    const second = await screen.findByRole(
+      'region',
+      { name: 'TypeScript code cell 2' },
+      { timeout: 5000 },
+    )
+    const first = screen.getByRole('region', { name: 'TypeScript code cell 1' })
+    if (!handles) throw new Error('Workspace not mounted')
+    expect(within(first).getByText('#1')).toBeVisible()
+    expect(within(second).getByText('#2')).toBeVisible()
+    expect(handles.tools.read_active_lab_cells({}).current).toBeNull()
+
+    fireEvent.focus(within(second).getByRole('textbox', { name: 'Code' }))
+    await waitFor(() => expect(second).toHaveAttribute('data-current'))
+    expect(first).not.toHaveAttribute('data-current')
+    const read = handles.tools.read_active_lab_cells({ cells: ['current'] })
+    expect(read.current).toBe(2)
+    expect(read.cells.map(cell => `${cell.number}:${cell.id}`)).toEqual(['2:two'])
   })
 
   it('adds an empty cell at the end, focused and ready to run, as an unsaved edit', async () => {
@@ -163,7 +197,7 @@ describe('Lab document integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add a cell' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Python' }))
 
-    const cell = await screen.findByRole('region', { name: 'Python code cell' })
+    const cell = await screen.findByRole('region', { name: /^Python code cell \d+$/ })
     if (!handles) throw new Error('Workspace not mounted')
     const content = handles.tools.read_active_source().content
     const added = parseLabDocument(content).cells.at(-1)
@@ -203,7 +237,7 @@ describe('Lab document integration', () => {
     expect(document.querySelector('.katex')).not.toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Source' }))
     const sourceElement = await screen.findByRole('textbox', { name: 'Example.lab.md source' })
-    const cell = screen.getByRole('region', { name: 'TypeScript code cell' })
+    const cell = screen.getByRole('region', { name: /^TypeScript code cell \d+$/ })
     const editor = EditorView.findFromDOM(within(cell).getByRole('textbox', { name: 'Code' }))
     if (!editor) throw new Error('Code editor missing')
     act(() =>
@@ -275,7 +309,7 @@ describe('Lab document integration', () => {
     expect(screen.getByText('first result')).toBeVisible()
     expect(
       within(
-        screen.getAllByRole('region', { name: 'TypeScript code cell' })[0] as HTMLElement,
+        screen.getAllByRole('region', { name: /^TypeScript code cell \d+$/ })[0] as HTMLElement,
       ).queryByText('first result'),
     ).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
