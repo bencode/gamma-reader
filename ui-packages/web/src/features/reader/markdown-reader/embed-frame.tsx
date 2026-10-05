@@ -15,7 +15,8 @@ import styles from './style.module.scss'
 
 const minimumSize = { width: 120, height: 80 }
 
-type Drag = { x: number; y: number; width: number; height: number }
+// Where a drag began, and the size it has reached, if it has moved at all.
+type Drag = { x: number; y: number; width: number; height: number; reached?: EmbedSize }
 
 // The box an embed is shown in: at the size written for it, else the size it has of its own, and
 // resized by a drag on its corner when the note can take the new size. Content that keeps its
@@ -55,12 +56,13 @@ export const ResizableBox = ({
     if (!from) return
     const width = Math.round(Math.max(minimumSize.width, from.width + event.clientX - from.x))
     const height = Math.round(Math.max(minimumSize.height, from.height + event.clientY - from.y))
-    setDragged({ over: written, size: axis === 'both' ? { width, height } : { width } })
+    from.reached = axis === 'both' ? { width, height } : { width }
+    setDragged({ over: written, size: from.reached })
   }
   const end = () => {
-    if (!drag.current) return
+    const reached = drag.current?.reached
     drag.current = null
-    if (dragged && dragged.over === written) onResize?.(dragged.size)
+    if (reached) onResize?.(reached)
   }
 
   return (
