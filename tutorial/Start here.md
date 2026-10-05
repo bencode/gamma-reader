@@ -1,39 +1,36 @@
 # Start here
 
-Read, experiment, and create with AI, using files that stay in your browser.
+Gamma Reader is a place to read documents, run the code inside them, and ask an assistant about them. Your files stay in this browser.
 
-## Read
+This tutorial is written with the features it describes. The links between chapters, the sketch below, and the cells in the Labs are all things you can use in your own notes.
 
-Open **The art of noticing.pdf** from Files, then ask the assistant:
+![[Orbit.p5.js|480]]
 
-> What is the central idea, and which passage best supports it?
+Click the sketch to line the dots up again. Hover over it to pause or restart it.
 
-## Compare
+## Chapters
 
-**Field notes.docx** describes a way of keeping a record. **Observation log.xlsx** is the record itself. Open both, then ask:
+Read them in order, or go straight to the one you need. Each ends with something to try.
 
-> Which species turned up on only one morning, and does the note's count of species match the log?
+1. [[Files and projects]]: bring documents in, find them again, and keep projects apart.
+2. [[Reading documents]]: PDF, Word, Excel, CSV, code, images and web pages.
+3. [[Writing in Markdown]]: edit, save, write formulas and draw diagrams.
+4. [[Links and embeds]]: connect notes, and show one note inside another.
+5. [[Interactive pages]]: p5 sketches and HTML pages, on their own or inside a note.
+6. [[Labs]]: Markdown with code you can run.
+7. [[The reading assistant]]: ask questions, compare sources, and let it write for you.
+8. [[Your data and models]]: where your files are kept, and which model answers.
 
-Neither file answers that on its own. The assistant reads a spreadsheet by sheet and cell, so you can ask about a number the way you would point at it.
+[[What's new]] lists what changed in recent versions.
 
-## Experiment
+## Three things to try now
 
-Open **Explore a wave.lab.md** and run the TypeScript cell. Change its frequency, run it again, then try the Python plot below it.
+- **Ask.** Open [[The art of noticing.pdf]], then ask the assistant on the right: *What is the central idea, and which passage best supports it?*
+- **Run.** Open [[Explore a wave]] and choose **Run** on its first cell. Change `frequency` to `2` and run it again.
+- **Follow a link.** Choose any chapter above. At the bottom of each chapter, a list shows which notes link to it, this one included.
 
-**Seven mornings.lab.md** takes the counts from the log and asks one question twice, once in Scheme and once in Clojure. Between them the two documents use every language a cell can run.
+## Your own documents
 
-## Create
+Tutorial is a project kept in step with Gamma Reader: when a new version changes a chapter, the line under **Files** offers **Update**. Keep your own documents in a project of your own: choose **New project…** in the **Tutorial** menu at the top of Files.
 
-Open **Orbit.p5.js** and choose **Source**. Change `speed`, choose **Run changes**, then **Save** (⌘/Ctrl+S) to keep your edit in this browser.
-
-Turn your reading into a new file by asking:
-
-> Summarize what the log shows about the quiet morning and save it as Reading notes.md.
-
-Add your own material by dragging files onto Files, or with **+**. A file's **Save as…** action writes its saved copy back to your computer.
-
-## Your data
-
-Files and conversations stay in this browser. Questions and the context the assistant uses are sent to the model through a server proxy. Source drafts need **Save**; code results last only while their document stays open.
-
-Open **How Gamma Reader works.svg** for the data flow. Reading and experiments also work without AI chat.
+![[Your data and models#Where your files live]]

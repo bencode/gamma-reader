@@ -1,13 +1,13 @@
-import exploreWave from '../../../../tutorial/Explore a wave.lab.md?raw'
-import fieldNotes from '../../../../tutorial/Field notes.docx?inline'
-import howGammaReaderWorks from '../../../../tutorial/How Gamma Reader works.svg?raw'
-import observationLog from '../../../../tutorial/Observation log.xlsx?inline'
-import orbitDemo from '../../../../tutorial/Orbit.p5.js?raw'
-import sevenMornings from '../../../../tutorial/Seven mornings.lab.md?raw'
-import gettingStarted from '../../../../tutorial/Start here.md?raw'
-import artOfNoticing from '../../../../tutorial/The art of noticing.pdf?inline'
 import { previewKindFor } from '../core/files'
 import { openWorkspaceDatabase } from '../data/workspace-database'
+import exploreWave from './fixtures/Explore a wave.lab.md?raw'
+import fieldNotes from './fixtures/Field notes.docx?inline'
+import howGammaReaderWorks from './fixtures/How Gamma Reader works.svg?raw'
+import observationLog from './fixtures/Observation log.xlsx?inline'
+import orbitDemo from './fixtures/Orbit.p5.js?raw'
+import sevenMornings from './fixtures/Seven mornings.lab.md?raw'
+import gettingStarted from './fixtures/Start here.md?raw'
+import artOfNoticing from './fixtures/The art of noticing.pdf?inline'
 
 const decodeInlineAsset = (source: string) => {
   const binary = atob(source.slice(source.indexOf(',') + 1))

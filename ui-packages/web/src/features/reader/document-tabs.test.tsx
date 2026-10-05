@@ -91,6 +91,22 @@ const TestTabs = ({
   )
 }
 
+describe('an empty reader', () => {
+  it('suggests the start page at the top of the library, or else the first file', async () => {
+    const user = userEvent.setup({ delay: null })
+    const nested = storedFile('nested', 'guide/Start here.md', 'markdown')
+    const start = storedFile('start', 'Start Here.md', 'markdown')
+    const empty = { ...workspace('pdf'), activeId: null, tabs: [] }
+    const view = render(<TestTabs workspace={{ ...empty, files: [pdfFile, nested, start] }} />)
+
+    await user.click(screen.getByRole('button', { name: 'Open Start Here.md' }))
+    expect(empty.openDocument).toHaveBeenCalledWith('start')
+
+    view.rerender(<TestTabs workspace={{ ...empty, files: [pdfFile, nested] }} />)
+    expect(screen.getByRole('button', { name: 'Open Guide.pdf' })).toBeInTheDocument()
+  })
+})
+
 describe('document tab lifecycles', () => {
   it('keeps the same PDF instance while another document is active', () => {
     const view = render(<TestTabs workspace={workspace('pdf')} />)
