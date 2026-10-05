@@ -137,4 +137,18 @@ describe('application HTTP boundaries', () => {
     })
     expect(await (await app.request('/api/library')).json()).toEqual(await files.listing())
   })
+
+  it('serves the tutorial it ships with, beside any source', async () => {
+    const tutorial = {
+      listing: async () => ({
+        version: '1',
+        files: [{ path: 'Start here.md', version: '1', size: 3 }],
+      }),
+      blob: async () => null,
+    }
+    const app = createApp(guard, undefined, undefined, null, undefined, tutorial)
+
+    expect(await (await app.request('/api/tutorial')).json()).toEqual(await tutorial.listing())
+    expect((await build().request('/api/tutorial')).status).toBe(404)
+  })
 })

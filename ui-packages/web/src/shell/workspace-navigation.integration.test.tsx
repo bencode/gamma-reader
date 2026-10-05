@@ -3,10 +3,13 @@ import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { samples } from '../core/samples'
 import { writeStoredTextFile } from '../data/file-store'
 import { testProject } from '../test/project'
+import { samples, seedSampleFiles } from '../test/sample-files'
 import { Workbench } from './workbench'
+
+// These suites read and open the files a library used to start with.
+beforeEach(seedSampleFiles)
 
 beforeEach(() => {
   // Lab samples mount CodeMirror, which measures text geometry unavailable in jsdom.

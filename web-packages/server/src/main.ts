@@ -7,6 +7,7 @@ import providers from './model-proxy/providers.json' with { type: 'json' }
 import { readQuotaConfig } from './quota/config.js'
 import { createQuotaGuard } from './quota/guard.js'
 import { openQuotaStore } from './quota/store.js'
+import { openDirectory } from './source/directory.js'
 import { openRepository, type Source } from './source/repository.js'
 import { openWorkingTree } from './source/working-tree.js'
 import { readSourceConfig, type SourceConfig } from './source-config.js'
@@ -63,9 +64,21 @@ const openSource = async (config: SourceConfig): Promise<Source | null> => {
   return repository
 }
 
+// The tutorial sits at the repository root, beside the packages, in a checkout and in the image.
+const tutorialDir =
+  process.env.GAMMA_TUTORIAL_DIR?.trim() ||
+  fileURLToPath(new URL('../../../tutorial/', import.meta.url))
+await access(tutorialDir).catch((cause: unknown) => {
+  throw new Error(`The tutorial folder ${tutorialDir} is unavailable.`, { cause })
+})
+const tutorial = openDirectory(tutorialDir)
+
 const sourceConfig = readSourceConfig(process.env)
 const source = sourceConfig ? { config: sourceConfig, files: await openSource(sourceConfig) } : null
 
-serve({ fetch: createApp(guard, webRoot, config, source, web).fetch, port, hostname }, info => {
-  console.info(`Gamma Reader: http://${hostname}:${info.port}`)
-})
+serve(
+  { fetch: createApp(guard, webRoot, config, source, web, tutorial).fetch, port, hostname },
+  info => {
+    console.info(`Gamma Reader: http://${hostname}:${info.port}`)
+  },
+)

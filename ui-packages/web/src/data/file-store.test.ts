@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 import { type FileCollection, rootSources } from '../core/files'
-import { samples } from '../core/samples'
 import {
   closeFileStore,
   getStoredFile,
@@ -192,61 +191,7 @@ describe('local file store', () => {
     })
 
     await expect(listStoredFiles()).rejects.toThrow('Temporarily unavailable')
-    await expect(listStoredFiles()).resolves.toHaveLength(samples.length)
-  })
-
-  it('seeds samples once and keeps a deleted sample removed after reopening', async () => {
-    const initial = await listStoredFiles()
-    // The order is the tour Start here.md walks a first-time reader through.
-    expect(initial).toEqual([
-      expect.objectContaining({
-        id: 'getting-started',
-        path: 'Start here.md',
-        previewKind: 'markdown',
-      }),
-      expect.objectContaining({
-        id: 'art-of-noticing',
-        path: 'The art of noticing.pdf',
-        previewKind: 'pdf',
-      }),
-      expect.objectContaining({
-        id: 'field-notes',
-        path: 'Field notes.docx',
-        previewKind: 'docx',
-      }),
-      expect.objectContaining({
-        id: 'observation-log',
-        path: 'Observation log.xlsx',
-        previewKind: 'xlsx',
-      }),
-      expect.objectContaining({
-        id: 'explore-wave',
-        path: 'Explore a wave.lab.md',
-        previewKind: 'markdown',
-      }),
-      expect.objectContaining({
-        id: 'seven-mornings',
-        path: 'Seven mornings.lab.md',
-        previewKind: 'markdown',
-      }),
-      expect.objectContaining({
-        id: 'orbit-demo',
-        path: 'Orbit.p5.js',
-        previewKind: 'text',
-      }),
-      expect.objectContaining({
-        id: 'how-gamma-reader-works',
-        path: 'How Gamma Reader works.svg',
-        previewKind: 'image',
-      }),
-    ])
-    expect((await getStoredFileContent('art-of-noticing'))?.type).toBe('application/pdf')
-
-    await removeStoredFiles(['getting-started'])
-    await closeFileStore()
-
-    expect((await listStoredFiles()).map(file => file.id)).not.toContain('getting-started')
-    expect(await getStoredFileContent('getting-started')).toBeNull()
+    await expect(listStoredFiles()).resolves.toEqual([])
   })
 
   it('replaces a duplicate in place or keeps it under a numbered name', async () => {

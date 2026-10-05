@@ -23,9 +23,9 @@ import { saveToSource } from './save'
 export type SourceSyncState =
   | { kind: 'checking' }
   | { kind: 'current' }
-  | { kind: 'available' }
+  | { kind: 'available'; replaces: string[] }
   | { kind: 'syncing'; done: number; total: number }
-  | { kind: 'synced'; kept: string[]; refused: number }
+  | { kind: 'synced'; kept: string[]; replaced: string[]; refused: number }
   | { kind: 'saving'; total: number }
   | { kind: 'saved'; results: SaveResult[] }
   | { kind: 'failed'; message: string }
@@ -98,7 +98,7 @@ const failure = (cause: unknown) => {
 const pull = async (source: ProjectSource, onProgress: (done: number, total: number) => void) => {
   const previous = readSnapshot()
   const listing = await fetchListing(source)
-  const plan = planSync(previous, listing, await libraryFiles())
+  const plan = planSync(previous, listing, await libraryFiles(), source.writable === true)
   onProgress(0, plan.download.length)
   const downloaded = await downloadAll(source, plan.download, done =>
     onProgress(done, plan.download.length),
@@ -106,7 +106,7 @@ const pull = async (source: ProjectSource, onProgress: (done: number, total: num
   const result = await importStoredFiles(downloaded, 'replace')
   if (plan.remove.length) await removeStoredFiles(plan.remove)
   writeSnapshot(snapshotAfter(listing, await libraryFiles(), { kept: plan.kept, previous, source }))
-  return { kept: plan.kept, refused: result.rejected.length }
+  return { kept: plan.kept, replaced: plan.replaced, refused: result.rejected.length }
 }
 
 export const useSourceSync = (
@@ -123,12 +123,12 @@ export const useSourceSync = (
     if (!source || busy.current) return
     busy.current = true
     try {
-      const { kept, refused } = await pull(source, (done, total) =>
+      const { kept, replaced, refused } = await pull(source, (done, total) =>
         setState({ kind: 'syncing', done, total }),
       )
       await reload()
       checkedAt.current = Date.now()
-      setState({ kind: 'synced', kept, refused })
+      setState({ kind: 'synced', kept, replaced, refused })
     } catch (cause) {
       setState(failure(cause))
     } finally {
@@ -149,9 +149,16 @@ export const useSourceSync = (
       try {
         const listing = await fetchListing(source)
         if (busy.current) return
-        if (readSnapshot()?.version === listing.version) setState({ kind: 'current' })
-        else if (source.writable) await latestSync.current()
-        else setState({ kind: 'available' })
+        const snapshot = readSnapshot()
+        if (snapshot?.version === listing.version) setState({ kind: 'current' })
+        // A writable source, or one never synced here, comes in at once; otherwise the reader
+        // is told what an update would replace, and decides.
+        else if (source.writable || !snapshot) await latestSync.current()
+        else
+          setState({
+            kind: 'available',
+            replaces: planSync(snapshot, listing, await libraryFiles()).replaced,
+          })
       } catch (cause) {
         if (!busy.current) setState(failure(cause))
       }

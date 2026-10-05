@@ -54,44 +54,15 @@ export const workspaceStorageBases = {
 export const workspaceStorageKey = (base: string, name = databaseName) =>
   name === legacyDatabaseName ? base : `${base}:${name}`
 
-// An upgrade transaction cannot wait for a dynamic import, so the starter files are written
-// immediately after it instead. Keeping them out of the upgrade also keeps them out of the
-// main bundle: they are fetched once, by whoever opens the app for the first time.
-const seedSamples = async (database: IDBPDatabase<WorkspaceDatabase>) => {
-  const { samples } = await import('../core/samples')
-  const transaction = database.transaction(['files', 'contents'], 'readwrite')
-  const files = transaction.objectStore('files')
-  const contents = transaction.objectStore('contents')
-  samples.forEach((sample, index) => {
-    const blob = new Blob([sample.content], { type: sample.mediaType })
-    files.put({
-      id: sample.id,
-      path: sample.name,
-      collection: 'files',
-      mediaType: blob.type,
-      previewKind: previewKindFor(sample.name, blob.type),
-      size: blob.size,
-      lastModified: 0,
-      createdAt: index,
-      revision: 1,
-    })
-    contents.put({ id: sample.id, blob })
-  })
-  await transaction.done
-}
-
 // Only the first caller hears that the open is blocked; later callers share the same open.
 export const openWorkspaceDatabase = (onBlocked?: () => void) => {
   if (databasePromise) return databasePromise
-  let seeding = false
   databasePromise = openDB<WorkspaceDatabase>(databaseName, 9, {
     upgrade(database, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         const files = database.createObjectStore('files', { keyPath: 'id' })
         files.createIndex('by-created-at', 'createdAt')
         database.createObjectStore('contents', { keyPath: 'id' })
-        // Only the first library carries the starter files; a new project starts empty.
-        seeding = databaseName === legacyDatabaseName
       }
       if (oldVersion < 3) {
         const conversations = database.createObjectStore('conversations', { keyPath: 'id' })
@@ -161,15 +132,10 @@ export const openWorkspaceDatabase = (onBlocked?: () => void) => {
     blocked() {
       onBlocked?.()
     },
+  }).catch(error => {
+    databasePromise = undefined
+    throw error
   })
-    .then(async database => {
-      if (seeding) await seedSamples(database)
-      return database
-    })
-    .catch(error => {
-      databasePromise = undefined
-      throw error
-    })
   return databasePromise
 }
 

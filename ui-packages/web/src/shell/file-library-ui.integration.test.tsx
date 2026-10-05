@@ -2,10 +2,13 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { samples } from '../core/samples'
 import { removeStoredFiles, writeStoredTextFile } from '../data/file-store'
 import { testProject } from '../test/project'
+import { samples, seedSampleFiles } from '../test/sample-files'
 import { Workbench } from './workbench'
+
+// These suites read and open the files a library used to start with.
+beforeEach(seedSampleFiles)
 
 beforeEach(() => {
   // Code reads in CodeMirror, which measures text geometry unavailable in jsdom.

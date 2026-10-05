@@ -25,7 +25,7 @@ describe('workspace database', () => {
 
     await vi.waitFor(() => expect(blocked).toHaveBeenCalledOnce())
     // A closed connection would refuse the read.
-    await expect(database.count('files')).resolves.toBeGreaterThan(0)
+    await expect(database.count('files')).resolves.toBe(0)
     await closeWorkspaceDatabase()
     await deletion
   })

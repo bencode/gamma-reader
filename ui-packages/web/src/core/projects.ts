@@ -13,7 +13,10 @@ export type Project = {
 
 // The library that existed before projects keeps its name, so upgrading moves no data.
 export const legacyDatabaseName = 'gamma-reader-files'
-export const defaultProjectName = 'My reading'
+
+// The tutorial ships with each deployment, and every reader has a project kept in step with it.
+export const tutorialSource: ProjectSource = { name: 'Tutorial', url: '/api/tutorial' }
+export const tutorialProjectId = 'tutorial'
 
 export const projectPath = (projectId: string) => `/p/${projectId}`
 

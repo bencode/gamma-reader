@@ -5,8 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getStoredFileContent, listStoredFiles } from '../data/file-store'
 import { isTitleRequest, modelConfig } from '../test/model-config'
 import { testProject } from '../test/project'
+import { seedSampleFiles } from '../test/sample-files'
 import { usePanelWidths } from './use-panel-widths'
 import { Workbench } from './workbench'
+
+// These suites read and open the files a library used to start with.
+beforeEach(seedSampleFiles)
 
 beforeEach(() => {
   // Lab samples mount CodeMirror, which measures text geometry unavailable in jsdom.

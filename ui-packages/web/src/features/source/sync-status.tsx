@@ -7,8 +7,8 @@ const fileCount = (count: number) => `${count.toLocaleString()} ${count === 1 ? 
 const changeCount = (count: number) =>
   `${count.toLocaleString()} ${count === 1 ? 'change' : 'changes'}`
 
-// Sync from a read-only source only brings it in. What is added or edited here stays here, so
-// the line says so whenever there is any, and the note says how such a change reaches the source.
+// Sync from a read-only source only brings it in. What is added or edited here stays here until
+// the source changes the same file, so the line says so whenever there is any.
 const LocalChanges = ({ count, name }: { count: number; name: string }) => (
   <>
     <span>{fileCount(count)} changed only in this browser.</span>
@@ -20,8 +20,8 @@ const LocalChanges = ({ count, name }: { count: number; name: string }) => (
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content className="source-sync-note" side="bottom" align="start" sideOffset={4}>
-          Files added or edited here stay in this browser. To share them, save to your {name} folder
-          and push.
+          Files added or edited here stay in this browser. When {name} changes a file, updating
+          brings its version in, in place of any edit made here.
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -59,7 +59,10 @@ const savedMessage = (name: string, results: readonly SaveResult[]) => {
 const message = (name: string, state: SourceSyncState) => {
   if (state.kind === 'checking') return `Checking ${name}…`
   if (state.kind === 'current') return `${name} is up to date.`
-  if (state.kind === 'available') return `${name} has updates.`
+  if (state.kind === 'available')
+    return state.replaces.length
+      ? `${name} has updates. Updating replaces your edits to ${state.replaces.join(', ')}.`
+      : `${name} has updates.`
   if (state.kind === 'syncing')
     return `Updating from ${name}… ${state.done.toLocaleString()} of ${fileCount(state.total)}`
   if (state.kind === 'saving') return `Saving ${changeCount(state.total)} to ${name}…`
@@ -70,6 +73,7 @@ const message = (name: string, state: SourceSyncState) => {
       state.kept.length
         ? `Kept your edits to ${fileCount(state.kept.length)}: ${state.kept.join(', ')}.`
         : '',
+      state.replaced.length ? `Replaced your edits to ${state.replaced.join(', ')}.` : '',
       state.refused ? `${fileCount(state.refused)} did not fit the library limits.` : '',
     ]
       .filter(Boolean)
