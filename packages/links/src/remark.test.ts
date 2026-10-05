@@ -120,3 +120,21 @@ describe('rendering names', () => {
     )
   })
 })
+
+describe('counting embeds', () => {
+  it('numbers each embed among those written the same way, as resizing finds them', () => {
+    const nths = elements(hastOf('![[a.png]]\n\n[[a.png]] ![[b.png]]\n\n- ![[a.png]]'))
+      .filter(element => element.tagName === 'aside' || element.properties.dataKind === 'embed')
+      .map(
+        element =>
+          `${element.tagName}:${String(element.properties.dataLink ?? element.properties.dataEmbed)}:${String(element.properties.dataNth)}`,
+      )
+    expect(nths).toEqual([
+      'aside:a.png:0',
+      'button:a.png:0',
+      'button:b.png:0',
+      'aside:a.png:1',
+      'button:a.png:1',
+    ])
+  })
+})

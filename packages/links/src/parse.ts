@@ -59,6 +59,26 @@ export const parseTarget = (raw: string): { target: LinkTarget; label?: string }
   return label ? { target, label } : { target }
 }
 
+// The size an embed asks for, after its last |: 600 for a width, 600x400 for a width and height.
+export type EmbedSize = { width: number; height?: number }
+const sizeSyntax = /^\s*(\d+)(?:x(\d+))?\s*$/
+
+// An embed's inside without the size it ends with, and that size; a plain link has no size, as
+// [[Page|600]] reads 600.
+export const splitSize = (raw: string): { raw: string; size?: EmbedSize } => {
+  const bar = raw.lastIndexOf('|')
+  const match = bar < 0 ? null : sizeSyntax.exec(raw.slice(bar + 1))
+  if (!match) return { raw }
+  const width = Number(match[1])
+  return {
+    raw: raw.slice(0, bar),
+    size: match[2] ? { width, height: Number(match[2]) } : { width },
+  }
+}
+
+export const formatSize = ({ width, height }: EmbedSize) =>
+  height === undefined ? `${width}` : `${width}x${height}`
+
 // A stretch of text as a reader sees it: plain, or a link with what it shows.
 export type TextPiece =
   | { text: string }
@@ -71,16 +91,18 @@ export const textPieces = (value: string): TextPiece[] => {
   let from = 0
   for (const match of value.matchAll(linkPattern())) {
     const raw = match[3] ?? ''
-    const { target, label } = parseTarget(raw)
+    const embed = match[1] === '!'
+    const unsized = embed ? splitSize(raw).raw : raw
+    const { target, label } = parseTarget(unsized)
     if (!target.page) continue
     if (match.index > from) pieces.push({ text: value.slice(from, match.index) })
     const tag = match[2] === '#'
-    const shown = label ?? (raw.split('|')[0] ?? raw).trim()
+    const shown = label ?? (unsized.split('|')[0] ?? unsized).trim()
     pieces.push({
       link: raw,
       shown: tag ? `#${shown}` : shown,
       target,
-      embed: match[1] === '!',
+      embed,
       tag,
     })
     from = match.index + match[0].length
@@ -116,14 +138,16 @@ const linksIn = (text: Text, source: readonly string[]): ParsedLink[] => {
     )
       line += 1
     counted = match.index
-    const { target, label } = parseTarget(match[3] ?? '')
+    const embed = match[1] === '!'
+    const raw = match[3] ?? ''
+    const { target, label } = parseTarget(embed ? splitSize(raw).raw : raw)
     // [[#heading]] points inside its own page, which is not a link between pages.
     if (!target.page) return []
     return [
       {
         target,
         ...(label ? { label } : {}),
-        embed: match[1] === '!',
+        embed,
         tag: match[2] === '#',
         line,
         context: compact(source[line - 1] ?? ''),

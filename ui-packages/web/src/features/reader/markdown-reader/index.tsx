@@ -10,6 +10,7 @@ import { readViewport } from '../reader-viewport'
 import type { TextReaderProps } from '../text-file-reader'
 import { Backlinks } from './backlinks'
 import { EmbedScopeContext, placeKey } from './embed-context'
+import { useEmbedResize } from './embed-resize'
 import { parseMarkdownHeadings } from './heading-model'
 import { linkComponents } from './link-components'
 import { MarkdownOutline } from './outline'
@@ -87,15 +88,19 @@ export const MarkdownReader = ({
   )
   // The page this note is, as links name it, once the library is indexed.
   const page = useLinkGraph()?.page(document.id)
-  // The note being read is the first place an embed chain holds, so it cannot embed itself.
+  // The note being read is the first place an embed chain holds, so it cannot embed itself. Its
+  // embeds can be resized when it is a Markdown file of its own, not a converted document.
+  const resize = useEmbedResize(document.id)
+  const resizable = document.previewKind === 'markdown' && !imageResolver
   const embedScope = useMemo(
     () => ({
       chain: [placeKey(document.id, {})],
       depth: 0,
       files,
       components: linkComponents,
+      ...(resizable ? { resize } : {}),
     }),
-    [document.id, files],
+    [document.id, files, resizable, resize],
   )
   const extensions = useMemo<MarkdownExtensions>(
     () => ({

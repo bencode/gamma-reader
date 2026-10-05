@@ -1,4 +1,5 @@
 import {
+  type EmbedSize,
   headingKey,
   isNotePath,
   type LinkTarget,
@@ -6,6 +7,7 @@ import {
   parseTarget,
   remarkLinks,
   splitFrontmatter,
+  splitSize,
 } from '@gamma-reader/links'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Markdown } from '../../../components/markdown'
@@ -15,7 +17,9 @@ import type { StoredFileMetadata } from '../../../core/files'
 import { getStoredFileContent } from '../../../data/file-store'
 import { useLinkGraph, useOpenFile } from '../../../shell/workspace-context'
 import { createMarkdownImageResolver } from '../markdown-image-resolver'
+import { isP5SourceName } from '../p5-file'
 import { type EmbedScope, EmbedScopeContext, placeKey, useEmbedScope } from './embed-context'
+import { EmbeddedPage, EmbeddedSketch, ResizableBox } from './embed-frame'
 import styles from './style.module.scss'
 import { placeOf } from './wiki-link'
 
@@ -105,6 +109,7 @@ const EmbeddedNote = ({
   const inner = useMemo<EmbedScope>(
     () => ({
       ...scope,
+      resize: undefined,
       chain: [...scope.chain, placeKey(file.id, { block, heading })],
       depth: scope.depth + 1,
     }),
@@ -139,23 +144,27 @@ const EmbeddedNote = ({
   )
 }
 
-// ![[...]] alone in its paragraph: the note, block or section it names, or the image, shown in
-// place, carrying the paragraph's own name if it has one. Anything it cannot show — no single
-// file, another kind of file, too deep — stays the link it holds, and a place already shown around
-// it is named rather than shown again.
+// ![[...]] alone in its paragraph: the note, block or section it names, or the image, p5 sketch or
+// HTML page, shown in place, carrying the paragraph's own name if it has one. Anything it cannot
+// show — no single file, another kind of file, too deep — stays the link it holds, and a place
+// already shown around it is named rather than shown again. An image, sketch or page takes the
+// size written last in the embed, and a drag resizes it when the note it is written in allows.
 export const WikiEmbed = ({
   raw,
+  nth,
   block,
   children,
 }: {
   raw: string
+  nth: number
   block?: string
   children: ReactNode
 }) => {
   const scope = useEmbedScope()
   const graph = useLinkGraph()
   const openFile = useOpenFile()
-  const { target, label } = parseTarget(raw)
+  const { raw: unsized, size } = splitSize(raw)
+  const { target, label } = parseTarget(unsized)
   const resolution = graph?.resolve(target)
   const file =
     resolution?.kind === 'file'
@@ -175,11 +184,15 @@ export const WikiEmbed = ({
 
   const note = file && isNotePath(file.path)
   const image = file?.previewKind === 'image'
+  const sketch = file && isP5SourceName(file.path)
+  const page = file?.previewKind === 'html'
   // The link stays in the paragraph it was written as, keeping any name that paragraph has.
-  if (!scope || !file || depth > maximumDepth || !(note || image))
+  if (!scope || !file || depth > maximumDepth || !(note || image || sketch || page))
     return <p data-block={block}>{children}</p>
 
-  const name = label ?? (raw.split('|')[0] ?? raw).trim()
+  const name = label ?? (unsized.split('|')[0] ?? unsized).trim()
+  const { resize } = scope
+  const onResize = resize && ((next: EmbedSize) => resize(raw, nth, next))
   const title = (
     <button
       type="button"
@@ -199,8 +212,13 @@ export const WikiEmbed = ({
 
   if (image)
     return shown(
-      <MarkdownImage alt={name} context={imageContext} fallback={name} src={file.path} />,
+      <ResizableBox size={size} axis="width" className={styles.imageBox} onResize={onResize}>
+        <MarkdownImage alt={name} context={imageContext} fallback={name} src={file.path} />
+      </ResizableBox>,
     )
+  if (sketch)
+    return shown(<EmbeddedSketch file={file} name={name} size={size} onResize={onResize} />)
+  if (page) return shown(<EmbeddedPage file={file} name={name} size={size} onResize={onResize} />)
   if (scope.chain.includes(placeKey(file.id, target)))
     return shown(
       <p className={styles.embedNote}>↻ Circular embed: {name} is already shown above.</p>,

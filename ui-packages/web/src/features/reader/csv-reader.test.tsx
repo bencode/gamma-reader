@@ -7,6 +7,8 @@ vi.mock('../../shell/workspace-context', () => ({
   useReaderBinding: vi.fn(),
   useReveal: () => ({ reveal: null, shown: vi.fn() }),
   useLinkGraph: () => null,
+
+  useTextFileUpdates: () => ({ update: vi.fn(), unsaved: () => false }),
 }))
 
 const file: StoredFileMetadata = {

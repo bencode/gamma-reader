@@ -8,6 +8,7 @@ export type P5FrameCommand = {
 
 export type P5FrameEvent =
   | { channel: typeof p5FrameChannel; runId: string; type: 'ready' }
+  | { channel: typeof p5FrameChannel; runId: string; type: 'size'; width: number; height: number }
   | {
       channel: typeof p5FrameChannel
       runId: string
@@ -29,14 +30,21 @@ const attributeValue = (value: string) =>
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
 
+// A fitted sketch scales its canvas, keeping its shape, to the frame it is shown in.
+const fittedCanvas = `
+      body { overflow: hidden; }
+      canvas { width: auto !important; height: auto !important; max-width: 100vw; max-height: 100vh; }`
+
 export const createP5FrameDocument = ({
   runtimeUrl,
   runId,
   source,
+  fit = false,
 }: {
   runtimeUrl: string
   runId: string
   source: string
+  fit?: boolean
 }) => `<!doctype html>
 <html>
   <head>
@@ -45,7 +53,7 @@ export const createP5FrameDocument = ({
     <style>
       html, body { min-height: 100%; margin: 0; }
       body { display: grid; place-items: center; overflow: auto; background: #fff; }
-      canvas { display: block; }
+      canvas { display: block; }${fit ? fittedCanvas : ''}
     </style>
   </head>
   <body>
@@ -87,6 +95,24 @@ export const createP5FrameDocument = ({
             if (resumeAfterSuspend && !explicitlyPaused && typeof loop === 'function') loop()
           }
         })
+        // The canvas size the sketch asked for, which p5 keeps in its style, whenever it changes.
+        let reported = ''
+        const reportSize = () => {
+          const canvas = document.querySelector('canvas')
+          if (!canvas) return
+          const width = parseFloat(canvas.style.width) || canvas.width
+          const height = parseFloat(canvas.style.height) || canvas.height
+          const size = width + 'x' + height
+          if (size === reported) return
+          reported = size
+          send({ type: 'size', width, height })
+        }
+        new MutationObserver(reportSize).observe(document.body, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          attributeFilter: ['width', 'height', 'style'],
+        })
         if (typeof p5 !== 'function') {
           fail('The p5 runtime could not be loaded.')
         } else {
@@ -113,6 +139,10 @@ export const isP5FrameEvent = (value: unknown): value is P5FrameEvent => {
   return (
     message.channel === p5FrameChannel &&
     typeof message.runId === 'string' &&
-    (message.type === 'ready' || (message.type === 'error' && typeof message.message === 'string'))
+    (message.type === 'ready' ||
+      (message.type === 'size' &&
+        typeof message.width === 'number' &&
+        typeof message.height === 'number') ||
+      (message.type === 'error' && typeof message.message === 'string'))
   )
 }

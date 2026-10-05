@@ -43,6 +43,15 @@ vi.stubGlobal(
   },
 )
 
+vi.stubGlobal(
+  'IntersectionObserver',
+  class {
+    observe = vi.fn()
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+  },
+)
+
 // jsdom has no visual geometry or native modal implementation.
 Object.defineProperties(HTMLElement.prototype, {
   offsetLeft: {
