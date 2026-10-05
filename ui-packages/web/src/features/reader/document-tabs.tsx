@@ -65,6 +65,14 @@ const textReaderFor = (file: StoredFileMetadata): TextReaderDefinition | undefin
   return undefined
 }
 
+// What an empty reader suggests opening: a start page at the top of the library, if there is
+// one, or else the first file.
+const startPages = ['start here.md', 'readme.md']
+const suggestedFile = (files: readonly StoredFileMetadata[]) =>
+  startPages
+    .map(name => files.find(file => file.path.toLowerCase() === name))
+    .find(file => file !== undefined) ?? files[0]
+
 // Tabs show the file name; when open files share one, the folder path tells them apart.
 const tabLabel = (path: string, openPaths: readonly string[]) => {
   const name = baseName(path)
@@ -97,6 +105,7 @@ export const DocumentTabs = ({
   const [pendingCloseIds, setPendingCloseIds] = useState<readonly string[] | null>(null)
   const focusTargetRef = useRef<HTMLButtonElement>(null)
   const emptyReaderRef = useRef<HTMLDivElement>(null)
+  const suggested = suggestedFile(workspace.files)
   const pendingFocus = useRef<TabFocusTarget | null>(null)
   const closeOrigin = useRef<HTMLElement | null>(null)
   const close = (ids: readonly string[]) => {
@@ -250,14 +259,14 @@ export const DocumentTabs = ({
             <BookOpen size={30} strokeWidth={1.4} />
             <h1>Start with a document</h1>
             <p>Open a sample from Files, or add your own.</p>
-            {workspace.files[0] && (
+            {suggested && (
               <button
                 type="button"
                 className="text-button"
                 ref={focusTargetRef}
-                onClick={() => workspace.openDocument(workspace.files[0]?.id ?? '')}
+                onClick={() => workspace.openDocument(suggested.id)}
               >
-                Open {workspace.files[0].path}
+                Open {suggested.path}
               </button>
             )}
           </div>
