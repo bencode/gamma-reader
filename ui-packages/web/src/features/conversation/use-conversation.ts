@@ -435,6 +435,12 @@ export const useConversation = (
           id: conversation.id,
           messages: storedMessages,
           ...state,
+          web: () =>
+            !webSearchAvailable(configRef.current)
+              ? 'unavailable'
+              : activeRef.current.webSearch
+                ? 'on'
+                : 'off',
         })
         agent.state.tools = withWebSearch(
           agent.state.tools,

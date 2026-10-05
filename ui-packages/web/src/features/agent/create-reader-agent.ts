@@ -24,6 +24,7 @@ import { systemPrompt } from './system-prompt'
 import { openTextSource } from './text-source'
 import { LocalToolError } from './tool-types'
 import { createReaderTools } from './tools'
+import { createUrlTools, type WebState } from './url-tools'
 import { createVisionAnalyzer } from './vision'
 import { createXlsxRuntime, type XlsxRuntime } from './xlsx/runtime'
 import { createXlsxTools } from './xlsx/tools'
@@ -92,10 +93,12 @@ export const conversationMessages = (agent: Agent) =>
 export const createReaderAgent = (
   runtime: ModelRuntime,
   local: LocalTools,
-  session: { id: string; messages: readonly AgentMessage[] } & Pick<
-    AgentState,
-    'model' | 'thinkingLevel'
-  >,
+  session: {
+    id: string
+    messages: readonly AgentMessage[]
+    // Read at each call, so turning web search on or off needs no new agent.
+    web?: () => WebState
+  } & Pick<AgentState, 'model' | 'thinkingLevel'>,
 ) => {
   const pdf = createPdfRuntime(getStoredFile)
   const docx = createDocxRuntime()
@@ -114,6 +117,7 @@ export const createReaderAgent = (
       systemPrompt: `${systemPrompt}\n\n${skillCatalog(skills)}`,
       tools: [
         ...createReaderTools(local, documents),
+        ...createUrlTools(local.saveFile, session.web ?? (() => 'unavailable')),
         ...(analyze ? createImageTools(getStoredFile, analyze) : []),
         ...createPdfTools(pdf, analyze),
         ...createXlsxTools(xlsx),

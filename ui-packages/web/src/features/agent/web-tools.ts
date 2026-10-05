@@ -8,7 +8,7 @@ type SearchHit = { title: string; url: string; published?: string; snippet: stri
 
 // The server explains a refusal as { error: { message } }; anything else, such as a proxy's HTML
 // error page, gets a general message.
-const refusal = async (response: Response) => {
+export const refusal = async (response: Response) => {
   const fallback = 'The web search failed. Try again later.'
   try {
     const body: { error?: { message?: unknown } } | null = JSON.parse(await response.text())

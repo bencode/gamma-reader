@@ -256,6 +256,23 @@ const writeError = (reason: ImportResult['rejected'][number]['reason']) => {
   return new Error('The file does not fit in browser storage.')
 }
 
+// A file the library already has at that path, which an addition must not replace.
+export class FileExistsError extends Error {}
+
+// Adds a file at a path the library does not hold yet; the caller chooses another path otherwise.
+export const addStoredFile = async (path: string, file: File, signal?: AbortSignal) => {
+  signal?.throwIfAborted()
+  const taken = (await listStoredFiles()).some(
+    existing => existing.path.toLowerCase() === path.toLowerCase(),
+  )
+  if (taken) throw new FileExistsError(`A file already exists at ${path}. Choose another path.`)
+  const result = await importStoredFiles([{ path, file }], 'replace', 'files', signal)
+  const added = result.imported[0]?.metadata
+  if (added) return added
+  const rejected = result.rejected[0]
+  throw rejected ? writeError(rejected.reason) : new Error('The file could not be added.')
+}
+
 export const writeStoredTextFile = async (path: string, content: string, signal?: AbortSignal) => {
   signal?.throwIfAborted()
   const existing = (await listStoredFiles()).find(

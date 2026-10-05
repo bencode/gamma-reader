@@ -17,6 +17,7 @@ import type { LabRunner } from '../features/agent/lab-tools'
 import type {
   LocalTools,
   WorkspaceFileMover,
+  WorkspaceFileSaver,
   WorkspaceTextWriter,
 } from '../features/agent/local-tools'
 import type { NoteIndexState } from '../features/links/note-index'
@@ -51,6 +52,7 @@ export const WorkspaceProvider = ({
   workspace,
   rootRef,
   writeTextFile,
+  saveFile,
   moveFile,
   updateTextFile,
   noteIndex,
@@ -59,6 +61,7 @@ export const WorkspaceProvider = ({
   workspace: Workspace
   rootRef: RefObject<HTMLDivElement | null>
   writeTextFile: WorkspaceTextWriter
+  saveFile?: WorkspaceFileSaver
   moveFile: WorkspaceFileMover
   updateTextFile: (
     id: string,
@@ -82,6 +85,7 @@ export const WorkspaceProvider = ({
     readers,
     labs,
     writeTextFile,
+    saveFile,
     moveFile,
     noteIndex,
     updateTextFile,

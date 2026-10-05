@@ -37,7 +37,7 @@ import {
 const root = '/workspace'
 
 // Every path the model names goes through here, so write and move accept the same paths.
-const agentWorkspacePath = (path: string) => {
+export const agentWorkspacePath = (path: string) => {
   const relative = path.startsWith(`${root}/`)
     ? path.slice(root.length + 1)
     : path.replace(/^\.\//, '')
@@ -70,6 +70,12 @@ const validSourceCursor = (value: unknown): value is SourceCursor =>
 export type WorkspaceTextWriter = (
   path: string,
   content: string,
+  signal?: AbortSignal,
+) => Promise<StoredFileMetadata>
+
+export type WorkspaceFileSaver = (
+  path: string,
+  file: File,
   signal?: AbortSignal,
 ) => Promise<StoredFileMetadata>
 
@@ -198,9 +204,15 @@ export const createLocalTools = (
   activeSource?: ActiveSourceAccess,
   links: LinkAccess = noLinks,
   labs?: LabAccess,
+  saveFile?: WorkspaceFileSaver,
 ) => ({
   ...createLinkTools(links),
   get_reader_state: getReaderState,
+  // Not a tool of its own: the tools that bring files in from elsewhere add them through it.
+  saveFile: (path: string, file: File, signal?: AbortSignal) => {
+    if (!saveFile) throw new LocalToolError('Saving files is unavailable.')
+    return saveFile(agentWorkspacePath(path), file, signal)
+  },
   write: async (input: WriteInput, signal?: AbortSignal): Promise<WriteResult> => {
     const metadata = await writeTextFile(agentWorkspacePath(input.path), input.content, signal)
     return { fileId: metadata.id, path: metadata.path }

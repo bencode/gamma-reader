@@ -7,7 +7,7 @@ import { createApp } from '../app.js'
 import { createQuotaGuard } from '../quota/guard.js'
 import { passCookieName } from '../quota/pass.js'
 import { openQuotaStore } from '../quota/store.js'
-import type { SearchProvider } from './provider.js'
+import type { PageExtractor, SearchProvider } from './provider.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'gamma-reader-search-'))
 const opened: { close: () => void }[] = []
@@ -17,7 +17,7 @@ afterAll(() => {
 })
 
 // One request at a time, so a search that never released its slot would turn the next one away.
-const searchApp = (provider?: SearchProvider) => {
+const searchApp = (provider?: SearchProvider, extractor?: PageExtractor) => {
   const databaseFile = join(directory, `${crypto.randomUUID()}.db`)
   const store = openQuotaStore(databaseFile)
   opened.push(store)
@@ -25,8 +25,8 @@ const searchApp = (provider?: SearchProvider) => {
     store,
     {
       databaseFile,
-      dailyTokens: 1_000,
-      totalDailyTokens: 1_000,
+      dailyTokens: 100_000,
+      totalDailyTokens: 100_000,
       maximumConcurrent: 1,
       trustProxy: false,
     },
@@ -41,14 +41,25 @@ const searchApp = (provider?: SearchProvider) => {
       reader.close()
     }
   }
-  const app = createApp(guard, undefined, undefined, null, provider)
-  const search = (body: unknown, cookie = `${passCookieName}=${guard.pass()}`) =>
-    app.request('/api/agent/search', {
+  const app = createApp(
+    guard,
+    undefined,
+    undefined,
+    null,
+    provider && {
+      search: provider,
+      extract: extractor ?? (async url => ({ url, content: '# Page' })),
+    },
+  )
+  const post = (path: string, body: unknown, cookie = `${passCookieName}=${guard.pass()}`) =>
+    app.request(`/api/agent/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: cookie },
       body: JSON.stringify(body),
     })
-  return { search, charged }
+  const search = (body: unknown, cookie?: string) => post('search', body, cookie)
+  const extract = (body: unknown) => post('extract', body)
+  return { search, extract, charged }
 }
 
 const hit = { title: 'SICM 1.4', url: 'https://example.org/sicm', snippet: 'Computing actions' }
@@ -93,5 +104,25 @@ describe('web search route', () => {
     expect(JSON.stringify(await failed.json())).not.toContain('secret detail')
     expect((await failing.search({ query: 'again' })).status).toBe(502)
     expect((await searchApp().search({ query: 'x' })).status).toBe(503)
+  })
+
+  it('extracts a page for a charge of its own, and only charges for a page it returns', async () => {
+    const extract = vi.fn<PageExtractor>(async url => ({ url, content: '# Stationary action' }))
+    const { extract: post, charged } = searchApp(async () => [hit], extract)
+
+    const page = await post({ url: 'https://example.org/action' })
+
+    expect(page.status).toBe(200)
+    expect(await page.json()).toEqual({
+      url: 'https://example.org/action',
+      content: '# Stationary action',
+    })
+    expect(charged()).toBe(2_000)
+    expect((await post({ url: 'file:///etc/passwd' })).status).toBe(400)
+    expect((await post({ url: 'not a url' })).status).toBe(400)
+    extract.mockRejectedValueOnce(new Error('blocked'))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expect((await post({ url: 'https://example.org/blocked' })).status).toBe(502)
+    expect(charged()).toBe(2_000)
   })
 })

@@ -15,6 +15,7 @@ import {
 } from '../../core/folder-import'
 import type { ImportTarget } from '../../core/url-import'
 import {
+  addStoredFile,
   importStoredFiles,
   listStoredFiles,
   moveStoredFile,
@@ -162,6 +163,17 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
       return metadata
     },
     [reload, rememberPersistence],
+  )
+
+  // Adds what the assistant downloaded, prepared as a file the reader adds would be.
+  const saveFile = useCallback(
+    async (path: string, file: File, signal?: AbortSignal) => {
+      const metadata = await addStoredFile(path, prepareFile(file), signal)
+      await reload()
+      rememberPersistence()
+      return metadata
+    },
+    [prepareFile, reload, rememberPersistence],
   )
 
   const moveFile = useCallback(
@@ -312,6 +324,7 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     addFromUrl,
     addAttachments,
     writeTextFile,
+    saveFile,
     moveFile,
     updateTextFile,
     resolveDuplicates,

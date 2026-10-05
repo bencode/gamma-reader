@@ -156,6 +156,7 @@ export const Workbench = ({ project }: { project: Project }) => {
       workspace={workspace}
       rootRef={rootRef}
       writeTextFile={library.writeTextFile}
+      saveFile={library.saveFile}
       moveFile={library.moveFile}
       updateTextFile={library.updateTextFile}
       noteIndex={noteIndex}
