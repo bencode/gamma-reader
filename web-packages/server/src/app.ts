@@ -5,7 +5,7 @@ import { createModelProxyRoutes } from './model-proxy/routes.js'
 import type { QuotaGuard } from './quota/guard.js'
 import type { Source } from './source/repository.js'
 import { createRoutes as createSourceRoutes } from './source/routes.js'
-import { libraryPath, type SourceConfig, sourceLocation } from './source-config.js'
+import { libraryPath, type SourceConfig, sourceLocation, tutorialPath } from './source-config.js'
 import { createWebRoutes, type WebServices } from './web-search/routes.js'
 
 export const createApp = (
@@ -15,6 +15,8 @@ export const createApp = (
   // The source the library syncs from, and its files when this server serves them itself.
   source: { config: SourceConfig; files: Source | null } | null = null,
   web?: WebServices,
+  // The tutorial shipped with this deployment, which every reader's Tutorial project syncs from.
+  tutorial?: Source,
 ) => {
   const app = new Hono()
 
@@ -27,6 +29,7 @@ export const createApp = (
       : c.json({ error: 'No source is configured' }, 404),
   )
   if (source?.files) app.route(libraryPath, createSourceRoutes(source.files))
+  if (tutorial) app.route(tutorialPath, createSourceRoutes(tutorial))
   app.all('/api', c => c.json({ error: 'Not found' }, 404))
   app.all('/api/*', c => c.json({ error: 'Not found' }, 404))
 

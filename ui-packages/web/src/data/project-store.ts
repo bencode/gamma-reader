@@ -1,12 +1,12 @@
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 import { nanoid } from 'nanoid'
 import {
-  defaultProjectName,
-  legacyDatabaseName,
   normalizeProjectName,
   type Project,
   type ProjectSource,
   sourceProjectId,
+  tutorialProjectId,
+  tutorialSource,
 } from '../core/projects'
 import {
   deleteIndexedDatabase,
@@ -32,15 +32,21 @@ const newProject = (name: string, databaseName?: string, id = nanoid(10)): Proje
   }
 }
 
+const tutorialProject = (lastActiveAt: number): Project => ({
+  ...newProject(tutorialSource.name, undefined, tutorialProjectId),
+  source: tutorialSource,
+  lastActiveAt,
+})
+
 const openRegistry = () => {
   registryPromise ??= openDB<ProjectDatabase>(registryName, 1, {
     upgrade(database, oldVersion) {
       if (oldVersion < 1) {
         const projects = database.createObjectStore('projects', { keyPath: 'id' })
         projects.createIndex('by-last-active', 'lastActiveAt')
-        // Whatever the reader kept before projects existed becomes their first project. A failed
-        // write aborts the upgrade, which rejects the open below.
-        projects.put(newProject(defaultProjectName, legacyDatabaseName))
+        // A first visit opens the tutorial, the most recent project there is. A failed write
+        // aborts the upgrade, which rejects the open below.
+        projects.put(tutorialProject(Date.now()))
       }
     },
   }).catch(error => {
@@ -80,6 +86,14 @@ export const openSourceProject = async (source: ProjectSource) => {
   }
   await database.put('projects', project)
   return project
+}
+
+// Every reader has the tutorial. One who had projects before it, or deleted it, finds it again
+// at the end of the list, without leaving the project they were in; opening it fetches it anew.
+export const ensureTutorialProject = async () => {
+  const database = await openRegistry()
+  if (await database.get('projects', tutorialProjectId)) return
+  await database.put('projects', tutorialProject(0))
 }
 
 export const renameProject = async (id: string, name: string) => {

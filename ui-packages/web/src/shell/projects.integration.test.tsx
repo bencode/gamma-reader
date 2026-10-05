@@ -60,12 +60,10 @@ describe('projects', () => {
       return file ? (await getStoredFileContent(file.id))?.text() : undefined
     }
 
+    // Never synced here, so it comes in at once.
     visit('/')
-    expect(await screen.findByText('brain2 has updates.')).toBeVisible()
-    expect(window.location.pathname).toMatch(/^\/p\/source-brain2(\/|$)/)
-    expect(await fileNames()).toEqual([])
-    await user.click(screen.getByRole('button', { name: 'Update' }))
     expect(await screen.findByText('brain2 is up to date.')).toBeVisible()
+    expect(window.location.pathname).toMatch(/^\/p\/source-brain2(\/|$)/)
     expect((await fileNames()).sort()).toEqual([
       'journal/today.md',
       'knowledge/agents.md',
@@ -73,33 +71,57 @@ describe('projects', () => {
     ])
 
     await writeStoredTextFile('journal/today.md', '# Today, edited here')
+    await writeStoredTextFile('journal/mine.md', '# Mine')
     contents['journal/today.md'] = '# Today, from the source'
     contents['knowledge/agents.md'] = '# Agents, revised'
     delete contents['knowledge/old.md']
     version = 'v2'
     cleanup()
     visit('/')
-    await user.click(await screen.findByRole('button', { name: 'Update' }))
+    // The source has the last word on what it changed, and says so before it does.
+    expect(
+      await screen.findByText(
+        'brain2 has updates. Updating replaces your edits to journal/today.md.',
+      ),
+    ).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Update' }))
 
     expect(
-      await screen.findByText('brain2 is up to date. Kept your edits to 1 file: journal/today.md.'),
+      await screen.findByText('brain2 is up to date. Replaced your edits to journal/today.md.'),
     ).toBeVisible()
     expect(screen.getByText('1 file changed only in this browser.')).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'About changes made here' }))
     expect(await screen.findByText(/Files added or edited here stay in this browser/)).toBeVisible()
     expect(await text('knowledge/agents.md')).toBe('# Agents, revised')
-    expect(await text('journal/today.md')).toBe('# Today, edited here')
+    expect(await text('journal/today.md')).toBe('# Today, from the source')
+    expect(await text('journal/mine.md')).toBe('# Mine')
     expect(await fileNames()).not.toContain('knowledge/old.md')
   })
 
-  it('opens as before when the deployment has no source', async () => {
+  it('opens the tutorial on a first visit, kept in step with the deployment', async () => {
     visit('/')
 
-    expect(await screen.findByRole('button', { name: 'My reading' })).toBeInTheDocument()
-    expect(screen.queryByText(/has updates|is up to date/)).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Tutorial' })).toBeInTheDocument()
+    expect(await screen.findByText('Tutorial is up to date.')).toBeVisible()
+    expect(window.location.pathname).toMatch(/^\/p\/tutorial(\/|$)/)
+    expect((await listProjects()).map(project => project.name)).toEqual(['Tutorial'])
   })
 
-  it('opens the library kept before projects as the first project', async () => {
+  it('adds the tutorial to projects kept before it, without leaving the one in use', async () => {
+    const registry = await openDB('gamma-reader-projects', 1, {
+      upgrade(database) {
+        const projects = database.createObjectStore('projects', { keyPath: 'id' })
+        projects.createIndex('by-last-active', 'lastActiveAt')
+      },
+    })
+    await registry.put('projects', {
+      id: 'first',
+      name: 'My reading',
+      databaseName: legacyDatabaseName,
+      createdAt: 1,
+      lastActiveAt: 1,
+    })
+    registry.close()
     await importStoredFiles(
       rootSources([new File(['# Notes'], 'Notes.md', { type: 'text/markdown' })]),
       'keep',
@@ -107,9 +129,9 @@ describe('projects', () => {
     visit('/files/Notes.md')
 
     expect(await screen.findByRole('tab', { name: 'Notes.md' })).toBeInTheDocument()
-    expect(window.location.pathname).toMatch(/^\/p\/[^/]+\/files\/Notes\.md$/)
-    expect(screen.getByRole('button', { name: 'My reading' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/p/first/files/Notes.md')
     expect(document.title).toBe('My reading · Gamma Reader')
+    expect((await listProjects()).map(project => project.name)).toEqual(['My reading', 'Tutorial'])
   })
 
   it('keeps the files of one project out of another', async () => {
@@ -124,43 +146,35 @@ describe('projects', () => {
       'keep',
     )
     await user.click(screen.getByRole('button', { name: 'Bird notes' }))
-    const others = await screen.findByRole('link', { name: 'My reading' })
+    const others = await screen.findByRole('link', { name: 'Tutorial' })
     expect(others).toHaveAttribute('href', `/p/${first?.id}`)
     expect(others).toHaveAttribute('target', projectWindowName(first?.id ?? ''))
 
-    setWorkspaceDatabaseName(legacyDatabaseName)
+    setWorkspaceDatabaseName(first?.databaseName ?? '')
     expect(await fileNames()).not.toContain('Sightings.txt')
     setWorkspaceDatabaseName(birds.databaseName)
     expect(await fileNames()).toEqual(['Sightings.txt'])
   })
 
-  it('deletes a project on the next page and can start again from an empty one', async () => {
+  it('deletes the tutorial on the next page, and the next visit brings it back afresh', async () => {
     const user = userEvent.setup({ delay: null })
     // jsdom cannot load another page, so the next page is mounted by hand.
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const [first] = await listProjects()
     const page = visit('/')
-    await screen.findByRole('list', { name: 'Files' })
-    localStorage.setItem('gamma-reader.workspace', JSON.stringify({ tabs: [], lastActiveId: null }))
-    await user.click(screen.getByRole('button', { name: 'My reading' }))
+    await screen.findByText('Tutorial is up to date.')
+    await writeStoredTextFile('Mine.md', '# Mine')
+    await user.click(screen.getByRole('button', { name: 'Tutorial' }))
     await user.click(await screen.findByRole('button', { name: 'Delete project…' }))
-    const dialog = screen.getByRole('dialog', { name: 'Delete My reading' })
+    const dialog = screen.getByRole('dialog', { name: 'Delete Tutorial' })
     await user.click(within(dialog).getByRole('button', { name: 'Delete project' }))
     // Leaving a page closes the library it had open.
     page.unmount()
     await closeWorkspaceDatabase()
 
     visit(projectDeletionPath(first?.id ?? ''))
-    expect(await screen.findByText('Create a project to add documents.')).toBeVisible()
-    expect(await listProjects()).toEqual([])
-    expect(localStorage.getItem('gamma-reader.workspace')).toBeNull()
-    const name = screen.getByRole('textbox', { name: 'New project name' })
-    await user.clear(name)
-    await user.type(name, 'Fresh start{Enter}')
-    const link = await screen.findByRole('link', { name: 'Open Fresh start' })
-    const [created] = await listProjects()
-    expect(link).toHaveAttribute('href', `/p/${created?.id}`)
-    setWorkspaceDatabaseName(created?.databaseName ?? '')
+    expect(await screen.findByText('Tutorial is up to date.')).toBeVisible()
+    expect((await listProjects()).map(project => project.name)).toEqual(['Tutorial'])
     expect(await fileNames()).toEqual([])
   })
 
@@ -180,7 +194,7 @@ describe('projects', () => {
       await screen.findByText('Waiting for other tabs that have Bird notes open to close.'),
     ).toBeVisible()
     otherTab.close()
-    expect(await screen.findByRole('button', { name: 'My reading' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Tutorial' })).toBeInTheDocument()
     expect(await getProject(birds.id)).toBeNull()
   })
 
@@ -197,7 +211,7 @@ describe('projects', () => {
     // The project is already gone, so its address leads elsewhere instead of to a blank page.
     cleanup()
     visit(`/p/${birds.id}`)
-    expect(await screen.findByRole('button', { name: 'My reading' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Tutorial' })).toBeInTheDocument()
     otherTab.close()
   })
 

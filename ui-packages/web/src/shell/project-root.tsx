@@ -10,6 +10,7 @@ import {
 import {
   clearPendingDeletion,
   deleteProject,
+  ensureTutorialProject,
   getProject,
   isPendingDeletion,
   listProjects,
@@ -38,6 +39,7 @@ const isLegacyPath = (pathname: string) => pathname === '/files' || pathname.sta
 // store is opened. Every other address is rewritten in place to one inside a project; nothing
 // has been read yet, so there is no need to reload the page to do it.
 const resolveProject = async (): Promise<Project | null> => {
+  await ensureTutorialProject()
   const { pathname, search, hash } = window.location
   const requested = pathname.match(projectSegment)?.[1]
   if (requested) {

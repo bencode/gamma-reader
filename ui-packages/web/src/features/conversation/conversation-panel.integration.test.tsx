@@ -2,7 +2,7 @@ import type { PublicModelConfig } from '@gamma-reader/shared/model-config'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ConversationAttachment } from '../../core/agent/reader-message'
 import { emptyConversationDraft } from '../../core/conversations'
 import {
@@ -13,6 +13,7 @@ import {
 import { Workbench } from '../../shell/workbench'
 import { modelConfig as config, isTitleRequest } from '../../test/model-config'
 import { testProject } from '../../test/project'
+import { seedSampleFiles } from '../../test/sample-files'
 import { DraftAttachmentTray, MessageAttachments } from './conversation-attachments'
 
 const event = (delta: unknown, finish: string | null = null) =>
@@ -30,6 +31,9 @@ const complete = (text: string) =>
   new Response(`${event({ content: text }) + event({}, 'stop')}data: [DONE]\n\n`, {
     headers: { 'Content-Type': 'text/event-stream' },
   })
+
+// Some of these open the files a library used to start with.
+beforeEach(seedSampleFiles)
 
 describe('conversation', () => {
   it('shows the sentence a refused request carries instead of its status body', async () => {

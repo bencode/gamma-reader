@@ -33,8 +33,8 @@ const local = [
   { id: 'mine', path: 'notes/mine.md', revision: 1 },
 ]
 
-describe('source sync plan', () => {
-  it('brings in changes, removes what left the source and keeps edits made here', () => {
+describe('syncing from a read-only source', () => {
+  it('brings in what changed there, over edits made here, and leaves the rest as it is here', () => {
     const next = listing({
       'notes/same.md': 'a',
       'notes/changed.md': 'b2',
@@ -44,27 +44,45 @@ describe('source sync plan', () => {
 
     const plan = planSync(previous, next, local)
 
-    expect(plan.download.map(file => file.path)).toEqual(['notes/changed.md', 'notes/new.md'])
+    expect(plan.download.map(file => file.path)).toEqual([
+      'notes/changed.md',
+      'notes/edited.md',
+      'notes/new.md',
+    ])
+    expect(plan.replaced).toEqual(['notes/edited.md'])
     expect(plan.remove).toEqual(['gone'])
-    expect(plan.kept).toEqual(['notes/edited.md', 'notes/gone-edited.md'])
+    expect(plan.kept).toEqual(['notes/gone-edited.md'])
   })
 
-  it('adds everything to an empty library and keeps a file it already holds', () => {
+  it('adds everything to an empty library, replacing a file it holds at a listed path', () => {
     const plan = planSync(null, listing({ 'a.md': '1', 'notes/mine.md': '2' }), local)
 
-    expect(plan.download.map(file => file.path)).toEqual(['a.md'])
-    expect(plan.kept).toEqual(['notes/mine.md'])
+    expect(plan.download.map(file => file.path)).toEqual(['a.md', 'notes/mine.md'])
+    expect(plan.replaced).toEqual(['notes/mine.md'])
   })
 
-  it('records kept edits as synced so the next version of them arrives', () => {
-    const next = listing({ 'notes/edited.md': 'c2' })
-    const snapshot = snapshotAfter(next, local)
+  it('keeps an edit and a deletion the source has not changed, through later syncs', () => {
+    // same.md is edited here and gone.md deleted here; only changed.md changes at the source.
+    const here = [
+      { id: 'same', path: 'notes/same.md', revision: 3 },
+      { id: 'changed', path: 'notes/changed.md', revision: 1 },
+    ]
+    const first = listing({ 'notes/same.md': 'a', 'notes/changed.md': 'b2', 'notes/gone.md': 'd' })
+    const plan = planSync(previous, first, here)
+    expect(plan.download.map(file => file.path)).toEqual(['notes/changed.md'])
+    expect(plan.replaced).toEqual([])
 
-    expect(snapshot).toEqual({
-      version: next.version,
-      files: { 'notes/edited.md': { version: 'c2', revision: 2, id: 'edited' } },
-    })
-    expect(planSync(snapshot, listing({ 'notes/edited.md': 'c3' }), local).download).toHaveLength(1)
+    const synced = [
+      here[0] as (typeof here)[number],
+      { ...(here[1] as (typeof here)[number]), revision: 2 },
+    ]
+    const after = snapshotAfter(first, synced, { kept: plan.kept, previous })
+    expect(planSync(after, first, synced).download).toEqual([])
+    expect(localChanges(after, synced)).toBe(2)
+    const next = listing({ 'notes/same.md': 'a2', 'notes/changed.md': 'b2', 'notes/gone.md': 'd2' })
+    const later = planSync(after, next, synced)
+    expect(later.download.map(file => file.path)).toEqual(['notes/same.md', 'notes/gone.md'])
+    expect(later.replaced).toEqual(['notes/same.md'])
   })
 
   it('counts the files that differ from the source only here', () => {
@@ -160,7 +178,9 @@ describe('saving to a writable source', () => {
       'notes/kept/renamed.md': 'e2',
       'notes/new.md': 'f',
     })
-    expect(planSync(after, disk, now).download.map(file => file.path)).toEqual(['notes/edited.md'])
+    expect(planSync(after, disk, now, true).download.map(file => file.path)).toEqual([
+      'notes/edited.md',
+    ])
   })
 
   it('keeps a skipped change to save again', () => {
@@ -175,7 +195,7 @@ describe('saving to a writable source', () => {
 
   it('keeps the version an edit started from while the file changes on disk', () => {
     const disk = listing({ 'notes/same.md': 'a', 'notes/edited.md': 'b2' })
-    const plan = planSync(synced, disk, now)
+    const plan = planSync(synced, disk, now, true)
     const after = snapshotAfter(disk, now, { kept: plan.kept, previous: synced, source: folder })
 
     expect(plan.kept).toEqual(['notes/edited.md'])
@@ -186,7 +206,7 @@ describe('saving to a writable source', () => {
       base: 'b',
     })
     const later = listing({ 'notes/same.md': 'a', 'notes/edited.md': 'b3' })
-    expect(planSync(after, later, now).download).toEqual([])
+    expect(planSync(after, later, now, true).download).toEqual([])
   })
 
   it('still saves every change after a sync brings in an edit made on disk', () => {
@@ -197,10 +217,32 @@ describe('saving to a writable source', () => {
       'papers/x.pdf': 'd',
       'notes/renamed.md': 'e',
     })
-    const plan = planSync(synced, disk, now)
+    const plan = planSync(synced, disk, now, true)
     const after = snapshotAfter(disk, now, { kept: plan.kept, previous: synced, source: folder })
 
     expect(planSave(after, now)).toEqual(planSave(synced, now))
+  })
+
+  it('still saves an edit to a file unchanged on disk after a sync brings in another', () => {
+    const disk = listing({ 'notes/same.md': 'a2', 'notes/edited.md': 'b' })
+    const here = [{ id: 'edited', path: 'notes/edited.md', revision: 2 }]
+    const plan = planSync(synced, disk, here, true)
+    const after = snapshotAfter(
+      disk,
+      [...here, { id: 'same', path: 'notes/same.md', revision: 2 }],
+      {
+        kept: plan.kept,
+        previous: synced,
+        source: folder,
+      },
+    )
+
+    expect(planSave(after, here)).toContainEqual({
+      kind: 'write',
+      id: 'edited',
+      path: 'notes/edited.md',
+      base: 'b',
+    })
   })
 
   it('saves only to the folder the library was synced from', () => {

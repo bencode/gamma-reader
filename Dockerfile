@@ -31,6 +31,7 @@ WORKDIR /app
 
 COPY --from=build --chown=node:node /prod/server ./web-packages/server
 COPY --from=build --chown=node:node /app/ui-packages/web/dist ./ui-packages/web/dist
+COPY --from=build --chown=node:node /app/tutorial ./tutorial
 
 # The quota database lives on a mounted volume, which Docker creates owned by
 # root unless the image already carries the directory.

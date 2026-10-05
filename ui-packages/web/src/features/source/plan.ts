@@ -26,6 +26,8 @@ export type SyncPlan = {
   remove: string[]
   // Edited here since the last sync, so the library keeps its own copy.
   kept: string[]
+  // Edited here, but changed at a read-only source, whose copy replaces them.
+  replaced: string[]
 }
 
 // What Save sends back to a writable source. A base is the version the copy here started from.
@@ -38,10 +40,15 @@ export type SaveChange =
 const byPath = (files: readonly LocalFile[]) =>
   new Map(files.map(file => [file.path.toLowerCase(), file]))
 
+// A writable source keeps an edit made here until Save merges it. A read-only one has the last
+// word: whatever changed there arrives, over any edit made here, and whatever did not change is
+// left as it is here, edited or deleted. A file it dropped that was edited here stays, as the
+// reader's own.
 export const planSync = (
   previous: SyncSnapshot | null,
   listing: SourceListing,
   local: readonly LocalFile[],
+  writable = false,
 ): SyncPlan => {
   const here = byPath(local)
   const edited = (path: string) => {
@@ -52,20 +59,23 @@ export const planSync = (
   const changed = listing.files.filter(file => previous?.files[file.path]?.version !== file.version)
   const listed = new Set(listing.files.map(file => file.path))
   const gone = Object.keys(previous?.files ?? {}).filter(path => !listed.has(path))
+  const keptGone = gone.filter(edited)
   return {
-    download: changed.filter(file => !edited(file.path)),
+    download: writable ? changed.filter(file => !edited(file.path)) : changed,
     remove: gone.flatMap(path => {
       const file = here.get(path.toLowerCase())
       return file && !edited(path) ? [file.id] : []
     }),
-    kept: [...changed, ...gone.map(path => ({ path }))].map(file => file.path).filter(edited),
+    kept: writable ? [...changed.map(file => file.path).filter(edited), ...keptGone] : keptGone,
+    replaced: writable ? [] : changed.map(file => file.path).filter(edited),
   }
 }
 
-// Every listed file the library now holds counts as synced at its current revision. A kept edit
-// differs by source: from a read-only one it counts as synced, so once the edit is pushed there
-// its next version arrives as usual; to a writable one it stays an edit from the version it
-// started at, so Save merges it with what changed on disk rather than overwriting that.
+// What the library holds after a sync. A file the source did not change keeps its record, so an
+// edit made here still shows as one: a writable source still saves it, and a read-only one still
+// names it before replacing it. A file the sync brought in counts as synced at its new revision.
+// A kept edit to a writable source stays an edit from the version it started at, so Save merges
+// it with what changed on disk rather than overwriting that.
 export const snapshotAfter = (
   listing: SourceListing,
   local: readonly LocalFile[],
@@ -88,12 +98,15 @@ export const snapshotAfter = (
     files: Object.fromEntries(
       listing.files.flatMap(file => {
         const held = here.get(file.path.toLowerCase())
-        // A file deleted or moved here stays recorded for a writable source until Save, unless
-        // it changed on disk, in which case the sync has brought it back.
+        // A file deleted or moved here stays recorded while the source has not changed it, so
+        // it is not taken for a new file: a writable source deletes it on Save, and a read-only
+        // one leaves it deleted. Once the source changes it, the sync has brought it back.
         if (!held) {
-          const pending = source?.writable ? previous?.files[file.path] : undefined
+          const pending = previous?.files[file.path]
           return pending && pending.version === file.version ? [[file.path, pending]] : []
         }
+        const before = previous?.files[file.path]
+        if (before?.version === file.version) return [[file.path, { ...before, id: held.id }]]
         const entry: SnapshotEntry = { version: file.version, revision: held.revision, id: held.id }
         if (!keptHere.has(file.path)) return [[file.path, entry]]
         const started = source?.writable ? previous?.files[file.path] : undefined

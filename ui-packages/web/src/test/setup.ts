@@ -92,6 +92,7 @@ beforeEach(() => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
     if (String(input) === '/api/agent/config') return Response.json({ enabled: false })
     if (String(input) === '/api/source') return Response.json({}, { status: 404 })
+    if (String(input) === '/api/tutorial') return Response.json({ version: 'empty', files: [] })
     throw new Error(`Unexpected network request in test: ${String(input)}`)
   })
 })

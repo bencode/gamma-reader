@@ -21,6 +21,9 @@ type Env = Record<string, string | undefined>
 // Where the reader finds a source this server serves.
 export const libraryPath = '/api/library'
 
+// Where the reader finds the tutorial, which ships with the deployment.
+export const tutorialPath = '/api/tutorial'
+
 const positiveInteger = (name: string, raw: string | undefined, fallback: number) => {
   if (raw === undefined || raw.trim() === '') return fallback
   const value = Number(raw)
