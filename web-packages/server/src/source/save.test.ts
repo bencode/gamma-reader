@@ -63,7 +63,7 @@ type Change =
   | { kind: 'delete'; path: string; base: string }
 
 // Sends changes as the reader does: one JSON list, each write's content in its own part.
-const save = async (changes: Change[]) => {
+const save = async (changes: Change[], to = app) => {
   const form = new FormData()
   const wire = changes.map((change, index) => {
     if (change.kind !== 'write') return change
@@ -71,7 +71,7 @@ const save = async (changes: Change[]) => {
     return { kind: 'write', path: change.path, base: change.base, part: `c${index}` }
   })
   form.append('changes', JSON.stringify(wire))
-  const response = await app.request('/api/library/save', { method: 'POST', body: form })
+  const response = await to.request('/api/library/save', { method: 'POST', body: form })
   expect(response.status).toBe(200)
   return (await response.json()) as SaveResult[]
 }
@@ -182,5 +182,29 @@ describe('saving to a working tree', () => {
     expect((await app.request('/api/library/save', { method: 'POST', body: form })).status).toBe(
       400,
     )
+  })
+
+  it('saves anywhere in a whole repository but its hidden and excluded folders', async () => {
+    const whole = new Hono().route(
+      '/api/library',
+      createRoutes(await openWorkingTree({ dir, include: [], exclude: ['meta'] })),
+    )
+    const results = await save(
+      [
+        { kind: 'write', path: 'sun-earth-moon/orbit.p5.js', base: null, content: 'orbit\n' },
+        { kind: 'write', path: 'meta/new.md', base: null, content: 'meta\n' },
+        { kind: 'write', path: '.claude/settings.md', base: null, content: 'hidden\n' },
+      ],
+      whole,
+    )
+
+    expect(results.map(result => `${result.path} ${result.kind}`)).toEqual([
+      'sun-earth-moon/orbit.p5.js written',
+      'meta/new.md skipped',
+      '.claude/settings.md skipped',
+    ])
+    expect(read('sun-earth-moon/orbit.p5.js')).toBe('orbit\n')
+    expect(existsSync(join(dir, 'meta/new.md'))).toBe(false)
+    expect(existsSync(join(dir, '.claude/settings.md'))).toBe(false)
   })
 })

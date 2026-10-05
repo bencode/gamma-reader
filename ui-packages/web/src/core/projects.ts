@@ -1,6 +1,14 @@
 // A remote source the project's library is kept in step with, named by the deployment. A
-// writable one also takes the library's changes back, and its id names the folder it serves.
-export type ProjectSource = { name: string; url: string; writable?: boolean; id?: string }
+// writable one also takes the library's changes back, and its id names the folder it serves. A
+// repository the reader's own server serves says which of its folders it holds.
+export type SourceScope = { include: string[]; exclude: string[] }
+export type ProjectSource = {
+  name: string
+  url: string
+  writable?: boolean
+  id?: string
+  scope?: SourceScope
+}
 
 export type Project = {
   id: string

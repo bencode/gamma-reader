@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { Readable } from 'node:stream'
 import { promisify } from 'node:util'
 import type { SaveChange, SaveContent, SaveResult } from './save.js'
+import { inScope } from './scope.js'
 
 // The listing the reader syncs from. Versions are opaque; each one changes when the content does.
 export type SourceFile = { path: string; version: string; size: number }
@@ -81,10 +82,12 @@ export const openRepository = ({
   repo,
   dir,
   include,
+  exclude = [],
 }: {
   repo: string
   dir: string
   include: readonly string[]
+  exclude?: readonly string[]
 }) => {
   // A clone lists its commit, and each file its blob.
   let cached: { listing: SourceListing; byPath: Map<string, SourceFile> } | undefined
@@ -94,7 +97,9 @@ export const openRepository = ({
   const current = async () => {
     const commit = (await git(dir, ['rev-parse', 'HEAD'])).trim()
     if (cached?.listing.version === commit) return cached
-    const files = parseTree(await git(dir, ['ls-tree', '-r', '-l', '-z', commit, '--', ...include]))
+    const files = parseTree(
+      await git(dir, ['ls-tree', '-r', '-l', '-z', commit, '--', ...include]),
+    ).filter(file => inScope(file.path, { include, exclude }))
     cached = {
       listing: { version: commit, files },
       byPath: new Map(files.map(file => [file.path, file])),

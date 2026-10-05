@@ -11,6 +11,7 @@ import {
   streamObject,
 } from './repository.js'
 import { applySave } from './save.js'
+import { inScope } from './scope.js'
 
 // A file that went away since it was listed has nothing to read; any other failure is real.
 const statFile = (path: string) =>
@@ -55,10 +56,13 @@ const hashFiles = async (dir: string, paths: readonly string[]) => {
 export const openWorkingTree = async ({
   dir,
   include,
+  exclude = [],
 }: {
   dir: string
   include: readonly string[]
+  exclude?: readonly string[]
 }): Promise<Source> => {
+  const scope = { include, exclude }
   try {
     await git(dir, ['rev-parse', '--is-inside-work-tree'])
   } catch (cause) {
@@ -78,7 +82,9 @@ export const openWorkingTree = async ({
       ...include,
     ])
     // During a merge a conflicted path is listed once per stage.
-    const paths = [...new Set(output.split('\0').filter(Boolean))].filter(hashable).sort()
+    const paths = [...new Set(output.split('\0').filter(Boolean))]
+      .filter(path => hashable(path) && inScope(path, scope))
+      .sort()
     const present = (
       await Promise.all(
         paths.map(async path => {
@@ -121,6 +127,6 @@ export const openWorkingTree = async ({
       const file = listed.get(path)
       return file ? { file, stream: streamObject(dir, file.version) } : null
     },
-    save: (changes, content) => applySave(dir, include, changes, content),
+    save: (changes, content) => applySave(dir, scope, changes, content),
   }
 }

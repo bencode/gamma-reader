@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { git } from './repository.js'
+import { inScope, type SourceScope } from './scope.js'
 
 // A change the reader made since it last synced. A base names the object the reader's copy
 // started from, so a file someone else changed meanwhile is merged rather than overwritten.
@@ -50,15 +51,6 @@ const skipped = (path: string, reason: SkipReason): SaveResult => ({
   path,
   reason,
 })
-
-// A change reaches only the folders the source lists, and never git's own.
-const allowed = (path: string, include: readonly string[]) =>
-  path
-    .split('/')
-    .every(
-      segment => segment !== '' && segment !== '.' && segment !== '..' && segment !== '.git',
-    ) &&
-  (include.length === 0 || include.some(folder => path.startsWith(`${folder}/`)))
 
 const statOf = (path: string) =>
   lstat(path).then(
@@ -225,7 +217,7 @@ const apply = (dir: string, change: SaveChange, content: SaveContent) =>
 // Each change stands alone: one that fails is reported and the rest still apply.
 export const applySave = async (
   dir: string,
-  include: readonly string[],
+  scope: SourceScope,
   changes: readonly SaveChange[],
   content: SaveContent,
 ) => {
@@ -242,7 +234,7 @@ export const applySave = async (
     try {
       const inside = await Promise.all(paths.map(path => insideTree(dir, path)))
       const result =
-        paths.every(path => allowed(path, include)) && inside.every(Boolean)
+        paths.every(path => inScope(path, scope)) && inside.every(Boolean)
           ? await apply(dir, change, content)
           : skipped(target(change), 'invalid-path')
       if (change.kind === 'move' && result.kind === 'skipped') unmoved.add(change.to)

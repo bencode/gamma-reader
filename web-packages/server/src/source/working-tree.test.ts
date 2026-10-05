@@ -52,14 +52,22 @@ describe('working tree source', () => {
       expect((await app.request(fileUrl(path))).status).toBe(404)
   })
 
-  it('lists the whole repository when no folder is named', async () => {
+  it('lists the whole repository but hidden files when no folder is named', async () => {
     const { files } = await (await openWorkingTree({ dir, include: [] })).listing()
 
     expect(files.map(file => file.path)).toEqual([
-      '.gitignore',
       'knowledge/agents.md',
       'knowledge/新 笔记.md',
       'meta/index.json',
+    ])
+  })
+
+  it('leaves out the folders excluded', async () => {
+    const tree = await openWorkingTree({ dir, include: [], exclude: ['meta'] })
+
+    expect((await tree.listing()).files.map(file => file.path)).toEqual([
+      'knowledge/agents.md',
+      'knowledge/新 笔记.md',
     ])
   })
 

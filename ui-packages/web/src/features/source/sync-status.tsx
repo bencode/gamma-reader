@@ -1,5 +1,6 @@
 import * as Popover from '@radix-ui/react-popover'
 import { Info, RefreshCw } from 'lucide-react'
+import type { SourceScope } from '../../core/projects'
 import type { SaveResult, SkipReason } from './protocol'
 import type { SourceSync, SourceSyncState } from './use-source-sync'
 
@@ -38,9 +39,27 @@ const skipped: Record<SkipReason, string> = {
   failed: 'saving it failed',
 }
 
+const listed = (folders: readonly string[]) =>
+  folders.length < 2
+    ? (folders[0] ?? '')
+    : `${folders.slice(0, -1).join(', ')} and ${folders.at(-1)}`
+
+// Why a path is outside the source, by the rule that leaves it out, so the reader knows where it
+// could go instead. A source that does not say which folders it holds gets the plain reason.
+const outside = (name: string, path: string, scope?: SourceScope) => {
+  if (!scope) return skipped['invalid-path']
+  if (path.split('/').some(segment => segment.startsWith('.')))
+    return `${name} leaves out hidden files and folders`
+  if (scope.exclude.some(folder => path.startsWith(`${folder}/`)))
+    return `${name} leaves out ${listed(scope.exclude)}`
+  if (scope.include.length)
+    return `${name} saves only ${listed(scope.include)}; move it into one of them`
+  return skipped['invalid-path']
+}
+
 // What a save did, with what needs the reader's hand named after it: conflicts git marked in a
 // file, and changes left unsaved with the reason for each.
-const savedMessage = (name: string, results: readonly SaveResult[]) => {
+const savedMessage = (name: string, results: readonly SaveResult[], scope?: SourceScope) => {
   const done = results.filter(result => result.kind !== 'skipped').length
   const conflicts = results.flatMap(result =>
     result.kind === 'merged' && result.conflicts > 0 ? [result] : [],
@@ -52,11 +71,18 @@ const savedMessage = (name: string, results: readonly SaveResult[]) => {
       result =>
         `${result.path} has ${result.conflicts === 1 ? 'a conflict' : `${result.conflicts} conflicts`} marked in the file; resolve it in your editor.`,
     ),
-    ...left.map(result => `${result.path} was not saved: ${skipped[result.reason]}.`),
+    ...left.map(
+      result =>
+        `${result.path} was not saved: ${
+          result.reason === 'invalid-path'
+            ? outside(name, result.path, scope)
+            : skipped[result.reason]
+        }.`,
+    ),
   ].join(' ')
 }
 
-const message = (name: string, state: SourceSyncState) => {
+const message = (name: string, state: SourceSyncState, scope?: SourceScope) => {
   if (state.kind === 'checking') return `Checking ${name}…`
   if (state.kind === 'current') return `${name} is up to date.`
   if (state.kind === 'available')
@@ -66,7 +92,7 @@ const message = (name: string, state: SourceSyncState) => {
   if (state.kind === 'syncing')
     return `Updating from ${name}… ${state.done.toLocaleString()} of ${fileCount(state.total)}`
   if (state.kind === 'saving') return `Saving ${changeCount(state.total)} to ${name}…`
-  if (state.kind === 'saved') return savedMessage(name, state.results)
+  if (state.kind === 'saved') return savedMessage(name, state.results, scope)
   if (state.kind === 'synced')
     return [
       `${name} is up to date.`,
@@ -88,14 +114,22 @@ const unsaved = (name: string, sync: SourceSync) =>
     : `${changeCount(sync.localChanges)} not saved to ${name}.`
 
 // One line under the toolbar: whether the source has updates, and the action that brings them in.
-export const SourceSyncStatus = ({ name, sync }: { name: string; sync: SourceSync }) => {
+export const SourceSyncStatus = ({
+  name,
+  scope,
+  sync,
+}: {
+  name: string
+  scope?: SourceScope
+  sync: SourceSync
+}) => {
   const { state, localChanges } = sync
   const actionable = state.kind === 'available' || state.kind === 'failed'
   const pending = localChanges > 0 && !sync.busy
   return (
     <div className="source-sync" role="status">
       <span>
-        {message(name, state)}
+        {message(name, state, scope)}
         {pending && ' '}
         {pending &&
           (sync.writable ? unsaved(name, sync) : <LocalChanges count={localChanges} name={name} />)}
