@@ -100,6 +100,81 @@ beforeEach(() => {
 })
 
 describe('Lab document integration', () => {
+  it('runs a cell with Mod+Enter, and with Shift+Enter goes on to the next cell or a new one', async () => {
+    HTMLElement.prototype.scrollIntoView = vi.fn()
+    const original =
+      '# Lab\n\n```typescript run id=one\n1 + 1\n```\n\n```typescript run id=two\n2 + 2\n```\n'
+    const file = await writeStoredTextFile('Keys.lab.md', original)
+    let handles: Handles | undefined
+    render(
+      <MemoryRouter initialEntries={[`/files/${file.id}`]}>
+        <Harness
+          files={[file]}
+          onReady={next => {
+            handles = next
+          }}
+        />
+      </MemoryRouter>,
+    )
+    await screen.findAllByRole('button', { name: 'Run' }, { timeout: 5000 })
+    const [first, second] = screen.getAllByRole('region', { name: 'TypeScript code cell' })
+    if (!first || !second || !handles) throw new Error('Lab not mounted')
+    const editorOf = (cell: HTMLElement) => within(cell).getByRole('textbox', { name: 'Code' })
+
+    fireEvent.keyDown(editorOf(first), { key: 'Enter', ctrlKey: true })
+    expect(workerAt(0).requests.at(-1)?.source).toBe('1 + 1')
+    expect(handles.tools.read_active_source().content).toBe(original)
+    await act(async () => workerAt(0).complete('2'))
+
+    fireEvent.keyDown(editorOf(first), { key: 'Enter', shiftKey: true })
+    expect(workerAt(0).requests).toHaveLength(2)
+    await waitFor(() => expect(second.contains(document.activeElement)).toBe(true))
+    await act(async () => workerAt(0).complete('2'))
+
+    fireEvent.keyDown(editorOf(second), { key: 'Enter', shiftKey: true })
+    expect(workerAt(0).requests.at(-1)?.source).toBe('2 + 2')
+    const cells = await screen.findAllByRole('region', { name: 'TypeScript code cell' })
+    expect(cells).toHaveLength(3)
+    expect(parseLabDocument(handles.tools.read_active_source().content).cells.at(-1)).toMatchObject(
+      {
+        language: 'typescript',
+        source: '',
+      },
+    )
+    await waitFor(() => expect(cells[2]?.contains(document.activeElement)).toBe(true))
+  })
+
+  it('adds an empty cell at the end, focused and ready to run, as an unsaved edit', async () => {
+    HTMLElement.prototype.scrollIntoView = vi.fn()
+    const original = '# Lab\n\n```scheme run id=first\n(+ 1 2)\n```\n'
+    const file = await writeStoredTextFile('Added.lab.md', original)
+    let handles: Handles | undefined
+    render(
+      <MemoryRouter initialEntries={[`/files/${file.id}`]}>
+        <Harness
+          files={[file]}
+          onReady={next => {
+            handles = next
+          }}
+        />
+      </MemoryRouter>,
+    )
+    await screen.findByRole('button', { name: 'Run' }, { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Add a cell' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Python' }))
+
+    const cell = await screen.findByRole('region', { name: 'Python code cell' })
+    if (!handles) throw new Error('Workspace not mounted')
+    const content = handles.tools.read_active_source().content
+    const added = parseLabDocument(content).cells.at(-1)
+    expect(added).toMatchObject({ language: 'python', source: '' })
+    expect(content.startsWith(original)).toBe(true)
+    expect(screen.getByRole('img', { name: 'Unsaved changes' })).toBeVisible()
+    await waitFor(() => expect(cell.contains(document.activeElement)).toBe(true))
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+    expect(await (await getStoredFileContent(file.id))?.text()).toBe(original)
+  })
+
   it('normalizes once in StrictMode, shares edits with Source and agent tools, and saves explicitly', async () => {
     const original = '# Lab\n\n\\[x^2\\]\n\n```typescript run\n1 + 1\n```\n\nKeep this paragraph.'
     const file = await writeStoredTextFile('Example.lab.md', original)

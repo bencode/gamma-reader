@@ -24,6 +24,8 @@ export type CodeLabCellPhase = 'idle' | 'loading' | 'running' | 'succeeded' | 'f
 export type CodeLabProviderProps = {
   cells: readonly CodeLabCell[]
   onCellChange?: (cellId: string, source: string) => void
+  // Where Shift+Enter goes after running a cell; without it, Shift+Enter only runs.
+  onCellAdvance?: (cellId: string) => void
   children: ReactNode
 }
 

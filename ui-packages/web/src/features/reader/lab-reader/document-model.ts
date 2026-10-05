@@ -122,14 +122,23 @@ export const parseLabDocument = (source: string): LabDocument => {
   return { source, blocks, cells }
 }
 
+// An id no cell in the set has yet, taken into the set.
+const freshId = (ids: Set<string>) => {
+  let id = nanoid(8)
+  while (ids.has(id)) id = nanoid(8)
+  ids.add(id)
+  return id
+}
+
+const cellIds = (model: LabDocument) =>
+  new Set(model.blocks.flatMap(block => (block.id ? [block.id] : [])))
+
 export const ensureLabCellIds = (source: string): string => {
   const model = parseLabDocument(source)
-  const ids = new Set(model.blocks.flatMap(block => (block.id ? [block.id] : [])))
+  const ids = cellIds(model)
   return [...model.blocks].reverse().reduce((next, block) => {
     if (block.id !== null || block.error || !block.fence) return next
-    let id = nanoid(8)
-    while (ids.has(id)) id = nanoid(8)
-    ids.add(id)
+    const id = freshId(ids)
     const offset = block.fence.openingEnd
     return `${next.slice(0, offset)} id=${id}${next.slice(offset)}`
   }, source)
@@ -164,4 +173,13 @@ export const replaceLabCell = (source: string, cellId: string, code: string): st
         .join(eol)}${eol}`
     : ''
   return source.slice(0, start) + opening + eol + body + closing + source.slice(end)
+}
+
+// An empty cell at the end of a Lab, after a blank line, written with the Lab's own line breaks.
+export const appendLabCell = (source: string, language: CodeLabLanguage) => {
+  const id = freshId(cellIds(parseLabDocument(source)))
+  const eol = source.includes('\r\n') ? '\r\n' : '\n'
+  const body = source.replace(/(\r?\n)*$/, '')
+  const gap = body ? `${eol}${eol}` : ''
+  return { id, source: `${body}${gap}\`\`\`${language} run id=${id}${eol}\`\`\`${eol}` }
 }

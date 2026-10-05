@@ -52,8 +52,9 @@ first run downloads the Clojure runtime and needs an internet connection.
 
 ## Keep going
 
-Add a cell of your own. A fence becomes runnable when its info line says
-`run` and names scheme, clojure, python or typescript:
+Add a cell of your own: choose **+** at the top right and pick a language,
+or write the fence yourself. A fence becomes runnable when its info line
+says `run` and names scheme, clojure, python or typescript:
 
 ````text
 ```scheme run

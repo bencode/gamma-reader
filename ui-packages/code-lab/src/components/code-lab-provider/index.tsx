@@ -2,13 +2,21 @@ import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useStat
 import { type CodeLabRuntime, createCodeLabRuntime } from '../../code-lab-runtime'
 import type { CodeLabProviderProps } from '../../types'
 
-type CodeLabContextValue = Pick<CodeLabProviderProps, 'cells' | 'onCellChange'> & {
+type CodeLabContextValue = Pick<
+  CodeLabProviderProps,
+  'cells' | 'onCellChange' | 'onCellAdvance'
+> & {
   runtime: CodeLabRuntime
 }
 
 const CodeLabContext = createContext<CodeLabContextValue | null>(null)
 
-export const CodeLabProvider = ({ cells, onCellChange, children }: CodeLabProviderProps) => {
+export const CodeLabProvider = ({
+  cells,
+  onCellChange,
+  onCellAdvance,
+  children,
+}: CodeLabProviderProps) => {
   const [runtime] = useState(createCodeLabRuntime)
   const value = useMemo(() => {
     const ids = new Set<string>()
@@ -16,8 +24,8 @@ export const CodeLabProvider = ({ cells, onCellChange, children }: CodeLabProvid
       if (ids.has(cell.id)) throw new Error(`Duplicate Code Lab cell id: ${cell.id}`)
       ids.add(cell.id)
     })
-    return { cells, onCellChange, runtime }
-  }, [cells, onCellChange, runtime])
+    return { cells, onCellChange, onCellAdvance, runtime }
+  }, [cells, onCellChange, onCellAdvance, runtime])
 
   useLayoutEffect(() => {
     runtime.synchronizeMembership(cells)

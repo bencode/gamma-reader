@@ -65,7 +65,13 @@ export const MarkdownReader = ({
   imageResolver,
   markdownOptions,
   appearance,
-}: TextReaderProps & { markdownOptions?: MarkdownExtensions; appearance?: MarkdownAppearance }) => {
+  controls,
+}: TextReaderProps & {
+  markdownOptions?: MarkdownExtensions
+  appearance?: MarkdownAppearance
+  // Controls a reader built on this one adds to the toolbar, such as a Lab's Add cell.
+  controls?: ReactNode
+}) => {
   const markdown = document.previewKind === 'markdown' || document.previewKind === 'docx'
   const rootRef = useRef<HTMLDivElement>(null)
   const previewScrollRef = useRef<HTMLDivElement>(null)
@@ -211,6 +217,7 @@ export const MarkdownReader = ({
           </button>
         )}
         {appearance?.controls}
+        {controls}
       </div>
       <div className={styles.stage}>
         {outlineVisible && (

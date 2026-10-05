@@ -15,11 +15,13 @@ sum(counts) / len(counts)
 ```
 ````
 
+To start a cell without writing the fence, choose **Add cell** (**+**) at the top right of a Lab and pick a language: an empty cell appears at the end, ready for code to be pasted and run.
+
 The id may use letters, digits, `_` and `-`; one is added when you leave it out. A cell cannot sit inside a list or a quote, and its fence must be closed. When something is wrong, the cell says what.
 
 ## Run a cell
 
-Choose **Run** on a cell, or press ⌘Enter on a Mac and Ctrl+Enter elsewhere while editing it. **Stop** ends a long run. The cell shows its state, from *Starting* and *Running* to *Completed* or *Failed*, and its output below.
+Choose **Run** on a cell, or press ⌘Enter on a Mac and Ctrl+Enter elsewhere while editing it. **Shift+Enter** runs the cell and moves on to the next one, as in a notebook; on the last cell it adds a new empty cell in the same language. **Stop** ends a long run. The cell shows its state, from *Starting* and *Running* to *Completed* or *Failed*, and its output below.
 
 - **Cells share a language's session.** A Python cell can use a variable from an earlier Python cell, once that cell has run. Each language has its own session.
 - **Edit and run again.** Editing a cell marks its output *Code changed · Run again*. Edits go into the same draft as **Source**; **Save** keeps them.
@@ -63,11 +65,9 @@ The assistant can read a Lab, edit its cells in the draft, run them in your sess
 ## Try it
 
 1. Open [[Seven mornings]] and run both cells. Change a count and run them again.
-2. In [[Explore a wave]], add a cell at the end with **Source**:
+2. In [[Explore a wave]], choose **Add cell** → **Scheme**, paste this, and press ⌘Enter or Ctrl+Enter:
 
    ```scheme
    (apply + '(12 17 9 5 21 14 11))
    ```
-
-   Write `run` after `scheme` on its first line, and run it.
 3. Add a Clojure cell with the two Emmy lines above. The first run downloads Emmy.
