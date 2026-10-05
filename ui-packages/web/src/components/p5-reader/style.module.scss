@@ -144,3 +144,13 @@
 .floatingToolbar:focus-within {
   opacity: 1;
 }
+
+// An embedded sketch may be small, so its error wraps rather than being cut off.
+.embedded .error {
+  flex-direction: column;
+  gap: 2px;
+
+  span {
+    white-space: normal;
+  }
+}
