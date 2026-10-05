@@ -25,6 +25,8 @@ export {
 } from './names'
 export {
   type BlockKind,
+  type EmbedSize,
+  formatSize,
   type LinkTarget,
   type ParsedBlock,
   type ParsedHeading,
@@ -32,7 +34,9 @@ export {
   type ParsedNote,
   parseNote,
   parseTarget,
+  splitSize,
   type TextPiece,
   textPieces,
 } from './parse'
 export { remarkLinks } from './remark'
+export { resizeEmbed } from './resize-embed'

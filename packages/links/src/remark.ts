@@ -37,7 +37,12 @@ const markHeadings = (root: Root) => {
 
 // A link becomes a button holding what was written, so a click can follow it once the library
 // knows where it leads. It is a link node so Markdown keeps it inline; the empty url is not used.
-const linkNode = ({ link, shown, embed, tag }: Extract<TextPiece, { link: string }>): Link => ({
+// An embed also carries how many embeds written the same way come before it, so a change to it
+// can find it in the source.
+const linkNode = (
+  { link, shown, embed, tag }: Extract<TextPiece, { link: string }>,
+  nth: number,
+): Link => ({
   type: 'link',
   url: '',
   children: [{ type: 'text', value: shown }],
@@ -47,25 +52,31 @@ const linkNode = ({ link, shown, embed, tag }: Extract<TextPiece, { link: string
       type: 'button',
       dataLink: link,
       dataKind: embed ? 'embed' : tag ? 'tag' : 'link',
+      ...(embed ? { dataNth: String(nth) } : {}),
     },
   },
 })
 
+type EmbedCounts = Map<string, number>
+
 // A text node split around its links, kept as it was when it has none.
-const splitLinks = (text: Text): (Text | Link)[] => {
+const splitLinks = (text: Text, counts: EmbedCounts): (Text | Link)[] => {
   const pieces = textPieces(text.value)
   if (pieces.every(piece => 'text' in piece)) return [text]
-  return pieces.map(piece =>
-    'text' in piece ? { type: 'text', value: piece.text } : linkNode(piece),
-  )
+  return pieces.map(piece => {
+    if ('text' in piece) return { type: 'text', value: piece.text }
+    const nth = counts.get(piece.link) ?? 0
+    if (piece.embed) counts.set(piece.link, nth + 1)
+    return linkNode(piece, nth)
+  })
 }
 
 // Text inside a Markdown link stays text, as a link inside a link cannot be followed.
-const linkText = (parent: Parent) => {
+const linkText = (parent: Parent, counts: EmbedCounts) => {
   parent.children = parent.children.flatMap((child): RootContent[] => {
-    if (child.type === 'text') return splitLinks(child)
+    if (child.type === 'text') return splitLinks(child, counts)
     if ('children' in child && child.type !== 'link' && child.type !== 'linkReference')
-      linkText(child)
+      linkText(child, counts)
     return [child]
   }) as Parent['children']
 }
@@ -78,6 +89,7 @@ const markEmbeds = (root: Root) => {
     const parts = node.children.filter(child => child.type !== 'text' || child.value.trim())
     const [only] = parts
     const raw = only?.data?.hProperties?.dataLink
+    const nth = only?.data?.hProperties?.dataNth
     if (
       parts.length !== 1 ||
       only?.data?.hProperties?.dataKind !== 'embed' ||
@@ -87,7 +99,7 @@ const markEmbeds = (root: Root) => {
     node.data = {
       ...node.data,
       hName: 'aside',
-      hProperties: { ...node.data?.hProperties, dataEmbed: raw },
+      hProperties: { ...node.data?.hProperties, dataEmbed: raw, dataNth: nth },
     }
     node.children = [only]
   }
@@ -100,6 +112,6 @@ const markEmbeds = (root: Root) => {
 export const remarkLinks = () => (root: Root) => {
   hideNames(root)
   markHeadings(root)
-  linkText(root)
+  linkText(root, new Map())
   markEmbeds(root)
 }

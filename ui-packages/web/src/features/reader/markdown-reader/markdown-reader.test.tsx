@@ -1,5 +1,5 @@
 import { buildGraph, type LinkGraph, type ParsedNote, parseNote } from '@gamma-reader/links'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StoredFileMetadata } from '../../../core/files'
@@ -22,6 +22,8 @@ vi.mock('../../../shell/workspace-context', () => ({
   useOpenFile: () => links.openFile,
   useOpenPage: () => links.openPage,
   useReveal: () => ({ reveal: links.reveal, shown: links.shown }),
+
+  useTextFileUpdates: () => ({ update: vi.fn(), unsaved: () => false }),
 }))
 
 // Embeds read a note's saved text by its id.
@@ -312,6 +314,28 @@ describe('embeds and backlinks in a Markdown note', () => {
         .map(button => button.textContent),
     ).toEqual(expect.arrayContaining(['Guide', 'After']))
     expect(within(outline).queryByText('Methods')).not.toBeInTheDocument()
+  })
+
+  it('runs a sketch and an HTML page in place, in sandboxes, at the size written', async () => {
+    const files = [
+      ...library2,
+      { ...note('orbit', 'sketches/orbit.p5.js'), previewKind: 'text' as const },
+      { ...note('demo', 'demo.html'), previewKind: 'html' as const },
+    ]
+    save({ orbit: 'function setup() { createCanvas(720, 480) }', demo: '<p>Hello</p>' }, files)
+    renderNote('![[orbit.p5.js|640]]\n\n![[demo.html|Demo|800x500]]', files)
+
+    const sketch = await screen.findByTitle('sketches/orbit.p5.js p5 preview')
+    expect(sketch).toHaveAttribute('sandbox', 'allow-scripts')
+    expect(sketch.getAttribute('srcdoc')).toContain('createCanvas(720, 480)')
+    expect(sketch.closest('[style]')).toHaveStyle({ width: '640px' })
+    const page = await waitFor(() => {
+      const frame = window.document.querySelector('iframe[title="demo.html"]')
+      expect(frame).toHaveAttribute('sandbox', 'allow-scripts')
+      return frame
+    })
+    expect(page?.closest('[style]')).toHaveStyle({ width: '800px', height: '500px' })
+    expect(screen.getByRole('button', { name: 'Demo ›' })).toBeInTheDocument()
   })
 
   it('keeps a link it cannot show in its paragraph, and an embed with a name findable', () => {

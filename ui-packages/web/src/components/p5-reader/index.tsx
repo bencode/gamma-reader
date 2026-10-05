@@ -15,11 +15,15 @@ export type P5ReaderProps = {
   name: string
   source: string
   active: boolean
+  // Shown within a note: the canvas fits the frame, the controls float over it, and a changed
+  // source is run by whoever shows the sketch, so there is no Run changes.
+  embedded?: boolean
+  onSize?: (size: { width: number; height: number }) => void
 }
 
 type RuntimeState = 'loading' | 'ready' | 'error'
 
-export const P5Reader = ({ name, source, active }: P5ReaderProps) => {
+export const P5Reader = ({ name, source, active, embedded = false, onSize }: P5ReaderProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [runningSource, setRunningSource] = useState(source)
   const [runId, setRunId] = useState(() => nanoid())
@@ -27,8 +31,14 @@ export const P5Reader = ({ name, source, active }: P5ReaderProps) => {
   const [userPaused, setUserPaused] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const frameDocument = useMemo(
-    () => createP5FrameDocument({ runtimeUrl: p5RuntimeUrl, runId, source: runningSource }),
-    [runId, runningSource],
+    () =>
+      createP5FrameDocument({
+        runtimeUrl: p5RuntimeUrl,
+        runId,
+        source: runningSource,
+        fit: embedded,
+      }),
+    [embedded, runId, runningSource],
   )
 
   const send = useCallback(
@@ -42,6 +52,10 @@ export const P5Reader = ({ name, source, active }: P5ReaderProps) => {
     const receive = (event: MessageEvent<unknown>) => {
       if (event.source !== iframeRef.current?.contentWindow || !isP5FrameEvent(event.data)) return
       if (event.data.runId !== runId) return
+      if (event.data.type === 'size') {
+        onSize?.({ width: event.data.width, height: event.data.height })
+        return
+      }
       if (event.data.type === 'error') {
         setError(event.data.message)
         setRuntimeState('error')
@@ -54,7 +68,7 @@ export const P5Reader = ({ name, source, active }: P5ReaderProps) => {
     }
     window.addEventListener('message', receive)
     return () => window.removeEventListener('message', receive)
-  }, [active, runId, send, userPaused])
+  }, [active, onSize, runId, send, userPaused])
 
   useEffect(() => {
     if (runtimeState !== 'ready') return
@@ -75,19 +89,25 @@ export const P5Reader = ({ name, source, active }: P5ReaderProps) => {
   }
 
   return (
-    <div className={`reader-content ${styles.reader}`}>
-      <div className={`preview-toolbar ${styles.toolbar}`} role="toolbar" aria-label="p5 controls">
-        <span className={styles.runtimeControls}>
-          <button
-            type="button"
-            className={`${styles.runControl} ${source !== runningSource ? styles.activeControl : ''}`}
-            disabled={source === runningSource}
-            onClick={() => run(source)}
-          >
-            <Play size={14} />
-            Run changes
-          </button>
-        </span>
+    <div className={embedded ? styles.embedded : `reader-content ${styles.reader}`}>
+      <div
+        className={embedded ? styles.floatingToolbar : `preview-toolbar ${styles.toolbar}`}
+        role="toolbar"
+        aria-label="p5 controls"
+      >
+        {!embedded && (
+          <span className={styles.runtimeControls}>
+            <button
+              type="button"
+              className={`${styles.runControl} ${source !== runningSource ? styles.activeControl : ''}`}
+              disabled={source === runningSource}
+              onClick={() => run(source)}
+            >
+              <Play size={14} />
+              Run changes
+            </button>
+          </span>
+        )}
         <span className={styles.runtimeControls}>
           <button
             type="button"

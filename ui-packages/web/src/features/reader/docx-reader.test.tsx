@@ -10,6 +10,8 @@ vi.mock('../../shell/workspace-context', () => ({
   useReveal: () => ({ reveal: null, shown: vi.fn() }),
   useLinkGraph: () => null,
   useOpenFile: () => vi.fn(),
+
+  useTextFileUpdates: () => ({ update: vi.fn(), unsaved: () => false }),
 }))
 
 const mocks = vi.hoisted(() => ({ convert: vi.fn() }))

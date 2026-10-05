@@ -32,6 +32,13 @@ import {
   type WorkspaceStore,
 } from './workspace-store'
 
+type TextFileUpdater = (
+  id: string,
+  expectedRevision: number,
+  content: string,
+  signal?: AbortSignal,
+) => Promise<UpdateStoredTextFileResult>
+
 type WorkspaceContextValue = {
   tools: LocalTools
   store: WorkspaceStore
@@ -39,6 +46,7 @@ type WorkspaceContextValue = {
   register: (binding: ReaderBinding) => () => void
   registerLab: (runner: LabRunner) => () => void
   saveSource: (fileId: string, overwrite?: boolean) => Promise<'saved' | 'conflict' | 'failed'>
+  updateTextFile: TextFileUpdater
   noteIndex: NoteIndexStore
   openFile: (fileId: string, place: RevealTarget | null) => void
   openPage: (name: string) => void
@@ -63,12 +71,7 @@ export const WorkspaceProvider = ({
   writeTextFile: WorkspaceTextWriter
   saveFile?: WorkspaceFileSaver
   moveFile: WorkspaceFileMover
-  updateTextFile: (
-    id: string,
-    expectedRevision: number,
-    content: string,
-    signal?: AbortSignal,
-  ) => Promise<UpdateStoredTextFileResult>
+  updateTextFile: TextFileUpdater
   noteIndex?: NoteIndexStore
   children: ReactNode
 }) => {
@@ -176,11 +179,12 @@ export const WorkspaceProvider = ({
       },
       tools,
       saveSource,
+      updateTextFile,
       noteIndex: noteIndex ?? withoutIndex,
       openFile,
       openPage,
     }),
-    [actions, noteIndex, openFile, openPage, saveSource, store, tools],
+    [actions, noteIndex, openFile, openPage, saveSource, store, tools, updateTextFile],
   )
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
 }
@@ -194,6 +198,19 @@ const useWorkspaceContext = () => {
 export const useWorkspaceStore = () => useWorkspaceContext().store
 
 export const useLocalTools = () => useWorkspaceContext().tools
+
+// Saves a file's text, failing with a conflict if it changed since the given revision, and tells
+// whether an open source holds edits to it not yet saved, which a save would put in conflict.
+export const useTextFileUpdates = () => {
+  const { store, updateTextFile } = useWorkspaceContext()
+  return useMemo(
+    () => ({
+      update: updateTextFile,
+      unsaved: (fileId: string) => sourceDirty(store.getState().sourceDrafts[fileId]),
+    }),
+    [store, updateTextFile],
+  )
+}
 
 export const useWorkspaceSource = (fileId: string | null) => {
   const { store } = useWorkspaceContext()

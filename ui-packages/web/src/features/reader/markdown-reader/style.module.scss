@@ -495,6 +495,65 @@
   font-size: 0.9em;
 }
 
+// An image, sketch or page within a note: never wider than the note, resized from its corner.
+.imageBox,
+.sketchBox,
+.pageBox {
+  position: relative;
+  max-width: 100%;
+  margin-top: 0.25em;
+}
+
+.imageBox {
+  width: fit-content;
+
+  :global(.markdown-local-image) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+  }
+}
+
+// A sketch keeps its canvas's shape; until the canvas is known, it takes a common one.
+.sketchBox {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+}
+
+.pageBox {
+  width: 100%;
+  height: 480px;
+}
+
+.frameStage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: white;
+}
+
+.resizeHandle {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  cursor: nwse-resize;
+  opacity: 0;
+  touch-action: none;
+  transition: opacity 120ms;
+}
+
+:is(.imageBox, .sketchBox, .pageBox):hover > .resizeHandle,
+.resizeHandle:active {
+  opacity: 1;
+}
+
 // The notes that link here, after the note's own text.
 .backlinks {
   margin-top: 3em;
