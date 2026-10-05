@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { tavilySearch } from './provider.js'
+import { tavilyExtract, tavilySearch } from './provider.js'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -39,5 +39,40 @@ describe('Tavily search', () => {
     await expect(tavilySearch('k')('x', 1, new AbortController().signal)).rejects.toThrow(
       'Tavily answered 432',
     )
+  })
+
+  it('extracts a page as Markdown and fails when Tavily could not', async () => {
+    const fetchPage = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        Response.json({
+          results: [
+            {
+              url: 'https://example.org/a',
+              title: 'A',
+              raw_content: `[Sign in](/login)\n\n# A\n\nText\n${'\nMore'.repeat(10)}`,
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ results: [], failed_results: [{ url: 'https://example.org/b' }] }),
+      )
+    const extract = tavilyExtract('tvly-key')
+    const signal = new AbortController().signal
+
+    expect(await extract('https://example.org/a', signal)).toEqual({
+      url: 'https://example.org/a',
+      title: 'A',
+      content: `# A\n\nText\n${'\nMore'.repeat(10)}`,
+    })
+    const [url, init] = fetchPage.mock.calls[0] ?? []
+    expect(url).toBe('https://api.tavily.com/extract')
+    expect(JSON.parse(String(init?.body))).toEqual({
+      urls: ['https://example.org/a'],
+      format: 'markdown',
+      extract_depth: 'basic',
+    })
+    await expect(extract('https://example.org/b', signal)).rejects.toThrow('could not extract')
   })
 })

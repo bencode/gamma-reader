@@ -8,6 +8,7 @@ import {
   type ActiveSourceSnapshot,
   createLocalTools,
   type WorkspaceFileMover,
+  type WorkspaceFileSaver,
   type WorkspaceTextWriter,
 } from '../features/agent/local-tools'
 import { LocalToolError } from '../features/agent/tool-types'
@@ -28,6 +29,7 @@ type WorkspaceToolsOptions = {
   readers: RefObject<Map<string, ReaderBinding>>
   labs: RefObject<Map<string, LabRunner>>
   writeTextFile: WorkspaceTextWriter
+  saveFile?: WorkspaceFileSaver
   moveFile: WorkspaceFileMover
   noteIndex?: NoteIndexStore
   updateTextFile: (
@@ -50,14 +52,16 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
   const { workspace, rootRef, readers, labs, noteIndex } = options
   const current = useRef(workspace)
   const writer = useRef(options.writeTextFile)
+  const saver = useRef(options.saveFile)
   const mover = useRef(options.moveFile)
   const updater = useRef(options.updateTextFile)
   useLayoutEffect(() => {
     current.current = workspace
     writer.current = options.writeTextFile
+    saver.current = options.saveFile
     mover.current = options.moveFile
     updater.current = options.updateTextFile
-  }, [workspace, options.writeTextFile, options.moveFile, options.updateTextFile])
+  }, [workspace, options.writeTextFile, options.saveFile, options.moveFile, options.updateTextFile])
   const activeSource = useMemo(
     () => ({
       get: (): ActiveSourceSnapshot | null => {
@@ -151,6 +155,10 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
         activeSource,
         links,
         labAccess,
+        (path, file, signal) => {
+          if (!saver.current) throw new LocalToolError('Saving files is unavailable.')
+          return saver.current(path, file, signal)
+        },
       ),
     [activeSource, labAccess, links, noteIndex, readers, rootRef],
   )
