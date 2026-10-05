@@ -158,7 +158,7 @@ describe('text source workspace', () => {
     expect(() => tools.read_active_source(oldRead.next ?? {})).toThrow('Source changed')
     const edit = { fileId: file.id, oldText: 'Target', newText: 'Updated target' }
     expect(() => tools.edit_active_source({ ...edit, expectedVersion: oldRead.version })).toThrow(
-      'Source changed',
+      'does not match the active source',
     )
     const current = tools.read_active_source()
     expect(current.version).not.toBe(oldRead.version)

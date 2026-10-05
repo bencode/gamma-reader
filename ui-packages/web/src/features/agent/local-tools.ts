@@ -168,6 +168,13 @@ const readActiveSource = (
   return result
 }
 
+// The version sent is echoed, so a version copied wrongly can be seen as such; the current one is
+// not, so an edit still starts from a read of the draft as it now stands.
+export const versionMismatch = (sent: string) =>
+  new LocalToolError(
+    `expectedVersion ${sent} does not match the active source. Either the draft changed since your read, or the version was copied wrongly: pass the version exactly as read_active_source returned it. Call read_active_source again.`,
+  )
+
 const editActiveSource = (
   access: ActiveSourceAccess,
   input: EditActiveSourceInput,
@@ -179,8 +186,11 @@ const editActiveSource = (
     throw new LocalToolError(
       'expectedVersion must be the non-empty string returned by read_active_source.',
     )
-  if (source.fileId !== input.fileId || source.version !== input.expectedVersion)
-    throw changedSource()
+  if (source.fileId !== input.fileId)
+    throw new LocalToolError(
+      `fileId ${input.fileId} is not the active file. The active file is ${source.path} (fileId ${source.fileId}). Call read_active_source again.`,
+    )
+  if (source.version !== input.expectedVersion) throw versionMismatch(input.expectedVersion)
   if (!input.oldText) {
     if (source.content)
       throw new LocalToolError('oldText may be empty only when the active source is empty.')

@@ -61,4 +61,13 @@ describe('workspace source drafts', () => {
     actions.completeSourceSave('note', { revision: 4, content: 'late save' })
     expect(draft()).toBeUndefined()
   })
+
+  it('gives each draft a short version the assistant can copy without confusing characters', () => {
+    const { actions, draft } = setup()
+    const first = draft()?.version
+    actions.updateSource('note', 'changed')
+    expect(first).toMatch(/^[2-9a-km-np-z]{8}$/)
+    expect(draft()?.version).toMatch(/^[2-9a-km-np-z]{8}$/)
+    expect(draft()?.version).not.toBe(first)
+  })
 })
