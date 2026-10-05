@@ -12,6 +12,8 @@ import { LocalToolError } from './tool-types'
 export type LabRunner = {
   fileId: string
   document: () => { version: string; cells: readonly CodeLabCell[] } | null
+  // The id of the cell the reader is in, if any.
+  current: () => string | null
   runtime: Pick<CodeLabRuntime, 'runCell' | 'stopCell' | 'getSnapshot'>
 }
 
@@ -21,10 +23,12 @@ export type LabAccess = {
   runner: (fileId: string) => LabRunner | undefined
 }
 
-export type LabCellsInput = { cellIds?: string[] }
+// Cells as the reader names them: a number (1 is the first cell), an id, or "current".
+export type LabCellsInput = { cells?: (number | string)[] }
 
 type LabOutput = { kind: CodeLabOutput['kind']; text: string }
 type LabCellReport = {
+  number: number
   id: string
   language: CodeLabLanguage
   status: 'idle' | 'running' | 'succeeded' | 'failed' | 'stopped' | 'skipped'
@@ -37,6 +41,8 @@ export type LabCellsResult = {
   fileId: string
   path: string
   version: string
+  // The number of the cell the reader is in, if any.
+  current: number | null
   cells: LabCellReport[]
 }
 
@@ -63,8 +69,10 @@ const outputText = (output: CodeLabOutput): LabOutput => {
   return { kind: output.kind, text: output.text }
 }
 
-const cellReport = (cell: CodeLabCell, execution: CellExecution | undefined): LabCellReport => {
-  const base = { id: cell.id, language: cell.language }
+type NumberedCell = CodeLabCell & { number: number }
+
+const cellReport = (cell: NumberedCell, execution: CellExecution | undefined): LabCellReport => {
+  const base = { number: cell.number, id: cell.id, language: cell.language }
   if (!execution) return { ...base, status: 'idle' }
   if (execution.phase === 'loading' || execution.phase === 'running')
     return {
@@ -103,7 +111,7 @@ const fitted = (result: LabCellsResult): LabCellsResult => {
     }
     if (fitsResult(candidate)) return candidate
   }
-  throw new LocalToolError('These cells produce too much to report. Pass fewer cellIds.')
+  throw new LocalToolError('These cells produce too much to report. Pass fewer cells.')
 }
 
 const openLab = (access: LabAccess, input: LabCellsInput) => {
@@ -113,19 +121,39 @@ const openLab = (access: LabAccess, input: LabCellsInput) => {
   const { path, runner } = lab
   const document = runner.document()
   if (!document) throw new LocalToolError('The lab is still loading. Call again shortly.')
-  const { version, cells } = document
-  const header = { fileId: runner.fileId, path, version }
-  if (!input.cellIds?.length) return { runner, header, cells }
-  const unknown = input.cellIds.filter(id => !cells.some(cell => cell.id === id))
-  if (unknown.length)
-    throw new LocalToolError(
-      `Unknown cell ids: ${unknown.join(', ')}. Cells in this lab: ${cells.map(cell => cell.id).join(', ') || 'none'}.`,
-    )
-  return {
-    runner,
-    header,
-    cells: input.cellIds.flatMap(id => cells.filter(cell => cell.id === id)),
+  const cells = document.cells.map((cell, index) => ({ ...cell, number: index + 1 }))
+  const current = cells.find(cell => cell.id === runner.current()) ?? null
+  const header = {
+    fileId: runner.fileId,
+    path,
+    version: document.version,
+    current: current?.number ?? null,
   }
+  if (!input.cells?.length) return { runner, header, cells }
+  const listing = cells.map(cell => `#${cell.number} ${cell.id}`).join(', ') || 'none'
+  const chosen = input.cells.map(name => {
+    if (typeof name === 'number') {
+      const cell = cells[name - 1]
+      if (!cell)
+        throw new LocalToolError(
+          cells.length
+            ? `No cell ${name}: this lab has cells 1–${cells.length}.`
+            : 'This lab has no cells.',
+        )
+      return cell
+    }
+    if (name === 'current') {
+      if (!current)
+        throw new LocalToolError(
+          'There is no current cell: the reader has not been in one yet. Ask which cell they mean.',
+        )
+      return current
+    }
+    const cell = cells.find(candidate => candidate.id === name)
+    if (!cell) throw new LocalToolError(`Unknown cell ${name}. Cells in this lab: ${listing}.`)
+    return cell
+  })
+  return { runner, header, cells: chosen }
 }
 
 export const readLabCells = (access: LabAccess, input: LabCellsInput): LabCellsResult => {
@@ -141,7 +169,8 @@ export const readLabCells = (access: LabAccess, input: LabCellsInput): LabCellsR
   })
 }
 
-const stopped = (cell: CodeLabCell, error: string): LabCellReport => ({
+const stopped = (cell: NumberedCell, error: string): LabCellReport => ({
+  number: cell.number,
   id: cell.id,
   language: cell.language,
   status: 'stopped',
@@ -159,7 +188,7 @@ export const runLabCells = async (
   for (const cell of cells) {
     signal?.throwIfAborted()
     if (reports.some(report => report.status !== 'succeeded')) {
-      reports.push({ id: cell.id, language: cell.language, status: 'skipped' })
+      reports.push({ number: cell.number, id: cell.id, language: cell.language, status: 'skipped' })
       continue
     }
     // A closed lab's runtime is released; running in it would start a worker nothing stops.

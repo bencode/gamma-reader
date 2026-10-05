@@ -4,6 +4,8 @@ New features appear here when they ship. Choose **Update** under **Files** when 
 
 ## October 2026
 
+- **Numbered cells, and the current cell.** Lab cells show `#1`, `#2` and so on, and the cell you were in is marked. Ask the assistant to *run cell 3* or to *explain the current cell*. See [[Labs#Run a cell]].
+
 - **Add a cell, run it from the keyboard.** In a Lab, **Add cell** (**+**) adds an empty cell in the language you pick. ⌘Enter or Ctrl+Enter runs a cell, and **Shift+Enter** runs it and moves on to the next, adding one after the last. See [[Labs#Run a cell]].
 
 - **This tutorial.** Every reader has a Tutorial project that follows the copy shipped with Gamma Reader. See [[Start here]].

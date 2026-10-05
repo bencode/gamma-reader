@@ -23,6 +23,7 @@ The id may use letters, digits, `_` and `-`; one is added when you leave it out.
 
 Choose **Run** on a cell, or press ⌘Enter on a Mac and Ctrl+Enter elsewhere while editing it. **Shift+Enter** runs the cell and moves on to the next one, as in a notebook; on the last cell it adds a new empty cell in the same language. **Stop** ends a long run. The cell shows its state, from *Starting* and *Running* to *Completed* or *Failed*, and its output below.
 
+- **Cells are numbered** in the order they appear, `#1` first, and the cell you were in last is marked by a coloured edge on its left. Numbers follow the document, so a cell added in the middle moves the ones after it.
 - **Cells share a language's session.** A Python cell can use a variable from an earlier Python cell, once that cell has run. Each language has its own session.
 - **Edit and run again.** Editing a cell marks its output *Code changed · Run again*. Edits go into the same draft as **Source**; **Save** keeps them.
 - **Stopping clears the session** for that language, so run the earlier cells again before the later ones.
@@ -60,7 +61,9 @@ Only the last value counts: anything printed stays text. With Emmy, Clojure can 
 
 ## With the assistant
 
-The assistant can read a Lab, edit its cells in the draft, run them in your session, and read the results. Open a Lab and ask, for example: *Add a Python cell that plots the seven counts as a bar chart, run it, and fix it if it fails.* You see each run as it happens, and nothing is saved until you choose **Save**. More in [[The reading assistant#Run a Lab]].
+The assistant can read a Lab, edit its cells in the draft, run them in your session, and read the results. Open a Lab and ask, for example: *Add a Python cell that plots the seven counts as a bar chart, run it, and fix it if it fails.* You see each run as it happens, and nothing is saved until you choose **Save**.
+
+Name a cell the way you see it: *Run cell 3*, or *Explain the error in the current cell*, meaning the one with the coloured edge. More in [[The reading assistant#Run a Lab]].
 
 ## Try it
 

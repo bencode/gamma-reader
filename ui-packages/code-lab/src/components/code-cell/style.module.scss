@@ -28,6 +28,17 @@
   gap: 9px;
 }
 
+.number {
+  color: #8a8580;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+// The cell the reader is in, which the assistant takes as "current".
+.cell[data-current] {
+  box-shadow: inset 3px 0 0 #96346b;
+}
+
 .language {
   font-size: 12px;
   font-weight: 650;

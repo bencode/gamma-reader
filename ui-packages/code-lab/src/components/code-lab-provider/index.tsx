@@ -4,7 +4,7 @@ import type { CodeLabProviderProps } from '../../types'
 
 type CodeLabContextValue = Pick<
   CodeLabProviderProps,
-  'cells' | 'onCellChange' | 'onCellAdvance'
+  'cells' | 'onCellChange' | 'onCellAdvance' | 'currentCellId' | 'onCellFocus'
 > & {
   runtime: CodeLabRuntime
 }
@@ -15,6 +15,8 @@ export const CodeLabProvider = ({
   cells,
   onCellChange,
   onCellAdvance,
+  currentCellId,
+  onCellFocus,
   children,
 }: CodeLabProviderProps) => {
   const [runtime] = useState(createCodeLabRuntime)
@@ -24,8 +26,8 @@ export const CodeLabProvider = ({
       if (ids.has(cell.id)) throw new Error(`Duplicate Code Lab cell id: ${cell.id}`)
       ids.add(cell.id)
     })
-    return { cells, onCellChange, onCellAdvance, runtime }
-  }, [cells, onCellChange, onCellAdvance, runtime])
+    return { cells, onCellChange, onCellAdvance, currentCellId, onCellFocus, runtime }
+  }, [cells, onCellChange, onCellAdvance, currentCellId, onCellFocus, runtime])
 
   useLayoutEffect(() => {
     runtime.synchronizeMembership(cells)
