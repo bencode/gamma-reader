@@ -1,6 +1,7 @@
 import type { MarkdownExtensions } from '../../../components/markdown'
 import { MarkdownReader } from '../markdown-reader'
 import type { TextReaderProps } from '../text-file-reader'
+import { AddCell } from './add-cell'
 import { LabCodeBlock } from './code-block'
 import { useLabDocument } from './document-scope'
 import { remarkLabCells } from './remark-lab-cells'
@@ -12,5 +13,12 @@ const markdownOptions: MarkdownExtensions = {
 
 export const LabReader = (props: TextReaderProps) => {
   const { model } = useLabDocument()
-  return <MarkdownReader {...props} content={model.source} markdownOptions={markdownOptions} />
+  return (
+    <MarkdownReader
+      {...props}
+      content={model.source}
+      markdownOptions={markdownOptions}
+      controls={<AddCell fileId={props.document.id} />}
+    />
+  )
 }

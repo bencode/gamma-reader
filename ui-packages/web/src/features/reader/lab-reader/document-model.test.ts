@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ensureLabCellIds, parseLabDocument, replaceLabCell } from './document-model'
+import { appendLabCell, ensureLabCellIds, parseLabDocument, replaceLabCell } from './document-model'
 
 const fence = (meta: string, body = 'print(1)', marker = '```') =>
   `${marker}python ${meta}\n${body}\n${marker}`
@@ -78,5 +78,20 @@ describe('Lab Markdown source', () => {
     const model = parseLabDocument(next)
     expect(model.cells).toEqual([{ id: 'target', language: 'python', source: code }])
     expect(model.blocks[0]?.fence?.marker.length).toBe(7)
+  })
+
+  it('appends an empty runnable cell with a new id, keeping the source and its line breaks', () => {
+    const source = '# Lab\r\n\r\n```python run id=first\r\nprint(1)\r\n```\r\n\r\n\r\n'
+    const { source: next, id } = appendLabCell(source, 'typescript')
+    const cells = parseLabDocument(next).cells
+
+    expect(cells.map(cell => cell.language)).toEqual(['python', 'typescript'])
+    expect(cells[1]).toEqual({ id, language: 'typescript', source: '' })
+    expect(id).not.toBe('first')
+    expect(
+      next.startsWith('# Lab\r\n\r\n```python run id=first\r\nprint(1)\r\n```\r\n\r\n```'),
+    ).toBe(true)
+    expect(next.replaceAll('\r\n', '')).not.toContain('\n')
+    expect(appendLabCell('', 'scheme').source).toMatch(/^```scheme run id=[\w-]{8}\n```\n$/)
   })
 })

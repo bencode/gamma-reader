@@ -100,6 +100,37 @@ beforeEach(() => {
 })
 
 describe('Lab document integration', () => {
+  it('adds an empty cell at the end, focused and ready to run, as an unsaved edit', async () => {
+    HTMLElement.prototype.scrollIntoView = vi.fn()
+    const original = '# Lab\n\n```scheme run id=first\n(+ 1 2)\n```\n'
+    const file = await writeStoredTextFile('Added.lab.md', original)
+    let handles: Handles | undefined
+    render(
+      <MemoryRouter initialEntries={[`/files/${file.id}`]}>
+        <Harness
+          files={[file]}
+          onReady={next => {
+            handles = next
+          }}
+        />
+      </MemoryRouter>,
+    )
+    await screen.findByRole('button', { name: 'Run' }, { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Add a cell' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Python' }))
+
+    const cell = await screen.findByRole('region', { name: 'Python code cell' })
+    if (!handles) throw new Error('Workspace not mounted')
+    const content = handles.tools.read_active_source().content
+    const added = parseLabDocument(content).cells.at(-1)
+    expect(added).toMatchObject({ language: 'python', source: '' })
+    expect(content.startsWith(original)).toBe(true)
+    expect(screen.getByRole('img', { name: 'Unsaved changes' })).toBeVisible()
+    await waitFor(() => expect(cell.contains(document.activeElement)).toBe(true))
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+    expect(await (await getStoredFileContent(file.id))?.text()).toBe(original)
+  })
+
   it('normalizes once in StrictMode, shares edits with Source and agent tools, and saves explicitly', async () => {
     const original = '# Lab\n\n\\[x^2\\]\n\n```typescript run\n1 + 1\n```\n\nKeep this paragraph.'
     const file = await writeStoredTextFile('Example.lab.md', original)

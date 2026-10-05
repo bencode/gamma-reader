@@ -15,6 +15,8 @@ sum(counts) / len(counts)
 ```
 ````
 
+To start a cell without writing the fence, choose **Add cell** (**+**) at the top right of a Lab and pick a language: an empty cell appears at the end, ready for code to be pasted and run.
+
 The id may use letters, digits, `_` and `-`; one is added when you leave it out. A cell cannot sit inside a list or a quote, and its fence must be closed. When something is wrong, the cell says what.
 
 ## Run a cell
@@ -63,11 +65,9 @@ The assistant can read a Lab, edit its cells in the draft, run them in your sess
 ## Try it
 
 1. Open [[Seven mornings]] and run both cells. Change a count and run them again.
-2. In [[Explore a wave]], add a cell at the end with **Source**:
+2. In [[Explore a wave]], choose **Add cell** → **Scheme**, paste this, and press ⌘Enter or Ctrl+Enter:
 
    ```scheme
    (apply + '(12 17 9 5 21 14 11))
    ```
-
-   Write `run` after `scheme` on its first line, and run it.
 3. Add a Clojure cell with the two Emmy lines above. The first run downloads Emmy.
