@@ -23,7 +23,7 @@ const phaseLabels = {
 } as const
 
 export const CodeCell = ({ cellId }: CodeCellProps) => {
-  const { cells, onCellChange, runtime } = useCodeLabContext()
+  const { cells, onCellChange, onCellAdvance, runtime } = useCodeLabContext()
   const executions = useSyncExternalStore(
     runtime.subscribe,
     runtime.getSnapshot,
@@ -41,6 +41,11 @@ export const CodeCell = ({ cellId }: CodeCellProps) => {
   )
   const run = () => {
     if (!busy) void runtime.runCell(cell)
+  }
+  // As in a notebook: run, then go on to the next cell, where the host decides what that is.
+  const runAndAdvance = () => {
+    run()
+    onCellAdvance?.(cellId)
   }
   const label = languageLabels[cell.language]
 
@@ -64,7 +69,7 @@ export const CodeCell = ({ cellId }: CodeCellProps) => {
               type="button"
               className={styles.run}
               disabled={busy}
-              title="Run code (⌘/Ctrl+Enter)"
+              title="Run code (⌘/Ctrl+Enter) · Run and go on (Shift+Enter)"
               onClick={run}
             >
               <Play size={13} fill="currentColor" aria-hidden="true" />
@@ -80,6 +85,7 @@ export const CodeCell = ({ cellId }: CodeCellProps) => {
           readOnly={!onCellChange || executing}
           onChange={source => onCellChange?.(cellId, source)}
           onRun={run}
+          onRunAndAdvance={runAndAdvance}
         />
       </div>
       <CodeOutput execution={execution} source={cell.source} />

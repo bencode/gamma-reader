@@ -1,4 +1,4 @@
-import { Compartment, EditorState } from '@codemirror/state'
+import { Compartment, EditorState, Prec } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { basicSetup } from 'codemirror'
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
@@ -11,6 +11,7 @@ type CodeEditorProps = {
   readOnly: boolean
   onChange(source: string): void
   onRun(): void
+  onRunAndAdvance(): void
 }
 
 const synchronize = (view: EditorView, source: string, applyingExternal: { current: boolean }) => {
@@ -32,7 +33,14 @@ const synchronize = (view: EditorView, source: string, applyingExternal: { curre
   }
 }
 
-export const CodeEditor = ({ language, source, readOnly, onChange, onRun }: CodeEditorProps) => {
+export const CodeEditor = ({
+  language,
+  source,
+  readOnly,
+  onChange,
+  onRun,
+  onRunAndAdvance,
+}: CodeEditorProps) => {
   const rootRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<EditorView | null>(null)
   const languageCompartment = useRef(new Compartment())
@@ -41,6 +49,7 @@ export const CodeEditor = ({ language, source, readOnly, onChange, onRun }: Code
   const readOnlyRef = useRef(readOnly)
   const changeRef = useRef(onChange)
   const runRef = useRef(onRun)
+  const advanceRef = useRef(onRunAndAdvance)
   const retained = useRef<EditorState | null>(null)
   const scroll = useRef<ReturnType<EditorView['scrollSnapshot']> | null>(null)
   const restoringScroll = useRef(true)
@@ -51,7 +60,8 @@ export const CodeEditor = ({ language, source, readOnly, onChange, onRun }: Code
     readOnlyRef.current = readOnly
     changeRef.current = onChange
     runRef.current = onRun
-  }, [source, readOnly, onChange, onRun])
+    advanceRef.current = onRunAndAdvance
+  }, [source, readOnly, onChange, onRun, onRunAndAdvance])
 
   const restoreScroll = useCallback(() => {
     const view = editorRef.current
@@ -81,15 +91,25 @@ export const CodeEditor = ({ language, source, readOnly, onChange, onRun }: Code
               EditorState.readOnly.of(readOnlyRef.current),
               EditorView.editable.of(!readOnlyRef.current),
             ]),
-            keymap.of([
-              {
-                key: 'Mod-Enter',
-                run: () => {
-                  runRef.current()
-                  return true
+            // Ahead of the default keymap, which binds Mod-Enter to inserting a blank line.
+            Prec.highest(
+              keymap.of([
+                {
+                  key: 'Mod-Enter',
+                  run: () => {
+                    runRef.current()
+                    return true
+                  },
                 },
-              },
-            ]),
+                {
+                  key: 'Shift-Enter',
+                  run: () => {
+                    advanceRef.current()
+                    return true
+                  },
+                },
+              ]),
+            ),
             EditorView.updateListener.of(update => {
               if (!update.docChanged) return
               scroll.current = scroll.current?.map(update.changes) ?? null

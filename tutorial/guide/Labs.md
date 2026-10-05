@@ -21,7 +21,7 @@ The id may use letters, digits, `_` and `-`; one is added when you leave it out.
 
 ## Run a cell
 
-Choose **Run** on a cell, or press ⌘Enter on a Mac and Ctrl+Enter elsewhere while editing it. **Stop** ends a long run. The cell shows its state, from *Starting* and *Running* to *Completed* or *Failed*, and its output below.
+Choose **Run** on a cell, or press ⌘Enter on a Mac and Ctrl+Enter elsewhere while editing it. **Shift+Enter** runs the cell and moves on to the next one, as in a notebook; on the last cell it adds a new empty cell in the same language. **Stop** ends a long run. The cell shows its state, from *Starting* and *Running* to *Completed* or *Failed*, and its output below.
 
 - **Cells share a language's session.** A Python cell can use a variable from an earlier Python cell, once that cell has run. Each language has its own session.
 - **Edit and run again.** Editing a cell marks its output *Code changed · Run again*. Edits go into the same draft as **Source**; **Save** keeps them.

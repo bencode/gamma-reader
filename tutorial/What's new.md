@@ -4,7 +4,7 @@ New features appear here when they ship. Choose **Update** under **Files** when 
 
 ## October 2026
 
-- **Add a cell from the toolbar.** In a Lab, **Add cell** (**+**) adds an empty cell in the language you pick, ready for code to paste and run. See [[Labs#Write a cell]].
+- **Add a cell, run it from the keyboard.** In a Lab, **Add cell** (**+**) adds an empty cell in the language you pick. ⌘Enter or Ctrl+Enter runs a cell, and **Shift+Enter** runs it and moves on to the next, adding one after the last. See [[Labs#Run a cell]].
 
 - **This tutorial.** Every reader has a Tutorial project that follows the copy shipped with Gamma Reader. See [[Start here]].
 - **Updates follow the source.** When a project's source changes a file, an update brings the new version in, replacing an edit you made to it, and says so first. See [[Files and projects#Keeping a project in step with a source]].

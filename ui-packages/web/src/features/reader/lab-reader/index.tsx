@@ -18,7 +18,7 @@ export const LabReader = (props: TextReaderProps) => {
       {...props}
       content={model.source}
       markdownOptions={markdownOptions}
-      controls={<AddCell fileId={props.document.id} />}
+      controls={<AddCell />}
     />
   )
 }
