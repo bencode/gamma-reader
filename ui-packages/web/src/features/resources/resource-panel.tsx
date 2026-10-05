@@ -195,7 +195,13 @@ export const ResourcePanel = ({
           }}
         />
       </div>
-      {project.source && <SourceSyncStatus name={project.source.name} sync={sourceSync} />}
+      {project.source && (
+        <SourceSyncStatus
+          name={project.source.name}
+          scope={project.source.scope}
+          sync={sourceSync}
+        />
+      )}
       {library.progress && (
         <p className="file-progress" role="status">
           {library.progress}

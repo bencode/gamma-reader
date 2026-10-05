@@ -6,13 +6,14 @@ import { resolve } from 'node:path'
 // serves itself: a working tree read as it is on disk, or a clone it keeps pulling.
 export type SourceConfig =
   | { kind: 'remote'; name: string; url: string }
-  | { kind: 'worktree'; name: string; dir: string; include: string[] }
+  | { kind: 'worktree'; name: string; dir: string; include: string[]; exclude: string[] }
   | {
       kind: 'clone'
       name: string
       repo: string
       dir: string
       include: string[]
+      exclude: string[]
       pullSeconds: number
     }
 
@@ -31,15 +32,16 @@ const positiveInteger = (name: string, raw: string | undefined, fallback: number
   return value
 }
 
-// Folders of the repository to list, such as knowledge,journal; none lists all of it. A folder is
-// named from the repository root and may not climb out of it.
-const folders = (raw: string | undefined) => {
+// Folders of the repository, such as knowledge,journal, named from the repository root; a folder
+// may not climb out of it. Included folders are all a source lists, when any are named, and
+// excluded ones are left out of it.
+const folders = (variable: string, raw: string | undefined) => {
   const names = (raw ?? '')
     .split(',')
     .map(name => name.trim().replace(/^\/+|\/+$/g, ''))
     .filter(Boolean)
   if (names.some(name => name.split('/').some(segment => segment === '..' || segment === '.')))
-    throw new Error('GAMMA_SOURCE_INCLUDE folders must be named from the repository root')
+    throw new Error(`${variable} folders must be named from the repository root`)
   return names
 }
 
@@ -57,8 +59,9 @@ export const readSourceConfig = (env: Env): SourceConfig | null => {
   if (!name && places === 0) return null
   if (!name || places !== 1) throw misconfigured()
   if (url) return { kind: 'remote', name, url }
-  const include = folders(env.GAMMA_SOURCE_INCLUDE)
-  if (worktree) return { kind: 'worktree', name, dir: worktree, include }
+  const include = folders('GAMMA_SOURCE_INCLUDE', env.GAMMA_SOURCE_INCLUDE)
+  const exclude = folders('GAMMA_SOURCE_EXCLUDE', env.GAMMA_SOURCE_EXCLUDE)
+  if (worktree) return { kind: 'worktree', name, dir: worktree, include, exclude }
   if (!repo) throw misconfigured()
   return {
     kind: 'clone',
@@ -66,18 +69,25 @@ export const readSourceConfig = (env: Env): SourceConfig | null => {
     repo,
     dir: env.GAMMA_SOURCE_DIR?.trim() || `${env.GAMMA_DATA_DIR?.trim() || 'data'}/source`,
     include,
+    exclude,
     pullSeconds: positiveInteger('GAMMA_SOURCE_PULL_SECONDS', env.GAMMA_SOURCE_PULL_SECONDS, 120),
   }
 }
 
 // What the reader is told: where to fetch the listing from. A working tree also takes changes
 // back, and names which folder it is, so a library synced from one is never saved into another.
-export const sourceLocation = (config: SourceConfig) =>
-  config.kind === 'worktree'
+// A repository served from here also says which of its folders it holds, so the reader can say
+// why a file was not saved.
+export const sourceLocation = (config: SourceConfig) => {
+  if (config.kind === 'remote') return { name: config.name, url: config.url }
+  const scope = { include: config.include, exclude: config.exclude }
+  return config.kind === 'worktree'
     ? {
         name: config.name,
         url: libraryPath,
         writable: true,
         id: createHash('sha1').update(resolve(config.dir)).digest('hex'),
+        scope,
       }
-    : { name: config.name, url: config.kind === 'remote' ? config.url : libraryPath }
+    : { name: config.name, url: libraryPath, scope }
+}

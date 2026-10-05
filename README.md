@@ -62,7 +62,8 @@ Create an untracked root `.env` with `GLM_API_KEY`, `DEEPSEEK_API_KEY`, or both.
 | `GAMMA_SOURCE_WORKTREE` | Unset | A git working tree on this machine, served as it is on disk |
 | `GAMMA_SOURCE_REPO` | Unset | A git repository the server clones and keeps pulling |
 | `GAMMA_SOURCE_URL` | Unset | Or an address that already serves a source |
-| `GAMMA_SOURCE_INCLUDE` | Unset (all) | Folders of the repository to list, comma separated |
+| `GAMMA_SOURCE_EXCLUDE` | Unset | Folders of the repository to leave out, comma separated |
+| `GAMMA_SOURCE_INCLUDE` | Unset (all) | Folders of the repository to list, comma separated, when only some are wanted |
 | `GAMMA_SOURCE_DIR` | `$GAMMA_DATA_DIR/source` | Where a cloned repository lives |
 | `GAMMA_SOURCE_PULL_SECONDS` | `120` | How often a cloned repository is pulled |
 
@@ -94,7 +95,7 @@ Set exactly one of these with `GAMMA_SOURCE_NAME`:
 | `GAMMA_SOURCE_REPO` | The committed files of a clone the server keeps under `GAMMA_SOURCE_DIR` | After the next pull, every `GAMMA_SOURCE_PULL_SECONDS` |
 | `GAMMA_SOURCE_URL` | Whatever that address serves: `GET <url>` lists `{ version, files: [{ path, version, size }] }`, and `GET <url>/files/<path>` returns a file | When that address says so |
 
-Give paths in full: `.env` does not expand `~` or `$HOME`. `GAMMA_SOURCE_INCLUDE=knowledge,journal` limits a repository to those folders. For a private repository, give git its key with `GIT_SSH_COMMAND`. The default container image has no git; build one that serves a repository with `docker build --target runtime-git`. The server does not check who asks for the files, so a deployment that serves a repository must sit behind a sign-in.
+Give paths in full: `.env` does not expand `~` or `$HOME`. A source holds the whole repository but what git ignores and hidden files and folders, such as `.github/`. `GAMMA_SOURCE_EXCLUDE=meta,tmp` also leaves those folders out, and `GAMMA_SOURCE_INCLUDE=knowledge,journal` limits it to those folders instead. A file outside the source is neither listed nor saved, and the reader says which rule left it out. For a private repository, give git its key with `GIT_SSH_COMMAND`. The default container image has no git; build one that serves a repository with `docker build --target runtime-git`. The server does not check who asks for the files, so a deployment that serves a repository must sit behind a sign-in.
 
 ### Saving back to a working tree
 

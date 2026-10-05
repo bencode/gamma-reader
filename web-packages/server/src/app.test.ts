@@ -121,7 +121,12 @@ describe('application HTTP boundaries', () => {
   })
 
   it('points the reader at a working tree it serves itself and takes changes back', async () => {
-    const config = readSourceConfig({ GAMMA_SOURCE_NAME: 'notes', GAMMA_SOURCE_WORKTREE: '/notes' })
+    const env = { GAMMA_SOURCE_NAME: 'notes', GAMMA_SOURCE_WORKTREE: '/notes' }
+    const config = readSourceConfig({
+      GAMMA_SOURCE_NAME: 'notes',
+      GAMMA_SOURCE_WORKTREE: '/notes',
+      GAMMA_SOURCE_EXCLUDE: 'meta, /tmp/',
+    })
     if (!config) throw new Error('A source was configured')
     const files = {
       listing: async () => ({ version: '1', files: [{ path: 'a.md', version: '1', size: 3 }] }),
@@ -134,7 +139,11 @@ describe('application HTTP boundaries', () => {
       url: '/api/library',
       writable: true,
       id: expect.stringMatching(/^[0-9a-f]{40}$/),
+      scope: { include: [], exclude: ['meta', 'tmp'] },
     })
+    expect(() => readSourceConfig({ ...env, GAMMA_SOURCE_EXCLUDE: '../elsewhere' })).toThrow(
+      'GAMMA_SOURCE_EXCLUDE folders must be named from the repository root',
+    )
     expect(await (await app.request('/api/library')).json()).toEqual(await files.listing())
   })
 
