@@ -68,7 +68,7 @@ export const createReaderTools = (
     ),
     bind(
       'edit_active_source',
-      'Replace one unique exact oldText in the active source draft. Pass fileId and expectedVersion from read_active_source. Does not save to IndexedDB. If the active file or version changed, read again. Empty oldText is allowed only for an empty source.',
+      'Replace one unique exact oldText in the active source draft. Pass fileId and expectedVersion from read_active_source. expectedVersion is a short code such as k7m2x9qp; copy it character for character. Does not save to IndexedDB. If the active file or version changed, read again. Empty oldText is allowed only for an empty source.',
       Type.Object({
         fileId,
         expectedVersion: Type.String({ minLength: 1 }),

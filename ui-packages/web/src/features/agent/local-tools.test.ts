@@ -377,11 +377,26 @@ describe('active source tools', () => {
     )
     const input = { fileId: 'a', expectedVersion: source.version, oldText: 'same', newText: 'new' }
     expect(() => local.edit_active_source(input)).toThrow('more than once')
-    expect(() => local.edit_active_source({ ...input, fileId: 'b' })).toThrow('Source changed')
+    // A wrong fileId is answered with the active one, which the assistant may use as it is.
+    expect(() => local.edit_active_source({ ...input, fileId: 'b' })).toThrow(
+      'fileId b is not the active file. The active file is A.md (fileId a).',
+    )
+    // A version copied wrongly is echoed back, but the current one is not given away.
+    const miscopied = { ...input, expectedVersion: `${source.version}x` }
+    const error = (() => {
+      try {
+        local.edit_active_source(miscopied)
+      } catch (cause) {
+        return cause instanceof Error ? cause.message : ''
+      }
+      return ''
+    })()
+    expect(error).toContain(`expectedVersion ${miscopied.expectedVersion} does not match`)
+    expect(error.replace(miscopied.expectedVersion, '')).not.toContain(source.version)
     const edited = local.edit_active_source({ ...input, oldText: 'same same' })
     expect(edited.version).not.toBe(input.expectedVersion)
     expect(edited.version).toBe(source.version)
     expect(local.read_active_source().content).toBe('new')
-    expect(() => local.edit_active_source(input)).toThrow('Source changed')
+    expect(() => local.edit_active_source(input)).toThrow('does not match the active source')
   })
 })

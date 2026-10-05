@@ -7,6 +7,7 @@ import type { LinkAccess } from '../features/agent/links/link-tools'
 import {
   type ActiveSourceSnapshot,
   createLocalTools,
+  versionMismatch,
   type WorkspaceFileMover,
   type WorkspaceFileSaver,
   type WorkspaceTextWriter,
@@ -79,7 +80,7 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
         if (!file || !draft)
           throw new LocalToolError('The active file has no editable source or is still loading.')
         if (file.id !== fileId || draft.version !== expectedVersion)
-          throw new LocalToolError('Source changed. Call read_active_source again.')
+          throw versionMismatch(expectedVersion)
         latest.actions.updateSource(file.id, content)
         const updated = latest.store.getState().sourceDrafts[file.id]
         if (!updated) throw new LocalToolError('The active source is no longer available.')

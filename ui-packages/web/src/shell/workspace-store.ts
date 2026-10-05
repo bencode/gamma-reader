@@ -1,6 +1,10 @@
-import { nanoid } from 'nanoid'
+import { customAlphabet } from 'nanoid'
 import { createStore } from 'zustand/vanilla'
 import type { ReadingPosition } from '../core/reading-position'
+
+// A draft's version is copied back by the assistant, so it is short, lower case, and leaves out
+// characters that read alike (0 and o, 1 and l). Eight of them never repeat within a session.
+const draftVersion = customAlphabet('23456789abcdefghijkmnpqrstuvwxyz', 8)
 
 export type PersistedSource = {
   revision: number
@@ -107,7 +111,7 @@ export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions 
               [fileId]: {
                 base: persisted,
                 content: persisted.content,
-                version: nanoid(),
+                version: draftVersion(),
                 sourceOpen: false,
                 incoming: null,
                 savePhase: 'idle',
@@ -124,7 +128,7 @@ export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions 
                 ...current,
                 base: persisted,
                 content: persisted.content,
-                version: nanoid(),
+                version: draftVersion(),
                 incoming: null,
                 savePhase: 'idle',
                 saveError: null,
@@ -154,7 +158,7 @@ export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions 
         sourceDrafts: updateDraft(state.sourceDrafts, fileId, draft =>
           draft.content === content
             ? draft
-            : { ...draft, content, version: nanoid(), saveError: null },
+            : { ...draft, content, version: draftVersion(), saveError: null },
         ),
       })),
     beginSourceSave: fileId =>
@@ -193,7 +197,7 @@ export const createWorkspaceActions = (store: WorkspaceStore): WorkspaceActions 
             ...draft,
             base: draft.incoming,
             content: draft.incoming.content,
-            version: nanoid(),
+            version: draftVersion(),
             incoming: null,
             savePhase: 'idle',
             saveError: null,
