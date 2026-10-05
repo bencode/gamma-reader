@@ -34,6 +34,7 @@ import { generateConversationTitle } from '../agent/conversation-title'
 import { conversationMessages, createReaderAgent } from '../agent/create-reader-agent'
 import type { LocalTools } from '../agent/local-tools'
 import { createModelRuntime, type ModelRuntime } from '../agent/model-runtime'
+import { withWebSearch } from '../agent/web-tools'
 import type { FileLibrary } from '../resources/use-file-library'
 import { resolveModelSelection } from './model-selection'
 import { type TokenUsage, tokenUsage } from './token-usage'
@@ -70,6 +71,9 @@ type ConfigState =
     }
   | { kind: 'unavailable' }
   | { kind: 'error'; message: string }
+
+const webSearchAvailable = (state: ConfigState) =>
+  state.kind === 'enabled' && state.config.webSearch === true
 
 const activeConversationKey = () => workspaceStorageKey(workspaceStorageBases.activeConversation)
 
@@ -432,6 +436,10 @@ export const useConversation = (
           messages: storedMessages,
           ...state,
         })
+        agent.state.tools = withWebSearch(
+          agent.state.tools,
+          webSearchAvailable(configState) && Boolean(conversation.webSearch),
+        )
         const next = { ...conversation, selection: selectionFromState(state) }
         activeRef.current = next
         setActive(next)
@@ -787,6 +795,16 @@ export const useConversation = (
     void queueDraft(next, true)
   }
 
+  // Takes effect from the next message; a reply already running keeps the tools it started with.
+  const setWebSearch = (on: boolean) => {
+    const next = { ...activeRef.current, webSearch: on }
+    const agent = agentRef.current
+    if (agent) agent.state.tools = withWebSearch(agent.state.tools, on)
+    activeRef.current = next
+    setActive(next)
+    void queueDraft(next, true)
+  }
+
   const refreshProviders = useCallback(async () => {
     const current = configRef.current
     if (current.kind !== 'enabled') return
@@ -842,6 +860,9 @@ export const useConversation = (
     // A window of 0 is one the catalog does not know.
     tokenUsage: usage && { ...usage, contextWindow: contextWindow || undefined },
     modelConfiguration: runtime && selection ? { providers: runtime.providers, selection } : null,
+    webSearch: webSearchAvailable(configRef.current)
+      ? { enabled: Boolean(active.webSearch), set: setWebSearch }
+      : null,
     selectModel: (model: ModelReference) => {
       if (selection) configureModel({ ...model, effort: selection.effort })
     },

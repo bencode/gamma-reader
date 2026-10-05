@@ -154,6 +154,7 @@ export const ConversationPanel = ({
               onStop={stop}
               availableFileIds={availableFileIds}
               commands={commands}
+              webSearch={conversation.webSearch}
             />
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { ArrowUp, Paperclip, Square } from 'lucide-react'
+import { ArrowUp, Globe, Paperclip, Square } from 'lucide-react'
 import {
   type DragEvent,
   type RefObject,
@@ -48,6 +48,8 @@ type ComposerProps = {
   onStop: () => void
   availableFileIds: ReadonlySet<string>
   commands: readonly SlashCommand[]
+  // Absent where the server has no search service.
+  webSearch: { enabled: boolean; set: (on: boolean) => void } | null
 }
 
 const resizeTextarea = (textarea: HTMLTextAreaElement) => {
@@ -78,6 +80,7 @@ export const ConversationComposer = ({
   onStop,
   availableFileIds,
   commands,
+  webSearch,
 }: ComposerProps) => {
   const pickerRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
@@ -280,6 +283,18 @@ export const ConversationComposer = ({
             event.currentTarget.value = ''
           }}
         />
+        {webSearch && (
+          <button
+            type="button"
+            className={`icon-button ${styles.attachmentPicker} ${styles.webSearch}`}
+            aria-label="Search the web"
+            aria-pressed={webSearch.enabled}
+            title={webSearch.enabled ? 'Web search is on' : 'Web search is off'}
+            onClick={() => webSearch.set(!webSearch.enabled)}
+          >
+            <Globe size={16} />
+          </button>
+        )}
         {modelConfiguration && (
           <ConversationModelControl
             {...modelConfiguration}

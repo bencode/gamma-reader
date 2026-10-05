@@ -1,3 +1,4 @@
+import type { PublicModelConfig } from '@gamma-reader/shared/model-config'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -45,6 +46,54 @@ describe('conversation', () => {
     await user.click(send())
 
     expect(await screen.findByText(limit)).toBeInTheDocument()
+  })
+
+  it('offers web search only where the server searches, off until the reader turns it on', async () => {
+    const user = userEvent.setup({ delay: null })
+    let served: PublicModelConfig = config
+    const tools: string[][] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(served)
+      if (isTitleRequest(init)) return complete('Title')
+      const body: { tools?: { function: { name: string } }[] } = JSON.parse(String(init?.body))
+      tools.push((body.tools ?? []).map(tool => tool.function.name))
+      return complete('A reply')
+    })
+    const ask = async (text: string) => {
+      await waitFor(() =>
+        expect(screen.getByRole('combobox', { name: 'Chat model' })).toBeEnabled(),
+      )
+      const before = tools.length
+      await user.type(question(), text)
+      await user.click(send())
+      await waitFor(() => expect(tools).toHaveLength(before + 1))
+    }
+    const toggle = () => screen.getByRole('button', { name: 'Search the web' })
+
+    const first = open()
+    await screen.findByRole('combobox', { name: 'Chat model' })
+    expect(screen.queryByRole('button', { name: 'Search the web' })).not.toBeInTheDocument()
+    first.unmount()
+
+    served = { ...config, webSearch: true }
+    const second = open()
+    expect(await screen.findByRole('button', { name: 'Search the web' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    await ask('Without search')
+    await user.click(toggle())
+    expect(toggle()).toHaveAttribute('aria-pressed', 'true')
+    await ask('With search')
+
+    expect(tools[0]).not.toContain('web_search')
+    expect(tools[1]).toContain('web_search')
+    second.unmount()
+    open()
+    expect(await screen.findByRole('button', { name: 'Search the web' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
   })
 
   it('persists the initial model so changing deployment defaults does not change an existing chat', async () => {
