@@ -239,7 +239,7 @@ export const ConversationComposer = ({
               type="button"
               className={styles.sendButton}
               aria-label="Stop generation"
-              title="Stop generation"
+              title="Stop generation (Esc)"
               disabled={phase === 'stopping'}
               onClick={onStop}
             >
@@ -266,7 +266,11 @@ export const ConversationComposer = ({
           type="button"
           className={`icon-button ${styles.attachmentPicker}`}
           aria-label="Attach files"
-          title={limitReached ? 'Remove an attachment before adding another' : 'Attach files'}
+          title={
+            limitReached
+              ? 'Remove an attachment before adding another'
+              : 'Attach files — or paste or drop them here'
+          }
           disabled={limitReached || attachments.some(item => item.status === 'adding')}
           onClick={() => pickerRef.current?.click()}
         >

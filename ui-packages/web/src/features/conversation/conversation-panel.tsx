@@ -5,6 +5,7 @@ import { ConversationComposer } from './composer'
 import { useReaderConversation } from './conversation-context'
 import { ConversationHistory } from './conversation-history'
 import { ConversationMessages } from './conversation-messages'
+import { ShortcutsDialog } from './shortcuts-dialog'
 
 export const ConversationPanel = ({
   inputRef,
@@ -19,6 +20,7 @@ export const ConversationPanel = ({
 }) => {
   const conversation = useReaderConversation()
   const [configuringModels, setConfiguringModels] = useState(false)
+  const [showingShortcuts, setShowingShortcuts] = useState(false)
   const {
     active,
     draft,
@@ -50,6 +52,7 @@ export const ConversationPanel = ({
   const running = phase === 'running' || phase === 'stopping'
   const commands = [
     { name: 'clear', description: 'Start a new conversation', run: () => void startNew() },
+    { name: 'shortcuts', description: 'Keyboard shortcuts', run: () => setShowingShortcuts(true) },
   ]
   const switching = phase === 'switching'
   const status =
@@ -188,6 +191,7 @@ export const ConversationPanel = ({
           }}
         />
       )}
+      {showingShortcuts && <ShortcutsDialog onClose={() => setShowingShortcuts(false)} />}
     </aside>
   )
 }

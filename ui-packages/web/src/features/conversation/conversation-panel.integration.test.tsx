@@ -678,6 +678,22 @@ describe('conversation', () => {
     expect(await countStoredConversations()).toBe(1)
   })
 
+  it('lists the keyboard shortcuts from /shortcuts', async () => {
+    const user = userEvent.setup({ delay: null })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json(config))
+    open()
+    await waitFor(() => expect(question()).toBeEnabled())
+
+    await user.type(question(), '/sh')
+    await user.keyboard('{Enter}')
+
+    const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })
+    expect(within(dialog).getByText('Stop the answer')).toBeVisible()
+    expect(question()).toHaveValue('')
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).not.toBeInTheDocument()
+  })
+
   it('names a conversation after its first reply and keeps a name the reader chose', async () => {
     const user = userEvent.setup({ delay: null })
     let titleRequests = 0
