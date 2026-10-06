@@ -63,6 +63,7 @@ const ImageNavigation = ({ navigation }: { navigation: ImageLightboxNavigation |
         type="button"
         className="icon-button image-lightbox-navigation previous"
         aria-label="Previous image"
+        title="Previous image (←)"
         disabled={!navigation.onPrevious}
         onClick={navigation.onPrevious}
       >
@@ -72,6 +73,7 @@ const ImageNavigation = ({ navigation }: { navigation: ImageLightboxNavigation |
         type="button"
         className="icon-button image-lightbox-navigation next"
         aria-label="Next image"
+        title="Next image (→)"
         disabled={!navigation.onNext}
         onClick={navigation.onNext}
       >
