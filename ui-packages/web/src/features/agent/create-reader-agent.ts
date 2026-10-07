@@ -6,6 +6,7 @@ import {
   type StoredFileMetadata,
 } from '../../core/files'
 import { getStoredFile, listStoredFiles } from '../../data/file-store'
+import { memoryAgentParts } from '../memory'
 import { createDocumentTools, type DocumentAccess } from './document-tools'
 import { createDocxRuntime, type DocxRuntime } from './docx/runtime'
 import { createImageTools } from './image-tools'
@@ -106,6 +107,7 @@ export const createReaderAgent = (
   const documents = createDocumentTools(createReaderDocumentAccess(pdf, docx, xlsx))
   const vision = visionModelFor(runtime, session.model)
   const analyze = vision ? createVisionAnalyzer(vision) : undefined
+  const memory = memoryAgentParts({ conversationId: session.id })
   const agent = new Agent({
     sessionId: session.id,
     toolExecution: 'sequential',
@@ -122,8 +124,10 @@ export const createReaderAgent = (
         ...createPdfTools(pdf, analyze),
         ...createXlsxTools(xlsx),
         ...createSkillTools(skills),
+        ...(memory?.tools ?? []),
       ],
     },
+    transformContext: memory?.transformContext,
     streamFn: (model, context, options) => {
       // A run stopped during a tool still asks for one more reply; pi-ai would report that
       // request as an error, so end it here and let the agent record the run as stopped.

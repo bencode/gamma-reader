@@ -7,6 +7,7 @@ import { legacyDatabaseName } from '../core/projects'
 import { deleteFileStore } from '../data/file-store'
 import { deleteProjectStore } from '../data/project-store'
 import { setWorkspaceDatabaseName } from '../data/workspace-database'
+import { deleteMemoryStore } from '../features/memory'
 
 vi.stubGlobal('matchMedia', (query: string) => ({
   matches: true,
@@ -86,6 +87,7 @@ afterEach(async () => {
   setWorkspaceDatabaseName(legacyDatabaseName)
   await deleteFileStore()
   await deleteProjectStore()
+  await deleteMemoryStore()
 })
 
 beforeEach(() => {

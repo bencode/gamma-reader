@@ -18,6 +18,7 @@ import {
   touchProject,
 } from '../data/project-store'
 import { openWorkspaceDatabase, setWorkspaceDatabaseName } from '../data/workspace-database'
+import { removeProjectMemories } from '../features/memory'
 import { loadProjectSource } from '../features/source/load-source'
 import { EmptyWorkbench } from './empty-workbench'
 import { Workbench } from './workbench'
@@ -81,7 +82,14 @@ const deleteRequestedProject = async (onDeleting: (project: Project, waiting: bo
     if (project) {
       onDeleting(project, false)
       try {
-        await deleteProject(project, () => onDeleting(project, true))
+        // Memory is one database for every project, so nothing blocks clearing this project's
+        // notes while its own library waits for other tabs.
+        await Promise.all([
+          deleteProject(project, () => onDeleting(project, true)),
+          removeProjectMemories(project.databaseName).catch(error => {
+            console.error('Unable to remove the memory of a deleted project', error)
+          }),
+        ])
       } catch (error) {
         throw new ProjectDeletionError(`${project.name} could not be deleted.`, { cause: error })
       }

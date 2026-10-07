@@ -35,6 +35,7 @@ import { conversationMessages, createReaderAgent } from '../agent/create-reader-
 import type { LocalTools } from '../agent/local-tools'
 import { createModelRuntime, type ModelRuntime } from '../agent/model-runtime'
 import { withWebSearch } from '../agent/web-tools'
+import { useMemoryEnabled } from '../memory'
 import type { FileLibrary } from '../resources/use-file-library'
 import { resolveModelSelection } from './model-selection'
 import { type TokenUsage, tokenUsage } from './token-usage'
@@ -821,6 +822,17 @@ export const useConversation = (
     }
     attachAgent(activeRef.current, rawMessages.current)
   }, [attachAgent])
+
+  // Turning memory on or off reaches the open conversation at once, unless a reply is running: that
+  // reply keeps the tools it started with, and the setting reaches the next conversation opened.
+  const memoryOn = useMemoryEnabled()
+  const memoryAttached = useRef(memoryOn)
+  useEffect(() => {
+    if (memoryAttached.current === memoryOn) return
+    memoryAttached.current = memoryOn
+    if (!agentRef.current || busy.current || switching.current) return
+    attachAgent(activeRef.current, rawMessages.current)
+  }, [attachAgent, memoryOn])
 
   const runtime = configRef.current.kind === 'enabled' ? configRef.current.runtime : null
   const selection = active.selection

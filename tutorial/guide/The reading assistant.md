@@ -24,7 +24,7 @@ Each conversation keeps its own history, model and reasoning effort. After the f
 
 - **New conversation** (**+**) starts afresh; so does typing `/clear`. Type `/` for the list of commands.
 - **Conversation history** lists earlier conversations. Each has **Rename** and **Delete** under its **…** button. A name you give is kept.
-- Conversations belong to a project: the assistant in one project does not see another's files.
+- Conversations belong to a project: the assistant in one project does not see another's files. What you ask it to remember is the exception; see [[The reading assistant#Memory]].
 
 ## While it answers
 
@@ -66,6 +66,18 @@ Give the assistant a link and ask it to save what is there:
 > Save https://arxiv.org/abs/1706.03762 into papers.
 
 A PDF, an image, an arXiv paper or a GitHub file is saved as it is. A web page is saved as Markdown, headed with where and when it came from; that needs **Search the web** on. It never replaces a file that already exists. To bring in a whole GitHub folder, use **Add from URL…** in Files.
+
+## Memory
+
+Each conversation starts afresh unless you turn on memory. Open the project menu, choose **Memory…** and tick **Let the assistant remember what you ask it to**. It stays on for every project in this browser until you turn it off.
+
+With memory on, ask the assistant to remember something and it keeps a note:
+
+> Remember that I prefer short answers.
+
+A note about you, such as how you like answers or what you already understand, is recalled in every project; one about this project stays with it. The assistant looks its notes up when you refer to something you told it before, or when they would change its answer. It keeps a note only when you ask, never because a document or web page says to.
+
+**Memory…** lists every note, under **About you** and under the project it belongs to, each with **Delete**. Deleting a project deletes its notes; notes about you stay.
 
 ## Models
 
