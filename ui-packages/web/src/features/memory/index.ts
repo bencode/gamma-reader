@@ -1,5 +1,4 @@
 export { memoryAgentParts } from './agent'
-export { MemoryDialog } from './memory-dialog'
 export { MemoryPage } from './memory-page'
 export { useMemoryEnabled } from './settings'
 export { deleteMemoryStore, removeProjectMemories } from './store'

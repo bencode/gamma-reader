@@ -4,7 +4,7 @@ New features appear here when they ship. Choose **Update** under **Files** when 
 
 ## October 2026
 
-- **The assistant remembers.** Turn on **Memory…** in the project menu, and the assistant keeps what you ask it to remember, about you in every project and about a project in that project. The **Memory** tab lists, searches and corrects every note. See [[The reading assistant#Memory]].
+- **The assistant remembers.** Turn on memory under **Memory** in the project menu, and the assistant keeps what you ask it to remember, about you in every project and about a project in that project. The **Memory** tab lists, searches and corrects every note. See [[The reading assistant#Memory]].
 
 - **Numbered cells, and the current cell.** Lab cells show `#1`, `#2` and so on, and the cell you were in is marked. Ask the assistant to *run cell 3* or to *explain the current cell*. See [[Labs#Run a cell]].
 

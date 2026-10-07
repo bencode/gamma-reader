@@ -1,8 +1,9 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import type { MemoryEntry } from './entry'
 import { MemoryPage } from './memory-page'
+import { memoryEnabled, setMemoryEnabled } from './settings'
 import { listMemories, saveMemory } from './store'
 
 const entry = (id: string, text: string, scope: MemoryEntry['scope'] = 'reader'): MemoryEntry => ({
@@ -17,6 +18,14 @@ const entry = (id: string, text: string, scope: MemoryEntry['scope'] = 'reader')
 })
 
 describe('memory page', () => {
+  afterEach(() => setMemoryEnabled(false))
+
+  it('turns memory on for the whole browser', async () => {
+    render(<MemoryPage active />)
+    await userEvent.click(screen.getByLabelText('Let the assistant remember what you ask it to'))
+    expect(memoryEnabled()).toBe(true)
+  })
+
   it('finds a note by a term the word segmenter would split', async () => {
     await saveMemory(entry('closure', '读者理解了闭包，但尾递归还不熟'))
     await saveMemory(entry('style', 'Prefers short answers'))

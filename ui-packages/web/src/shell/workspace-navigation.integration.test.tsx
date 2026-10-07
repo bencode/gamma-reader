@@ -214,8 +214,7 @@ describe('local workspace navigation', () => {
     const page = openReader()
     await waitForWorkspace()
     await user.click(screen.getByRole('button', { name: 'My reading' }))
-    await user.click(screen.getByRole('button', { name: 'Memory…' }))
-    await user.click(await screen.findByRole('button', { name: 'Open memory' }))
+    await user.click(screen.getByRole('button', { name: 'Memory' }))
 
     await waitFor(() =>
       expect(screen.getByLabelText('Current route')).toHaveTextContent('/views/memory'),

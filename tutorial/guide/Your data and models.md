@@ -6,7 +6,7 @@ Gamma Reader has no accounts and keeps no copy of your files. This chapter says 
 
 ## Where your files live
 
-Your files, attachments and conversations are stored in this browser, one database for each project. Notes the assistant keeps under **Memory…** are stored in this browser too, in one database for all projects. Open tabs, reading positions and any model keys you add are kept in the browser's local storage. Unsaved **Source** drafts and the state of Lab cells live only in the open page.
+Your files, attachments and conversations are stored in this browser, one database for each project. Notes the assistant keeps under **Memory** are stored in this browser too, in one database for all projects. Open tabs, reading positions and any model keys you add are kept in the browser's local storage. Unsaved **Source** drafts and the state of Lab cells live only in the open page.
 
 Browser storage belongs to this site and this browser profile. Clearing the site's data, or using a private window, loses it. To keep a copy, use **Save as…** on a file or **Save files to folder** for a whole project. **View storage**, in the project menu, shows how much space a project takes.
 

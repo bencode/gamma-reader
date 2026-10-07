@@ -1,6 +1,7 @@
 import type { MemoryEntry } from './entry'
 
-export const settingsHint = 'The reader can turn it on or off under Memory… in the project menu.'
+export const settingsHint =
+  'The reader can turn it on or off on the Memory page, opened from the project menu.'
 
 // Rendered after the base prompt; the heading lets the model tell it apart from the rest.
 export const memorySection = (core: readonly MemoryEntry[]) =>

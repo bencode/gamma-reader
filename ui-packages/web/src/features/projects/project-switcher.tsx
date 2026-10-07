@@ -3,7 +3,6 @@ import { BookOpen, Check, ChevronDown, ExternalLink } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { normalizeProjectName, type Project, projectTitle } from '../../core/projects'
 import { listProjects, renameProject } from '../../data/project-store'
-import { MemoryDialog } from '../memory'
 import type { FileExportController } from '../resources/use-file-export'
 import { DeleteProjectDialog } from './delete-project-dialog'
 import { NewProjectForm } from './new-project-form'
@@ -80,7 +79,6 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
   const [listError, setListError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [showingStorage, setShowingStorage] = useState(false)
-  const [showingMemory, setShowingMemory] = useState(false)
   const others = (projects ?? []).filter(project => project.id !== current?.id)
 
   const loadProjects = () => {
@@ -172,15 +170,6 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
               <button type="button" onClick={() => setMode('create')}>
                 New project…
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false)
-                  setShowingMemory(true)
-                }}
-              >
-                Memory…
-              </button>
               {current && (
                 <>
                   <div className={styles.separator} />
@@ -196,7 +185,6 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
                   >
                     View storage
                   </button>
-                  <div className={styles.separator} />
                   <button
                     type="button"
                     onClick={() => {
@@ -208,16 +196,24 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
                   </button>
                 </>
               )}
+              {props.project && (
+                <>
+                  <div className={styles.separator} />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false)
+                      props.onOpenMemory()
+                    }}
+                  >
+                    Memory
+                  </button>
+                </>
+              )}
             </div>
           )}
         </Popover.Content>
       </Popover.Root>
-      {showingMemory && (
-        <MemoryDialog
-          onClose={() => setShowingMemory(false)}
-          onOpenMemory={props.project ? props.onOpenMemory : undefined}
-        />
-      )}
       {showingStorage && current && (
         <ProjectStorageDialog project={current} onClose={() => setShowingStorage(false)} />
       )}

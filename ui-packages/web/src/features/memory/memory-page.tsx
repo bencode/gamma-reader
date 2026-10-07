@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { Project } from '../../core/projects'
 import { listProjects } from '../../data/project-store'
 import type { MemoryEntry } from './entry'
 import { MemoryRow } from './memory-row'
 import { searchMemories } from './search'
+import { refreshMemoryEnabled, setMemoryEnabled, useMemoryEnabled } from './settings'
 import { listMemories, subscribeMemories } from './store'
 import styles from './style.module.scss'
 
@@ -45,6 +46,8 @@ const searchLimit = 50
 // Every note the assistant keeps, across projects, to search, correct and delete. Searching here
 // finds what recall_memory would, so the reader can see how well a note is found.
 export const MemoryPage = ({ active }: { active: boolean }) => {
+  const enabled = useMemoryEnabled()
+  const switchId = useId()
   const [entries, setEntries] = useState<MemoryEntry[] | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [failure, setFailure] = useState<string | null>(null)
@@ -53,6 +56,7 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
 
   useEffect(() => {
     if (!active) return
+    refreshMemoryEnabled()
     let current = true
     const load = () =>
       Promise.all([listMemories(), listProjects()]).then(
@@ -116,6 +120,22 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
           onChange={event => setQuery(event.target.value)}
         />
       </header>
+      <div>
+        <label className={styles.switch} htmlFor={switchId}>
+          <input
+            id={switchId}
+            type="checkbox"
+            checked={enabled}
+            onChange={event => setMemoryEnabled(event.target.checked)}
+          />
+          Let the assistant remember what you ask it to
+        </label>
+        <p className={styles.note}>
+          One switch for every project in this browser. Say “remember…” in a conversation to keep a
+          note, or “forget…” to let one go. What is about you is recalled in every project; what is
+          about a project stays with it. Notes go to the model with your questions.
+        </p>
+      </div>
       {failure && <p role="alert">{failure}</p>}
       {entries?.length === 0 && (
         <p className={styles.note}>

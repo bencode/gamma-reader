@@ -69,7 +69,7 @@ A PDF, an image, an arXiv paper or a GitHub file is saved as it is. A web page i
 
 ## Memory
 
-Each conversation starts afresh unless you turn on memory. Open the project menu, choose **Memory…** and tick **Let the assistant remember what you ask it to**. It stays on for every project in this browser until you turn it off.
+Each conversation starts afresh unless you turn on memory. Open the project menu, choose **Memory** and tick **Let the assistant remember what you ask it to** at the top of the **Memory** tab. It stays on for every project in this browser until you turn it off.
 
 With memory on, ask the assistant to remember something and it keeps a note:
 
@@ -79,7 +79,7 @@ A note about you, such as how you like answers or what you already understand, i
 
 To let a note go, ask: *Forget that I'm reading Dune.* The assistant finds the note, deletes it and says which one.
 
-**Open memory**, in **Memory…**, opens a **Memory** tab with every note: under **About you** and under the project it belongs to, the most recently used first. Search finds notes the way the assistant does. **Edit** corrects a note, and for a note about you, **Keep in mind in every conversation** makes it part of every conversation from the start. A note the assistant has not used for three months is shown faded. Deleting a project deletes its notes; notes about you stay.
+The **Memory** tab lists every note: under **About you** and under the project it belongs to, the most recently used first. Search finds notes the way the assistant does. **Edit** corrects a note, and for a note about you, **Keep in mind in every conversation** makes it part of every conversation from the start. A note the assistant has not used for three months is shown faded. Deleting a project deletes its notes; notes about you stay.
 
 ## Models
 
