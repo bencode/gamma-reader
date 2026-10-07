@@ -4,6 +4,7 @@ import { lazy, useEffect, useRef, useState } from 'react'
 import { baseName, isCodePath, type StoredFileMetadata } from '../../core/files'
 import { pageName, pageOfTab } from '../../shell/page-tab'
 import type { Workspace } from '../../shell/use-workspace'
+import { viewOfTab, views } from '../../shell/view-tab'
 import {
   useLinkGraph,
   useSourceDrafts,
@@ -22,6 +23,7 @@ import { isP5SourceName } from './p5-file'
 import { PagePane } from './page-pane'
 import type { TextReaderDefinition } from './text-file-reader'
 import { UnsavedSourceDialog } from './unsaved-source-dialog'
+import { ViewPane } from './view-pane'
 
 const P5FileReader = lazy(() =>
   import('./p5-file-reader').then(module => ({ default: module.P5FileReader })),
@@ -139,6 +141,11 @@ export const DocumentTabs = ({
     if (page !== null) {
       const name = pageName(graph, page)
       return [{ id, label: name, title: `Page: ${name}`, dirty: false }]
+    }
+    const view = viewOfTab(id)
+    if (view !== null) {
+      const { label } = views[view]
+      return [{ id, label, title: label, dirty: false }]
     }
     const file = openFiles.find(candidate => candidate.id === id)
     return file
@@ -275,6 +282,9 @@ export const DocumentTabs = ({
           const page = pageOfTab(id)
           if (page !== null)
             return <PagePane key={id} id={id} page={page} active={workspace.activeId === id} />
+          const view = viewOfTab(id)
+          if (view !== null)
+            return <ViewPane key={id} id={id} view={view} active={workspace.activeId === id} />
           const source = workspace.files.find(document => document.id === id)
           return source ? (
             <DocumentPane

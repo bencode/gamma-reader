@@ -3,21 +3,24 @@ import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import { useStore } from 'zustand'
 import type { StoredFileMetadata } from '../core/files'
 import { pageOfTab, pagePath, pageTabId } from './page-tab'
+import { viewOfTab, viewPath, viewTabOfRoute } from './view-tab'
 import { readWorkspace, writeWorkspace } from './workspace-storage'
 import { createWorkspaceActions, createWorkspaceStore } from './workspace-store'
 
 // The address carries the path the reader sees rather than the id the store keeps, one encoded
-// segment per folder. A page with no note is addressed by its name.
+// segment per folder. A page with no note is addressed by its name, and a view by its own.
 const documentPath = (files: readonly StoredFileMetadata[], id: string | null) => {
   const page = id ? pageOfTab(id) : null
   if (page !== null) return pagePath(page)
+  const view = id ? viewOfTab(id) : null
+  if (view !== null) return viewPath(view)
   const file = id ? files.find(document => document.id === id) : undefined
   return file ? `/files/${file.path.split('/').map(encodeURIComponent).join('/')}` : '/files'
 }
 
-// A tab holds a file of the library or a page with no note.
+// A tab holds a file of the library, a page with no note, or a view.
 const openable = (files: readonly StoredFileMetadata[], id: string) =>
-  pageOfTab(id) !== null || files.some(file => file.id === id)
+  pageOfTab(id) !== null || viewOfTab(id) !== null || files.some(file => file.id === id)
 
 // A path is unique in the library apart from case, and the only rename the app performs — the
 // write tool replacing a file it matched case-insensitively — changes nothing else, so matching
@@ -38,7 +41,10 @@ export const useWorkspace = (files: StoredFileMetadata[], filesLoading: boolean)
   const navigate = useNavigate()
   const routePath = useMatch('/files/*')?.params['*']
   const pageRoute = useMatch('/pages/:name')?.params.name
-  const activeId = pageRoute ? pageTabId(pageRoute) : documentIdFor(files, routePath)
+  const viewRoute = useMatch('/views/:name')?.params.name
+  const activeId = pageRoute
+    ? pageTabId(pageRoute)
+    : (viewTabOfRoute(viewRoute) ?? documentIdFor(files, routePath))
   const [initialWorkspace] = useState(readWorkspace)
   const [store] = useState(() =>
     createWorkspaceStore(initialWorkspace.tabs, initialWorkspace.positions),

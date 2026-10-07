@@ -209,6 +209,35 @@ describe('local workspace navigation', () => {
     expect(tabNames()).toEqual(['rag'])
   })
 
+  it('opens Memory from the project menu as a tab that survives a reload', async () => {
+    const user = userEvent.setup()
+    const page = openReader()
+    await waitForWorkspace()
+    await user.click(screen.getByRole('button', { name: 'My reading' }))
+    await user.click(screen.getByRole('button', { name: 'Memory…' }))
+    await user.click(await screen.findByRole('button', { name: 'Open memory' }))
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Current route')).toHaveTextContent('/views/memory'),
+    )
+    expect(tabNames()).toEqual(['Memory'])
+    expect(await screen.findByText(/Nothing remembered yet/)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(savedWorkspace()).toMatchObject({
+        tabs: ['view:memory'],
+        lastActiveId: 'view:memory',
+      }),
+    )
+    page.unmount()
+
+    openReader()
+    await waitForWorkspace()
+    await waitFor(() =>
+      expect(screen.getByLabelText('Current route')).toHaveTextContent('/views/memory'),
+    )
+    expect(tabNames()).toEqual(['Memory'])
+  })
+
   it('does not open an unknown route as a file or create a tab', async () => {
     openReader('/files/not-in-this-browser')
     await waitForWorkspace()
@@ -217,7 +246,10 @@ describe('local workspace navigation', () => {
     )
     expect(tabNames()).toEqual([])
     expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument()
-    expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null, positions: {} })
+    // The workspace is written by an effect after the redirect renders.
+    await waitFor(() =>
+      expect(savedWorkspace()).toEqual({ tabs: [], lastActiveId: null, positions: {} }),
+    )
   })
 
   it('restores empty defaults and reports damaged storage', async () => {

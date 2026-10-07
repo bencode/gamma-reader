@@ -64,7 +64,12 @@ const RenameForm = ({
 }
 
 type ProjectSwitcherProps =
-  | { project: Project; fileCount: number; exporter: FileExportController }
+  | {
+      project: Project
+      fileCount: number
+      exporter: FileExportController
+      onOpenMemory: () => void
+    }
   | { project: null }
 
 export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
@@ -207,7 +212,12 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
           )}
         </Popover.Content>
       </Popover.Root>
-      {showingMemory && <MemoryDialog onClose={() => setShowingMemory(false)} />}
+      {showingMemory && (
+        <MemoryDialog
+          onClose={() => setShowingMemory(false)}
+          onOpenMemory={props.project ? props.onOpenMemory : undefined}
+        />
+      )}
       {showingStorage && current && (
         <ProjectStorageDialog project={current} onClose={() => setShowingStorage(false)} />
       )}

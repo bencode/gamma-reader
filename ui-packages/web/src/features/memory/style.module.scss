@@ -1,26 +1,14 @@
-// A list of notes needs more room than the prompt this shape was drawn for.
-.shell {
-  width: min(560px, calc(100vw - 32px));
-  max-height: min(720px, calc(100vh - 48px));
-  display: flex;
-  flex-direction: column;
-}
-
-.dialog {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-height: 0;
-  overflow-y: auto;
-  font-size: 13px;
-}
-
 .switch {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
   font-weight: 500;
+}
+
+.count {
+  margin-top: 10px;
 }
 
 .note {
@@ -31,31 +19,71 @@
   line-height: 1.6;
 }
 
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+  font-size: 13px;
+}
+
+.pageHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  input {
+    width: min(260px, 100%);
+    min-height: 30px;
+    padding: 4px 8px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--surface);
+    color: inherit;
+    font: inherit;
+  }
+}
+
 .group {
-  h3 {
-    margin: 0 0 6px;
+  h2 {
+    margin: 0 0 8px;
+    color: var(--muted);
     font-size: 12px;
     font-weight: 600;
-    color: var(--muted);
   }
 
   ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
     display: flex;
     flex-direction: column;
     gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
   li {
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-start;
     gap: 8px;
-    padding: 6px 8px;
+    padding: 8px 10px;
     border: 1px solid var(--line);
     border-radius: 6px;
   }
+}
+
+.quiet {
+  opacity: 0.55;
 }
 
 .text {
@@ -69,4 +97,41 @@
   display: block;
   color: var(--muted);
   font-size: 11px;
+}
+
+.editor {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+
+  textarea {
+    min-height: 60px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--surface);
+    color: inherit;
+    font: inherit;
+    resize: vertical;
+  }
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.rowActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.failure {
+  flex-basis: 100%;
+  margin: 0;
+  color: oklch(0.45 0.14 25);
+  font-size: 12px;
 }

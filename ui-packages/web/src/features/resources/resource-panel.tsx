@@ -3,6 +3,7 @@ import { type DragEvent, useEffect, useRef, useState } from 'react'
 import { normalizeSearchText } from '../../core/document-text'
 import type { StoredFileMetadata } from '../../core/files'
 import type { Project } from '../../core/projects'
+import { viewTabId } from '../../shell/view-tab'
 import { useSourceDrafts } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
 import { IndexStatus } from '../links/index-status'
@@ -135,7 +136,12 @@ export const ResourcePanel = ({
       onDrop={dropFiles}
     >
       <header className="panel-header brand-header">
-        <ProjectSwitcher project={project} fileCount={library.files.length} exporter={exporter} />
+        <ProjectSwitcher
+          project={project}
+          fileCount={library.files.length}
+          exporter={exporter}
+          onOpenMemory={() => onOpen(viewTabId('memory'))}
+        />
         <button
           className="icon-button"
           type="button"

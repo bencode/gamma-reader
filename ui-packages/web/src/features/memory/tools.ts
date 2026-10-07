@@ -6,7 +6,7 @@ import { type MemoryEntry, visibleMemories } from './entry'
 import { settingsHint } from './prompt'
 import { searchMemories } from './search'
 import { memoryEnabled } from './settings'
-import { listMemories, saveMemory, touchMemories } from './store'
+import { listMemories, removeMemories, saveMemory, touchMemories } from './store'
 
 // Another tab may have turned memory off since this conversation's tools were given out.
 const requireMemory = () => {
@@ -71,6 +71,24 @@ export const createMemoryTools = ({
           savedAt: new Date(entry.createdAt).toISOString().slice(0, 10),
         })),
         total: visible.length,
+      }
+    },
+  ),
+  bind(
+    'forget',
+    'Delete saved notes the reader, in their own message, asks you to forget. Find their ids with recall_memory first, and afterwards tell the reader which notes you removed. Only notes this project can see can be removed.',
+    Type.Object({
+      ids: Type.Array(Type.String({ minLength: 1 }), { minItems: 1, maxItems: 20 }),
+    }),
+    async ({ ids }) => {
+      requireMemory()
+      const visible = new Set(
+        visibleMemories(await listMemories(), projectKey).map(entry => entry.id),
+      )
+      const removed = await removeMemories(ids.filter(id => visible.has(id)))
+      return {
+        removed: removed.map(entry => ({ id: entry.id, text: entry.text })),
+        notFound: ids.filter(id => !removed.some(entry => entry.id === id)),
       }
     },
   ),

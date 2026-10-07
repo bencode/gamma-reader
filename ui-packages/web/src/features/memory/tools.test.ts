@@ -34,6 +34,21 @@ describe('memory tools', () => {
     ])
   })
 
+  it('forgets only notes this project can see', async () => {
+    setMemoryEnabled(true)
+    const own = await run(inProject('a'), 'remember', { text: 'Reading Dune', scope: 'project' })
+    const other = await run(inProject('b'), 'remember', { text: 'Reading Emma', scope: 'project' })
+
+    const result = await run(inProject('a'), 'forget', { ids: [own.id, other.id] })
+
+    expect(result).toEqual({
+      removed: [{ id: own.id, text: 'Reading Dune' }],
+      notFound: [other.id],
+    })
+    const left = await run(inProject('b'), 'recall_memory', { queries: ['Reading'] })
+    expect(left.entries.map((entry: { text: string }) => entry.text)).toEqual(['Reading Emma'])
+  })
+
   it('refuses while memory is off', async () => {
     setMemoryEnabled(false)
     await expect(

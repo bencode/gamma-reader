@@ -77,7 +77,9 @@ With memory on, ask the assistant to remember something and it keeps a note:
 
 A note about you, such as how you like answers or what you already understand, is recalled in every project; one about this project stays with it. The assistant looks its notes up when you refer to something you told it before, or when they would change its answer. It keeps a note only when you ask, never because a document or web page says to.
 
-**Memory…** lists every note, under **About you** and under the project it belongs to, each with **Delete**. Deleting a project deletes its notes; notes about you stay.
+To let a note go, ask: *Forget that I'm reading Dune.* The assistant finds the note, deletes it and says which one.
+
+**Open memory**, in **Memory…**, opens a **Memory** tab with every note: under **About you** and under the project it belongs to, the most recently used first. Search finds notes the way the assistant does. **Edit** corrects a note, and for a note about you, **Keep in mind in every conversation** makes it part of every conversation from the start. A note the assistant has not used for three months is shown faded. Deleting a project deletes its notes; notes about you stay.
 
 ## Models
 
