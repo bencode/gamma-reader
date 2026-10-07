@@ -64,7 +64,12 @@ describe('curator tools', () => {
     await runTool(tools, 'define_tag', { name: 'Tail Recursion', aliases: ['TCO'] })
     const { tags } = await runTool(tools, 'list_tags', {})
     expect(tags).toEqual([
-      { name: '尾递归', aliases: ['tail recursion', 'Tail Recursion', 'TCO'], description: '' },
+      {
+        name: '尾递归',
+        aliases: ['tail recursion', 'Tail Recursion', 'TCO'],
+        description: '',
+        notes: 0,
+      },
     ])
 
     const { id } = await runTool(tools, 'write_memo', {

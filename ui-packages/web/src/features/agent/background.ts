@@ -7,7 +7,9 @@ import { resolveModelSelection } from '../conversation/model-selection'
 import { type AgentDefinition, assemble, streamFn } from './definition'
 import { createModelRuntime, type ModelRuntime } from './model-runtime'
 
-export type BackgroundContext = { projectKey: string }
+// The project an agent works on, and when it last finished a run there, so it can tell how much
+// has changed since.
+export type BackgroundContext = { projectKey: string; lastRunAt: number | null }
 
 // An agent that works on its own, with no conversation: it is given one task per run and the
 // tools to find its work, and stops when the work is done or its turns run out.
@@ -15,7 +17,7 @@ export type BackgroundAgent = AgentDefinition<BackgroundContext> & {
   task: string
   maxTurns: number
   enabled: () => boolean
-  // How much work is waiting, so a run until done knows when to stop.
+  // How much work is waiting: nothing starts it when a project opens, and a run until done stops.
   pending: (context: BackgroundContext) => Promise<number>
 }
 
@@ -38,6 +40,36 @@ const idle: Status = { running: false }
 
 export const useBackgroundStatus = (name: string) =>
   useStore(statusStore, state => state[name] ?? idle)
+
+const lastRunKey = (name: string, projectKey: string) =>
+  `gamma-reader.agent-run:${name}:${projectKey}`
+
+const readLastRun = (name: string, projectKey: string) => {
+  try {
+    const stored = Number(localStorage.getItem(lastRunKey(name, projectKey)))
+    return stored > 0 ? stored : null
+  } catch (error) {
+    console.error('Unable to read when a background agent last ran', error)
+    return null
+  }
+}
+
+const writeLastRun = (name: string, projectKey: string, at: number) => {
+  try {
+    localStorage.setItem(lastRunKey(name, projectKey), String(at))
+  } catch (error) {
+    console.error('Unable to note when a background agent ran', error)
+  }
+}
+
+export const backgroundContext = (agent: BackgroundAgent): BackgroundContext => {
+  const projectKey = workspaceDatabaseName()
+  return { projectKey, lastRunAt: readLastRun(agent.name, projectKey) }
+}
+
+// How much an agent has to do in the open project; nothing while it is turned off.
+export const pendingWork = (agent: BackgroundAgent) =>
+  agent.enabled() ? agent.pending(backgroundContext(agent)) : Promise.resolve(0)
 
 let runtimePromise: Promise<ModelRuntime | null> | undefined
 
@@ -93,24 +125,27 @@ export const runBackgroundAgent = async (
   { untilDone = false }: { untilDone?: boolean } = {},
 ) => {
   if (!agent.enabled()) return null
-  const context = { projectKey: workspaceDatabaseName() }
+  const { projectKey } = backgroundContext(agent)
   return navigator.locks.request(
-    `gamma-reader-agent:${agent.name}:${context.projectKey}`,
+    `gamma-reader-agent:${agent.name}:${projectKey}`,
     { ifAvailable: true },
     async lock => {
       if (!lock) return null
       const runtime = await backgroundRuntime()
       if (!runtime) return null
       setStatus(agent.name, { ...statusStore.getState()[agent.name], running: true })
+      // A run that ends without an error is noted when it ends, so what it changed itself does not
+      // count as new work next time.
       const loop = async (before: number): Promise<BackgroundRun> => {
-        const run = await runOnce(agent, runtime, context)
+        const run = await runOnce(agent, runtime, backgroundContext(agent))
+        if (run.stoppedBy !== 'error') writeLastRun(agent.name, projectKey, Date.now())
         setStatus(agent.name, { running: true, lastRun: run })
         if (!untilDone || run.stoppedBy === 'error') return run
-        const after = await agent.pending(context)
+        const after = await agent.pending(backgroundContext(agent))
         return after > 0 && after < before ? loop(after) : run
       }
       try {
-        const run = await loop(await agent.pending(context))
+        const run = await loop(await agent.pending(backgroundContext(agent)))
         setStatus(agent.name, { running: false, lastRun: run })
         return run
       } catch (error) {

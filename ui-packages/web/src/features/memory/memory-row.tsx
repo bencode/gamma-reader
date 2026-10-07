@@ -10,6 +10,7 @@ const quietAfter = 90 * day
 const dateOf = (time: number) => new Date(time).toISOString().slice(0, 10)
 
 const drawnFrom = (entry: MemoryEntry) => {
+  if (entry.derivedFrom) return `an abstraction drawn from ${entry.derivedFrom.length} notes`
   const conversations = sourceConversations(entry)
   return conversations === 0
     ? ''

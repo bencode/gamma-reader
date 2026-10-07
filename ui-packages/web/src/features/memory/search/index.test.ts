@@ -10,6 +10,7 @@ const entry = (id: string, text: string, confirmedAt = 0): MemoryEntry => ({
   projectKey: 'project',
   conversationId: 'conversation',
   createdAt: 0,
+  updatedAt: 0,
   confirmedAt,
   tags: [],
   sources: [],

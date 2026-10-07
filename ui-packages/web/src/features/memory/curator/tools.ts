@@ -2,9 +2,9 @@ import { Type } from '@earendil-works/pi-ai'
 import { nanoid } from 'nanoid'
 import { bind } from '../../agent/tool'
 import { LocalToolError } from '../../agent/tool-types'
-import { findTag, type MemoryEntry, type MemoSource, visibleMemories } from '../entry'
-import { searchMemories } from '../search'
-import { listMemories, listTags, markProgress, reviseMemory, saveMemory, saveTag } from '../store'
+import type { MemoryEntry, MemoSource } from '../entry'
+import { createMemoTools, filedUnder, visibleNote } from '../memo-tools'
+import { markProgress, reviseMemory, saveMemory } from '../store'
 import { readTranscript } from '../transcript'
 import { pendingConversations } from './pending'
 
@@ -27,18 +27,6 @@ const sameSource = (a: MemoSource, b: MemoSource) =>
   a.from === b.from &&
   a.to === b.to
 
-// The curator files notes only under tags it has defined, so every tag carries its aliases and
-// what it stands for; a name the list lacks is refused with what to do instead.
-const filedUnder = async (names: readonly string[]) => {
-  const tags = await listTags()
-  const unknown = names.filter(name => !findTag(tags, name))
-  if (unknown.length)
-    throw new LocalToolError(
-      `No tag ${unknown.join(', ')}. Use a tag from list_tags, or add it first with define_tag.`,
-    )
-  return [...new Set(names.map(name => findTag(tags, name)?.name ?? name))]
-}
-
 export const createCuratorTools = (projectKey: string) => {
   // A source must name a stretch of one of this project's conversations.
   const checkSources = async (
@@ -59,11 +47,7 @@ export const createCuratorTools = (projectKey: string) => {
     return checked
   }
 
-  const visibleNote = async (id: string) => {
-    const note = visibleMemories(await listMemories(), projectKey).find(entry => entry.id === id)
-    if (!note) throw new LocalToolError('No such note. Use an id from search_memos.')
-    return note
-  }
+  const memos = createMemoTools(projectKey)
 
   return [
     bind(
@@ -101,40 +85,9 @@ export const createCuratorTools = (projectKey: string) => {
         return { organizedThrough: (await markProgress(projectKey, id, through + 1)) - 1 }
       },
     ),
-    bind(
-      'list_tags',
-      'List the tags notes are filed under, with their aliases and what each stands for.',
-      Type.Object({}),
-      async () => ({ tags: await listTags() }),
-    ),
-    bind(
-      'search_memos',
-      'Search existing notes about the reader and this project by several short queries, in Chinese and English.',
-      Type.Object({
-        queries: Type.Array(Type.String({ minLength: 1, maxLength: 200 }), {
-          minItems: 1,
-          maxItems: 5,
-        }),
-      }),
-      async ({ queries }) => {
-        const visible = visibleMemories(await listMemories(), projectKey)
-        const hits = await searchMemories(visible, queries, 10, await listTags())
-        return {
-          notes: hits.map(({ entry }) => ({
-            id: entry.id,
-            text: entry.text,
-            scope: entry.scope,
-            tags: entry.tags,
-          })),
-        }
-      },
-    ),
-    bind(
-      'read_memo',
-      'Read one note in full, with its tags and the conversations it was drawn from.',
-      Type.Object({ id: Type.String({ minLength: 1 }) }),
-      async ({ id }) => visibleNote(id),
-    ),
+    memos.listTags,
+    memos.searchMemos,
+    memos.readMemo,
     bind(
       'write_memo',
       'File a new note: an abstract summary that says what the reader is doing, cares about, understands or prefers, with the stretches of conversation it rests on.',
@@ -155,6 +108,7 @@ export const createCuratorTools = (projectKey: string) => {
           projectKey,
           conversationId: checked[0]?.conversationId ?? '',
           createdAt: now,
+          updatedAt: now,
           confirmedAt: now,
           tags: await filedUnder(tags),
           sources: checked,
@@ -173,7 +127,7 @@ export const createCuratorTools = (projectKey: string) => {
         addSources: Type.Optional(Type.Array(source, { maxItems: 10 })),
       }),
       async ({ id, text, tags, addSources = [] }) => {
-        await visibleNote(id)
+        await visibleNote(projectKey, id)
         const added = await checkSources(addSources)
         const filed = tags ? await filedUnder(tags) : undefined
         const revised = await reviseMemory(id, note => ({
@@ -189,35 +143,6 @@ export const createCuratorTools = (projectKey: string) => {
         return { id }
       },
     ),
-    bind(
-      'define_tag',
-      'Add a tag for a concept no tag covers yet, with aliases in Chinese and English and one line on what it stands for. A name that is already a tag or alias adds the aliases to that tag.',
-      Type.Object({
-        name: Type.String({ minLength: 1, maxLength: 60 }),
-        aliases: Type.Optional(
-          Type.Array(Type.String({ minLength: 1, maxLength: 60 }), { maxItems: 8 }),
-        ),
-        description: Type.Optional(Type.String({ maxLength: 200 })),
-      }),
-      async ({ name, aliases = [], description = '' }) => {
-        const tags = await listTags()
-        const known =
-          findTag(tags, name) ?? aliases.map(alias => findTag(tags, alias)).find(Boolean)
-        const tag = known
-          ? {
-              ...known,
-              aliases: [
-                ...new Set([
-                  ...known.aliases,
-                  ...[name, ...aliases].filter(word => word !== known.name),
-                ]),
-              ],
-              description: known.description || description,
-            }
-          : { name: name.trim(), aliases: [...new Set(aliases)], description }
-        await saveTag(tag)
-        return { tag }
-      },
-    ),
+    memos.defineTag,
   ]
 }

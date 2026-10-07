@@ -65,7 +65,8 @@ export const reviseMemory = (id: string, revise: (entry: MemoryEntry) => MemoryE
   write(async store => {
     const entry = await store.get(id)
     if (!entry) return undefined
-    const revised = { ...revise(normalizeEntry(entry)), confirmedAt: Date.now() }
+    const now = Date.now()
+    const revised = { ...revise(normalizeEntry(entry)), updatedAt: now, confirmedAt: now }
     await store.put(revised)
     return revised
   })
@@ -91,11 +92,70 @@ export const touchMemories = async (ids: readonly string[], at: number) => {
   )
 }
 
+// Files a merged note and puts the notes it replaces out of sight, in one step, so a merge is
+// never half done.
+export const mergeMemories = (ids: readonly string[], merged: MemoryEntry) =>
+  write(async store => {
+    await store.put(merged)
+    await Promise.all(
+      ids.map(async id => {
+        const entry = await store.get(id)
+        if (entry) await store.put({ ...entry, mergedInto: merged.id })
+      }),
+    )
+  })
+
+// Brings a merged note back; the note it was merged into stays for the reader to keep or delete.
+export const restoreMerged = (id: string) =>
+  write(async store => {
+    const entry = await store.get(id)
+    if (!entry) return
+    const { mergedInto: _merged, ...restored } = entry
+    await store.put(restored)
+  })
+
 export const listTags = async () => (await openMemoryDatabase()).getAll('tags')
 
 export const saveTag = async (tag: MemoryTag) => {
   await (await openMemoryDatabase()).put('tags', tag)
   changed()
+}
+
+// Folds one tag into another: its name and aliases become aliases, and its notes move over.
+export const mergeTags = async (from: string, into: string) => {
+  const database = await openMemoryDatabase()
+  const transaction = database.transaction(['tags', 'entries'], 'readwrite')
+  const [source, target] = await Promise.all([
+    transaction.objectStore('tags').get(from),
+    transaction.objectStore('tags').get(into),
+  ])
+  if (!source || !target) {
+    transaction.abort()
+    return null
+  }
+  const merged = {
+    ...target,
+    aliases: [...new Set([...target.aliases, source.name, ...source.aliases])].filter(
+      alias => alias !== target.name,
+    ),
+    description: target.description || source.description,
+  }
+  const entries = await transaction.objectStore('entries').getAll()
+  await Promise.all([
+    transaction.objectStore('tags').put(merged),
+    transaction.objectStore('tags').delete(from),
+    ...entries
+      .filter(entry => (entry.tags ?? []).includes(from))
+      .map(entry =>
+        transaction.objectStore('entries').put({
+          ...entry,
+          tags: [...new Set((entry.tags ?? []).map(tag => (tag === from ? into : tag)))],
+        }),
+      ),
+  ])
+  await transaction.done
+  changed()
+  return merged
 }
 
 const progressKey = (projectKey: string, conversationId: string) =>

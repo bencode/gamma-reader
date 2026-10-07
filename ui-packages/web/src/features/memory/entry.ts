@@ -18,10 +18,16 @@ export type MemoryEntry = {
   projectKey: string
   conversationId: string
   createdAt: number
+  // When its words or tags last changed, which is what tidying looks at.
+  updatedAt: number
   // When it was saved, revised or last recalled.
   confirmedAt: number
   tags: string[]
   sources: MemoSource[]
+  // The note tidying merged it into; it is kept, out of sight, so the merge can be undone.
+  mergedInto?: string
+  // The notes an abstraction was drawn from; such a note has no conversations of its own.
+  derivedFrom?: string[]
 }
 
 // A word notes are filed under, with the other words the reader may use for it.
@@ -31,6 +37,7 @@ export type MemoryTag = { name: string; aliases: string[]; description: string }
 // named its project is in the note's own, the only one the curator read then.
 export const normalizeEntry = (entry: MemoryEntry): MemoryEntry => ({
   ...entry,
+  updatedAt: entry.updatedAt ?? entry.createdAt,
   tags: entry.tags ?? [],
   sources: (entry.sources ?? []).map(item => ({
     ...item,
@@ -42,8 +49,13 @@ export const normalizeEntry = (entry: MemoryEntry): MemoryEntry => ({
 export const sourceConversations = (entry: MemoryEntry) =>
   new Set(entry.sources.map(item => `${item.projectKey}/${item.conversationId}`)).size
 
+// The notes in use: a merged note stays only to be restored.
+export const liveMemories = (entries: readonly MemoryEntry[]) =>
+  entries.filter(entry => entry.mergedInto === undefined)
+
+// The notes the assistant and the background agents work with in a project.
 export const visibleMemories = (entries: readonly MemoryEntry[], projectKey: string) =>
-  entries.filter(entry => entry.scope === 'reader' || entry.projectKey === projectKey)
+  liveMemories(entries).filter(entry => entry.scope === 'reader' || entry.projectKey === projectKey)
 
 const coreLimit = 10
 

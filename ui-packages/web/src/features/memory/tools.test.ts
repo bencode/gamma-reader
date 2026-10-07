@@ -67,6 +67,7 @@ describe('memory tools', () => {
       projectKey: 'there',
       conversationId: 'far',
       createdAt: 0,
+      updatedAt: 0,
       confirmedAt: 0,
       tags: [],
       sources: [
@@ -83,6 +84,38 @@ describe('memory tools', () => {
     await expect(
       run(inProject('here'), 'read_memory_source', { id: 'note', source: 0 }),
     ).rejects.toBeInstanceOf(LocalToolError)
+  })
+
+  it('hides merged notes and sends an abstraction to the notes it rests on', async () => {
+    setMemoryEnabled(true)
+    const base = {
+      scope: 'project' as const,
+      core: false,
+      projectKey: 'here',
+      conversationId: 'c',
+      createdAt: 0,
+      updatedAt: 0,
+      confirmedAt: 0,
+      tags: [],
+      sources: [],
+    }
+    await saveMemory({ ...base, id: 'old', text: 'Stuck on recursion', mergedInto: 'new' })
+    await saveMemory({ ...base, id: 'new', text: 'Understands recursion now' })
+    await saveMemory({
+      ...base,
+      id: 'big',
+      text: 'Learns recursion from pictures',
+      derivedFrom: ['new', 'x'],
+    })
+
+    const found = await run(inProject('here'), 'recall_memory', { queries: ['recursion'] })
+    expect(found.entries.map((entry: { id: string }) => entry.id).toSorted()).toEqual([
+      'big',
+      'new',
+    ])
+    await expect(run(inProject('here'), 'read_memory_source', { id: 'big' })).rejects.toThrow(
+      /drawn from notes new, x/,
+    )
   })
 
   it('refuses while memory is off', async () => {

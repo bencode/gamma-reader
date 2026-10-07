@@ -1,9 +1,10 @@
 import { useEffect, useId, useState } from 'react'
 import type { Project } from '../../core/projects'
 import { listProjects } from '../../data/project-store'
-import { CurationStatus } from './curation-status'
-import type { MemoryEntry, MemoryTag } from './entry'
+import { CurationStatus, ReorganizeStatus } from './curation-status'
+import { liveMemories, type MemoryEntry, type MemoryTag } from './entry'
 import { MemoryRow } from './memory-row'
+import { MergedNotes } from './merged-notes'
 import { searchMemories } from './search'
 import { refreshMemoryEnabled, setMemoryEnabled, useMemoryEnabled } from './settings'
 import { listMemories, listTags, subscribeMemories } from './store'
@@ -89,7 +90,7 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
       return
     }
     let current = true
-    searchMemories(entries, [words], searchLimit, tags).then(
+    searchMemories(liveMemories(entries), [words], searchLimit, tags).then(
       hits => {
         if (current) setFound(hits.filter(hit => hit.score > 0).map(hit => hit.entry))
       },
@@ -103,15 +104,16 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
     }
   }, [entries, query, tags])
 
+  const live = entries && liveMemories(entries)
   return (
     <div className={styles.page}>
       <header className={styles.pageHeader}>
         <div>
           <h1>Memory</h1>
-          {entries && entries.length > 0 && (
+          {live && live.length > 0 && (
             <p className={styles.note}>
-              {entries.length === 1 ? '1 note' : `${entries.length} notes`}, most recently used
-              first. Notes the assistant has not used for three months are shown faded.
+              {live.length === 1 ? '1 note' : `${live.length} notes`}, most recently used first.
+              Notes the assistant has not used for three months are shown faded.
             </p>
           )}
         </div>
@@ -140,8 +142,9 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
         </p>
       </div>
       {enabled && <CurationStatus active={active} />}
+      {enabled && <ReorganizeStatus />}
       {failure && <p role="alert">{failure}</p>}
-      {entries?.length === 0 && (
+      {live?.length === 0 && (
         <p className={styles.note}>
           Nothing remembered yet. With memory on, ask the assistant to remember something.
         </p>
@@ -167,7 +170,7 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
         </section>
       ) : (
         entries &&
-        groupEntries(entries, projects).map(group => (
+        groupEntries(liveMemories(entries), projects).map(group => (
           <section key={group.key} className={styles.group} aria-label={group.title}>
             <h2>{group.title}</h2>
             <ul>
@@ -183,6 +186,7 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
           </section>
         ))
       )}
+      {entries && <MergedNotes entries={entries} />}
     </div>
   )
 }

@@ -58,6 +58,25 @@ describe('background agents', () => {
     })
   })
 
+  it('notes when a run finished, but not a run that failed', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async input =>
+      String(input) === '/api/agent/config' ? Response.json(modelConfig) : reply(),
+    )
+    const before = Date.now()
+    await runBackgroundAgent(worker({ name: 'noted' }))
+    expect(
+      Number(localStorage.getItem('gamma-reader.agent-run:noted:gamma-reader-files')),
+    ).toBeGreaterThanOrEqual(before)
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async input =>
+      String(input) === '/api/agent/config'
+        ? Response.json(modelConfig)
+        : new Response('down', { status: 500 }),
+    )
+    await runBackgroundAgent(worker({ name: 'failing' }))
+    expect(localStorage.getItem('gamma-reader.agent-run:failing:gamma-reader-files')).toBeNull()
+  })
+
   it('runs until no work is left, and stops when a run makes no headway', async () => {
     const runs: number[] = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {

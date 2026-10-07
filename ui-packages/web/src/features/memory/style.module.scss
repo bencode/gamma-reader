@@ -160,3 +160,30 @@
   align-items: center;
   gap: 8px 12px;
 }
+
+.merged {
+  color: var(--muted);
+
+  summary {
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+  }
+}

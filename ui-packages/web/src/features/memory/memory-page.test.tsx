@@ -16,6 +16,7 @@ const entry = (id: string, text: string, scope: MemoryEntry['scope'] = 'reader')
   projectKey: 'gamma-reader-project-gone',
   conversationId: 'c',
   createdAt: Date.now(),
+  updatedAt: Date.now(),
   confirmedAt: Date.now(),
   tags: [],
   sources: [],
@@ -87,6 +88,19 @@ describe('memory page', () => {
     expect(organize).toHaveBeenCalledWith(expect.objectContaining({ name: 'curator' }), {
       untilDone: true,
     })
+  })
+
+  it('lists merged notes apart and restores one', async () => {
+    await saveMemory(entry('new', 'Understands recursion'))
+    await saveMemory({ ...entry('old', 'Stuck on recursion'), mergedInto: 'new' })
+    render(<MemoryPage active />)
+
+    const about = await screen.findByRole('region', { name: 'About you' })
+    expect(about).not.toHaveTextContent('Stuck on recursion')
+    await userEvent.click(screen.getByText(/Merged notes \(1\)/))
+    await userEvent.click(screen.getByRole('button', { name: 'Restore “Stuck on recursion”' }))
+
+    await waitFor(() => expect(about).toHaveTextContent('Stuck on recursion'))
   })
 
   it('shows a note saved while it is open', async () => {

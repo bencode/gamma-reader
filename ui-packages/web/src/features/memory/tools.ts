@@ -56,6 +56,7 @@ export const createMemoryTools = ({
         projectKey,
         conversationId,
         createdAt: now,
+        updatedAt: now,
         confirmedAt: now,
         tags: await fileUnder(tags),
         sources: [],
@@ -66,11 +67,11 @@ export const createMemoryTools = ({
   ),
   bind(
     'recall_memory',
-    'Search the notes kept about the reader and this project: what they asked you to remember, and summaries drawn from earlier conversations. A note is an index, not the whole story; when details matter, read where it came from with read_memory_source. Pass several short queries with different wordings, in the reader\'s language and in English, such as ["尾递归", "tail recursion"]. When nothing relevant comes back, try other words before concluding nothing was saved. total is how many entries this project can see.',
+    'Search the notes kept about the reader and this project: what they asked you to remember, and summaries drawn from earlier conversations. A note is an index, not the whole story; when details matter, read where it came from with read_memory_source. A note with derivedFrom is an abstraction over the notes it lists. Pass several short queries with different wordings, in the reader\'s language and in English, such as ["尾递归", "tail recursion"]. When nothing relevant comes back, try other words before concluding nothing was saved. total is how many entries this project can see.',
     Type.Object({
       queries: Type.Array(Type.String({ minLength: 1, maxLength: 200 }), {
         minItems: 1,
-        maxItems: 5,
+        maxItems: 8,
       }),
       limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
     }),
@@ -89,6 +90,7 @@ export const createMemoryTools = ({
           scope: entry.scope,
           tags: entry.tags,
           conversations: sourceConversations(entry),
+          ...(entry.derivedFrom && { derivedFrom: entry.derivedFrom }),
           savedAt: new Date(entry.createdAt).toISOString().slice(0, 10),
         })),
         total: visible.length,
@@ -126,6 +128,10 @@ export const createMemoryTools = ({
       const entry = visibleMemories(await listMemories(), projectKey).find(item => item.id === id)
       if (!entry)
         throw new LocalToolError('No such note in this project. Use an id from recall_memory.')
+      if (entry.derivedFrom)
+        throw new LocalToolError(
+          `This note is an abstraction drawn from notes ${entry.derivedFrom.join(', ')}; read the conversations behind those instead.`,
+        )
       const origins = entry.sources.length
         ? entry.sources
         : [

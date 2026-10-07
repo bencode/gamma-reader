@@ -1,9 +1,9 @@
 import { workspaceDatabaseName } from '../data/workspace-database'
-import { type BackgroundAgent, runBackgroundAgent } from '../features/agent/background'
-import { curatorAgent } from '../features/memory'
+import { type BackgroundAgent, pendingWork, runBackgroundAgent } from '../features/agent/background'
+import { abstractAgent, curatorAgent, tidyAgent } from '../features/memory'
 
 // The agents that work on their own when a project opens. A new one is a line here.
-export const backgroundAgents: readonly BackgroundAgent[] = [curatorAgent]
+export const backgroundAgents: readonly BackgroundAgent[] = [curatorAgent, tidyAgent, abstractAgent]
 
 const ranKey = (projectKey: string) => `gamma-reader.background:${projectKey}`
 
@@ -17,5 +17,8 @@ export const runBackgroundAgentsOnOpen = async () => {
     console.error('Unable to note that background agents ran', error)
     return
   }
-  for (const agent of backgroundAgents) await runBackgroundAgent(agent)
+  // In order, each only when it has work: the curator's notes are what tidying and abstracting
+  // look at.
+  for (const agent of backgroundAgents)
+    if ((await pendingWork(agent)) > 0) await runBackgroundAgent(agent)
 }
