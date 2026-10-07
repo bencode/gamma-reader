@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import type { MemoryEntry } from './entry'
+import { type MemoryEntry, sourceConversations } from './entry'
 import { removeMemories, reviseMemory } from './store'
 import styles from './style.module.scss'
 
@@ -10,7 +10,7 @@ const quietAfter = 90 * day
 const dateOf = (time: number) => new Date(time).toISOString().slice(0, 10)
 
 const drawnFrom = (entry: MemoryEntry) => {
-  const conversations = new Set(entry.sources.map(item => item.conversationId)).size
+  const conversations = sourceConversations(entry)
   return conversations === 0
     ? ''
     : conversations === 1

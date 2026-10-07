@@ -83,7 +83,7 @@ describe('curator tools', () => {
       expect.objectContaining({
         text: '读者弄懂了尾递归',
         tags: ['尾递归'],
-        sources: [{ conversationId: 'topic', from: 0, to: 4 }],
+        sources: [{ projectKey: project, conversationId: 'topic', from: 0, to: 4 }],
         projectKey: project,
       }),
     ])

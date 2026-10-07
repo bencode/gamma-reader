@@ -87,7 +87,7 @@ const runOnce = async (
 }
 
 // One run, or runs one after another until no work is left; each run starts a fresh agent, so a
-// long backlog never piles up in one context. Another tab running the same agent wins.
+// long backlog never piles up in one context. Another tab running it on the same project wins.
 export const runBackgroundAgent = async (
   agent: BackgroundAgent,
   { untilDone = false }: { untilDone?: boolean } = {},
@@ -95,7 +95,7 @@ export const runBackgroundAgent = async (
   if (!agent.enabled()) return null
   const context = { projectKey: workspaceDatabaseName() }
   return navigator.locks.request(
-    `gamma-reader-agent:${agent.name}`,
+    `gamma-reader-agent:${agent.name}:${context.projectKey}`,
     { ifAvailable: true },
     async lock => {
       if (!lock) return null

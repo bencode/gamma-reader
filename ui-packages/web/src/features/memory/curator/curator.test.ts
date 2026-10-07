@@ -82,7 +82,7 @@ describe('curator', () => {
       expect.objectContaining({
         text: '读者在读 SICP 1.2，尾递归仍是难点',
         tags: ['SICP'],
-        sources: [{ conversationId: 'sicp', from: 0, to: 4 }],
+        sources: [{ projectKey: 'gamma-reader-files', conversationId: 'sicp', from: 0, to: 4 }],
       }),
     ])
     expect(await listTags()).toEqual([

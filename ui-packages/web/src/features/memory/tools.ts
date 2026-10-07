@@ -2,7 +2,7 @@ import { Type } from '@earendil-works/pi-ai'
 import { nanoid } from 'nanoid'
 import { bind } from '../agent/tool'
 import { LocalToolError } from '../agent/tool-types'
-import { findTag, type MemoryEntry, visibleMemories } from './entry'
+import { findTag, type MemoryEntry, sourceConversations, visibleMemories } from './entry'
 import { settingsHint } from './prompt'
 import { searchMemories } from './search'
 import { memoryEnabled } from './settings'
@@ -88,7 +88,7 @@ export const createMemoryTools = ({
           text: entry.text,
           scope: entry.scope,
           tags: entry.tags,
-          conversations: entry.sources.length,
+          conversations: sourceConversations(entry),
           savedAt: new Date(entry.createdAt).toISOString().slice(0, 10),
         })),
         total: visible.length,
@@ -126,15 +126,22 @@ export const createMemoryTools = ({
       const entry = visibleMemories(await listMemories(), projectKey).find(item => item.id === id)
       if (!entry)
         throw new LocalToolError('No such note in this project. Use an id from recall_memory.')
-      if (entry.projectKey !== projectKey)
-        throw new LocalToolError(
-          'This note was saved in another project; its conversations are read there.',
-        )
       const origins = entry.sources.length
         ? entry.sources
-        : [{ conversationId: entry.conversationId, from: 0, to: Number.POSITIVE_INFINITY }]
+        : [
+            {
+              projectKey: entry.projectKey,
+              conversationId: entry.conversationId,
+              from: 0,
+              to: Number.POSITIVE_INFINITY,
+            },
+          ]
       const origin = origins[source]
-      if (!origin) throw new LocalToolError(`The note has ${origins.length} source conversations.`)
+      if (!origin) throw new LocalToolError(`The note has ${origins.length} sources.`)
+      if (origin.projectKey !== projectKey)
+        throw new LocalToolError(
+          'That conversation is in another project and is read there. Try another source.',
+        )
       const page = await readTranscript(origin.conversationId, {
         from: cursor ?? origin.from,
         to: origin.to,

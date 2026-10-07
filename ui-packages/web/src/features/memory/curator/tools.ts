@@ -22,7 +22,10 @@ const tagNames = Type.Array(Type.String({ minLength: 1, maxLength: 60 }), {
 })
 
 const sameSource = (a: MemoSource, b: MemoSource) =>
-  a.conversationId === b.conversationId && a.from === b.from && a.to === b.to
+  a.projectKey === b.projectKey &&
+  a.conversationId === b.conversationId &&
+  a.from === b.from &&
+  a.to === b.to
 
 // The curator files notes only under tags it has defined, so every tag carries its aliases and
 // what it stands for; a name the list lacks is refused with what to do instead.
@@ -38,7 +41,9 @@ const filedUnder = async (names: readonly string[]) => {
 
 export const createCuratorTools = (projectKey: string) => {
   // A source must name a stretch of one of this project's conversations.
-  const checkSources = async (sources: readonly MemoSource[]) => {
+  const checkSources = async (
+    sources: readonly Omit<MemoSource, 'projectKey'>[],
+  ): Promise<MemoSource[]> => {
     const checked = await Promise.all(
       sources.map(async item => {
         const page = await readTranscript(item.conversationId, {})
@@ -48,7 +53,7 @@ export const createCuratorTools = (projectKey: string) => {
           throw new LocalToolError(
             `Positions in ${item.conversationId} run from 0 to ${page.messageCount - 1}.`,
           )
-        return item
+        return { projectKey, ...item }
       }),
     )
     return checked

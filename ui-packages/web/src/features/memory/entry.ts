@@ -2,8 +2,9 @@
 // into every project; a project entry stays with the project it was saved in.
 export type MemoryScope = 'reader' | 'project'
 
-// A stretch of a conversation a note was drawn from, by message position, both ends included.
-export type MemoSource = { conversationId: string; from: number; to: number }
+// A stretch of a conversation a note was drawn from, by message position, both ends included. A
+// note about the reader gathers sources from every project, so each names its own.
+export type MemoSource = { projectKey: string; conversationId: string; from: number; to: number }
 
 export type MemoryEntry = {
   id: string
@@ -26,12 +27,20 @@ export type MemoryEntry = {
 // A word notes are filed under, with the other words the reader may use for it.
 export type MemoryTag = { name: string; aliases: string[]; description: string }
 
-// Notes saved before tags and sources existed read as having none.
+// Notes saved before tags and sources existed read as having none, and a source saved before it
+// named its project is in the note's own, the only one the curator read then.
 export const normalizeEntry = (entry: MemoryEntry): MemoryEntry => ({
   ...entry,
   tags: entry.tags ?? [],
-  sources: entry.sources ?? [],
+  sources: (entry.sources ?? []).map(item => ({
+    ...item,
+    projectKey: item.projectKey ?? entry.projectKey,
+  })),
 })
+
+// How many conversations a note was drawn from, however many stretches of each.
+export const sourceConversations = (entry: MemoryEntry) =>
+  new Set(entry.sources.map(item => `${item.projectKey}/${item.conversationId}`)).size
 
 export const visibleMemories = (entries: readonly MemoryEntry[], projectKey: string) =>
   entries.filter(entry => entry.scope === 'reader' || entry.projectKey === projectKey)
