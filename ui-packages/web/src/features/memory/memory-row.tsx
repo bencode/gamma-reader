@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import type { MemoryEntry } from './entry'
-import { removeMemories, updateMemory } from './store'
+import { removeMemories, reviseMemory } from './store'
 import styles from './style.module.scss'
 
 const day = 24 * 60 * 60 * 1000
@@ -9,7 +9,24 @@ const quietAfter = 90 * day
 
 const dateOf = (time: number) => new Date(time).toISOString().slice(0, 10)
 
-export const MemoryRow = ({ entry, source }: { entry: MemoryEntry; source: string }) => {
+const drawnFrom = (entry: MemoryEntry) => {
+  const conversations = new Set(entry.sources.map(item => item.conversationId)).size
+  return conversations === 0
+    ? ''
+    : conversations === 1
+      ? 'from a conversation'
+      : `from ${conversations} conversations`
+}
+
+export const MemoryRow = ({
+  entry,
+  source,
+  onTag,
+}: {
+  entry: MemoryEntry
+  source: string
+  onTag: (tag: string) => void
+}) => {
   const coreId = useId()
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(entry.text)
@@ -42,10 +59,11 @@ export const MemoryRow = ({ entry, source }: { entry: MemoryEntry; source: strin
             if (!text.trim()) return
             act(
               () =>
-                updateMemory(entry.id, {
+                reviseMemory(entry.id, saved => ({
+                  ...saved,
                   text: text.trim(),
                   core: entry.scope === 'reader' && core,
-                }),
+                })),
               'The note could not be saved.',
             )
           }}
@@ -89,12 +107,28 @@ export const MemoryRow = ({ entry, source }: { entry: MemoryEntry; source: strin
             <span className={styles.source}>
               {[
                 source,
+                drawnFrom(entry),
                 entry.core && 'kept in mind in every conversation',
                 `last used ${dateOf(entry.confirmedAt)}`,
               ]
                 .filter(Boolean)
                 .join(' · ')}
             </span>
+            {entry.tags.length > 0 && (
+              <span className={styles.tags}>
+                {entry.tags.map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={styles.tag}
+                    title={`Search memory for ${tag}`}
+                    onClick={() => onTag(tag)}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </span>
+            )}
           </span>
           <button
             type="button"

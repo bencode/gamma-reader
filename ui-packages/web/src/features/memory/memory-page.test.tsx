@@ -1,6 +1,8 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as background from '../agent/background'
+import { reader, seedConversation } from './curator/fixtures'
 import type { MemoryEntry } from './entry'
 import { MemoryPage } from './memory-page'
 import { memoryEnabled, setMemoryEnabled } from './settings'
@@ -15,6 +17,8 @@ const entry = (id: string, text: string, scope: MemoryEntry['scope'] = 'reader')
   conversationId: 'c',
   createdAt: Date.now(),
   confirmedAt: Date.now(),
+  tags: [],
+  sources: [],
 })
 
 describe('memory page', () => {
@@ -63,6 +67,26 @@ describe('memory page', () => {
     expect(await listMemories()).toEqual([
       expect.objectContaining({ id: 'style', text: 'Prefers short answers', core: true }),
     ])
+  })
+
+  it('searches by a tag, and organizes waiting conversations on request', async () => {
+    setMemoryEnabled(true)
+    const organize = vi.spyOn(background, 'runBackgroundAgent').mockResolvedValue(null)
+    await seedConversation('waiting', 0, [reader('一'), reader('二'), reader('三')])
+    await saveMemory({ ...entry('tagged', 'Reading SICP'), tags: ['SICP'] })
+    await saveMemory(entry('other', 'Prefers short answers'))
+    render(<MemoryPage active />)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'SICP' }))
+    expect(screen.getByRole('searchbox', { name: 'Search memory' })).toHaveValue('SICP')
+    expect(await screen.findByRole('region', { name: 'Search results' })).not.toHaveTextContent(
+      'Prefers short answers',
+    )
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Organize now' }))
+    expect(organize).toHaveBeenCalledWith(expect.objectContaining({ name: 'curator' }), {
+      untilDone: true,
+    })
   })
 
   it('shows a note saved while it is open', async () => {

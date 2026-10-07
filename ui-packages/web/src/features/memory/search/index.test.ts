@@ -11,6 +11,8 @@ const entry = (id: string, text: string, confirmedAt = 0): MemoryEntry => ({
   conversationId: 'conversation',
   createdAt: 0,
   confirmedAt,
+  tags: [],
+  sources: [],
 })
 
 const filler = (count: number) =>
@@ -29,22 +31,28 @@ describe('searchMemories', () => {
   ]
 
   it('finds Chinese terms the word segmenter would split apart', async () => {
-    expect(ids(await searchMemories(corpus, ['尾递归'], 5))[0]).toBe('closure')
-    expect(ids(await searchMemories(corpus, ['闭包'], 5))[0]).toBe('closure')
+    expect(ids(await searchMemories(corpus, ['尾递归'], 5, []))[0]).toBe('closure')
+    expect(ids(await searchMemories(corpus, ['闭包'], 5, []))[0]).toBe('closure')
   })
 
   it('merges queries in either language', async () => {
-    const found = ids(await searchMemories(corpus, ['SICP iterative', '回答风格'], 5))
+    const found = ids(await searchMemories(corpus, ['SICP iterative', '回答风格'], 5, []))
     expect(found).toEqual(expect.arrayContaining(['sicp', 'style']))
     expect(found).not.toContain('closure')
   })
 
+  it('finds a note by another word its tag goes by', async () => {
+    const tagged = { ...entry('tail', 'Struggles with one kind of recursion'), tags: ['尾递归'] }
+    const tags = [{ name: '尾递归', aliases: ['tail call', 'TCO'], description: '' }]
+    expect(ids(await searchMemories([tagged, ...corpus], ['TCO'], 5, tags))[0]).toBe('tail')
+  })
+
   it('returns nothing from a large store when no query matches', async () => {
-    expect(await searchMemories(corpus, ['photosynthesis'], 5)).toEqual([])
+    expect(await searchMemories(corpus, ['photosynthesis'], 5, [])).toEqual([])
   })
 
   it('returns every entry of a small store, matches first', async () => {
     const small = [entry('old', 'Prefers metric units', 2), entry('match', '尾递归的例子', 1)]
-    expect(ids(await searchMemories(small, ['尾递归'], 1))).toEqual(['match', 'old'])
+    expect(ids(await searchMemories(small, ['尾递归'], 1, []))).toEqual(['match', 'old'])
   })
 })

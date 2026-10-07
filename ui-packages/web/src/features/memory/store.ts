@@ -1,9 +1,12 @@
 import { type DBSchema, type IDBPDatabase, type IDBPObjectStore, openDB } from 'idb'
 import { deleteIndexedDatabase } from '../../data/workspace-database'
-import type { MemoryEntry } from './entry'
+import { type MemoryEntry, type MemoryTag, normalizeEntry } from './entry'
 
 type MemoryDatabase = DBSchema & {
   entries: { key: string; value: MemoryEntry }
+  tags: { key: string; value: MemoryTag }
+  // How far each conversation has been organized: `${projectKey}/${conversationId}` → position.
+  progress: { key: string; value: number }
 }
 
 // One database for every project, beside the project registry: memory follows the reader.
@@ -11,9 +14,13 @@ const databaseName = 'gamma-reader-memory'
 let databasePromise: Promise<IDBPDatabase<MemoryDatabase>> | undefined
 
 const openMemoryDatabase = () => {
-  databasePromise ??= openDB<MemoryDatabase>(databaseName, 1, {
+  databasePromise ??= openDB<MemoryDatabase>(databaseName, 2, {
     upgrade(database, oldVersion) {
       if (oldVersion < 1) database.createObjectStore('entries', { keyPath: 'id' })
+      if (oldVersion < 2) {
+        database.createObjectStore('tags', { keyPath: 'name' })
+        database.createObjectStore('progress')
+      }
     },
   }).catch(error => {
     databasePromise = undefined
@@ -22,7 +29,7 @@ const openMemoryDatabase = () => {
   return databasePromise
 }
 
-type MemoryStore = IDBPObjectStore<MemoryDatabase, ['entries'], 'entries', 'readwrite'>
+type EntryStore = IDBPObjectStore<MemoryDatabase, ['entries'], 'entries', 'readwrite'>
 
 // Heard in this tab after every write, so an open Memory page follows what the assistant saves.
 const listeners = new Set<() => void>()
@@ -40,7 +47,7 @@ const changed = () => {
   })
 }
 
-const write = async <T>(change: (store: MemoryStore) => Promise<T>): Promise<T> => {
+const write = async <T>(change: (store: EntryStore) => Promise<T>): Promise<T> => {
   const transaction = (await openMemoryDatabase()).transaction('entries', 'readwrite')
   const result = await change(transaction.store)
   await transaction.done
@@ -48,15 +55,19 @@ const write = async <T>(change: (store: MemoryStore) => Promise<T>): Promise<T> 
   return result
 }
 
-export const listMemories = async () => (await openMemoryDatabase()).getAll('entries')
+export const listMemories = async () =>
+  (await (await openMemoryDatabase()).getAll('entries')).map(normalizeEntry)
 
 export const saveMemory = (entry: MemoryEntry) => write(store => store.put(entry))
 
-// A correction is as good as a recall: the note is current again.
-export const updateMemory = (id: string, patch: Pick<MemoryEntry, 'text' | 'core'>) =>
+// The note as revised, or undefined when it is gone. A revision makes the note current again.
+export const reviseMemory = (id: string, revise: (entry: MemoryEntry) => MemoryEntry) =>
   write(async store => {
     const entry = await store.get(id)
-    if (entry) await store.put({ ...entry, ...patch, confirmedAt: Date.now() })
+    if (!entry) return undefined
+    const revised = { ...revise(normalizeEntry(entry)), confirmedAt: Date.now() }
+    await store.put(revised)
+    return revised
   })
 
 // The entries that were there to remove.
@@ -80,9 +91,41 @@ export const touchMemories = async (ids: readonly string[], at: number) => {
   )
 }
 
+export const listTags = async () => (await openMemoryDatabase()).getAll('tags')
+
+export const saveTag = async (tag: MemoryTag) => {
+  await (await openMemoryDatabase()).put('tags', tag)
+  changed()
+}
+
+const progressKey = (projectKey: string, conversationId: string) =>
+  `${projectKey}/${conversationId}`
+const projectRange = (projectKey: string) => IDBKeyRange.bound(`${projectKey}/`, `${projectKey}/￿`)
+
+// How far each of the project's conversations has been organized, by conversation id.
+export const readProgress = async (projectKey: string) => {
+  const database = await openMemoryDatabase()
+  const [keys, values] = await Promise.all([
+    database.getAllKeys('progress', projectRange(projectKey)),
+    database.getAll('progress', projectRange(projectKey)),
+  ])
+  return new Map(keys.map((key, index) => [key.slice(projectKey.length + 1), values[index] ?? 0]))
+}
+
+// Progress only moves forward, so a late or repeated mark cannot undo later work.
+export const markProgress = async (projectKey: string, conversationId: string, through: number) => {
+  const transaction = (await openMemoryDatabase()).transaction('progress', 'readwrite')
+  const key = progressKey(projectKey, conversationId)
+  const current = (await transaction.store.get(key)) ?? 0
+  if (through > current) await transaction.store.put(through, key)
+  await transaction.done
+  changed()
+  return Math.max(current, through)
+}
+
 // What was saved about the reader stays when a project goes; what was about the project goes too.
-export const removeProjectMemories = (projectKey: string) =>
-  write(async store => {
+export const removeProjectMemories = async (projectKey: string) => {
+  await write(async store => {
     const entries = await store.getAll()
     await Promise.all(
       entries
@@ -90,6 +133,8 @@ export const removeProjectMemories = (projectKey: string) =>
         .map(entry => store.delete(entry.id)),
     )
   })
+  await (await openMemoryDatabase()).delete('progress', projectRange(projectKey))
+}
 
 export const deleteMemoryStore = async () => {
   const database = await databasePromise

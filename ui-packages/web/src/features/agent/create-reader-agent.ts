@@ -7,26 +7,20 @@ import {
 } from '../../core/files'
 import { getStoredFile, listStoredFiles } from '../../data/file-store'
 import { memoryAgentParts } from '../memory'
+import { type AgentDefinition, assemble, type Skill, streamFn } from './definition'
 import { createDocumentTools, type DocumentAccess } from './document-tools'
 import { createDocxRuntime, type DocxRuntime } from './docx/runtime'
 import { createImageTools } from './image-tools'
 import type { LocalTools } from './local-tools'
-import {
-  apiKeyFor,
-  type ModelRuntime,
-  models,
-  proxyRequestOptions,
-  visionModelFor,
-} from './model-runtime'
+import { type ModelRuntime, visionModelFor } from './model-runtime'
 import { createPdfRuntime, type PdfRuntime } from './pdf/runtime'
 import { createPdfTools } from './pdf/tools'
-import { createSkillTools, type SkillDefinition, skillCatalog } from './skills'
 import { systemPrompt } from './system-prompt'
 import { openTextSource } from './text-source'
 import { LocalToolError } from './tool-types'
 import { createReaderTools } from './tools'
 import { createUrlTools, type WebState } from './url-tools'
-import { createVisionAnalyzer } from './vision'
+import { createVisionAnalyzer, type VisionAnalyzer } from './vision'
 import { createXlsxRuntime, type XlsxRuntime } from './xlsx/runtime'
 import { createXlsxTools } from './xlsx/tools'
 
@@ -65,18 +59,30 @@ export const createReaderDocumentAccess = (
   },
 })
 
-const skills: SkillDefinition[] = [
+type ReaderContext = {
+  local: LocalTools
+  documents: ReturnType<typeof createDocumentTools>
+  pdf: PdfRuntime
+  xlsx: XlsxRuntime
+  analyze?: VisionAnalyzer
+  web: () => WebState
+  memory: ReturnType<typeof memoryAgentParts>
+}
+
+const skills: Skill<ReaderContext>[] = [
   {
     name: 'pdf',
     description:
       'Read and understand PDFs using outlines, text search, page reading and visual analysis. Includes guidance for large documents and scanned pages.',
     load: async () => (await import('./pdf/SKILL.md?raw')).default,
+    tools: ({ pdf, analyze }) => createPdfTools(pdf, analyze),
   },
   {
     name: 'spreadsheet',
     description:
       'Read and understand spreadsheets by sheet and A1 range, with guidance on locating values, merged and empty cells, and formulas.',
     load: async () => (await import('./xlsx/SKILL.md?raw')).default,
+    tools: ({ xlsx }) => createXlsxTools(xlsx),
   },
   {
     name: 'links',
@@ -85,6 +91,18 @@ const skills: SkillDefinition[] = [
     load: async () => (await import('./links/SKILL.md?raw')).default,
   },
 ]
+
+const readerAgent: AgentDefinition<ReaderContext> = {
+  name: 'reader',
+  instructions: systemPrompt,
+  tools: ({ local, documents, web, analyze, memory }) => [
+    ...createReaderTools(local, documents),
+    ...createUrlTools(local.saveFile, web),
+    ...(analyze ? createImageTools(getStoredFile, analyze) : []),
+    ...(memory?.tools ?? []),
+  ],
+  skills,
+}
 
 // Pi keeps the system prompt and tool declarations at the head of the transcript. Each agent
 // rebuilds them from the current prompt and tools, so only the conversation is shown and stored.
@@ -108,6 +126,15 @@ export const createReaderAgent = (
   const vision = visionModelFor(runtime, session.model)
   const analyze = vision ? createVisionAnalyzer(vision) : undefined
   const memory = memoryAgentParts({ conversationId: session.id })
+  const assembled = assemble(readerAgent, {
+    local,
+    documents,
+    pdf,
+    xlsx,
+    analyze,
+    web: session.web ?? (() => 'unavailable'),
+    memory,
+  })
   const agent = new Agent({
     sessionId: session.id,
     toolExecution: 'sequential',
@@ -116,28 +143,10 @@ export const createReaderAgent = (
       model: session.model,
       thinkingLevel: session.thinkingLevel,
       messages: [...session.messages],
-      systemPrompt: `${systemPrompt}\n\n${skillCatalog(skills)}`,
-      tools: [
-        ...createReaderTools(local, documents),
-        ...createUrlTools(local.saveFile, session.web ?? (() => 'unavailable')),
-        ...(analyze ? createImageTools(getStoredFile, analyze) : []),
-        ...createPdfTools(pdf, analyze),
-        ...createXlsxTools(xlsx),
-        ...createSkillTools(skills),
-        ...(memory?.tools ?? []),
-      ],
+      ...assembled,
     },
     transformContext: memory?.transformContext,
-    streamFn: (model, context, options) => {
-      // A run stopped during a tool still asks for one more reply; pi-ai would report that
-      // request as an error, so end it here and let the agent record the run as stopped.
-      options?.signal?.throwIfAborted()
-      return models.streamSimple(model, context, {
-        ...options,
-        ...proxyRequestOptions,
-        apiKey: apiKeyFor(model),
-      })
-    },
+    streamFn,
   })
   agent.subscribe(async event => {
     if (event.type !== 'agent_end') return

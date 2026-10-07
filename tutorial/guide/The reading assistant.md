@@ -75,11 +75,13 @@ With memory on, ask the assistant to remember something and it keeps a note:
 
 > Remember that I prefer short answers.
 
-A note about you, such as how you like answers or what you already understand, is recalled in every project; one about this project stays with it. The assistant looks its notes up when you refer to something you told it before, or when they would change its answer. It keeps a note only when you ask, never because a document or web page says to.
+A note about you, such as how you like answers or what you already understand, is recalled in every project; one about this project stays with it. The assistant looks its notes up when you refer to something you told it before, or when they would change its answer. It never keeps a note because a document or web page says to.
+
+It also learns from your conversations. Each time you open a project, in the background, it reads the conversations that have moved on since it last looked, newest first, up to ten, and files what they say about you as notes: what you are working on, what you understand and where you are stuck. A note is a short summary filed under tags, such as *SICP* or *tail recursion*, and points back to the conversations it came from, so the assistant can reread the details when they matter. It reads what you wrote and what it answered, never the documents or pages it looked at. A conversation needs three messages from you before it is worth a note, and the one you have open waits until it has gone quiet for half an hour. **Organize now** on the **Memory** tab organizes everything waiting at once.
 
 To let a note go, ask: *Forget that I'm reading Dune.* The assistant finds the note, deletes it and says which one.
 
-The **Memory** tab lists every note: under **About you** and under the project it belongs to, the most recently used first. Search finds notes the way the assistant does. **Edit** corrects a note, and for a note about you, **Keep in mind in every conversation** makes it part of every conversation from the start. A note the assistant has not used for three months is shown faded. Deleting a project deletes its notes; notes about you stay.
+The **Memory** tab lists every note under **About you** and under the project it belongs to, the most recently used first, with its tags; choose a tag to search by it. A note learned from conversations says how many it came from. Search finds notes the way the assistant does. **Edit** corrects a note, and for a note about you, **Keep in mind in every conversation** makes it part of every conversation from the start. A note the assistant has not used for three months is shown faded. Deleting a project deletes its notes; notes about you stay.
 
 ## Models
 

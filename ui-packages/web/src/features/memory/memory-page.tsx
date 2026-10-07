@@ -1,11 +1,12 @@
 import { useEffect, useId, useState } from 'react'
 import type { Project } from '../../core/projects'
 import { listProjects } from '../../data/project-store'
-import type { MemoryEntry } from './entry'
+import { CurationStatus } from './curation-status'
+import type { MemoryEntry, MemoryTag } from './entry'
 import { MemoryRow } from './memory-row'
 import { searchMemories } from './search'
 import { refreshMemoryEnabled, setMemoryEnabled, useMemoryEnabled } from './settings'
-import { listMemories, subscribeMemories } from './store'
+import { listMemories, listTags, subscribeMemories } from './store'
 import styles from './style.module.scss'
 
 type Group = { key: string; title: string; entries: MemoryEntry[] }
@@ -50,6 +51,7 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
   const switchId = useId()
   const [entries, setEntries] = useState<MemoryEntry[] | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
+  const [tags, setTags] = useState<MemoryTag[]>([])
   const [failure, setFailure] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [found, setFound] = useState<MemoryEntry[] | null>(null)
@@ -59,11 +61,12 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
     refreshMemoryEnabled()
     let current = true
     const load = () =>
-      Promise.all([listMemories(), listProjects()]).then(
-        ([saved, known]) => {
+      Promise.all([listMemories(), listProjects(), listTags()]).then(
+        ([saved, known, filed]) => {
           if (!current) return
           setEntries(saved)
           setProjects(known)
+          setTags(filed)
           setFailure(null)
         },
         cause => {
@@ -86,7 +89,7 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
       return
     }
     let current = true
-    searchMemories(entries, [words], searchLimit).then(
+    searchMemories(entries, [words], searchLimit, tags).then(
       hits => {
         if (current) setFound(hits.filter(hit => hit.score > 0).map(hit => hit.entry))
       },
@@ -98,7 +101,7 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
     return () => {
       current = false
     }
-  }, [entries, query])
+  }, [entries, query, tags])
 
   return (
     <div className={styles.page}>
@@ -136,6 +139,7 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
           about a project stays with it. Notes go to the model with your questions.
         </p>
       </div>
+      {enabled && <CurationStatus active={active} />}
       {failure && <p role="alert">{failure}</p>}
       {entries?.length === 0 && (
         <p className={styles.note}>
@@ -155,6 +159,7 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
                   source={[groupTitle(entry, projects), sourceOf(entry, projects)]
                     .filter(Boolean)
                     .join(' · ')}
+                  onTag={setQuery}
                 />
               ))}
             </ul>
@@ -167,7 +172,12 @@ export const MemoryPage = ({ active }: { active: boolean }) => {
             <h2>{group.title}</h2>
             <ul>
               {group.entries.map(entry => (
-                <MemoryRow key={entry.id} entry={entry} source={sourceOf(entry, projects)} />
+                <MemoryRow
+                  key={entry.id}
+                  entry={entry}
+                  source={sourceOf(entry, projects)}
+                  onTag={setQuery}
+                />
               ))}
             </ul>
           </section>
