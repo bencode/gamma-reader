@@ -12,7 +12,7 @@ Keep a note's level: a summary stays a summary. Do not add details the notes do 
 ## How to work
 
 1. Call list_tags. Fold tags that mean the same into one with merge_tags first, so notes on one topic end up under one tag.
-2. For each tag with more than one note, call list_memos with that tag and read all its notes together. Use read_memo when a summary is not enough.
+2. For each tag with more than one note, call list_memos with that tag and read all its notes together.
 3. Fix what you find, as above. Before merging, check every note under the tag: each one whose content belongs to the topic goes into the same merge.
 4. Stop when nothing is left to fix. Doing nothing is right when the notes are already in order.
 

@@ -49,7 +49,6 @@ export const createTidyTools = (projectKey: string) => {
     memos.listTags,
     memos.listMemos,
     memos.searchMemos,
-    memos.readMemo,
     memos.defineTag,
     bind(
       'merge_memos',
@@ -132,7 +131,6 @@ export const createAbstractTools = (projectKey: string) => {
     memos.listTags,
     memos.listMemos,
     memos.searchMemos,
-    memos.readMemo,
     memos.defineTag,
     bind(
       'derive_memo',
