@@ -3,7 +3,8 @@ import { createReadStream } from 'node:fs'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { Readable } from 'node:stream'
-import type { Source, SourceFile } from './repository.js'
+import type { SourceFile } from '@gamma-reader/shared/source-protocol'
+import type { Source } from './repository.js'
 
 const sha1 = (content: string | Uint8Array) => createHash('sha1').update(content).digest('hex')
 

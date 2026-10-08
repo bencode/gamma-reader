@@ -1,10 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import type { SourceListing } from '@gamma-reader/shared/source-protocol'
 import { Hono } from 'hono'
 import { afterAll, describe, expect, it } from 'vitest'
 import { openDirectory } from './directory.js'
-import type { SourceListing } from './repository.js'
 import { createRoutes } from './routes.js'
 
 const dir = mkdtempSync(join(tmpdir(), 'gamma-reader-directory-'))

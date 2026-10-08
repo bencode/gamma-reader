@@ -1,5 +1,5 @@
+import type { SaveResult, SourceFile, SourceListing } from '@gamma-reader/shared/source-protocol'
 import type { ProjectSource } from '../../core/projects'
-import type { SaveResult, SourceFile, SourceListing } from './protocol'
 
 export type SnapshotEntry = {
   version: string

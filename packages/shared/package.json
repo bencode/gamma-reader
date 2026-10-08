@@ -6,6 +6,9 @@
   "exports": {
     "./model-config": {
       "types": "./src/model-config.d.ts"
+    },
+    "./source-protocol": {
+      "types": "./src/source-protocol.d.ts"
     }
   },
   "scripts": {

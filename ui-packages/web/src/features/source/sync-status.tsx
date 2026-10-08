@@ -1,7 +1,7 @@
+import type { SaveResult, SkipReason } from '@gamma-reader/shared/source-protocol'
 import * as Popover from '@radix-ui/react-popover'
 import { Info, RefreshCw } from 'lucide-react'
 import type { SourceScope } from '../../core/projects'
-import type { SaveResult, SkipReason } from './protocol'
 import type { SourceSync, SourceSyncState } from './use-source-sync'
 
 const fileCount = (count: number) => `${count.toLocaleString()} ${count === 1 ? 'file' : 'files'}`

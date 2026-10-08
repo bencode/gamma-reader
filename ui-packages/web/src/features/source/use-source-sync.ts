@@ -1,3 +1,4 @@
+import type { SaveResult, SourceFile } from '@gamma-reader/shared/source-protocol'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { StoredFileMetadata } from '../../core/files'
 import type { ProjectSource } from '../../core/projects'
@@ -12,13 +13,7 @@ import {
   snapshotAfter,
   snapshotAfterSave,
 } from './plan'
-import {
-  isSourceListing,
-  type SaveResult,
-  SourceError,
-  type SourceFile,
-  sourceFileUrl,
-} from './protocol'
+import { isSourceListing, SourceError, sourceFileUrl } from './protocol'
 import { saveToSource } from './save'
 
 export type SourceSyncState =

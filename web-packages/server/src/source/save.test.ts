@@ -10,11 +10,10 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import type { SaveResult, SourceListing } from '@gamma-reader/shared/source-protocol'
 import { Hono } from 'hono'
 import { afterAll, describe, expect, it } from 'vitest'
-import type { SourceListing } from './repository.js'
 import { createRoutes } from './routes.js'
-import type { SaveResult } from './save.js'
 import { openWorkingTree } from './working-tree.js'
 
 const dir = mkdtempSync(join(tmpdir(), 'gamma-reader-save-'))

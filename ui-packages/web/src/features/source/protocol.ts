@@ -1,9 +1,5 @@
+import type { SaveResult, SourceFile, SourceListing } from '@gamma-reader/shared/source-protocol'
 import type { ProjectSource } from '../../core/projects'
-
-// What a remote source serves: one listing, and each file under its path. Versions are opaque;
-// they only have to change when the content does.
-export type SourceFile = { path: string; version: string; size: number }
-export type SourceListing = { version: string; files: SourceFile[] }
 
 const isSourceFile = (value: unknown): value is SourceFile =>
   typeof value === 'object' &&
@@ -39,23 +35,6 @@ export const sourceSaveUrl = (source: ProjectSource) => `${source.url.replace(/\
 
 // A failure the source explains, as opposed to one it could not be reached for.
 export class SourceError extends Error {}
-
-export type SkipReason =
-  | 'deleted-on-disk'
-  | 'changed-on-disk'
-  | 'missing'
-  | 'path-taken'
-  | 'cannot-merge'
-  | 'invalid-path'
-  | 'failed'
-
-// What a writable source did with each saved change, in the order it applied them.
-export type SaveResult =
-  | { kind: 'written'; path: string; version: string }
-  | { kind: 'merged'; path: string; version: string; conflicts: number }
-  | { kind: 'moved'; from: string; path: string }
-  | { kind: 'deleted'; path: string }
-  | { kind: 'skipped'; path: string; reason: SkipReason }
 
 const skipReasons = new Set<string>([
   'deleted-on-disk',

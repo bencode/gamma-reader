@@ -1,8 +1,9 @@
+import type { SaveResult } from '@gamma-reader/shared/source-protocol'
 import type { ProjectSource } from '../../core/projects'
 import { getStoredFile } from '../../data/file-store'
 import { baseName } from '../../utils/path'
 import type { SaveChange } from './plan'
-import { isSaveResult, type SaveResult, SourceError, sourceSaveUrl } from './protocol'
+import { isSaveResult, SourceError, sourceSaveUrl } from './protocol'
 
 // Sends every change in one request: the list as JSON, and each write's bytes in a part of its
 // own, so a binary file travels as it is.
