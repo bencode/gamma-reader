@@ -1,9 +1,13 @@
+import type { ParsedNote } from '@gamma-reader/links'
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 import type { StoredConversation, StoredConversationMessage } from '../core/conversations'
 import type { FolderExportRecord } from '../core/file-export'
 import { previewKindFor, type StoredFileContent, type StoredFileMetadata } from '../core/files'
 import { legacyDatabaseName } from '../core/projects'
-import type { NoteRecord } from './notes-store'
+
+// A Markdown file's links as parsed at one revision. A note that could not be read — too large to
+// read as text, or not UTF-8 — is kept as null, so it is not tried again until it changes.
+export type NoteRecord = { fileId: string; revision: number; note: ParsedNote | null }
 
 export type WorkspaceDatabase = DBSchema & {
   files: {

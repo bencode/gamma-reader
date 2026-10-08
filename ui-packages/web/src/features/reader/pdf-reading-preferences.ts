@@ -1,6 +1,6 @@
 import { useStore } from 'zustand'
 import { createStore } from 'zustand/vanilla'
-import type { PdfReadingTheme } from '../../components/pdf-reader'
+import type { PdfReadingTheme } from '../../components/pdf-reader/pdf-toolbar'
 
 const storageKey = 'gamma-reader.pdf-reading-preferences'
 const themes: readonly PdfReadingTheme[] = ['original', 'paper', 'dark']

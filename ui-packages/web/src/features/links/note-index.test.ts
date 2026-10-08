@@ -1,7 +1,8 @@
 import { nodeRef, parseNote } from '@gamma-reader/links'
 import { describe, expect, it, vi } from 'vitest'
 import { maximumTextPreviewBytes } from '../../core/files'
-import { deleteNotes, listNotes, type NoteRecord, putNote } from '../../data/notes-store'
+import { deleteNotes, listNotes, putNote } from '../../data/notes-store'
+import type { NoteRecord } from '../../data/workspace-database'
 import { graphOf, type IndexProgress, planIndex, runIndex } from './note-index'
 
 const file = (id: string, path: string, revision = 1, size = 10) => ({

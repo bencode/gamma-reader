@@ -1,6 +1,6 @@
 import { Play } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { TextReaderProps } from './text-file-reader'
+import type { TextReaderProps } from './text-reader'
 
 export const HtmlReader = ({ document, content }: TextReaderProps) => {
   const [runningContent, setRunningContent] = useState(content)

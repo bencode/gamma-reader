@@ -6,7 +6,7 @@ import {
   type ReadingThemeOption,
   ReadingThemeSetting,
 } from '../../../components/reading-appearance'
-import type { TextReaderProps } from '../text-file-reader'
+import type { TextReaderProps } from '../text-reader'
 import { MarkdownReader } from './index'
 import {
   type MarkdownReadingTheme,

@@ -3,7 +3,7 @@ import { isTabular, parseCsv } from '../../core/csv'
 import { useReaderBinding } from '../../shell/workspace-context'
 import { MarkdownReader } from './markdown-reader'
 import { readViewport } from './reader-viewport'
-import type { TextReaderProps } from './text-file-reader'
+import type { TextReaderProps } from './text-reader'
 import { SheetGrid } from './xlsx-reader/sheet-grid'
 import styles from './xlsx-reader/style.module.scss'
 

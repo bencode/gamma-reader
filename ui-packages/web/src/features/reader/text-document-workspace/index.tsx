@@ -12,7 +12,7 @@ import type { SourceLanguage } from '../../../components/source-editor'
 import type { StoredFileMetadata } from '../../../core/files'
 import type { ReadingPositionProps } from '../../../core/reading-position'
 import { useWorkspaceSource, useWorkspaceSourceActions } from '../../../shell/workspace-context'
-import type { TextReaderComponent } from '../text-file-reader'
+import type { TextReaderComponent } from '../text-reader'
 import styles from './style.module.scss'
 
 const SourceEditor = lazy(() =>

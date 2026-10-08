@@ -1,9 +1,9 @@
 import { type ComponentType, type ReactNode, Suspense, useEffect, useRef, useState } from 'react'
-import type { MarkdownImageResolver } from '../../components/markdown-image'
 import type { SourceLanguage } from '../../components/source-editor'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
 import type { ReadingPositionProps } from '../../core/reading-position'
 import { TextDocumentWorkspace } from './text-document-workspace'
+import type { TextReaderComponent } from './text-reader'
 
 type TextFileReaderProps = ReadingPositionProps & {
   document: StoredFileMetadata
@@ -13,16 +13,6 @@ type TextFileReaderProps = ReadingPositionProps & {
   textReader: TextReaderDefinition
 }
 
-export type TextReaderProps = ReadingPositionProps & {
-  document: StoredFileMetadata
-  content: string
-  files: readonly StoredFileMetadata[]
-  active: boolean
-  // Formats converted to Markdown carry their own images rather than workspace files.
-  imageResolver?: MarkdownImageResolver
-}
-
-export type TextReaderComponent = ComponentType<TextReaderProps>
 export type DocumentScopeProps = {
   fileId: string
   children: ReactNode

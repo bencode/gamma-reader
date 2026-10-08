@@ -2,7 +2,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { type ReactNode, Suspense, use, useEffect, useLayoutEffect, useState } from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { PdfReader, type PdfReadingTheme } from './index'
+import { PdfReader } from './index'
+import type { PdfReadingTheme } from './pdf-toolbar'
 
 const loading = vi.hoisted(() => ({
   page: Promise.resolve(),

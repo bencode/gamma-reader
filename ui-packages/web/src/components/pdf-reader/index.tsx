@@ -6,7 +6,7 @@ import 'react-pdf/dist/Page/TextLayer.css'
 import { pdfDocumentOptions } from '../../pdfjs'
 import { PdfErrorBoundary } from './pdf-error-boundary'
 import { PdfOutline, usePdfOutline } from './pdf-outline'
-import { PdfToolbar } from './pdf-toolbar'
+import { type PdfReadingTheme, PdfToolbar } from './pdf-toolbar'
 import styles from './style.module.scss'
 import { usePdfPan } from './use-pdf-pan'
 
@@ -19,8 +19,6 @@ export type PdfReaderHandle = {
   getPageCount: () => number
   getRenderedPage: () => PdfRenderedPage | null
 }
-
-export type PdfReadingTheme = 'original' | 'paper' | 'dark'
 
 const pageColors: Record<
   Exclude<PdfReadingTheme, 'original'>,

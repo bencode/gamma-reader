@@ -7,7 +7,7 @@ import { useLinkGraph, useReaderBinding, useReveal } from '../../../shell/worksp
 import type { RevealTarget } from '../../../shell/workspace-store'
 import { createMarkdownImageResolver } from '../markdown-image-resolver'
 import { readViewport } from '../reader-viewport'
-import type { TextReaderProps } from '../text-file-reader'
+import type { TextReaderProps } from '../text-reader'
 import { Backlinks } from './backlinks'
 import { EmbedScopeContext, placeKey } from './embed-context'
 import { useEmbedResize } from './embed-resize'
