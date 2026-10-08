@@ -1,8 +1,8 @@
 import * as Popover from '@radix-ui/react-popover'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import { useRef, useState } from 'react'
-import type { DocumentTabItem } from './index'
 import styles from './style.module.scss'
+import type { DocumentTabItem } from './types'
 
 type OpenDocumentsProps = {
   items: readonly DocumentTabItem[]

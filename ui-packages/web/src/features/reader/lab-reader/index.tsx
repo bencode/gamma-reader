@@ -1,6 +1,6 @@
 import type { MarkdownExtensions } from '../../../components/markdown'
 import { MarkdownReader } from '../markdown-reader'
-import type { TextReaderProps } from '../text-file-reader'
+import type { TextReaderProps } from '../text-reader'
 import { AddCell } from './add-cell'
 import { LabCodeBlock } from './code-block'
 import { useLabDocument } from './document-scope'

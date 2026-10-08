@@ -4,8 +4,7 @@ import { X } from 'lucide-react'
 import { type RefObject, useLayoutEffect, useRef } from 'react'
 import { OpenDocuments } from './open-documents'
 import styles from './style.module.scss'
-
-export type DocumentTabItem = { id: string; label: string; title: string; dirty: boolean }
+import type { DocumentTabItem } from './types'
 
 type DocumentTabBarProps = {
   items: readonly DocumentTabItem[]

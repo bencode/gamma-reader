@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { P5Reader } from '../../components/p5-reader'
 import { useReaderBinding } from '../../shell/workspace-context'
-import type { TextReaderProps } from './text-file-reader'
+import type { TextReaderProps } from './text-reader'
 
 export const P5FileReader = ({ document, content, active }: TextReaderProps) => {
   const binding = useMemo(

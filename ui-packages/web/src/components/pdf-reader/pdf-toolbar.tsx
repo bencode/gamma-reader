@@ -6,8 +6,9 @@ import {
   type ReadingThemeOption,
   ReadingThemeSetting,
 } from '../reading-appearance'
-import type { PdfReadingTheme } from './index'
 import styles from './style.module.scss'
+
+export type PdfReadingTheme = 'original' | 'paper' | 'dark'
 
 const themeOptions: readonly ReadingThemeOption<PdfReadingTheme>[] = [
   { value: 'original', label: 'Original', background: '#ffffff', foreground: '#333333' },

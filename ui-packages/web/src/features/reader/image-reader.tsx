@@ -1,7 +1,7 @@
 import { Maximize2, Minus, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { StoredFileMetadata } from '../../core/files'
-import type { TextReaderProps } from './text-file-reader'
+import type { TextReaderProps } from './text-reader'
 
 export const ImageReader = ({ document, blob }: { document: StoredFileMetadata; blob: Blob }) => {
   const [url, setUrl] = useState('')

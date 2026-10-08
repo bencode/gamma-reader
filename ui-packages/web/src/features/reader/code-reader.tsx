@@ -7,7 +7,7 @@ import { baseName } from '../../core/files'
 import type { ReaderState } from '../../core/reader-state'
 import type { ReadingPosition } from '../../core/reading-position'
 import { useReaderBinding } from '../../shell/workspace-context'
-import type { TextReaderProps } from './text-file-reader'
+import type { TextReaderProps } from './text-reader'
 
 // Each language arrives the first time a file in it is opened; an unknown one reads as plain text.
 const languageFor = async (path: string): Promise<readonly Extension[]> => {

@@ -1,9 +1,4 @@
-import type { ParsedNote } from '@gamma-reader/links'
-import { openWorkspaceDatabase } from './workspace-database'
-
-// A Markdown file's links as parsed at one revision. A note that could not be read — too large to
-// read as text, or not UTF-8 — is kept as null, so it is not tried again until it changes.
-export type NoteRecord = { fileId: string; revision: number; note: ParsedNote | null }
+import { type NoteRecord, openWorkspaceDatabase } from './workspace-database'
 
 export const listNotes = async () => (await openWorkspaceDatabase()).getAll('notes')
 

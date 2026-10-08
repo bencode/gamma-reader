@@ -1,6 +1,6 @@
 import { buildGraph, isNotePath, type LinkGraph, type ParsedNote } from '@gamma-reader/links'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
-import type { NoteRecord } from '../../data/notes-store'
+import type { NoteRecord } from '../../data/workspace-database'
 
 type LibraryFile = Pick<StoredFileMetadata, 'id' | 'path' | 'revision' | 'size' | 'collection'>
 
