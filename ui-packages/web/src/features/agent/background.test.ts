@@ -85,13 +85,12 @@ describe('background agents', () => {
       return reply()
     })
     const backlog = [3, 2, 0]
-    await runBackgroundAgent(
+    const drained = await runBackgroundAgent(
       worker({ name: 'draining', pending: async () => backlog.shift() ?? 0 }),
-      {
-        untilDone: true,
-      },
+      { untilDone: true },
     )
     expect(runs).toHaveLength(2)
+    expect(drained).toMatchObject({ turns: 2 })
 
     runs.length = 0
     await runBackgroundAgent(worker({ name: 'stuck', pending: async () => 2 }), { untilDone: true })

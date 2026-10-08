@@ -136,13 +136,22 @@ export const runBackgroundAgent = async (
       setStatus(agent.name, { ...statusStore.getState()[agent.name], running: true })
       // A run that ends without an error is noted when it ends, so what it changed itself does not
       // count as new work next time.
-      const loop = async (before: number): Promise<BackgroundRun> => {
-        const run = await runOnce(agent, runtime, backgroundContext(agent))
+      // Runs one after another add up: their turns and tokens are what the whole job cost.
+      const loop = async (before: number, spent?: BackgroundRun): Promise<BackgroundRun> => {
+        const latest = await runOnce(agent, runtime, backgroundContext(agent))
+        const run = spent
+          ? {
+              ...latest,
+              at: spent.at,
+              turns: spent.turns + latest.turns,
+              tokens: spent.tokens + latest.tokens,
+            }
+          : latest
         if (run.stoppedBy !== 'error') writeLastRun(agent.name, projectKey, Date.now())
         setStatus(agent.name, { running: true, lastRun: run })
         if (!untilDone || run.stoppedBy === 'error') return run
         const after = await agent.pending(backgroundContext(agent))
-        return after > 0 && after < before ? loop(after) : run
+        return after > 0 && after < before ? loop(after, run) : run
       }
       try {
         const run = await loop(await agent.pending(backgroundContext(agent)))
