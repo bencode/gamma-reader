@@ -4,9 +4,9 @@ import { useRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { StoredFileMetadata } from '../../core/files'
 import { moveStoredFile, updateStoredTextFile, writeStoredTextFile } from '../../data/file-store'
-import type { Workspace } from '../../shell/use-workspace'
-import { WorkspaceProvider } from '../../shell/workspace-context'
-import { createWorkspaceActions, createWorkspaceStore } from '../../shell/workspace-store'
+import type { Workspace } from '../workspace/use-workspace'
+import { WorkspaceProvider } from '../workspace/workspace-context'
+import { createWorkspaceActions, createWorkspaceStore } from '../workspace/workspace-store'
 import { DocumentTabs } from './document-tabs'
 
 const previewMounts = vi.hoisted(() => new Map<string, number>())

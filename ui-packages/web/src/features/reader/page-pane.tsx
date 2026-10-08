@@ -1,7 +1,7 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { Activity } from 'react'
-import { pageName } from '../../shell/page-tab'
-import { useLinkGraph, useOpenFile } from '../../shell/workspace-context'
+import { pageName } from '../workspace/page-tab'
+import { useLinkGraph, useOpenFile } from '../workspace/workspace-context'
 import { Backlinks } from './markdown-reader/backlinks'
 import styles from './markdown-reader/style.module.scss'
 

@@ -11,17 +11,17 @@ import {
 } from 'react'
 import { useStore } from 'zustand'
 import { createStore } from 'zustand/vanilla'
-import type { UpdateStoredTextFileResult } from '../data/file-store'
-import { getStoredFile } from '../data/file-store'
-import type { LabRunner } from '../features/assistant/lab-tools'
+import type { UpdateStoredTextFileResult } from '../../data/file-store'
+import { getStoredFile } from '../../data/file-store'
+import type { LabRunner } from '../assistant/lab-tools'
 import type {
   LocalTools,
   WorkspaceFileMover,
   WorkspaceFileSaver,
   WorkspaceTextWriter,
-} from '../features/assistant/local-tools'
-import type { NoteIndexState } from '../features/links/note-index'
-import type { NoteIndexStore } from '../features/links/use-note-index'
+} from '../assistant/local-tools'
+import type { NoteIndexState } from '../links/note-index'
+import type { NoteIndexStore } from '../links/use-note-index'
 import { pageTabId } from './page-tab'
 import type { Workspace } from './use-workspace'
 import { type ReaderBinding, useWorkspaceTools } from './use-workspace-tools'

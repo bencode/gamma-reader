@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, useContext } from 'react'
-import { useLocalTools } from '../../shell/workspace-context'
 import type { FileLibrary } from '../resources/use-file-library'
+import { useLocalTools } from '../workspace/workspace-context'
 import { useConversation } from './use-conversation'
 
 const ConversationContext = createContext<ReturnType<typeof useConversation> | null>(null)

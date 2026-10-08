@@ -3,18 +3,21 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { emptyConversationDraft } from '../../core/conversations'
-import type { ConversationAttachment } from '../../core/reader-message'
+import { emptyConversationDraft } from '../core/conversations'
+import type { ConversationAttachment } from '../core/reader-message'
 import {
   countStoredConversations,
   getStoredConversation,
   saveStoredConversationDraft,
-} from '../../data/conversation-store'
-import { Workbench } from '../../shell/workbench'
-import { modelConfig as config, isTitleRequest } from '../../test/model-config'
-import { testProject } from '../../test/project'
-import { seedSampleFiles } from '../../test/sample-files'
-import { DraftAttachmentTray, MessageAttachments } from './conversation-attachments'
+} from '../data/conversation-store'
+import {
+  DraftAttachmentTray,
+  MessageAttachments,
+} from '../features/conversation/conversation-attachments'
+import { modelConfig as config, isTitleRequest } from '../test/model-config'
+import { testProject } from '../test/project'
+import { seedSampleFiles } from '../test/sample-files'
+import { Workbench } from './workbench'
 
 const event = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'answer', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`

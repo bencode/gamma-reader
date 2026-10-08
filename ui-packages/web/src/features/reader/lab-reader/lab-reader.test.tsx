@@ -10,9 +10,9 @@ import {
   updateStoredTextFile,
   writeStoredTextFile,
 } from '../../../data/file-store'
-import { useWorkspace, type Workspace } from '../../../shell/use-workspace'
-import { useLocalTools, WorkspaceProvider } from '../../../shell/workspace-context'
 import type { LocalTools } from '../../assistant/local-tools'
+import { useWorkspace, type Workspace } from '../../workspace/use-workspace'
+import { useLocalTools, WorkspaceProvider } from '../../workspace/workspace-context'
 import { DocumentTabs } from '../document-tabs'
 import { parseLabDocument } from './document-model'
 

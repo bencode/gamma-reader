@@ -5,7 +5,7 @@ import type { StoredFileMetadata } from '../../core/files'
 import type { DocxConversion } from '../../formats/docx'
 import { DocxReader } from './docx-reader'
 
-vi.mock('../../shell/workspace-context', () => ({
+vi.mock('../workspace/workspace-context', () => ({
   useReaderBinding: vi.fn(),
   useReveal: () => ({ reveal: null, shown: vi.fn() }),
   useLinkGraph: () => null,

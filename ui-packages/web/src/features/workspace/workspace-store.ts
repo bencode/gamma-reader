@@ -1,6 +1,6 @@
 import { customAlphabet } from 'nanoid'
 import { createStore } from 'zustand/vanilla'
-import type { ReadingPosition } from '../core/reading-position'
+import type { ReadingPosition } from '../../core/reading-position'
 
 // A draft's version is copied back by the assistant, so it is short, lower case, and leaves out
 // characters that read alike (0 and o, 1 and l). Eight of them never repeat within a session.

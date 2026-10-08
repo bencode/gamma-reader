@@ -16,7 +16,7 @@ const links = vi.hoisted(() => ({
   shown: vi.fn(),
 }))
 
-vi.mock('../../../shell/workspace-context', () => ({
+vi.mock('../../workspace/workspace-context', () => ({
   useReaderBinding: vi.fn(),
   useLinkGraph: () => links.graph,
   useOpenFile: () => links.openFile,

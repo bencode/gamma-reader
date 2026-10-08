@@ -1,6 +1,6 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { Activity } from 'react'
-import { type ViewName, views } from '../../shell/view-tab'
+import { type ViewName, views } from '../workspace/view-tab'
 
 // A view in a tab, kept mounted while hidden as documents are, so its place and input survive.
 export const ViewPane = ({ id, view, active }: { id: string; view: ViewName; active: boolean }) => {

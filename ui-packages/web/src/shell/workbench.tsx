@@ -18,10 +18,10 @@ import { useFileExport } from '../features/resources/use-file-export'
 import { useFileLibrary } from '../features/resources/use-file-library'
 import { SaveDeletionsDialog, SourceSaveControl } from '../features/source/source-save-control'
 import { useSourceSync } from '../features/source/use-source-sync'
+import { useWorkspace } from '../features/workspace/use-workspace'
+import { WorkspaceProvider } from '../features/workspace/workspace-context'
 import { runBackgroundAgentsOnOpen } from './background-agents'
 import { usePanelWidths } from './use-panel-widths'
-import { useWorkspace } from './use-workspace'
-import { WorkspaceProvider } from './workspace-context'
 
 const queries = ['(min-width: 1100px)', '(min-width: 800px)'] as const
 const getMode = () =>

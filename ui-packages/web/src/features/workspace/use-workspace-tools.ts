@@ -1,9 +1,10 @@
 import { type RefObject, useLayoutEffect, useMemo, useRef } from 'react'
-import { LocalToolError } from '../core/agent/tool'
-import type { ReaderState } from '../core/reader-state'
-import { getStoredFile, type UpdateStoredTextFileResult } from '../data/file-store'
-import type { LabAccess, LabRunner } from '../features/assistant/lab-tools'
-import type { LinkAccess } from '../features/assistant/links/link-tools'
+import { LocalToolError } from '../../core/agent/tool'
+import type { ReaderState } from '../../core/reader-state'
+import { getStoredFile, type UpdateStoredTextFileResult } from '../../data/file-store'
+import { decodeUtf8 } from '../../utils/text'
+import type { LabAccess, LabRunner } from '../assistant/lab-tools'
+import type { LinkAccess } from '../assistant/links/link-tools'
 import {
   type ActiveSourceSnapshot,
   createLocalTools,
@@ -11,9 +12,8 @@ import {
   type WorkspaceFileMover,
   type WorkspaceFileSaver,
   type WorkspaceTextWriter,
-} from '../features/assistant/local-tools'
-import type { NoteIndexStore } from '../features/links/use-note-index'
-import { decodeUtf8 } from '../utils/text'
+} from '../assistant/local-tools'
+import type { NoteIndexStore } from '../links/use-note-index'
 import { pageName, pageOfTab } from './page-tab'
 import type { Workspace } from './use-workspace'
 import { sourceDirty } from './workspace-store'

@@ -1,8 +1,8 @@
 import { type EmbedSize, resizeEmbed } from '@gamma-reader/links'
 import { useCallback } from 'react'
 import { getStoredFile } from '../../../data/file-store'
-import { useTextFileUpdates } from '../../../shell/workspace-context'
 import { decodeUtf8 } from '../../../utils/text'
+import { useTextFileUpdates } from '../../workspace/workspace-context'
 
 // Writes an embed's new size into the saved note, read afresh so the size lands on the text as it
 // now stands. Unsaved edits in the note's source, or a save made meanwhile, take precedence: the

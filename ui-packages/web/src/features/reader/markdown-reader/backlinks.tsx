@@ -1,7 +1,7 @@
 import { type Edge, headingKey, pageKey, textPieces } from '@gamma-reader/links'
 import { Fragment, useMemo, useState } from 'react'
-import { useLinkGraph, useOpenFile } from '../../../shell/workspace-context'
-import type { RevealTarget } from '../../../shell/workspace-store'
+import { useLinkGraph, useOpenFile } from '../../workspace/workspace-context'
+import type { RevealTarget } from '../../workspace/workspace-store'
 import styles from './style.module.scss'
 
 // A page linked from many places lists the first of them until the reader asks for the rest.

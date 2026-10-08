@@ -1,5 +1,5 @@
-import { isReadingPosition, type ReadingPosition } from '../core/reading-position'
-import { workspaceStorageBases, workspaceStorageKey } from '../data/workspace-database'
+import { isReadingPosition, type ReadingPosition } from '../../core/reading-position'
+import { workspaceStorageBases, workspaceStorageKey } from '../../data/workspace-database'
 
 export type ReadingPositions = Record<string, ReadingPosition>
 

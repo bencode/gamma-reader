@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { StoredFileMetadata } from '../../core/files'
 import { CsvReader } from './csv-reader'
 
-vi.mock('../../shell/workspace-context', () => ({
+vi.mock('../workspace/workspace-context', () => ({
   useReaderBinding: vi.fn(),
   useReveal: () => ({ reveal: null, shown: vi.fn() }),
   useLinkGraph: () => null,

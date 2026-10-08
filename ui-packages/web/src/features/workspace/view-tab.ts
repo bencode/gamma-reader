@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { MemoryPage } from '../features/memory'
+import { MemoryPage } from '../memory'
 
 // A view of the app's own, open in a tab beside documents: it holds no file and no page. Tabs,
 // addresses and restoring handle every view alike, so a new one is a line in this table.

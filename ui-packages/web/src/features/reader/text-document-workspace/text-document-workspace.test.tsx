@@ -13,13 +13,13 @@ import {
   updateStoredTextFile,
   writeStoredTextFile,
 } from '../../../data/file-store'
-import { useWorkspace, type Workspace } from '../../../shell/use-workspace'
+import type { LocalTools } from '../../assistant/local-tools'
+import { useWorkspace, type Workspace } from '../../workspace/use-workspace'
 import {
   useLocalTools,
   useWorkspaceSourceActions,
   WorkspaceProvider,
-} from '../../../shell/workspace-context'
-import type { LocalTools } from '../../assistant/local-tools'
+} from '../../workspace/workspace-context'
 import { MarkdownReader } from '../markdown-reader'
 import { TextFileReader, type TextReaderDefinition } from '../text-file-reader'
 
