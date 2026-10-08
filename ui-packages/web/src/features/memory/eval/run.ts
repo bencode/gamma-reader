@@ -3,7 +3,7 @@ import { deleteFileStore } from '../../../data/file-store'
 import { seedConversation } from '../curator/fixtures'
 import { setMemoryEnabled } from '../settings'
 import { deleteMemoryStore, saveMemory, saveTag } from '../store'
-import { conversations, memoEntry, memos, tags } from './dataset'
+import { type Dataset, memoEntry } from './dataset'
 
 export const runs = Number(process.env.GAMMA_EVAL_RUNS ?? 3)
 
@@ -15,10 +15,10 @@ export const reset = async () => {
   setMemoryEnabled(true)
 }
 
-export const seedMemos = async (ids: readonly string[]) => {
-  await Promise.all(tags.map(saveTag))
+export const seedMemos = async (dataset: Dataset, ids: readonly string[]) => {
+  await Promise.all(dataset.tags.map(saveTag))
   await Promise.all(
-    memos.flatMap((seed, index) =>
+    dataset.memos.flatMap((seed, index) =>
       ids.includes(seed.id) ? [saveMemory(memoEntry(seed, index))] : [],
     ),
   )
@@ -26,7 +26,7 @@ export const seedMemos = async (ids: readonly string[]) => {
 
 const hourAgo = () => Date.now() - 60 * 60 * 1000
 
-export const seedConversations = async () => {
+export const seedConversations = async ({ conversations }: Dataset) => {
   for (const { id, messages } of conversations) await seedConversation(id, hourAgo(), messages)
   return new Map(conversations.map(({ id, messages }) => [id, messages.length]))
 }
