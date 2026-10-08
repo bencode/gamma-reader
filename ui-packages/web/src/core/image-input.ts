@@ -31,7 +31,7 @@ export const fitScale = (width: number, height: number, maximumPixels: number) =
     Math.sqrt(maximumPixels / (width * height)),
   )
 
-const encodeBase64 = async (blob: Blob) => {
+export const encodeBase64 = async (blob: Blob) => {
   const bytes = new Uint8Array(await blob.arrayBuffer())
   const chunks: string[] = []
   for (let offset = 0; offset < bytes.length; offset += 0x8000)

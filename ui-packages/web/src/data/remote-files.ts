@@ -1,5 +1,6 @@
 import { baseName, type ImportSource } from '../core/files'
 import { type FolderSelection, selectFolderFiles } from '../core/folder-import'
+import { encodeBase64 } from '../core/image-input'
 import type { ImportTarget } from '../core/url-import'
 
 // A sentence for the reader saying why an address could not be downloaded.
@@ -28,6 +29,8 @@ export const downloadFile = async (target: Extract<ImportTarget, { kind: 'file' 
   // An address such as a DOI landing link rarely ends in the extension that says what it holds.
   const name =
     type === 'application/pdf' && !/\.pdf$/i.test(target.name) ? `${target.name}.pdf` : target.name
+  if (type === 'text/html')
+    return new File([await inlineImages(await response.text(), response.url)], name, { type })
   return new File([await response.blob()], name, { type })
 }
 
@@ -56,6 +59,30 @@ const mapWithLimit = async <T, R>(
   }
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, work))
   return results
+}
+
+// A page is shown from a blob: address, where its relative images point at nothing, so each one
+// is carried inside the page. An image the site will not hand over keeps its full address.
+const inlineImages = async (html: string, pageUrl: string) => {
+  const page = new DOMParser().parseFromString(html, 'text/html')
+  const images = [...page.querySelectorAll('img[src]')].flatMap(image => {
+    const address = URL.parse(image.getAttribute('src') ?? '', pageUrl)
+    return address?.protocol === 'https:' || address?.protocol === 'http:'
+      ? [{ image, address: address.href }]
+      : []
+  })
+  await mapWithLimit(images, 6, async ({ image, address }) => {
+    try {
+      const blob = await (await request(address)).blob()
+      image.setAttribute('src', `data:${blob.type};base64,${await encodeBase64(blob)}`)
+    } catch (cause) {
+      if (!(cause instanceof RemoteFileError)) throw cause
+      console.warn(`Unable to download image ${address}`, cause)
+      image.setAttribute('src', address)
+    }
+  })
+  const doctype = page.doctype ? `${new XMLSerializer().serializeToString(page.doctype)}\n` : ''
+  return doctype + page.documentElement.outerHTML
 }
 
 const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/')
