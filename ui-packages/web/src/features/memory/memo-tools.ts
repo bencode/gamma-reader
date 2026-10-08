@@ -109,15 +109,17 @@ export const createMemoTools = (projectKey: string, lastRunAt: number | null = n
   ),
   defineTag: bind(
     'define_tag',
-    'Add a tag for a concept no tag covers yet, with aliases in Chinese and English and one line on what it stands for. A name that is already a tag or alias adds the aliases to that tag.',
+    'Add a tag for a concept no tag covers yet, with at least one alias, in Chinese and English, and one line on what it stands for. A name that is already a tag or alias adds the aliases to that tag.',
     Type.Object({
       name: Type.String({ minLength: 1, maxLength: 60 }),
-      aliases: Type.Optional(
-        Type.Array(Type.String({ minLength: 1, maxLength: 60 }), { maxItems: 8 }),
-      ),
+      // Every tag names its concept in more than one way, so a note is found whichever is used.
+      aliases: Type.Array(Type.String({ minLength: 1, maxLength: 60 }), {
+        minItems: 1,
+        maxItems: 8,
+      }),
       description: Type.Optional(Type.String({ maxLength: 200 })),
     }),
-    async ({ name, aliases = [], description = '' }) => {
+    async ({ name, aliases, description = '' }) => {
       const tags = await listTags()
       const known = findTag(tags, name) ?? aliases.map(alias => findTag(tags, alias)).find(Boolean)
       const tag = known

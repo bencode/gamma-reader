@@ -96,7 +96,7 @@ describe('curator tools', () => {
 
   it('refuses a source outside this project or past its end, and a tag never defined', async () => {
     await seedConversation('topic', hourAgo, threeRemarks)
-    await runTool(tools, 'define_tag', { name: 'x' })
+    await runTool(tools, 'define_tag', { name: 'x', aliases: ['ex'] })
     const note = (sources: unknown, tags = ['x']) =>
       runTool(tools, 'write_memo', { text: 'x', scope: 'project', tags, sources })
     await expect(

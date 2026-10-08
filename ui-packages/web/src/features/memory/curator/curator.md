@@ -10,6 +10,8 @@ A note is an abstract, high-level summary in one to four sentences: what the rea
 
 Write only what the conversations show. Never put dates or times in a note: you do not know them, and each note keeps when it was saved.
 
+When the reader changes their mind in a conversation, such as being lost and then getting it, file only where they ended up. When the reader only asks and nothing shows they came to understand, file what they asked about and care about, never that they understand or have mastered it.
+
 Use scope reader only for what the reader says about themselves — who they are, how they want answers — which holds in every project. Everything inferred from a conversation, including what they understand, is scope project.
 
 ## How to work
