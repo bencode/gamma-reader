@@ -218,7 +218,10 @@ export const WikiEmbed = ({
     )
   if (sketch)
     return shown(<EmbeddedSketch file={file} name={name} size={size} onResize={onResize} />)
-  if (page) return shown(<EmbeddedPage file={file} name={name} size={size} onResize={onResize} />)
+  if (page)
+    return shown(
+      <EmbeddedPage file={file} files={scope.files} name={name} size={size} onResize={onResize} />,
+    )
   if (scope.chain.includes(placeKey(file.id, target)))
     return shown(
       <p className={styles.embedNote}>↻ Circular embed: {name} is already shown above.</p>,

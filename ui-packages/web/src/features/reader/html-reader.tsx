@@ -1,17 +1,12 @@
 import { Play } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useHtmlPageUrl } from './html-images'
 import type { TextReaderProps } from './text-reader'
 
-export const HtmlReader = ({ document, content }: TextReaderProps) => {
+export const HtmlReader = ({ document, content, files }: TextReaderProps) => {
   const [runningContent, setRunningContent] = useState(content)
-  const [url, setUrl] = useState('')
+  const url = useHtmlPageUrl(runningContent, document.path, files)
   const changesPending = content !== runningContent
-
-  useEffect(() => {
-    const next = URL.createObjectURL(new Blob([runningContent], { type: 'text/html' }))
-    setUrl(next)
-    return () => URL.revokeObjectURL(next)
-  }, [runningContent])
 
   return (
     <div className="reader-content html-reader">

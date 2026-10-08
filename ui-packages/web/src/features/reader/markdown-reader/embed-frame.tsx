@@ -11,6 +11,7 @@ import { P5Reader } from '../../../components/p5-reader'
 import { decodeUtf8 } from '../../../core/document-text'
 import type { StoredFileMetadata } from '../../../core/files'
 import { getStoredFileContent } from '../../../data/file-store'
+import { useHtmlPageUrl } from '../html-images'
 import styles from './style.module.scss'
 
 const minimumSize = { width: 120, height: 80 }
@@ -172,16 +173,16 @@ export const EmbeddedSketch = ({ file, name, size, onResize }: FrameProps) => {
 }
 
 // An HTML page in place, in a sandbox as the HTML reader runs it, loaded again with each save.
-export const EmbeddedPage = ({ file, name, size, onResize }: FrameProps) => {
+export const EmbeddedPage = ({
+  file,
+  files,
+  name,
+  size,
+  onResize,
+}: FrameProps & { files: readonly StoredFileMetadata[] }) => {
   const read = useFileText(file)
-  const [url, setUrl] = useState('')
   const text = read?.text
-  useEffect(() => {
-    if (typeof text !== 'string') return
-    const next = URL.createObjectURL(new Blob([text], { type: 'text/html' }))
-    setUrl(next)
-    return () => URL.revokeObjectURL(next)
-  }, [text])
+  const url = useHtmlPageUrl(typeof text === 'string' ? text : undefined, file.path, files)
   if (text === null) return unreadable(name)
   return (
     <ResizableBox size={size} axis="both" className={styles.pageBox} onResize={onResize}>
