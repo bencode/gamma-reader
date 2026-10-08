@@ -1,9 +1,6 @@
-import {
-  containsControlCharacter,
-  isWorkspacePath,
-  type StoredFileMetadata,
-} from '../../core/files'
+import { isWorkspacePath, type StoredFileMetadata } from '../../core/files'
 import type { ReaderState } from '../../core/reader-state'
+import { containsControlCharacter } from '../../utils/path'
 import { type LabAccess, type LabCellsInput, readLabCells, runLabCells } from './lab-tools'
 import { createLinkTools, type LinkAccess, noLinks } from './links/link-tools'
 import {

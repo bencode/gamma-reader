@@ -1,5 +1,5 @@
 import type { StoredFileMetadata } from '../../../core/files'
-import { readSpreadsheet, type Worksheet, workbookText } from '../../../core/xlsx'
+import { readSpreadsheet, type Worksheet, workbookText } from '../../../formats/xlsx'
 import type { DocumentSource } from '../document-tools'
 import { LocalToolError } from '../tool-types'
 

@@ -11,9 +11,10 @@ import {
   type WritableDirectoryHandle,
   writeBlobToDirectory,
 } from '../../core/file-export'
-import { baseName, type StoredFileMetadata } from '../../core/files'
+import type { StoredFileMetadata } from '../../core/files'
 import { getStoredFile } from '../../data/file-store'
 import { getFolderExport, putFolderExport } from '../../data/folder-export-store'
+import { baseName } from '../../utils/path'
 
 type PendingExport = {
   directory: WritableDirectoryHandle

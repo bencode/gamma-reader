@@ -3,15 +3,15 @@ import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { StoredFileMetadata } from '../../../core/files'
-import type { Worksheet } from '../../../core/xlsx'
+import type { Worksheet } from '../../../formats/xlsx'
 import { XlsxReader } from './index'
 
 vi.mock('../../../shell/workspace-context', () => ({ useReaderBinding: vi.fn() }))
 
 const mocks = vi.hoisted(() => ({ read: vi.fn() }))
 // Only the parse is stubbed, so adding an export to the module cannot break this file.
-vi.mock('../../../core/xlsx', async importOriginal => ({
-  ...(await importOriginal<typeof import('../../../core/xlsx')>()),
+vi.mock('../../../formats/xlsx', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../../formats/xlsx')>()),
   readSpreadsheet: mocks.read,
 }))
 

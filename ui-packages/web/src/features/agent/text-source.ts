@@ -1,5 +1,5 @@
-import { decodeUtf8, normalizeNewlines } from '../../core/document-text'
 import { maximumTextPreviewBytes, type StoredFileMetadata } from '../../core/files'
+import { decodeUtf8, normalizeNewlines } from '../../utils/text'
 import type { DocumentSource } from './document-tools'
 import { LocalToolError } from './tool-types'
 

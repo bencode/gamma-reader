@@ -1,4 +1,5 @@
-import { baseName, type StoredFileMetadata } from './files'
+import { baseName } from '../utils/path'
+import type { StoredFileMetadata } from './files'
 
 type FileSystemPermissionMode = 'read' | 'readwrite'
 type FileSystemPermissionState = 'denied' | 'granted' | 'prompt'

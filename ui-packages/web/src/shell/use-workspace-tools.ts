@@ -1,5 +1,4 @@
 import { type RefObject, useLayoutEffect, useMemo, useRef } from 'react'
-import { decodeUtf8 } from '../core/document-text'
 import type { ReaderState } from '../core/reader-state'
 import { getStoredFile, type UpdateStoredTextFileResult } from '../data/file-store'
 import type { LabAccess, LabRunner } from '../features/agent/lab-tools'
@@ -14,6 +13,7 @@ import {
 } from '../features/agent/local-tools'
 import { LocalToolError } from '../features/agent/tool-types'
 import type { NoteIndexStore } from '../features/links/use-note-index'
+import { decodeUtf8 } from '../utils/text'
 import { pageName, pageOfTab } from './page-tab'
 import type { Workspace } from './use-workspace'
 import { sourceDirty } from './workspace-store'

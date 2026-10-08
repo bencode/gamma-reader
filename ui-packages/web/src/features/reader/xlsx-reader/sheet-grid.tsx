@@ -1,6 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { type RefObject, useLayoutEffect, useMemo } from 'react'
-import { cellText, clampColumns, columnLabel, type SheetRow } from '../../../core/xlsx'
+import { cellText, clampColumns, columnLabel, type SheetRow } from '../../../formats/xlsx'
 import styles from './style.module.scss'
 
 // The virtualizer places rows by this height, so the stylesheet has to use the same number.

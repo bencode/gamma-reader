@@ -1,5 +1,5 @@
-import { findTextMatches, normalizeSearchText } from '../../core/document-text'
 import type { StoredFileMetadata } from '../../core/files'
+import { findTextMatches, normalizeSearchText } from '../../utils/text'
 import {
   boundedText,
   changedFile,

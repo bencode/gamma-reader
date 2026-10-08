@@ -1,11 +1,11 @@
 import { Agent, type AgentMessage, type AgentState } from '@earendil-works/pi-agent-core'
-import { markdownText } from '../../core/document-text'
 import {
   maximumTextPreviewBytes,
   type PreviewKind,
   type StoredFileMetadata,
 } from '../../core/files'
 import { getStoredFile, listStoredFiles } from '../../data/file-store'
+import { markdownText } from '../../formats/markdown-text'
 import { memoryAgentParts } from '../memory'
 import { type AgentDefinition, assemble, type Skill, streamFn } from './definition'
 import { createDocumentTools, type DocumentAccess } from './document-tools'

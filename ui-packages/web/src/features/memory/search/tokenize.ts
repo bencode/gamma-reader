@@ -1,4 +1,4 @@
-import { normalizeSearchText } from '../../../core/document-text'
+import { normalizeSearchText } from '../../../utils/text'
 
 // The browser's word segmenter splits terms it does not know into single characters (闭包 into 闭
 // and 包), so Han, kana and Hangul are indexed by overlapping pairs instead, as Lucene's CJK bigram

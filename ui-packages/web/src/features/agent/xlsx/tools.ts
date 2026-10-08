@@ -6,7 +6,7 @@ import {
   selectCells,
   sheetExtent,
   type Worksheet,
-} from '../../../core/xlsx'
+} from '../../../formats/xlsx'
 import { fitsResult } from '../pagination'
 import { bind } from '../tool'
 import { LocalToolError } from '../tool-types'

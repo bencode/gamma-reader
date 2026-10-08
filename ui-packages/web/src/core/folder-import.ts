@@ -1,4 +1,5 @@
-import { baseName, type ImportSource, previewKindFor } from './files'
+import { baseName } from '../utils/path'
+import { type ImportSource, previewKindFor } from './files'
 
 export const maximumFolderFiles = 5000
 export const maximumFolderFileBytes = 1024 * 1024

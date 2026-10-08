@@ -1,6 +1,6 @@
-import { markdownText } from '../../../core/document-text'
-import { convertDocxToMarkdown, reportDocxMessages } from '../../../core/docx'
 import type { StoredFileMetadata } from '../../../core/files'
+import { convertDocxToMarkdown, reportDocxMessages } from '../../../formats/docx'
+import { markdownText } from '../../../formats/markdown-text'
 import type { DocumentSource } from '../document-tools'
 import { LocalToolError } from '../tool-types'
 

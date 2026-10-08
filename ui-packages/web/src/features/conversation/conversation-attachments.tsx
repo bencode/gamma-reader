@@ -1,8 +1,9 @@
 import { File, FileImage, LoaderCircle, RefreshCw, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ConversationAttachment } from '../../core/agent/reader-message'
-import { formatBytes, previewKindFor } from '../../core/files'
+import { previewKindFor } from '../../core/files'
 import { getStoredFileContent } from '../../data/file-store'
+import { formatBytes } from '../../utils/bytes'
 import {
   ImageLightbox,
   type ImageLightboxImage,

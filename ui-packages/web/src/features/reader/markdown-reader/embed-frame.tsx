@@ -8,9 +8,9 @@ import {
   useState,
 } from 'react'
 import { P5Reader } from '../../../components/p5-reader'
-import { decodeUtf8 } from '../../../core/document-text'
 import type { StoredFileMetadata } from '../../../core/files'
 import { getStoredFileContent } from '../../../data/file-store'
+import { decodeUtf8 } from '../../../utils/text'
 import { useHtmlPageUrl } from '../html-images'
 import styles from './style.module.scss'
 

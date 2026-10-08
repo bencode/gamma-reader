@@ -1,20 +1,21 @@
 import { render } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import { Markdown } from '../components/markdown'
+import { Markdown } from '../../components/markdown'
+import { rootSources } from '../../core/files'
 import {
   getStoredFile,
   importStoredFiles,
   moveStoredFile,
   writeStoredTextFile,
-} from '../data/file-store'
-import { createReaderDocumentAccess } from '../features/agent/create-reader-agent'
-import { createDocumentTools } from '../features/agent/document-tools'
-import { createLocalTools } from '../features/agent/local-tools'
-import { createPdfRuntime } from '../features/agent/pdf/runtime'
-import { readViewport } from '../features/reader/reader-viewport'
-import { findTextMatches, markdownText, normalizeSearchText } from './document-text'
-import { rootSources } from './files'
+} from '../../data/file-store'
+import { markdownText } from '../../formats/markdown-text'
+import { findTextMatches, normalizeSearchText } from '../../utils/text'
+import { readViewport } from '../reader/reader-viewport'
+import { createReaderDocumentAccess } from './create-reader-agent'
+import { createDocumentTools } from './document-tools'
+import { createLocalTools } from './local-tools'
+import { createPdfRuntime } from './pdf/runtime'
 
 describe('searchable document text', () => {
   it.each([

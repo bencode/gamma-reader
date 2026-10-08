@@ -1,5 +1,6 @@
-import { normalizeSearchText } from '../../core/document-text'
-import { baseName, type StoredFileMetadata } from '../../core/files'
+import type { StoredFileMetadata } from '../../core/files'
+import { baseName } from '../../utils/path'
+import { normalizeSearchText } from '../../utils/text'
 
 export type FileTreeNode =
   | { kind: 'folder'; key: string; path: string; name: string; children: FileTreeNode[] }

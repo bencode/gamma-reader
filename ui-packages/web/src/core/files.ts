@@ -1,3 +1,5 @@
+import { baseName } from '../utils/path'
+
 export const maximumFileBytes = 200 * 1024 * 1024
 export const maximumLibraryBytes = 1024 * 1024 * 1024
 export const maximumTextPreviewBytes = 5 * 1024 * 1024
@@ -115,19 +117,7 @@ export const previewKindFor = (name: string, mediaType: string): PreviewKind => 
   return 'unsupported'
 }
 
-export const formatBytes = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`
-}
-
 const maximumPathLength = 1024
-
-export const containsControlCharacter = (value: string) =>
-  Array.from(value).some(character => {
-    const codePoint = character.codePointAt(0)
-    return codePoint !== undefined && (codePoint < 32 || codePoint === 127)
-  })
 
 // A path is relative and every '/'-separated segment names something. Any character a file
 // name may hold is allowed, so files imported from disk keep their names. Paths are checked and
@@ -137,8 +127,6 @@ export const isWorkspacePath = (path: string) =>
   path.length <= maximumPathLength &&
   !path.startsWith('/') &&
   path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
-
-export const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 
 // Files chosen or dropped one by one land in the library root under their own names.
 export const rootSources = (files: readonly File[]): ImportSource[] =>

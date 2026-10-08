@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { SheetRow, Worksheet } from '../../../core/xlsx'
+import type { SheetRow, Worksheet } from '../../../formats/xlsx'
 import type { XlsxRuntime } from './runtime'
 import { createXlsxTools } from './tools'
 

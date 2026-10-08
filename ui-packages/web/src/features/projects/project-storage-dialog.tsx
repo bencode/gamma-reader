@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { ConfirmationDialog as Modal } from '../../components/confirmation-dialog'
-import { formatBytes, maximumLibraryBytes } from '../../core/files'
+import { maximumLibraryBytes } from '../../core/files'
 import type { Project } from '../../core/projects'
 import {
   type BrowserStorage,
   readStorageSummary,
   type StorageSummary,
 } from '../../data/storage-summary'
+import { formatBytes } from '../../utils/bytes'
 import styles from './style.module.scss'
 
 const percent = new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 1 })

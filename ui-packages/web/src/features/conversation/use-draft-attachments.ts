@@ -1,7 +1,8 @@
 import { nanoid } from 'nanoid'
 import { useCallback, useRef, useState } from 'react'
 import type { ConversationAttachment } from '../../core/agent/reader-message'
-import { baseName, type ImportResult, type StoredFileMetadata } from '../../core/files'
+import type { ImportResult, StoredFileMetadata } from '../../core/files'
+import { baseName } from '../../utils/path'
 
 export type DraftAttachment =
   | { key: string; file: File; status: 'adding' }
