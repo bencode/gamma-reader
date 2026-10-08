@@ -5,9 +5,13 @@ import {
   catalogEntry,
   customProviderId,
   customProviderKey,
-} from '../../../core/byok/catalog'
-import { type DiscoveryFailure, listModels } from '../../../core/byok/discover'
-import { removeUserProvider, saveUserProvider, useUserProviders } from '../../../core/byok/store'
+} from '../../../core/models/byok/catalog'
+import {
+  removeUserProvider,
+  saveUserProvider,
+  useUserProviders,
+} from '../../../core/models/byok/store'
+import { type DiscoveryFailure, listModels } from './discover'
 import styles from './style.module.scss'
 
 const failureText: Record<DiscoveryFailure, string> = {

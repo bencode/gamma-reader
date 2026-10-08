@@ -1,6 +1,5 @@
 import { Type } from '@earendil-works/pi-ai'
-import { bind } from '../agent/tool'
-import { LocalToolError } from '../agent/tool-types'
+import { bind, LocalToolError } from '../../core/agent/tool'
 import {
   findTag,
   type MemoryEntry,

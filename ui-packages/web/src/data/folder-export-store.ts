@@ -1,4 +1,4 @@
-import type { FolderExportRecord } from '../core/file-export'
+import type { FolderExportRecord } from './workspace-database'
 import { openWorkspaceDatabase } from './workspace-database'
 
 const folderExportId = 'files'

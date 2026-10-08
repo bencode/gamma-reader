@@ -1,7 +1,7 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import { BookOpen, Code2, MessageSquare, Save } from 'lucide-react'
 import { lazy, useEffect, useRef, useState } from 'react'
-import { baseName, isCodePath, type StoredFileMetadata } from '../../core/files'
+import { isCodePath, type StoredFileMetadata } from '../../core/files'
 import { pageName, pageOfTab } from '../../shell/page-tab'
 import type { Workspace } from '../../shell/use-workspace'
 import { viewOfTab, views } from '../../shell/view-tab'
@@ -11,6 +11,7 @@ import {
   useWorkspaceSourceActions,
 } from '../../shell/workspace-context'
 import { sourceDirty } from '../../shell/workspace-store'
+import { baseName } from '../../utils/path'
 import { CsvReader } from './csv-reader'
 import { DocumentPane } from './document-pane'
 import { DocumentTabBar } from './document-tab-bar'

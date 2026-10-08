@@ -10,7 +10,8 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useState } from 'react'
-import { formatBytes, type PreviewKind, type StoredFileMetadata } from '../../core/files'
+import type { PreviewKind, StoredFileMetadata } from '../../core/files'
+import { formatBytes } from '../../utils/bytes'
 import { ancestorFolders, buildFileTree, type FileTreeNode } from './file-tree'
 
 type ResourceTreeProps = {

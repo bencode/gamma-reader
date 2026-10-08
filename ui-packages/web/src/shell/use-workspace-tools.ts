@@ -1,9 +1,9 @@
 import { type RefObject, useLayoutEffect, useMemo, useRef } from 'react'
-import { decodeUtf8 } from '../core/document-text'
+import { LocalToolError } from '../core/agent/tool'
 import type { ReaderState } from '../core/reader-state'
 import { getStoredFile, type UpdateStoredTextFileResult } from '../data/file-store'
-import type { LabAccess, LabRunner } from '../features/agent/lab-tools'
-import type { LinkAccess } from '../features/agent/links/link-tools'
+import type { LabAccess, LabRunner } from '../features/assistant/lab-tools'
+import type { LinkAccess } from '../features/assistant/links/link-tools'
 import {
   type ActiveSourceSnapshot,
   createLocalTools,
@@ -11,9 +11,9 @@ import {
   type WorkspaceFileMover,
   type WorkspaceFileSaver,
   type WorkspaceTextWriter,
-} from '../features/agent/local-tools'
-import { LocalToolError } from '../features/agent/tool-types'
+} from '../features/assistant/local-tools'
 import type { NoteIndexStore } from '../features/links/use-note-index'
+import { decodeUtf8 } from '../utils/text'
 import { pageName, pageOfTab } from './page-tab'
 import type { Workspace } from './use-workspace'
 import { sourceDirty } from './workspace-store'

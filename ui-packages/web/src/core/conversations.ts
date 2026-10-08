@@ -1,7 +1,7 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelReference } from '@gamma-reader/shared/model-config'
-import type { ConversationAttachment } from './agent/reader-message'
+import type { ConversationAttachment } from './reader-message'
 
 export type ConversationId = string
 

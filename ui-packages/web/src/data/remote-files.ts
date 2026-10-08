@@ -1,7 +1,8 @@
-import { baseName, type ImportSource } from '../core/files'
+import type { ImportSource } from '../core/files'
 import { type FolderSelection, selectFolderFiles } from '../core/folder-import'
 import type { ImportTarget } from '../core/url-import'
 import { mapWithLimit } from '../utils/map-with-limit'
+import { baseName } from '../utils/path'
 
 // A sentence for the reader saying why an address could not be downloaded.
 export class RemoteFileError extends Error {}

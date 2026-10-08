@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createReaderUserMessage } from '../core/agent/reader-message'
 import { emptyConversationDraft, type StoredConversation } from '../core/conversations'
 import { rootSources } from '../core/files'
+import { createReaderUserMessage } from '../core/reader-message'
 import {
   appendStoredConversationMessages,
   getStoredConversation,

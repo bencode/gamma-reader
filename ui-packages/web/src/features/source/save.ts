@@ -1,6 +1,6 @@
-import { baseName } from '../../core/files'
 import type { ProjectSource } from '../../core/projects'
 import { getStoredFile } from '../../data/file-store'
+import { baseName } from '../../utils/path'
 import type { SaveChange } from './plan'
 import { isSaveResult, type SaveResult, SourceError, sourceSaveUrl } from './protocol'
 

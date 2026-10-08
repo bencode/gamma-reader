@@ -1,7 +1,8 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import * as background from '../agent/background'
+import * as background from '../../core/agent/background'
+import { workspaceDatabaseName } from '../../data/workspace-database'
 import { reader, seedConversation } from './curator/fixtures'
 import type { MemoryEntry } from './entry'
 import { MemoryPage } from './memory-page'
@@ -85,9 +86,11 @@ describe('memory page', () => {
     )
 
     await userEvent.click(await screen.findByRole('button', { name: 'Organize now' }))
-    expect(organize).toHaveBeenCalledWith(expect.objectContaining({ name: 'curator' }), {
-      untilDone: true,
-    })
+    expect(organize).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'curator' }),
+      workspaceDatabaseName(),
+      { untilDone: true },
+    )
   })
 
   it('lists merged notes apart and restores one', async () => {

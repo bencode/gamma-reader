@@ -1,14 +1,10 @@
-import { decodeUtf8 } from '../../core/document-text'
-import {
-  containsControlCharacter,
-  type ImportSource,
-  isWorkspacePath,
-  rootSources,
-} from '../../core/files'
+import { type ImportSource, isWorkspacePath, rootSources } from '../../core/files'
 import type { ImportTarget } from '../../core/url-import'
 import { fetchRemoteBlob, fetchRemoteFile, RemoteFileError } from '../../data/remote-files'
 import { parseHtml, serializeHtml } from '../../utils/html'
 import { mapWithLimit } from '../../utils/map-with-limit'
+import { containsControlCharacter } from '../../utils/path'
+import { decodeUtf8 } from '../../utils/text'
 
 type SavedImage = { name: string; blob: Blob }
 

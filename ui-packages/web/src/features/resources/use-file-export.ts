@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { StoredFileMetadata } from '../../core/files'
+import { getStoredFile } from '../../data/file-store'
+import { getFolderExport, putFolderExport } from '../../data/folder-export-store'
+import type { ExportedFileVersion, FolderExportRecord } from '../../data/workspace-database'
 import {
-  type ExportedFileVersion,
   ensureDirectoryWritePermission,
-  type FolderExportRecord,
-  findDirectoryConflicts,
   folderExportSupported,
-  pickExportDirectory,
   pickerCancelled,
   saveBlobAs,
   type WritableDirectoryHandle,
   writeBlobToDirectory,
-} from '../../core/file-export'
-import { baseName, type StoredFileMetadata } from '../../core/files'
-import { getStoredFile } from '../../data/file-store'
-import { getFolderExport, putFolderExport } from '../../data/folder-export-store'
+} from '../../utils/file-system-access'
+import { baseName } from '../../utils/path'
+import { findDirectoryConflicts, pickExportDirectory } from './folder-export'
 
 type PendingExport = {
   directory: WritableDirectoryHandle

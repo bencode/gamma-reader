@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { baseName, type StoredFileMetadata } from '../../core/files'
+import type { StoredFileMetadata } from '../../core/files'
 import type { ProjectSource } from '../../core/projects'
 import { importStoredFiles, listStoredFiles, removeStoredFiles } from '../../data/file-store'
 import { workspaceStorageBases, workspaceStorageKey } from '../../data/workspace-database'
+import { baseName } from '../../utils/path'
 import {
   planSave,
   planSync,

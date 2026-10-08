@@ -1,6 +1,7 @@
 import type { MarkdownImageResolver } from '../../components/markdown-image'
-import { containsControlCharacter, type StoredFileMetadata } from '../../core/files'
+import type { StoredFileMetadata } from '../../core/files'
 import { getStoredFileContent } from '../../data/file-store'
+import { containsControlCharacter } from '../../utils/path'
 
 const unsafeScheme = /^[a-z][a-z\d+.-]*:/i
 

@@ -1,8 +1,8 @@
 import { getSupportedThinkingLevels, type ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelReference } from '@gamma-reader/shared/model-config'
-import { isUserProvider } from '../../../core/byok/runtime'
 import type { ModelSelection } from '../../../core/conversations'
-import type { ModelRuntime } from '../../agent/model-runtime'
+import { isUserProvider } from '../../../core/models/byok/runtime'
+import type { ModelRuntime } from '../../../core/models/model-runtime'
 import styles from './style.module.scss'
 
 export type ModelControlProps = {

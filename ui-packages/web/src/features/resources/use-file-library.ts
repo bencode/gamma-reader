@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { pickerCancelled } from '../../core/file-export'
 import {
   duplicatePaths,
   type ImportResult,
@@ -25,6 +24,7 @@ import {
 } from '../../data/file-store'
 import { downloadRepository, RemoteFileError } from '../../data/remote-files'
 import { requestPersistentStorage } from '../../data/workspace-database'
+import { pickerCancelled } from '../../utils/file-system-access'
 import { downloadPage } from './page-import'
 
 type LibraryStatus = { message: string }

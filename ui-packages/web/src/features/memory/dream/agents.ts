@@ -1,4 +1,4 @@
-import type { BackgroundAgent, BackgroundContext } from '../../agent/background'
+import type { BackgroundAgent, BackgroundContext } from '../../../core/agent/background'
 import { visibleNotes } from '../memo-tools'
 import { memoryEnabled } from '../settings'
 import abstractInstructions from './abstract.md?raw'

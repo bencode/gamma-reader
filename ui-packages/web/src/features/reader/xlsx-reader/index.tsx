@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { StoredFileMetadata } from '../../../core/files'
 import type { ReadingPositionProps } from '../../../core/reading-position'
-import { readSpreadsheet, type Worksheet } from '../../../core/xlsx'
+import { readSpreadsheet, type Worksheet } from '../../../formats/xlsx'
 import { useReaderBinding } from '../../../shell/workspace-context'
 import { readViewport } from '../reader-viewport'
 import { SheetGrid } from './sheet-grid'

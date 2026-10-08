@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import type { DocxConversion } from '../../core/docx'
 import type { StoredFileMetadata } from '../../core/files'
+import type { DocxConversion } from '../../formats/docx'
 import { DocxReader } from './docx-reader'
 
 vi.mock('../../shell/workspace-context', () => ({
@@ -16,8 +16,8 @@ vi.mock('../../shell/workspace-context', () => ({
 
 const mocks = vi.hoisted(() => ({ convert: vi.fn() }))
 // Only the conversion is stubbed, so adding an export to the module cannot break this file.
-vi.mock('../../core/docx', async importOriginal => ({
-  ...(await importOriginal<typeof import('../../core/docx')>()),
+vi.mock('../../formats/docx', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../formats/docx')>()),
   convertDocxToMarkdown: mocks.convert,
 }))
 

@@ -12,7 +12,7 @@ import {
 } from '../../../data/file-store'
 import { useWorkspace, type Workspace } from '../../../shell/use-workspace'
 import { useLocalTools, WorkspaceProvider } from '../../../shell/workspace-context'
-import type { LocalTools } from '../../agent/local-tools'
+import type { LocalTools } from '../../assistant/local-tools'
 import { DocumentTabs } from '../document-tabs'
 import { parseLabDocument } from './document-model'
 

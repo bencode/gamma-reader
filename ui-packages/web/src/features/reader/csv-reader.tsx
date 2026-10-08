@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { isTabular, parseCsv } from '../../core/csv'
+import { isTabular, parseCsv } from '../../formats/csv'
 import { useReaderBinding } from '../../shell/workspace-context'
 import { MarkdownReader } from './markdown-reader'
 import { readViewport } from './reader-viewport'

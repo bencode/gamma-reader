@@ -1,10 +1,10 @@
 import { parseNote } from '@gamma-reader/links'
 import { useEffect, useState } from 'react'
 import { createStore } from 'zustand/vanilla'
-import { decodeUtf8 } from '../../core/document-text'
 import type { StoredFileMetadata } from '../../core/files'
 import { getStoredFileContent } from '../../data/file-store'
 import { deleteNotes, listNotes, putNote } from '../../data/notes-store'
+import { decodeUtf8 } from '../../utils/text'
 import { graphOf, type NoteIndexState, planIndex, runIndex } from './note-index'
 
 const progressDelay = 500

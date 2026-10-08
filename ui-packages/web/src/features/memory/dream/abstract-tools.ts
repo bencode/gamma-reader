@@ -1,6 +1,5 @@
 import { Type } from '@earendil-works/pi-ai'
-import { bind } from '../../agent/tool'
-import { LocalToolError } from '../../agent/tool-types'
+import { bind, LocalToolError } from '../../../core/agent/tool'
 import type { MemoryEntry } from '../entry'
 import { createMemoTools, filedUnder, visibleNote, visibleNotes } from '../memo-tools'
 import { reviseMemory, saveMemory } from '../store'

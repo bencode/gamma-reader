@@ -1,6 +1,5 @@
 import { nanoid } from 'nanoid'
 import {
-  baseName,
   type FileCollection,
   type ImportResult,
   type ImportSource,
@@ -11,6 +10,7 @@ import {
   type StoredFileContent,
   type StoredFileMetadata,
 } from '../core/files'
+import { baseName } from '../utils/path'
 import {
   closeWorkspaceDatabase,
   deleteWorkspaceDatabase,

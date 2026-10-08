@@ -1,5 +1,5 @@
-import { auxiliaryTextSelector } from '../../core/document-text'
 import type { ReaderState } from '../../core/reader-state'
+import { auxiliaryTextSelector } from '../../formats/markdown-text'
 
 type Clip = { top: number; bottom: number; left: number; right: number }
 

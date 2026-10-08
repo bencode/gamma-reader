@@ -1,7 +1,8 @@
 import { lazy, type RefObject, Suspense, useEffect, useState } from 'react'
-import { formatBytes, type StoredFileMetadata } from '../../core/files'
+import type { StoredFileMetadata } from '../../core/files'
 import type { ReadingPositionProps } from '../../core/reading-position'
 import { getStoredFile } from '../../data/file-store'
+import { formatBytes } from '../../utils/bytes'
 import { ImageReader } from './image-reader'
 import { TextFileReader, type TextReaderDefinition } from './text-file-reader'
 

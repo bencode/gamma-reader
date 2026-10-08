@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MarkdownImageResolver } from '../../components/markdown-image'
-import { convertDocxToMarkdown, reportDocxMessages } from '../../core/docx'
 import type { StoredFileMetadata } from '../../core/files'
 import type { ReadingPositionProps } from '../../core/reading-position'
+import { convertDocxToMarkdown, reportDocxMessages } from '../../formats/docx'
 import { StandardMarkdownReader } from './markdown-reader/standard-reader'
 
 type DocxReaderProps = ReadingPositionProps & {
