@@ -7,7 +7,7 @@ services:
       context: .
       target: runtime
       args:
-        GAMMA_READER_COMMIT: ${GAMMA_READER_TAG:-}
+        GAMMA_READER_VERSION: ${GAMMA_READER_VERSION:-}
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0

@@ -11,19 +11,24 @@ const require = createRequire(import.meta.url)
 const pdfjsDistPath = path.dirname(require.resolve('pdfjs-dist/package.json'))
 const pdfWasmDirectory = normalizePath(path.join(pdfjsDistPath, 'wasm'))
 
-// The release is the root package's version; the commit is passed in by a deployment, whose image
-// has no .git, or read from the checkout when building locally.
-const { version } = require('../../package.json') as { version: string }
-const commitOf = () => {
-  if (process.env.GAMMA_READER_COMMIT) return process.env.GAMMA_READER_COMMIT
+// A release is a v-tag. `git describe` names the build as the latest one and the commit, as in
+// v1.0.0-3-g46b53a0; a deployment passes it in, since its image has no .git, and a local build
+// reads it from the checkout. With no tag it is the commit alone.
+const describe = () => {
+  if (process.env.GAMMA_READER_VERSION) return process.env.GAMMA_READER_VERSION
   try {
-    return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim()
+    return execFileSync('git', ['describe', '--tags', '--long', '--always', '--match', 'v[0-9]*'], {
+      encoding: 'utf8',
+    }).trim()
   } catch (error) {
-    console.warn('Building without a commit in the version', error)
-    return ''
+    console.warn('Building without a version', error)
+    return 'dev'
   }
 }
-const commit = commitOf()
+const appVersion = (described: string) => {
+  const release = described.match(/^v(.+)-\d+-g([0-9a-f]+)$/)
+  return release ? `${release[1]} (${release[2]})` : described
+}
 
 // Driving the whole Workbench costs about a second per test. Those files form their own project
 // so an edit-and-run loop stays quick; `pnpm check` runs both projects before anything ships.
@@ -56,7 +61,7 @@ export default defineConfig({
   // Vite treats .pdf as an asset already; the Office formats among the starter files are not
   // in its default list, so an import of one would otherwise be parsed as JavaScript.
   assetsInclude: ['**/*.docx', '**/*.xlsx'],
-  define: { __APP_VERSION__: JSON.stringify(commit ? `${version} (${commit})` : version) },
+  define: { __APP_VERSION__: JSON.stringify(appVersion(describe())) },
   optimizeDeps: {
     include: ['@gamma-reader/code-lab > biwascheme', '@gamma-reader/code-lab > sucrase'],
   },
