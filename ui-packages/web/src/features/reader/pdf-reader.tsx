@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { PdfReader as DocumentPdfReader, type PdfReaderHandle } from '../../components/pdf-reader'
 import type { StoredFileMetadata } from '../../core/files'
 import type { ReadingPositionProps } from '../../core/reading-position'
-import { useReaderBinding, useReveal } from '../../shell/workspace-context'
+import { useReaderBinding, useReveal } from '../workspace/workspace-context'
 import { usePdfReadingTheme } from './pdf-reading-preferences'
 import { readViewport } from './reader-viewport'
 

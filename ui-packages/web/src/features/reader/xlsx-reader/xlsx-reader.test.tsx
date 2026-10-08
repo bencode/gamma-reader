@@ -6,7 +6,7 @@ import type { StoredFileMetadata } from '../../../core/files'
 import type { Worksheet } from '../../../formats/xlsx'
 import { XlsxReader } from './index'
 
-vi.mock('../../../shell/workspace-context', () => ({ useReaderBinding: vi.fn() }))
+vi.mock('../../workspace/workspace-context', () => ({ useReaderBinding: vi.fn() }))
 
 const mocks = vi.hoisted(() => ({ read: vi.fn() }))
 // Only the parse is stubbed, so adding an export to the module cannot break this file.

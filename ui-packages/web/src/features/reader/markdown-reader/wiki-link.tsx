@@ -1,8 +1,8 @@
 import { headingKey, type LinkTarget, parseTarget } from '@gamma-reader/links'
 import * as Popover from '@radix-ui/react-popover'
 import { type ReactNode, useState } from 'react'
-import { useLinkGraph, useOpenFile, useOpenPage } from '../../../shell/workspace-context'
-import type { RevealTarget } from '../../../shell/workspace-store'
+import { useLinkGraph, useOpenFile, useOpenPage } from '../../workspace/workspace-context'
+import type { RevealTarget } from '../../workspace/workspace-store'
 import styles from './style.module.scss'
 
 // The place in its file a link names, for the file's reader to show.

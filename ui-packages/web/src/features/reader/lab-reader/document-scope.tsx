@@ -15,7 +15,7 @@ import {
   useWorkspaceSource,
   useWorkspaceSourceActions,
   useWorkspaceStore,
-} from '../../../shell/workspace-context'
+} from '../../workspace/workspace-context'
 import type { DocumentScopeProps } from '../text-file-reader'
 import {
   appendLabCell,

@@ -1,7 +1,7 @@
 import { startTransition, useEffect, useRef, useState } from 'react'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import { useStore } from 'zustand'
-import type { StoredFileMetadata } from '../core/files'
+import type { StoredFileMetadata } from '../../core/files'
 import { pageOfTab, pagePath, pageTabId } from './page-tab'
 import { viewOfTab, viewPath, viewTabOfRoute } from './view-tab'
 import { readWorkspace, writeWorkspace } from './workspace-storage'

@@ -5,6 +5,7 @@ import type { Project } from '../core/projects'
 import { ConversationProvider } from '../features/conversation/conversation-context'
 import { ConversationPanel } from '../features/conversation/conversation-panel'
 import { useNoteIndex } from '../features/links/use-note-index'
+import { ProjectSwitcher } from '../features/projects/project-switcher'
 import { DocumentTabs } from '../features/reader/document-tabs'
 import { prepareP5SourceFile } from '../features/reader/p5-file'
 import { ReplaceExportedFilesDialog } from '../features/resources/file-dialogs'
@@ -18,10 +19,11 @@ import { useFileExport } from '../features/resources/use-file-export'
 import { useFileLibrary } from '../features/resources/use-file-library'
 import { SaveDeletionsDialog, SourceSaveControl } from '../features/source/source-save-control'
 import { useSourceSync } from '../features/source/use-source-sync'
+import { useWorkspace } from '../features/workspace/use-workspace'
+import { viewTabId } from '../features/workspace/view-tab'
+import { WorkspaceProvider } from '../features/workspace/workspace-context'
 import { runBackgroundAgentsOnOpen } from './background-agents'
 import { usePanelWidths } from './use-panel-widths'
-import { useWorkspace } from './use-workspace'
-import { WorkspaceProvider } from './workspace-context'
 
 const queries = ['(min-width: 1100px)', '(min-width: 800px)'] as const
 const getMode = () =>
@@ -131,19 +133,28 @@ export const Workbench = ({ project }: { project: Project }) => {
     else setOverlayRequest({ kind: 'files', mode })
   }, [exporter.error, inlineFiles, mode, overlay])
 
+  const openFromFiles = (id: string) => {
+    workspace.openDocument(id)
+    if (overlay === 'files') setOverlay(null)
+  }
   const files = (
     <ResourcePanel
       project={project}
+      switcher={
+        <ProjectSwitcher
+          project={project}
+          fileCount={library.files.length}
+          exporter={exporter}
+          onOpenMemory={() => openFromFiles(viewTabId('memory'))}
+        />
+      }
       activeId={workspace.activeId}
       library={library}
       exporter={exporter}
       sourceSync={sourceSync}
       noteIndex={noteIndex}
       onClose={closeFiles}
-      onOpen={id => {
-        workspace.openDocument(id)
-        if (overlay === 'files') setOverlay(null)
-      }}
+      onOpen={openFromFiles}
       onRemoved={workspace.closeDocuments}
     />
   )

@@ -5,8 +5,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import styles from '../../components/source-editor/style.module.scss'
 import type { ReaderState } from '../../core/reader-state'
 import type { ReadingPosition } from '../../core/reading-position'
-import { useReaderBinding } from '../../shell/workspace-context'
 import { baseName } from '../../utils/path'
+import { useReaderBinding } from '../workspace/workspace-context'
 import type { TextReaderProps } from './text-reader'
 
 // Each language arrives the first time a file in it is opened; an unknown one reads as plain text.

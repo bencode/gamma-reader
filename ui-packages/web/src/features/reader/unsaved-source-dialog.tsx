@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { ConfirmationDialog } from '../../components/confirmation-dialog'
-import type { Workspace } from '../../shell/use-workspace'
-import { useSourceDrafts, useWorkspaceSourceActions } from '../../shell/workspace-context'
-import { sourceDirty } from '../../shell/workspace-store'
+import type { Workspace } from '../workspace/use-workspace'
+import { useSourceDrafts, useWorkspaceSourceActions } from '../workspace/workspace-context'
+import { sourceDirty } from '../workspace/workspace-store'
 
 export const UnsavedSourceDialog = ({
   fileIds,
