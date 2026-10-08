@@ -118,6 +118,26 @@ export const createTidyTools = (projectKey: string, lastRunAt: number | null) =>
   ]
 }
 
+// What an abstraction may rest on: notes, not other abstractions, so memory stays two layers; at
+// least two about this project, so a pair of stated preferences is not passed off as a pattern; and
+// no tag shared by all of them, since notes all under one subject make a summary, not a pattern.
+const checkGrounds = (notes: readonly MemoryEntry[]) => {
+  if (notes.some(note => note.derivedFrom))
+    throw new LocalToolError(
+      'An abstraction rests on notes, not on other abstractions. Point to the notes those draw on.',
+    )
+  if (notes.filter(note => note.scope === 'project').length < 2)
+    throw new LocalToolError(
+      'An abstraction rests on at least two notes about this project, not only on what the reader said about themselves.',
+    )
+  const [first, ...rest] = notes
+  const shared = (first?.tags ?? []).filter(name => rest.every(note => note.tags.includes(name)))
+  if (shared.length)
+    throw new LocalToolError(
+      `These notes all sit under ${shared.join(', ')}: together they summarize one subject. An abstraction is a pattern across subjects; add notes from elsewhere that show it, or file nothing.`,
+    )
+}
+
 // Abstracting: what holds across several notes, filed as a note of its own that points to them.
 export const createAbstractTools = (projectKey: string, lastRunAt: number | null) => {
   const memos = createMemoTools(projectKey, lastRunAt)
@@ -143,8 +163,7 @@ export const createAbstractTools = (projectKey: string, lastRunAt: number | null
       }),
       async ({ fromIds, text, tags, scope }) => {
         const notes = await liveNotes(projectKey, [...new Set(fromIds)])
-        if (notes.length < 2)
-          throw new LocalToolError('An abstraction rests on at least two notes.')
+        checkGrounds(notes)
         const note = newNote(projectKey, {
           text: text.trim(),
           scope,
@@ -165,8 +184,13 @@ export const createAbstractTools = (projectKey: string, lastRunAt: number | null
         addFromIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { maxItems: 20 })),
       }),
       async ({ id, text, addFromIds = [] }) => {
-        await abstraction(id)
+        const current = await abstraction(id)
         const added = await liveNotes(projectKey, [...new Set(addFromIds)])
+        // Notes it rested on that have since been merged away no longer count.
+        const kept = (await visibleNotes(projectKey)).filter(note =>
+          current.derivedFrom?.includes(note.id),
+        )
+        checkGrounds([...kept, ...added.filter(note => !kept.includes(note))])
         await reviseMemory(id, note => ({
           ...note,
           text: text?.trim() ?? note.text,

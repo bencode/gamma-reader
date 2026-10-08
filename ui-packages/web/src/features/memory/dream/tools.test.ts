@@ -96,7 +96,7 @@ describe('dream tools', () => {
 
   it('draws an abstraction that points to its notes and leaves them as they were', async () => {
     await saveMemory(note('a', '换零钱的树形递归靠调用树图示才懂'))
-    await saveMemory(note('b', '汉诺塔看了动画才明白'))
+    await saveMemory(note('b', '画了事件循环时序图才懂协程', { tags: ['Python'] }))
     const abstract = createAbstractTools(project, null)
 
     const { id } = await runTool(abstract, 'derive_memo', {
@@ -114,10 +114,31 @@ describe('dream tools', () => {
     })
     expect(entries.filter(entry => entry.id !== id).map(entry => entry.text)).toEqual([
       '换零钱的树形递归靠调用树图示才懂',
-      '汉诺塔看了动画才明白',
+      '画了事件循环时序图才懂协程',
     ])
     await expect(
       runTool(abstract, 'update_derived', { id: 'a', text: 'rewritten' }),
     ).rejects.toBeInstanceOf(LocalToolError)
+  })
+
+  it('refuses an abstraction resting on one subject, on preferences, or on abstractions', async () => {
+    await saveMemory(note('s1', 'Understands tail calls'))
+    await saveMemory(note('s2', 'Understands tree recursion'))
+    await saveMemory(note('p1', 'Learns from pictures', { tags: ['Python'] }))
+    await saveMemory(note('r1', 'Prefers short answers', { scope: 'reader', tags: ['Python'] }))
+    await saveMemory(note('r2', 'Prefers Scheme examples', { scope: 'reader' }))
+    await saveMemory(note('d1', 'Needs pictures', { tags: ['Python'], derivedFrom: ['s1', 'p1'] }))
+    const derive = (fromIds: string[]) =>
+      runTool(createAbstractTools(project, null), 'derive_memo', {
+        fromIds,
+        text: 'x',
+        tags: ['SICP'],
+        scope: 'reader',
+      })
+
+    await expect(derive(['s1', 's2'])).rejects.toThrow(/sit under SICP/)
+    await expect(derive(['r1', 'r2'])).rejects.toThrow(/two notes about this project/)
+    await expect(derive(['d1', 's2'])).rejects.toThrow(/not on other abstractions/)
+    await expect(derive(['s1', 'p1'])).resolves.toMatchObject({ id: expect.any(String) })
   })
 })
