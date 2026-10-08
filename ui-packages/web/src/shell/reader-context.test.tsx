@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type { StoredFileMetadata } from '../core/files'
 import { moveStoredFile, updateStoredTextFile, writeStoredTextFile } from '../data/file-store'
-import type { LocalTools } from '../features/agent/local-tools'
+import type { LocalTools } from '../features/assistant/local-tools'
 import { useWorkspace } from './use-workspace'
 import { useLocalTools, useReaderBinding, WorkspaceProvider } from './workspace-context'
 

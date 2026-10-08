@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { runBackgroundAgent } from '../../agent/background'
+import { runBackgroundAgent } from '../../../core/agent/background'
+import { workspaceDatabaseName } from '../../../data/workspace-database'
 import { curatorAgent } from '../curator/agent'
 import { abstractAgent, tidyAgent } from '../dream/agents'
 import { listMemories, listTags, readProgress } from '../store'
@@ -58,7 +59,9 @@ describe(`memory agents against the real model, set ${dataset.name}`, () => {
   it('curator: conversations into notes', async () => {
     const rows = await repeat(async () => {
       const counts = await seedConversations(dataset)
-      const run = await runBackgroundAgent(curatorAgent, { untilDone: true })
+      const run = await runBackgroundAgent(curatorAgent, workspaceDatabaseName(), {
+        untilDone: true,
+      })
       const progress = await readProgress(projectKey)
       return {
         ...spent(run),
@@ -74,7 +77,7 @@ describe(`memory agents against the real model, set ${dataset.name}`, () => {
         dataset,
         dataset.memos.map(seed => seed.id),
       )
-      const run = await runBackgroundAgent(tidyAgent)
+      const run = await runBackgroundAgent(tidyAgent, workspaceDatabaseName())
       return { ...spent(run), ...measureTidy(dataset, await listMemories(), await listTags()) }
     })
     await report(`tidy, set ${dataset.name}`, rows)
@@ -83,7 +86,7 @@ describe(`memory agents against the real model, set ${dataset.name}`, () => {
   it('abstract: patterns across tidy notes', async () => {
     const rows = await repeat(async () => {
       await seedMemos(dataset, tidiedIds(dataset))
-      const run = await runBackgroundAgent(abstractAgent)
+      const run = await runBackgroundAgent(abstractAgent, workspaceDatabaseName())
       return { ...spent(run), ...measureAbstract(dataset, await listMemories()) }
     })
     await report(`abstract, set ${dataset.name}`, rows)

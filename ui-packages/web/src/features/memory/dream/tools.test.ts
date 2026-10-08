@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { LocalToolError } from '../../agent/tool-types'
+import { LocalToolError } from '../../../core/agent/tool'
 import { runTool } from '../curator/fixtures'
 import type { MemoryEntry } from '../entry'
 import { setMemoryEnabled } from '../settings'

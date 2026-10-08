@@ -3,13 +3,6 @@ import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelReference, PublicModelConfig } from '@gamma-reader/shared/model-config'
 import { nanoid } from 'nanoid'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { loadModelConfig } from '../../config/model-config'
-import { readableProxyError } from '../../core/agent/proxy-error'
-import {
-  type ConversationAttachment,
-  createReaderUserMessage,
-  isReaderUserMessage,
-} from '../../core/agent/reader-message'
 import {
   type ConversationDraft,
   type ConversationId,
@@ -20,6 +13,15 @@ import {
   type StoredConversation,
   type TitleSource,
 } from '../../core/conversations'
+import { loadModelConfig } from '../../core/models/model-config'
+import { createModelRuntime, type ModelRuntime } from '../../core/models/model-runtime'
+import { resolveModelSelection } from '../../core/models/model-selection'
+import { readableProxyError } from '../../core/models/proxy-error'
+import {
+  type ConversationAttachment,
+  createReaderUserMessage,
+  isReaderUserMessage,
+} from '../../core/reader-message'
 import {
   appendStoredConversationMessages,
   getStoredConversation,
@@ -30,14 +32,12 @@ import {
   touchStoredConversation,
 } from '../../data/conversation-store'
 import { workspaceStorageBases, workspaceStorageKey } from '../../data/workspace-database'
-import { generateConversationTitle } from '../agent/conversation-title'
-import { conversationMessages, createReaderAgent } from '../agent/create-reader-agent'
-import type { LocalTools } from '../agent/local-tools'
-import { createModelRuntime, type ModelRuntime } from '../agent/model-runtime'
-import { withWebSearch } from '../agent/web-tools'
+import { generateConversationTitle } from '../assistant/conversation-title'
+import { conversationMessages, createReaderAgent } from '../assistant/create-reader-agent'
+import type { LocalTools } from '../assistant/local-tools'
+import { withWebSearch } from '../assistant/web-tools'
 import { useMemoryEnabled } from '../memory'
 import type { FileLibrary } from '../resources/use-file-library'
-import { resolveModelSelection } from './model-selection'
 import { type TokenUsage, tokenUsage } from './token-usage'
 import { useDraftAttachments } from './use-draft-attachments'
 

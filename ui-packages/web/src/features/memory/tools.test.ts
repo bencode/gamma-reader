@@ -1,6 +1,6 @@
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import { afterEach, describe, expect, it } from 'vitest'
-import { LocalToolError } from '../agent/tool-types'
+import { LocalToolError } from '../../core/agent/tool'
 import { answer, reader, seedConversation, toolResult } from './curator/fixtures'
 import { setMemoryEnabled } from './settings'
 import { saveMemory } from './store'

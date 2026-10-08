@@ -1,7 +1,6 @@
 import { Type } from '@earendil-works/pi-ai'
 import { nanoid } from 'nanoid'
-import { bind } from '../agent/tool'
-import { LocalToolError } from '../agent/tool-types'
+import { bind, LocalToolError } from '../../core/agent/tool'
 import { findTag, type MemoryEntry, sourceConversations, visibleMemories } from './entry'
 import { settingsHint } from './prompt'
 import { searchMemories } from './search'

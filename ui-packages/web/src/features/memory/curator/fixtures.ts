@@ -1,7 +1,7 @@
 import type { AgentMessage, AgentTool } from '@earendil-works/pi-agent-core'
 import type { AssistantMessage, ToolResultMessage } from '@earendil-works/pi-ai'
-import { createReaderUserMessage } from '../../../core/agent/reader-message'
 import { emptyConversationDraft } from '../../../core/conversations'
+import { createReaderUserMessage } from '../../../core/reader-message'
 import {
   appendStoredConversationMessages,
   saveStoredConversationDraft,

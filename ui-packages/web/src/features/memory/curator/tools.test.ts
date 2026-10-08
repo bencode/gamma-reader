@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LocalToolError } from '../../agent/tool-types'
+import { LocalToolError } from '../../../core/agent/tool'
 import { listMemories } from '../store'
 import { answer, reader, runTool, seedConversation, toolResult } from './fixtures'
 import { createCuratorTools } from './tools'

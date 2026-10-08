@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
+import { runBackgroundAgent, useBackgroundStatus } from '../../core/agent/background'
 import { workspaceDatabaseName } from '../../data/workspace-database'
-import { runBackgroundAgent, useBackgroundStatus } from '../agent/background'
 import { curatorAgent } from './curator/agent'
 import { pendingConversations } from './curator/pending'
 import { abstractAgent, tidyAgent } from './dream/agents'
@@ -59,7 +59,9 @@ export const CurationStatus = ({ active }: { active: boolean }) => {
         type="button"
         className="secondary-button"
         disabled={running || !waiting}
-        onClick={() => void runBackgroundAgent(curatorAgent, { untilDone: true })}
+        onClick={() =>
+          void runBackgroundAgent(curatorAgent, workspaceDatabaseName(), { untilDone: true })
+        }
       >
         Organize now
       </button>
@@ -95,7 +97,9 @@ export const ReorganizeStatus = () => {
         className="secondary-button"
         disabled={running}
         onClick={() =>
-          void runBackgroundAgent(tidyAgent).then(() => runBackgroundAgent(abstractAgent))
+          void runBackgroundAgent(tidyAgent, workspaceDatabaseName()).then(() =>
+            runBackgroundAgent(abstractAgent, workspaceDatabaseName()),
+          )
         }
       >
         Reorganize now

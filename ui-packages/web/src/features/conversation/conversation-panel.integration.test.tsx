@@ -3,8 +3,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ConversationAttachment } from '../../core/agent/reader-message'
 import { emptyConversationDraft } from '../../core/conversations'
+import type { ConversationAttachment } from '../../core/reader-message'
 import {
   countStoredConversations,
   getStoredConversation,

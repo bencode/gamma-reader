@@ -1,7 +1,6 @@
 import { Type } from '@earendil-works/pi-ai'
 import { nanoid } from 'nanoid'
-import { bind } from '../../agent/tool'
-import { LocalToolError } from '../../agent/tool-types'
+import { bind, LocalToolError } from '../../../core/agent/tool'
 import type { MemoryEntry, MemoSource } from '../entry'
 import { createMemoTools, filedUnder, visibleNote } from '../memo-tools'
 import { markProgress, reviseMemory, saveMemory } from '../store'

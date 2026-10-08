@@ -19,7 +19,7 @@ import {
   useWorkspaceSourceActions,
   WorkspaceProvider,
 } from '../../../shell/workspace-context'
-import type { LocalTools } from '../../agent/local-tools'
+import type { LocalTools } from '../../assistant/local-tools'
 import { MarkdownReader } from '../markdown-reader'
 import { TextFileReader, type TextReaderDefinition } from '../text-file-reader'
 

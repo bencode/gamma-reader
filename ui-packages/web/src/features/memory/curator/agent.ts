@@ -1,4 +1,4 @@
-import type { BackgroundAgent } from '../../agent/background'
+import type { BackgroundAgent } from '../../../core/agent/background'
 import { memoryEnabled } from '../settings'
 import instructions from './curator.md?raw'
 import { pendingConversations } from './pending'

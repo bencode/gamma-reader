@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { runBackgroundAgent } from '../../../core/agent/background'
+import { workspaceDatabaseName } from '../../../data/workspace-database'
 import { modelConfig } from '../../../test/model-config'
-import { runBackgroundAgent } from '../../agent/background'
 import { setMemoryEnabled } from '../settings'
 import { listMemories, listTags, readProgress } from '../store'
 import { curatorAgent } from './agent'
@@ -74,7 +75,7 @@ describe('curator', () => {
       reader('还是不太明白'),
     ])
 
-    const run = await runBackgroundAgent(curatorAgent)
+    const run = await runBackgroundAgent(curatorAgent, workspaceDatabaseName())
 
     expect(run).toMatchObject({ turns: 6 })
     expect(requests[0]).toContain('long-term memory')
@@ -93,7 +94,7 @@ describe('curator', () => {
 
   it('does nothing while memory is off', async () => {
     const fetchModel = vi.spyOn(globalThis, 'fetch')
-    expect(await runBackgroundAgent(curatorAgent)).toBeNull()
+    expect(await runBackgroundAgent(curatorAgent, workspaceDatabaseName())).toBeNull()
     expect(fetchModel).not.toHaveBeenCalled()
   })
 })

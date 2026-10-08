@@ -1,5 +1,5 @@
+import { type BackgroundAgent, pendingWork, runBackgroundAgent } from '../core/agent/background'
 import { workspaceDatabaseName } from '../data/workspace-database'
-import { type BackgroundAgent, pendingWork, runBackgroundAgent } from '../features/agent/background'
 import { abstractAgent, curatorAgent, tidyAgent } from '../features/memory'
 
 // The agents that work on their own when a project opens. A new one is a line here.
@@ -9,7 +9,8 @@ const ranKey = (projectKey: string) => `gamma-reader.background:${projectKey}`
 
 // Once per project in a tab: a reload does not start them again, a new tab does.
 export const runBackgroundAgentsOnOpen = async () => {
-  const key = ranKey(workspaceDatabaseName())
+  const projectKey = workspaceDatabaseName()
+  const key = ranKey(projectKey)
   try {
     if (sessionStorage.getItem(key)) return
     sessionStorage.setItem(key, String(Date.now()))
@@ -20,5 +21,5 @@ export const runBackgroundAgentsOnOpen = async () => {
   // In order, each only when it has work: the curator's notes are what tidying and abstracting
   // look at.
   for (const agent of backgroundAgents)
-    if ((await pendingWork(agent)) > 0) await runBackgroundAgent(agent)
+    if ((await pendingWork(agent, projectKey)) > 0) await runBackgroundAgent(agent, projectKey)
 }

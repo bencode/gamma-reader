@@ -1,5 +1,5 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
-import { isReaderUserMessage } from '../../core/agent/reader-message'
+import { isReaderUserMessage } from '../../core/reader-message'
 import { getStoredConversation } from '../../data/conversation-store'
 
 export type TranscriptLine = { position: number; role: 'reader' | 'assistant'; text: string }

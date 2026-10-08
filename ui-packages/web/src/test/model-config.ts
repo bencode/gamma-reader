@@ -1,5 +1,5 @@
 import type { PublicModelConfig } from '@gamma-reader/shared/model-config'
-import { titlePrompt } from '../features/agent/conversation-title'
+import { titlePrompt } from '../features/assistant/conversation-title'
 
 export const modelConfig = {
   enabled: true,
