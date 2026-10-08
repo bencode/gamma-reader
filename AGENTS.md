@@ -23,7 +23,7 @@ Web and server never import each other's code. A contract both sides use belongs
 | `core/` | Stable system mechanisms and shared contracts: file, project and conversation models, reading state, import rules, the agent framework (`core/agent`), the model runtime (`core/models`) | `utils`, `formats` |
 | `data/` | IndexedDB persistence and network downloads | `utils`, `formats`, `core` |
 | `components/` | Generic UI | `utils`, `formats`, `core` |
-| `features/<name>/` | One feature each, such as the reading assistant (`features/assistant`), memory, reader, resources | everything above |
+| `features/<name>/` | One feature each, such as the workspace runtime (`features/workspace`), the reading assistant (`features/assistant`), memory, reader, resources | everything above |
 | `shell/` | Composes the app | everything |
 
 ```text
@@ -33,4 +33,5 @@ utils ← formats ← core ← data ← features ← shell
 
 - Imports point down the table only. Features may use one another, but never in a cycle.
 - Put a module in `core/` only when it is a mechanism or contract the app as a whole stands on. Code that serves one feature lives in that feature's folder; a helper with no app knowledge goes in `utils/`.
-- Known exceptions still to be resolved: some features import the workspace context from `shell/`, and `features/resources` and `features/projects` import each other.
+- `features/workspace` holds open tabs, source drafts and the context readers and the assistant act through. Reader, resources and conversation build on it; it uses only assistant, links and memory, none of which import it.
+- Nothing imports `shell/` except `main.tsx`. When one feature's component needs another's, `shell/` composes them and passes the result in, as the workbench does with the project menu.

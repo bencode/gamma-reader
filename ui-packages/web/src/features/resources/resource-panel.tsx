@@ -1,15 +1,13 @@
 import { PanelLeft, X } from 'lucide-react'
-import { type DragEvent, useEffect, useRef, useState } from 'react'
+import { type DragEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import type { StoredFileMetadata } from '../../core/files'
 import type { Project } from '../../core/projects'
 import { normalizeSearchText } from '../../utils/text'
 import { IndexStatus } from '../links/index-status'
 import type { NoteIndexStore } from '../links/use-note-index'
-import { ProjectSwitcher } from '../projects/project-switcher'
 import { SourceSaveControl } from '../source/source-save-control'
 import { SourceSyncStatus } from '../source/sync-status'
 import type { SourceSync } from '../source/use-source-sync'
-import { viewTabId } from '../workspace/view-tab'
 import { useSourceDrafts } from '../workspace/workspace-context'
 import { sourceDirty } from '../workspace/workspace-store'
 import { AddFromUrlDialog } from './add-from-url-dialog'
@@ -32,6 +30,8 @@ import type { FileLibrary } from './use-file-library'
 
 type ResourcePanelProps = {
   project: Project
+  // The project menu, which the workbench builds.
+  switcher: ReactNode
   activeId: string | null
   library: FileLibrary
   exporter: FileExportController
@@ -54,6 +54,7 @@ const droppedFolderEntries = (transfer: DataTransfer) => {
 
 export const ResourcePanel = ({
   project,
+  switcher,
   activeId,
   library,
   exporter,
@@ -136,12 +137,7 @@ export const ResourcePanel = ({
       onDrop={dropFiles}
     >
       <header className="panel-header brand-header">
-        <ProjectSwitcher
-          project={project}
-          fileCount={library.files.length}
-          exporter={exporter}
-          onOpenMemory={() => onOpen(viewTabId('memory'))}
-        />
+        {switcher}
         <button
           className="icon-button"
           type="button"
