@@ -23,8 +23,9 @@ import {
   updateStoredTextFile,
   writeStoredTextFile,
 } from '../../data/file-store'
-import { downloadFile, downloadRepository, RemoteFileError } from '../../data/remote-files'
+import { downloadRepository, RemoteFileError } from '../../data/remote-files'
 import { requestPersistentStorage } from '../../data/workspace-database'
+import { downloadPage } from './page-import'
 
 type LibraryStatus = { message: string }
 
@@ -265,8 +266,8 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
     }
   }
 
-  // A GitHub folder comes in as a chosen folder would. A single file resolves to its id, so it can
-  // be opened, unless the duplicate question is still open.
+  // A GitHub folder comes in as a chosen folder would. A file, or a web page with its images,
+  // resolves to the id of the file to open, unless the duplicate question is still open.
   const addFromUrl = async (target: ImportTarget) => {
     if (importing) return undefined
     if (target.kind === 'repository') {
@@ -280,10 +281,16 @@ export const useFileLibrary = (prepareFile: (file: File) => File = keepFile) => 
       if (selection) await settleFolder(selection)
       return undefined
     }
-    const file = await download(target.name, () => downloadFile(target))
-    if (!file) return undefined
-    const result = await queueImport({ sources: rootSources([file]), skipped: null })
-    return result?.addedIds[0] ?? result?.replacedIds[0]
+    const sources = await download(target.name, () =>
+      downloadPage(target, (done, total) =>
+        setProgress(
+          `Downloading ${target.name}… ${done.toLocaleString()} of ${total.toLocaleString()} images`,
+        ),
+      ),
+    )
+    if (!sources) return undefined
+    const result = await queueImport({ sources, skipped: null })
+    return result?.imported.find(item => item.sourceIndex === 0)?.metadata.id
   }
 
   const resolveDuplicates = (choice: DuplicateChoice | null) => {

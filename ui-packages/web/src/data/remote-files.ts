@@ -1,6 +1,7 @@
 import { baseName, type ImportSource } from '../core/files'
 import { type FolderSelection, selectFolderFiles } from '../core/folder-import'
 import type { ImportTarget } from '../core/url-import'
+import { mapWithLimit } from '../utils/map-with-limit'
 
 // A sentence for the reader saying why an address could not be downloaded.
 export class RemoteFileError extends Error {}
@@ -22,14 +23,20 @@ const request = async (url: string) => {
   throw new RemoteFileError(`The site returned HTTP ${response.status}.`)
 }
 
-export const downloadFile = async (target: Extract<ImportTarget, { kind: 'file' }>) => {
+// The file with the address it was finally served from, which a page's relative links start at.
+export const fetchRemoteFile = async (target: Extract<ImportTarget, { kind: 'file' }>) => {
   const response = await request(target.url)
   const type = response.headers.get('content-type')?.split(';')[0]?.trim() ?? ''
   // An address such as a DOI landing link rarely ends in the extension that says what it holds.
   const name =
     type === 'application/pdf' && !/\.pdf$/i.test(target.name) ? `${target.name}.pdf` : target.name
-  return new File([await response.blob()], name, { type })
+  return { file: new File([await response.blob()], name, { type }), url: response.url }
 }
+
+export const downloadFile = async (target: Extract<ImportTarget, { kind: 'file' }>) =>
+  (await fetchRemoteFile(target)).file
+
+export const fetchRemoteBlob = async (url: string) => (await request(url)).blob()
 
 type TreeItem = { path: string; type: string; size?: number }
 type Tree = { truncated: boolean; tree: TreeItem[] }
@@ -41,22 +48,6 @@ const isTree = (value: unknown): value is Tree =>
   Array.isArray(value.tree) &&
   'truncated' in value &&
   typeof value.truncated === 'boolean'
-
-// A few downloads at a time keeps a large folder from opening hundreds of connections at once.
-const mapWithLimit = async <T, R>(
-  items: readonly T[],
-  limit: number,
-  map: (item: T) => Promise<R>,
-) => {
-  const results: R[] = []
-  let next = 0
-  const work = async () => {
-    for (let index = next++; index < items.length; index = next++)
-      results[index] = await map(items[index] as T)
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, work))
-  return results
-}
 
 const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/')
 

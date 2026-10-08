@@ -1,4 +1,5 @@
 import type { ImageContent } from '@earendil-works/pi-ai'
+import { encodeBase64 } from '../utils/base64'
 
 export const maximumVisionImageBytes = 8 * 1024 * 1024
 export const maximumVisionImageSide = 4096
@@ -30,14 +31,6 @@ export const fitScale = (width: number, height: number, maximumPixels: number) =
     maximumVisionImageSide / height,
     Math.sqrt(maximumPixels / (width * height)),
   )
-
-const encodeBase64 = async (blob: Blob) => {
-  const bytes = new Uint8Array(await blob.arrayBuffer())
-  const chunks: string[] = []
-  for (let offset = 0; offset < bytes.length; offset += 0x8000)
-    chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 0x8000)))
-  return btoa(chunks.join(''))
-}
 
 const encodeCanvas = (canvas: HTMLCanvasElement, mimeType: string) =>
   new Promise<Blob>((resolve, reject) => {
