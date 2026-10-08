@@ -2,8 +2,9 @@ import type { BackgroundAgent, BackgroundContext } from '../../agent/background'
 import { visibleNotes } from '../memo-tools'
 import { memoryEnabled } from '../settings'
 import abstractInstructions from './abstract.md?raw'
+import { createAbstractTools } from './abstract-tools'
 import tidyInstructions from './tidy.md?raw'
-import { createAbstractTools, createTidyTools } from './tools'
+import { createTidyTools } from './tidy-tools'
 
 const day = 24 * 60 * 60 * 1000
 

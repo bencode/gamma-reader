@@ -5,7 +5,8 @@ import type { MemoryEntry } from '../entry'
 import { setMemoryEnabled } from '../settings'
 import { listMemories, listTags, restoreMerged, saveMemory, saveTag } from '../store'
 import { createMemoryTools } from '../tools'
-import { createAbstractTools, createTidyTools } from './tools'
+import { createAbstractTools } from './abstract-tools'
+import { createTidyTools } from './tidy-tools'
 
 const project = 'gamma-reader-project-sicp'
 const note = (id: string, text: string, fields: Partial<MemoryEntry> = {}): MemoryEntry => ({

@@ -118,6 +118,14 @@ const runOnce = async (
   return run
 }
 
+const failedRun = (error: unknown): BackgroundRun => ({
+  at: Date.now(),
+  turns: 0,
+  tokens: 0,
+  stoppedBy: 'error',
+  error: error instanceof Error ? error.message : String(error),
+})
+
 // One run, or runs one after another until no work is left; each run starts a fresh agent, so a
 // long backlog never piles up in one context. Another tab running it on the same project wins.
 export const runBackgroundAgent = async (
@@ -160,13 +168,7 @@ export const runBackgroundAgent = async (
         return run
       } catch (error) {
         console.error(`Background agent ${agent.name} failed`, error)
-        const run = {
-          at: Date.now(),
-          turns: 0,
-          tokens: 0,
-          stoppedBy: 'error' as const,
-          error: error instanceof Error ? error.message : String(error),
-        }
+        const run = failedRun(error)
         setStatus(agent.name, { running: false, lastRun: run })
         return run
       }
