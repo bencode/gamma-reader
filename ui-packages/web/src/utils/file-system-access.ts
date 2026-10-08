@@ -1,5 +1,4 @@
-import { baseName } from '../utils/path'
-import type { StoredFileMetadata } from './files'
+import { baseName } from './path'
 
 type FileSystemPermissionMode = 'read' | 'readwrite'
 type FileSystemPermissionState = 'denied' | 'granted' | 'prompt'
@@ -23,24 +22,9 @@ type FilePickerWindow = Window & {
   showSaveFilePicker?: (options?: SaveFilePickerOptions) => Promise<FileSystemFileHandle>
 }
 
-export type ExportedFileVersion = Pick<StoredFileMetadata, 'id' | 'path' | 'revision'>
-
-export type FolderExportRecord = {
-  id: 'files'
-  directory: WritableDirectoryHandle
-  savedFiles: ExportedFileVersion[]
-  savedAt: number
-}
-
-const pickerWindow = () => window as FilePickerWindow
+export const pickerWindow = () => window as FilePickerWindow
 
 export const folderExportSupported = () => typeof pickerWindow().showDirectoryPicker === 'function'
-
-export const pickExportDirectory = async (startIn?: WritableDirectoryHandle) => {
-  const picker = pickerWindow().showDirectoryPicker
-  if (!picker) throw new Error('Saving folders is not supported in this browser.')
-  return picker({ id: 'gamma-reader-files', mode: 'readwrite', startIn })
-}
 
 export const ensureDirectoryWritePermission = async (directory: WritableDirectoryHandle) => {
   if (!directory.queryPermission) return true
@@ -55,7 +39,7 @@ const folderSegments = (path: string) => path.split('/').slice(0, -1)
 
 // Something already standing on the path counts, whether it is the file itself or a file where
 // one of its folders would go.
-const directoryContains = async (directory: FileSystemDirectoryHandle, path: string) => {
+export const directoryContains = async (directory: FileSystemDirectoryHandle, path: string) => {
   try {
     let folder = directory
     for (const segment of folderSegments(path)) folder = await folder.getDirectoryHandle(segment)
@@ -66,20 +50,6 @@ const directoryContains = async (directory: FileSystemDirectoryHandle, path: str
     if (error instanceof DOMException && error.name === 'TypeMismatchError') return true
     throw error
   }
-}
-
-export const findDirectoryConflicts = async (
-  directory: FileSystemDirectoryHandle,
-  files: readonly StoredFileMetadata[],
-  savedFiles: readonly ExportedFileVersion[],
-) => {
-  const managed = new Set(savedFiles.map(file => `${file.id}\0${file.path}`))
-  const conflicts: string[] = []
-  for (const file of files) {
-    if (managed.has(`${file.id}\0${file.path}`)) continue
-    if (await directoryContains(directory, file.path)) conflicts.push(file.path)
-  }
-  return conflicts
 }
 
 const writeBlob = async (handle: FileSystemFileHandle, blob: Blob) => {

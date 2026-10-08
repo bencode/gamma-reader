@@ -1,7 +1,7 @@
 import { getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy } from 'pdfjs-dist'
 import type { TextContent } from 'pdfjs-dist/types/src/display/api'
-import { documentPagePixels, fitScale } from '../../../core/image-input'
 import { pdfDocumentOptions } from '../../../pdfjs'
+import { documentPagePixels, fitScale } from '../image-input'
 
 const maximumPageTextBytes = 8 * 1024 * 1024
 const operationTimeoutMs = 30_000

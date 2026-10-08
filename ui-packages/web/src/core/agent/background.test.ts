@@ -1,9 +1,10 @@
 import { Type } from '@earendil-works/pi-ai'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { workspaceDatabaseName } from '../../data/workspace-database'
 import { modelConfig } from '../../test/model-config'
 import { type BackgroundAgent, runBackgroundAgent } from './background'
 import { bind } from './tool'
+
+const project = 'gamma-reader-files'
 
 const event = (delta: unknown, finish: string | null = null) =>
   `data: ${JSON.stringify({ id: 'reply', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
@@ -53,14 +54,12 @@ describe('background agents', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async input =>
       String(input) === '/api/agent/config' ? Response.json(modelConfig) : call(),
     )
-    expect(
-      await runBackgroundAgent(worker({ name: 'endless' }), workspaceDatabaseName()),
-    ).toMatchObject({
+    expect(await runBackgroundAgent(worker({ name: 'endless' }), project)).toMatchObject({
       turns: 3,
       stoppedBy: 'limit',
     })
     // Cut short, it has not finished: the next run starts from the same changes.
-    expect(localStorage.getItem('gamma-reader.agent-run:endless:gamma-reader-files')).toBeNull()
+    expect(localStorage.getItem(`gamma-reader.agent-run:endless:${project}`)).toBeNull()
   })
 
   it('notes when a run finished, but not a run that failed', async () => {
@@ -68,9 +67,9 @@ describe('background agents', () => {
       String(input) === '/api/agent/config' ? Response.json(modelConfig) : reply(),
     )
     const before = Date.now()
-    await runBackgroundAgent(worker({ name: 'noted' }), workspaceDatabaseName())
+    await runBackgroundAgent(worker({ name: 'noted' }), project)
     expect(
-      Number(localStorage.getItem('gamma-reader.agent-run:noted:gamma-reader-files')),
+      Number(localStorage.getItem(`gamma-reader.agent-run:noted:${project}`)),
     ).toBeGreaterThanOrEqual(before)
 
     vi.spyOn(globalThis, 'fetch').mockImplementation(async input =>
@@ -78,8 +77,8 @@ describe('background agents', () => {
         ? Response.json(modelConfig)
         : new Response('down', { status: 500 }),
     )
-    await runBackgroundAgent(worker({ name: 'failing' }), workspaceDatabaseName())
-    expect(localStorage.getItem('gamma-reader.agent-run:failing:gamma-reader-files')).toBeNull()
+    await runBackgroundAgent(worker({ name: 'failing' }), project)
+    expect(localStorage.getItem(`gamma-reader.agent-run:failing:${project}`)).toBeNull()
   })
 
   it('runs until no work is left, and stops when a run makes no headway', async () => {
@@ -92,18 +91,16 @@ describe('background agents', () => {
     const backlog = [3, 2, 0]
     const drained = await runBackgroundAgent(
       worker({ name: 'draining', pending: async () => backlog.shift() ?? 0 }),
-      workspaceDatabaseName(),
+      project,
       { untilDone: true },
     )
     expect(runs).toHaveLength(2)
     expect(drained).toMatchObject({ turns: 2 })
 
     runs.length = 0
-    await runBackgroundAgent(
-      worker({ name: 'stuck', pending: async () => 2 }),
-      workspaceDatabaseName(),
-      { untilDone: true },
-    )
+    await runBackgroundAgent(worker({ name: 'stuck', pending: async () => 2 }), project, {
+      untilDone: true,
+    })
     expect(runs).toHaveLength(1)
   })
 })

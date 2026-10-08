@@ -1,5 +1,5 @@
 import type { ImageContent } from '@earendil-works/pi-ai'
-import { encodeBase64 } from '../utils/base64'
+import { encodeBase64 } from '../../utils/base64'
 
 export const maximumVisionImageBytes = 8 * 1024 * 1024
 export const maximumVisionImageSide = 4096

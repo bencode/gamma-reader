@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { findDirectoryConflicts, saveBlobAs, writeBlobToDirectory } from './file-export'
-import type { StoredFileMetadata } from './files'
+import type { StoredFileMetadata } from '../../core/files'
+import { saveBlobAs, writeBlobToDirectory } from '../../utils/file-system-access'
+import { findDirectoryConflicts } from './folder-export'
 
 const metadata = (id: string, path: string): StoredFileMetadata => ({
   id,

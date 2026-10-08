@@ -6,12 +6,12 @@ import {
   customProviderId,
   customProviderKey,
 } from '../../../core/models/byok/catalog'
-import { type DiscoveryFailure, listModels } from '../../../core/models/byok/discover'
 import {
   removeUserProvider,
   saveUserProvider,
   useUserProviders,
 } from '../../../core/models/byok/store'
+import { type DiscoveryFailure, listModels } from './discover'
 import styles from './style.module.scss'
 
 const failureText: Record<DiscoveryFailure, string> = {

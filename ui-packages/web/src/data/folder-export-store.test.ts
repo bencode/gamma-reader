@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { FolderExportRecord, WritableDirectoryHandle } from '../core/file-export'
+import type { WritableDirectoryHandle } from '../utils/file-system-access'
 import { getFolderExport, putFolderExport } from './folder-export-store'
+import type { FolderExportRecord } from './workspace-database'
 
 describe('folder export store', () => {
   it('persists the selected directory and saved file revisions', async () => {
