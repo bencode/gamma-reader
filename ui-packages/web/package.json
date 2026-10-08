@@ -8,6 +8,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
+    "eval:memory": "vitest run --project eval",
     "build": "tsc -p tsconfig.json && vite build"
   },
   "dependencies": {
@@ -33,6 +34,7 @@
     "lucide-react": "^1.46.0",
     "mammoth": "^1.12.3",
     "mermaid": "^12.0.0",
+    "minisearch": "^7.2.0",
     "nanoid": "^6.0.1",
     "p5": "^2.3.3",
     "pdfjs-dist": "^6.3.289",

@@ -13,6 +13,7 @@ import {
 } from '../../data/file-store'
 import { modelConfig } from '../../test/model-config'
 import { resolveModelSelection } from '../conversation/model-selection'
+import { setMemoryEnabled } from '../memory/settings'
 import {
   conversationMessages,
   createReaderAgent,
@@ -409,6 +410,45 @@ describe('reader agent', () => {
     } finally {
       globalThis.createImageBitmap = previous
     }
+  })
+
+  it('gives a preference the reader asked to remember to their next conversation', async () => {
+    const requests: Array<{ messages: unknown[]; tools?: Array<{ function: { name: string } }> }> =
+      []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      requests.push(JSON.parse(String(init?.body)))
+      return requests.length === 1
+        ? call('remember', {
+            text: 'The reader prefers short answers in Chinese',
+            scope: 'reader',
+            core: true,
+          })
+        : reply('Noted.')
+    })
+    setMemoryEnabled(true)
+    await createReaderAgent(config, localTools(), session).prompt(
+      'Remember that I prefer short answers in Chinese',
+    )
+    await createReaderAgent(config, localTools(), { ...session, id: 'next' }).prompt('Hello')
+
+    const system = (request?: { messages: unknown[] }) => JSON.stringify(request?.messages[0])
+    expect(requests[0]?.tools?.map(tool => tool.function.name)).toContain('recall_memory')
+    expect(system(requests[0])).not.toContain('prefers short answers')
+    expect(system(requests.at(-1))).toContain('The reader prefers short answers in Chinese')
+  })
+
+  it('leaves memory out while it is off', async () => {
+    const requests: Array<{ messages: unknown[] }> = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      requests.push(JSON.parse(String(init?.body)))
+      return reply('Hello.')
+    })
+    setMemoryEnabled(false)
+    const agent = createReaderAgent(config, localTools(), session)
+    await agent.prompt('Hello')
+
+    expect(agent.state.tools.map(tool => tool.name)).not.toContain('remember')
+    expect(JSON.stringify(requests[0]?.messages[0])).not.toContain('## Memory')
   })
 
   it('keeps PDF text tools available without a vision model', () => {

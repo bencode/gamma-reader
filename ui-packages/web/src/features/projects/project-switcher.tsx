@@ -63,7 +63,12 @@ const RenameForm = ({
 }
 
 type ProjectSwitcherProps =
-  | { project: Project; fileCount: number; exporter: FileExportController }
+  | {
+      project: Project
+      fileCount: number
+      exporter: FileExportController
+      onOpenMemory: () => void
+    }
   | { project: null }
 
 export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
@@ -180,7 +185,6 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
                   >
                     View storage
                   </button>
-                  <div className={styles.separator} />
                   <button
                     type="button"
                     onClick={() => {
@@ -189,6 +193,20 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
                     }}
                   >
                     Delete project…
+                  </button>
+                </>
+              )}
+              {props.project && (
+                <>
+                  <div className={styles.separator} />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false)
+                      props.onOpenMemory()
+                    }}
+                  >
+                    Memory
                   </button>
                 </>
               )}

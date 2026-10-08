@@ -18,6 +18,7 @@ import { useFileExport } from '../features/resources/use-file-export'
 import { useFileLibrary } from '../features/resources/use-file-library'
 import { SaveDeletionsDialog, SourceSaveControl } from '../features/source/source-save-control'
 import { useSourceSync } from '../features/source/use-source-sync'
+import { runBackgroundAgentsOnOpen } from './background-agents'
 import { usePanelWidths } from './use-panel-widths'
 import { useWorkspace } from './use-workspace'
 import { WorkspaceProvider } from './workspace-context'
@@ -68,6 +69,13 @@ export const Workbench = ({ project }: { project: Project }) => {
   const exportableFileCount = library.files.filter(
     file => (file.collection ?? 'files') === 'files',
   ).length
+
+  // Agents that work on their own start once the project is open, in the background.
+  useEffect(() => {
+    runBackgroundAgentsOnOpen().catch(error => {
+      console.error('Unable to start background agents', error)
+    })
+  }, [])
 
   useEffect(() => {
     if (overlayRequest && overlayRequest.mode !== mode) setOverlayRequest(null)

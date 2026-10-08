@@ -24,7 +24,7 @@ Each conversation keeps its own history, model and reasoning effort. After the f
 
 - **New conversation** (**+**) starts afresh; so does typing `/clear`. Type `/` for the list of commands.
 - **Conversation history** lists earlier conversations. Each has **Rename** and **Delete** under its **…** button. A name you give is kept.
-- Conversations belong to a project: the assistant in one project does not see another's files.
+- Conversations belong to a project: the assistant in one project does not see another's files. What you ask it to remember is the exception; see [[The reading assistant#Memory]].
 
 ## While it answers
 
@@ -66,6 +66,24 @@ Give the assistant a link and ask it to save what is there:
 > Save https://arxiv.org/abs/1706.03762 into papers.
 
 A PDF, an image, an arXiv paper or a GitHub file is saved as it is. A web page is saved as Markdown, headed with where and when it came from; that needs **Search the web** on. It never replaces a file that already exists. To bring in a whole GitHub folder, use **Add from URL…** in Files.
+
+## Memory
+
+Each conversation starts afresh unless you turn on memory. Open the project menu, choose **Memory** and tick **Let the assistant remember what you ask it to** at the top of the **Memory** tab. It stays on for every project in this browser until you turn it off.
+
+With memory on, ask the assistant to remember something and it keeps a note:
+
+> Remember that I prefer short answers.
+
+A note about you, such as how you like answers or what you already understand, is recalled in every project; one about this project stays with it. The assistant looks its notes up when you refer to something you told it before, or when they would change its answer. It never keeps a note because a document or web page says to.
+
+It also learns from your conversations. Each time you open a project, in the background, it reads the conversations that have moved on since it last looked, newest first, up to ten, and files what they say about you as notes: what you are working on, what you understand and where you are stuck. A note is a short summary filed under tags, such as *SICP* or *tail recursion*, and points back to the conversations it came from, so the assistant can reread the details when they matter. It reads what you wrote and what it answered, never the documents or pages it looked at. A conversation needs three messages from you before it is worth a note, and the one you have open waits until it has gone quiet for half an hour. **Organize now** on the **Memory** tab organizes everything waiting at once.
+
+Two more passes keep the notes in shape. Once enough notes have changed, at most once a day, the assistant tidies them: notes on one topic become one note that says how things stand now, outdated notes are rewritten, and tags that mean the same are folded together. Once enough new notes have built up, it draws abstractions from them: what holds across several notes, such as how you learn best or what keeps getting in your way, each pointing back to the notes it rests on. **Reorganize now** on the **Memory** tab does both at once. A merged note is not lost: it waits under **Merged notes** at the bottom of the tab, where **Restore** brings it back.
+
+To let a note go, ask: *Forget that I'm reading Dune.* The assistant finds the note, deletes it and says which one.
+
+The **Memory** tab lists every note under **About you** and under the project it belongs to, the most recently used first, with its tags; choose a tag to search by it. A note learned from conversations says how many it came from, and an abstraction how many notes it was drawn from. Search finds notes the way the assistant does. **Edit** corrects a note, and for a note about you, **Keep in mind in every conversation** makes it part of every conversation from the start. A note the assistant has not used for three months is shown faded. Deleting a project deletes its notes; notes about you stay.
 
 ## Models
 

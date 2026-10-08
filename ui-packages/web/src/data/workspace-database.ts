@@ -44,6 +44,8 @@ export const setWorkspaceDatabaseName = (name: string) => {
   databaseName = name
 }
 
+export const workspaceDatabaseName = () => databaseName
+
 export const workspaceStorageBases = {
   workspace: 'gamma-reader.workspace',
   activeConversation: 'gamma-reader.active-conversation',
