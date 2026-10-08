@@ -6,6 +6,8 @@ services:
     build:
       context: .
       target: runtime
+      args:
+        GAMMA_READER_COMMIT: ${GAMMA_READER_TAG:-}
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0

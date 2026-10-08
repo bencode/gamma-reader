@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
@@ -9,6 +10,20 @@ import { configDefaults, defineConfig } from 'vitest/config'
 const require = createRequire(import.meta.url)
 const pdfjsDistPath = path.dirname(require.resolve('pdfjs-dist/package.json'))
 const pdfWasmDirectory = normalizePath(path.join(pdfjsDistPath, 'wasm'))
+
+// The release is the root package's version; the commit is passed in by a deployment, whose image
+// has no .git, or read from the checkout when building locally.
+const { version } = require('../../package.json') as { version: string }
+const commitOf = () => {
+  if (process.env.GAMMA_READER_COMMIT) return process.env.GAMMA_READER_COMMIT
+  try {
+    return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim()
+  } catch (error) {
+    console.warn('Building without a commit in the version', error)
+    return ''
+  }
+}
+const commit = commitOf()
 
 // Driving the whole Workbench costs about a second per test. Those files form their own project
 // so an edit-and-run loop stays quick; `pnpm check` runs both projects before anything ships.
@@ -41,6 +56,7 @@ export default defineConfig({
   // Vite treats .pdf as an asset already; the Office formats among the starter files are not
   // in its default list, so an import of one would otherwise be parsed as JavaScript.
   assetsInclude: ['**/*.docx', '**/*.xlsx'],
+  define: { __APP_VERSION__: JSON.stringify(commit ? `${version} (${commit})` : version) },
   optimizeDeps: {
     include: ['@gamma-reader/code-lab > biwascheme', '@gamma-reader/code-lab > sucrase'],
   },

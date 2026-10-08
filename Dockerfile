@@ -18,6 +18,8 @@ COPY web-packages/server/package.json web-packages/server/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+# The commit shown beside the version; the build context has no .git to read it from.
+ARG GAMMA_READER_COMMIT=
 RUN pnpm --filter @gamma-reader/server --filter @gamma-reader/web build
 RUN pnpm --filter @gamma-reader/server deploy --prod --legacy /prod/server
 

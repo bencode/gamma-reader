@@ -212,6 +212,8 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
               )}
             </div>
           )}
+          <div className={styles.separator} />
+          <p className={styles.version}>Gamma Reader {__APP_VERSION__}</p>
         </Popover.Content>
       </Popover.Root>
       {showingStorage && current && (

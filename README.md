@@ -138,6 +138,14 @@ docker compose -f compose.production.yml up -d --build --wait
 
 The container serves the web app and Node proxy on port `3302` and exposes `/api/health`.
 
+The project menu shows the version, such as `Gamma Reader 1.0.0 (c632a85)`: the `version` in the root `package.json`, and the commit given as `GAMMA_READER_TAG`, which also tags the image. A release raises `version` in its own pull request before it is deployed: the minor number when it brings new features, the patch number when it only fixes. Export the commit when deploying:
+
+```sh
+GAMMA_READER_TAG=$(git rev-parse --short HEAD) docker compose -f compose.production.yml up -d --build --wait
+```
+
+Built without it, the version shows no commit, unless the build can read one from a git checkout.
+
 The `quota` volume holds the usage database; removing it (`docker compose down -v`) resets every allowance, signs readers out, and discards the request log. JSON configuration ships with the server build; rebuild and restart after changing it. Deploy the frontend and server together. Saved conversations remain compatible across updates; refresh already-open pages after one.
 
 ## Development
