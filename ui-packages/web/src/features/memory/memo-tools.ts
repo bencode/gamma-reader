@@ -11,7 +11,7 @@ import {
 import { searchMemories } from './search'
 import { listMemories, listTags, saveTag } from './store'
 
-const listPage = 40
+const listPage = 20
 
 // A note as an agent browsing many of them sees it.
 const summary = (entry: MemoryEntry) => ({
@@ -49,7 +49,8 @@ export const filedUnder = async (names: readonly string[]) => {
 const counted = (tags: readonly MemoryTag[], notes: readonly MemoryEntry[]) =>
   tags.map(tag => ({ ...tag, notes: notes.filter(note => note.tags.includes(tag.name)).length }))
 
-export const createMemoTools = (projectKey: string) => ({
+// lastRunAt is when the agent using these tools last finished, so it can start from what changed.
+export const createMemoTools = (projectKey: string, lastRunAt: number | null = null) => ({
   listTags: bind(
     'list_tags',
     'List the tags notes are filed under, with their aliases, what each stands for and how many notes here use it.',
@@ -58,17 +59,21 @@ export const createMemoTools = (projectKey: string) => ({
   ),
   listMemos: bind(
     'list_memos',
-    `List the notes about the reader and this project, ${listPage} at a time, optionally those under one tag. A note with derivedFrom is an abstraction drawn from other notes. Follow next as cursor.`,
+    `List the notes about the reader and this project, ${listPage} at a time, oldest change first. changed keeps those that changed since you last ran; kind keeps notes or abstractions, which have derivedFrom; tag keeps those under one tag. Follow next as cursor.`,
     Type.Object({
+      changed: Type.Optional(Type.Boolean()),
+      kind: Type.Optional(Type.Union([Type.Literal('note'), Type.Literal('abstraction')])),
       tag: Type.Optional(Type.String({ minLength: 1 })),
       cursor: Type.Optional(Type.Integer({ minimum: 0 })),
     }),
-    async ({ tag, cursor = 0 }) => {
+    async ({ changed, kind, tag, cursor = 0 }) => {
       const tags = await listTags()
       const name = tag && (findTag(tags, tag)?.name ?? tag)
-      const notes = (await visibleNotes(projectKey)).filter(
-        note => !name || note.tags.includes(name),
-      )
+      const notes = (await visibleNotes(projectKey))
+        .filter(note => !name || note.tags.includes(name))
+        .filter(note => !changed || note.updatedAt > (lastRunAt ?? 0))
+        .filter(note => !kind || (kind === 'abstraction') === Boolean(note.derivedFrom))
+        .toSorted((a, b) => a.updatedAt - b.updatedAt)
       const page = notes.slice(cursor, cursor + listPage)
       return {
         notes: page.map(summary),

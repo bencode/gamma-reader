@@ -134,8 +134,8 @@ export const runBackgroundAgent = async (
       const runtime = await backgroundRuntime()
       if (!runtime) return null
       setStatus(agent.name, { ...statusStore.getState()[agent.name], running: true })
-      // A run that ends without an error is noted when it ends, so what it changed itself does not
-      // count as new work next time.
+      // A finished run is noted when it ends, so what it changed itself does not count as new work
+      // next time.
       // Runs one after another add up: their turns and tokens are what the whole job cost.
       const loop = async (before: number, spent?: BackgroundRun): Promise<BackgroundRun> => {
         const latest = await runOnce(agent, runtime, backgroundContext(agent))
@@ -147,7 +147,8 @@ export const runBackgroundAgent = async (
               tokens: spent.tokens + latest.tokens,
             }
           : latest
-        if (run.stoppedBy !== 'error') writeLastRun(agent.name, projectKey, Date.now())
+        // A run cut short leaves its work to the next, which starts from the same changes.
+        if (!run.stoppedBy) writeLastRun(agent.name, projectKey, Date.now())
         setStatus(agent.name, { running: true, lastRun: run })
         if (!untilDone || run.stoppedBy === 'error') return run
         const after = await agent.pending(backgroundContext(agent))

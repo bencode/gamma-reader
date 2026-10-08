@@ -43,8 +43,8 @@ const newNote = (
 }
 
 // Tidying: one note per topic, how things stand now, and one tag per concept.
-export const createTidyTools = (projectKey: string) => {
-  const memos = createMemoTools(projectKey)
+export const createTidyTools = (projectKey: string, lastRunAt: number | null) => {
+  const memos = createMemoTools(projectKey, lastRunAt)
   return [
     memos.listTags,
     memos.listMemos,
@@ -119,8 +119,8 @@ export const createTidyTools = (projectKey: string) => {
 }
 
 // Abstracting: what holds across several notes, filed as a note of its own that points to them.
-export const createAbstractTools = (projectKey: string) => {
-  const memos = createMemoTools(projectKey)
+export const createAbstractTools = (projectKey: string, lastRunAt: number | null) => {
+  const memos = createMemoTools(projectKey, lastRunAt)
   const abstraction = async (id: string) => {
     const note = await visibleNote(projectKey, id)
     if (!note.derivedFrom)

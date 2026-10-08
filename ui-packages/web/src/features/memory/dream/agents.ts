@@ -19,9 +19,9 @@ export const tidyAgent: BackgroundAgent = {
   name: 'tidy',
   instructions: tidyInstructions,
   task: 'Tidy the notes about the reader and this project.',
-  maxTurns: 30,
+  maxTurns: 40,
   enabled: memoryEnabled,
-  tools: ({ projectKey }) => createTidyTools(projectKey),
+  tools: ({ projectKey, lastRunAt }) => createTidyTools(projectKey, lastRunAt),
   skills: [],
   pending: async context => {
     const notes = await visibleNotes(context.projectKey)
@@ -35,7 +35,7 @@ export const abstractAgent: BackgroundAgent = {
   task: 'Draw abstractions from the notes about the reader and this project.',
   maxTurns: 20,
   enabled: memoryEnabled,
-  tools: ({ projectKey }) => createAbstractTools(projectKey),
+  tools: ({ projectKey, lastRunAt }) => createAbstractTools(projectKey, lastRunAt),
   skills: [],
   pending: async context => {
     const notes = await visibleNotes(context.projectKey)

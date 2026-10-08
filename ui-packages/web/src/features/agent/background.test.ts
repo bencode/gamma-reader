@@ -56,6 +56,8 @@ describe('background agents', () => {
       turns: 3,
       stoppedBy: 'limit',
     })
+    // Cut short, it has not finished: the next run starts from the same changes.
+    expect(localStorage.getItem('gamma-reader.agent-run:endless:gamma-reader-files')).toBeNull()
   })
 
   it('notes when a run finished, but not a run that failed', async () => {
