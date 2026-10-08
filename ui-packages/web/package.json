@@ -8,6 +8,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
+    "eval:memory": "vitest run --project eval",
     "build": "tsc -p tsconfig.json && vite build"
   },
   "dependencies": {

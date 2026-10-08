@@ -13,6 +13,7 @@ const pdfWasmDirectory = normalizePath(path.join(pdfjsDistPath, 'wasm'))
 // Driving the whole Workbench costs about a second per test. Those files form their own project
 // so an edit-and-run loop stays quick; `pnpm check` runs both projects before anything ships.
 const integrationTests = ['**/*.integration.test.?(c|m)[jt]s?(x)']
+const evalBackend = process.env.GAMMA_EVAL_BACKEND ?? 'http://127.0.0.1:3402'
 const testDefaults = {
   environment: 'jsdom',
   setupFiles: ['./src/test/setup.ts'],
@@ -59,6 +60,20 @@ export default defineConfig({
       {
         extends: true,
         test: { ...testDefaults, name: 'integration', include: integrationTests },
+      },
+      // Evaluations ask a real model through a running backend, so they cost tokens and vary run to
+      // run; they are run by hand with `pnpm eval:memory`, never by `pnpm check`.
+      {
+        extends: true,
+        test: {
+          ...testDefaults,
+          name: 'eval',
+          include: ['**/*.eval.ts'],
+          setupFiles: ['./src/test/eval-setup.ts'],
+          environmentOptions: { jsdom: { url: evalBackend } },
+          testTimeout: 30 * 60 * 1000,
+          fileParallelism: false,
+        },
       },
     ],
   },
