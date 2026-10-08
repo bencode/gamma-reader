@@ -3,12 +3,9 @@ import { access } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { Readable } from 'node:stream'
 import { promisify } from 'node:util'
-import type { SaveChange, SaveContent, SaveResult } from './save.js'
+import type { SaveResult, SourceFile, SourceListing } from '@gamma-reader/shared/source-protocol'
+import type { SaveChange, SaveContent } from './save.js'
 import { inScope } from './scope.js'
-
-// The listing the reader syncs from. Versions are opaque; each one changes when the content does.
-export type SourceFile = { path: string; version: string; size: number }
-export type SourceListing = { version: string; files: SourceFile[] }
 
 // What the routes serve, whichever way the files are kept. A file is read only by a listed path.
 // A source that takes changes back also saves them.

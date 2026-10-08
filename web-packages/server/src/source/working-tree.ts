@@ -2,14 +2,8 @@ import { createHash } from 'node:crypto'
 import type { Stats } from 'node:fs'
 import { lstat } from 'node:fs/promises'
 import { join } from 'node:path'
-import {
-  git,
-  gitWithInput,
-  type Source,
-  type SourceFile,
-  type SourceListing,
-  streamObject,
-} from './repository.js'
+import type { SourceFile, SourceListing } from '@gamma-reader/shared/source-protocol'
+import { git, gitWithInput, type Source, streamObject } from './repository.js'
 import { applySave } from './save.js'
 import { inScope } from './scope.js'
 

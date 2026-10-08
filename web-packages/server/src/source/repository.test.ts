@@ -2,9 +2,10 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import type { SourceListing } from '@gamma-reader/shared/source-protocol'
 import { Hono } from 'hono'
 import { afterAll, describe, expect, it } from 'vitest'
-import { openRepository, type SourceListing } from './repository.js'
+import { openRepository } from './repository.js'
 import { createRoutes } from './routes.js'
 
 const root = mkdtempSync(join(tmpdir(), 'gamma-reader-clone-'))

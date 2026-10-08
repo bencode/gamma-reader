@@ -14,6 +14,7 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
 import { promisify } from 'node:util'
+import type { SaveResult, SkipReason } from '@gamma-reader/shared/source-protocol'
 import { git } from './repository.js'
 import { inScope, type SourceScope } from './scope.js'
 
@@ -23,22 +24,6 @@ export type SaveChange =
   | { kind: 'write'; path: string; base: string | null; part: string }
   | { kind: 'move'; from: string; to: string }
   | { kind: 'delete'; path: string; base: string }
-
-export type SkipReason =
-  | 'deleted-on-disk'
-  | 'changed-on-disk'
-  | 'missing'
-  | 'path-taken'
-  | 'cannot-merge'
-  | 'invalid-path'
-  | 'failed'
-
-export type SaveResult =
-  | { kind: 'written'; path: string; version: string }
-  | { kind: 'merged'; path: string; version: string; conflicts: number }
-  | { kind: 'moved'; from: string; path: string }
-  | { kind: 'deleted'; path: string }
-  | { kind: 'skipped'; path: string; reason: SkipReason }
 
 // The bytes the reader sent for a write, by the part that carries them.
 export type SaveContent = (part: string) => Promise<Uint8Array | null>
