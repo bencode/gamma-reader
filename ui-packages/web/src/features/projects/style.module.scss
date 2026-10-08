@@ -85,6 +85,12 @@ a.project,
   margin: 4px;
   background: var(--line);
 }
+.version {
+  margin: 0;
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .createdLink {
   color: var(--accent);
   svg {
