@@ -80,14 +80,15 @@ describe('projects', () => {
     visit('/')
     // The source has the last word on what it changed, and says so before it does.
     expect(
-      await screen.findByText(
-        'brain2 has updates. Updating replaces your edits to journal/today.md.',
-      ),
+      await screen.findByText('brain2 has updates; updating replaces your edits to 1 file.'),
     ).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Details' }))
+    expect(await screen.findByText('journal/today.md')).toBeVisible()
+    await user.keyboard('{Escape}')
     await user.click(screen.getByRole('button', { name: 'Update' }))
 
     expect(
-      await screen.findByText('brain2 is up to date. Replaced your edits to journal/today.md.'),
+      await screen.findByText('brain2 is up to date; replaced your edits to 1 file.'),
     ).toBeVisible()
     expect(screen.getByText('1 file changed only in this browser.')).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'About changes made here' }))

@@ -1,44 +1,55 @@
+import type { SaveResult } from '@gamma-reader/shared/source-protocol'
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
-import type { SourceScope } from '../../core/projects'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { SourceSyncStatus } from './sync-status'
-import type { SourceSync } from './use-source-sync'
+import type { SourceSync, SourceSyncState } from './use-source-sync'
 
-// A save to brain2 that left the given paths out of the source.
-const refused = (paths: string[], scope?: SourceScope) => {
+const show = (state: SourceSyncState, overrides: Partial<SourceSync> = {}) => {
   const sync = {
-    state: {
-      kind: 'saved',
-      results: paths.map(path => ({ kind: 'skipped', path, reason: 'invalid-path' })),
-    },
+    state,
     localChanges: 0,
     writable: true,
     saveBlocked: false,
     busy: false,
+    sync: vi.fn(async () => undefined),
+    ...overrides,
   } as unknown as SourceSync
-  render(<SourceSyncStatus name="brain2" scope={scope} sync={sync} />)
-  return screen.getByRole('status').textContent
+  render(<SourceSyncStatus name="brain2" sync={sync} />)
+  return sync
 }
 
-describe('a save the source refused', () => {
-  it('names the rule that left each file out, so the reader knows where it could go', () => {
-    expect(
-      refused(['sun/orbit.p5.js'], { include: ['knowledge', 'journal', 'projects'], exclude: [] }),
-    ).toContain(
-      'sun/orbit.p5.js was not saved: brain2 saves only knowledge, journal and projects; move it into one of them.',
-    )
+const refused: SaveResult[] = ['a.md', 'b.md', 'c.md'].map(path => ({
+  kind: 'skipped',
+  path,
+  reason: 'invalid-path',
+}))
+
+describe('the status of a writable source', () => {
+  it('sums up a save in one notice and lists each file only when asked', async () => {
+    show({ kind: 'saved', results: refused }, { localChanges: 3 })
+
+    const notice = screen.getByRole('alert')
+    expect(notice.textContent).toContain('Nothing was saved to brain2; 3 changes need attention.')
+    expect(notice.textContent).not.toContain('a.md')
+    expect(screen.getByRole('status').textContent).toBe('brain2 is up to date.')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Details' }))
+    expect(screen.getByText('a.md')).toBeTruthy()
+
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss save result' }))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByRole('status').textContent).toContain('3 changes not saved to brain2.')
   })
 
-  it('says which folders and files a whole repository leaves out', () => {
-    const text = refused(['meta/x.md', '.claude/y.md'], { include: [], exclude: ['meta', 'asar'] })
+  it('offers Update when changes here cannot be saved until the library is synced', async () => {
+    const sync = show({ kind: 'current' }, { localChanges: 2, saveBlocked: true })
 
-    expect(text).toContain('meta/x.md was not saved: brain2 leaves out meta and asar.')
-    expect(text).toContain(
-      '.claude/y.md was not saved: brain2 leaves out hidden files and folders.',
+    expect(screen.getByRole('status').textContent).toContain(
+      'Not synced from this brain2 folder yet',
     )
-  })
-
-  it('keeps the plain reason for a source that does not say what it holds', () => {
-    expect(refused(['x.md'])).toContain('x.md was not saved: it is outside the source.')
+    await userEvent.click(screen.getByRole('button', { name: 'Update' }))
+    expect(sync.sync).toHaveBeenCalled()
   })
 })
