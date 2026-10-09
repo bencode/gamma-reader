@@ -24,6 +24,7 @@ import type {
   EditActiveSourceResult,
   MoveInput,
   MoveResult,
+  OpenInput,
   ReadActiveSourceInput,
   ReadActiveSourceResult,
   SourceLineRange,
@@ -81,6 +82,9 @@ export type WorkspaceFileMover = (
   path: string,
   signal?: AbortSignal,
 ) => Promise<{ from: string; metadata: StoredFileMetadata }>
+
+// Resolves once the file is the active tab, so the active-tab tools that follow act on it.
+export type WorkspaceFileOpener = (fileId: string, signal?: AbortSignal) => Promise<ReaderState>
 
 export type ActiveSourceSnapshot = {
   fileId: string
@@ -212,6 +216,7 @@ export const createLocalTools = (
   links: LinkAccess = noLinks,
   labs?: LabAccess,
   saveFile?: WorkspaceFileSaver,
+  openFile?: WorkspaceFileOpener,
 ) => ({
   ...createLinkTools(links),
   get_reader_state: getReaderState,
@@ -223,6 +228,10 @@ export const createLocalTools = (
   write: async (input: WriteInput, signal?: AbortSignal): Promise<WriteResult> => {
     const metadata = await writeTextFile(agentWorkspacePath(input.path), input.content, signal)
     return { fileId: metadata.id, path: metadata.path }
+  },
+  open: (input: OpenInput, signal?: AbortSignal) => {
+    if (!openFile) throw new LocalToolError('Opening files is unavailable.')
+    return openFile(input.fileId, signal)
   },
   move: async (input: MoveInput, signal?: AbortSignal): Promise<MoveResult> => {
     const { from, metadata } = await moveFile(input.fileId, agentWorkspacePath(input.path), signal)

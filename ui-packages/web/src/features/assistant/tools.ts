@@ -102,6 +102,12 @@ export const createReaderTools = (
       local.read_active_lab_cells,
     ),
     bind(
+      'open',
+      'Open a workspace file in a tab and make it the active tab, as the reader clicking it would. The reader sees the switch, so open a file only when the reader asks or a task needs it active, such as running a lab or editing its source. Returns the reader state after the switch.',
+      Type.Object({ fileId }),
+      local.open,
+    ),
+    bind(
       'move',
       'Move or rename one workspace file by fileId to a new path such as docs/notes.md. Folders follow from the path. Content, the file id and open tabs are kept. Fails when another file already has that path; chat attachments cannot be moved.',
       Type.Object({ fileId, path: Type.String({ minLength: 1 }) }),
