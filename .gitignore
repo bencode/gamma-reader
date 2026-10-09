@@ -9,3 +9,6 @@ coverage/
 .env
 .env.*
 .DS_Store
+# The tutorial and license copied into the published package; its dist folders are ignored above.
+/web-packages/cli/tutorial/
+/web-packages/cli/LICENSE

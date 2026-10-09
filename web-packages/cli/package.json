@@ -1,0 +1,35 @@
+{
+  "name": "gamma-reader",
+  "version": "0.0.0",
+  "description": "Read, edit and run a git working tree in Gamma Reader, served from your machine",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bencode/gamma-reader.git"
+  },
+  "homepage": "https://reader.upivot.io",
+  "type": "module",
+  "bin": {
+    "gamma-reader": "bin/gamma-reader.js"
+  },
+  "files": [
+    "bin",
+    "web-packages/server/dist",
+    "ui-packages/web/dist",
+    "tutorial"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "prepack": "node scripts/assemble.js",
+    "postpack": "node scripts/assemble.js --remove"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "catalog:",
+    "@hono/node-server": "catalog:",
+    "hono": "catalog:",
+    "undici": "catalog:",
+    "zod": "catalog:"
+  }
+}
