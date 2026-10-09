@@ -73,7 +73,18 @@ The project menu shows the version, such as `Gamma Reader 1.0.0 (46b53a0)`: the 
 git tag v1.1.0 && git push origin v1.1.0
 ```
 
-Pushing the tag also publishes the [`gamma-reader`](../web-packages/cli) package to npm at that version, which `npx gamma-reader` runs. The workflow needs an npm token in the repository secret `NPM_TOKEN`.
+Then publish the [`gamma-reader`](../web-packages/cli) package, which `npx gamma-reader` runs, at the same version. Build after tagging, so the app names the release:
+
+```sh
+pnpm install
+pnpm --filter @gamma-reader/server --filter @gamma-reader/web build
+cd web-packages/cli
+npm pkg set version=1.1.0
+pnpm publish --access public --no-git-checks
+git checkout package.json
+```
+
+The version is set only for publishing and not committed, so `--no-git-checks` lets the changed `package.json` through. npm takes a few minutes to make a new version available.
 
 The image has no `.git`, so a deployment passes the version in, and the commit as the image tag. `git pull` does not bring a tag on a commit it already has, so fetch tags first:
 
