@@ -26,7 +26,14 @@ The app opens on a Tutorial project that shows every feature in use; its chapter
 | A server following a repository | A clone the server keeps pulling, copied into each browser | Not yet; the server only brings files in |
 | A working tree on your machine | A git checkout on disk, copied into the browser | **Save** writes them to the folder; you review and commit with git |
 
-The online reader needs nothing installed. The other two run this server with a source; see [Sync from a repository](docs/sync-from-repository.md). A server that serves a repository must sit behind a sign-in.
+The online reader needs nothing installed. A working tree needs Node 24 and git, and one command run in it:
+
+```sh
+npx gamma-reader                                  # the current folder, at http://127.0.0.1:3302
+npx gamma-reader ~/notes --exclude tmp,output     # or name one; --help lists the options
+```
+
+The project is named after the folder. Chat uses `GLM_API_KEY` or `DEEPSEEK_API_KEY` from the environment, or a model added in the reader. A server following a repository is a deployment of its own and must sit behind a sign-in; see [Sync from a repository](docs/sync-from-repository.md).
 
 ## Local-first by design
 
@@ -34,9 +41,9 @@ Files are copied into IndexedDB, and previewing, parsing, searching and the pi a
 
 ![Browser storage, local tools, and the two routes to a model provider](tutorial/examples/How%20Gamma%20Reader%20works.svg)
 
-## Run locally
+## Run from a checkout
 
-Use Node 24 and pnpm 10.14.0.
+To work on the reader itself, use Node 24 and pnpm 10.14.0.
 
 ```sh
 corepack enable
@@ -44,7 +51,7 @@ pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:5302](http://localhost:5302). Reading, editing, and experiments work without keys; chat needs `GLM_API_KEY`, `DEEPSEEK_API_KEY`, or both in an untracked root `.env`, or a reader's own model. To read a working tree, name it when starting:
+Open [http://localhost:5302](http://localhost:5302). Reading, editing, and experiments work without keys; chat needs `GLM_API_KEY`, `DEEPSEEK_API_KEY`, or both in an untracked root `.env`, or a reader's own model. To read a working tree with the code as it is, name it when starting:
 
 ```sh
 GAMMA_SOURCE_NAME=notes GAMMA_SOURCE_WORKTREE=$HOME/notes pnpm dev

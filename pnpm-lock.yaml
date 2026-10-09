@@ -4,6 +4,24 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@earendil-works/pi-ai':
+      specifier: ^1.0.0
+      version: 1.0.0
+    '@hono/node-server':
+      specifier: ^2.1.1
+      version: 2.1.1
+    hono:
+      specifier: ^4.13.8
+      version: 4.13.8
+    undici:
+      specifier: ^8.10.2
+      version: 8.10.2
+    zod:
+      specifier: ^4.6.5
+      version: 4.6.5
+
 importers:
 
   .:
@@ -343,22 +361,40 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0(@types/node@24.13.4)(jsdom@30.0.1)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.104.1)(tsx@4.23.13)(yaml@2.9.0))
 
+  web-packages/cli:
+    dependencies:
+      '@earendil-works/pi-ai':
+        specifier: 'catalog:'
+        version: 1.0.0(@aws-sdk/credential-provider-node@3.972.82)(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)
+      '@hono/node-server':
+        specifier: 'catalog:'
+        version: 2.1.1(hono@4.13.8)
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.8
+      undici:
+        specifier: 'catalog:'
+        version: 8.10.2
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+
   web-packages/server:
     dependencies:
       '@earendil-works/pi-ai':
-        specifier: ^1.0.0
+        specifier: 'catalog:'
         version: 1.0.0(@aws-sdk/credential-provider-node@3.972.82)(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)
       '@hono/node-server':
-        specifier: ^2.1.1
+        specifier: 'catalog:'
         version: 2.1.1(hono@4.13.8)
       hono:
-        specifier: ^4.13.8
+        specifier: 'catalog:'
         version: 4.13.8
       undici:
-        specifier: ^8.10.2
+        specifier: 'catalog:'
         version: 8.10.2
       zod:
-        specifier: ^4.6.5
+        specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
       '@gamma-reader/shared':
