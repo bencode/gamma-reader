@@ -8,6 +8,7 @@ import { readQuotaConfig } from './quota/config.js'
 import { createQuotaGuard } from './quota/guard.js'
 import { openQuotaStore } from './quota/store.js'
 import { openDirectory } from './source/directory.js'
+import { publishing } from './source/publish.js'
 import { openRepository, type Source } from './source/repository.js'
 import { openWorkingTree } from './source/working-tree.js'
 import { readSourceConfig, type SourceConfig } from './source-config.js'
@@ -55,7 +56,13 @@ const guard = createQuotaGuard(store, quota)
 const openSource = async (config: SourceConfig): Promise<Source | null> => {
   if (config.kind === 'remote') return null
   if (config.kind === 'worktree') return openWorkingTree(config)
-  const repository = openRepository(config)
+  const clone = openRepository(config)
+  const repository = config.push
+    ? publishing(clone, {
+        dir: config.dir,
+        scope: { include: config.include, exclude: config.exclude },
+      })
+    : clone
   await repository.update()
   // A failed pull keeps serving the last commit; the next one tries again.
   setInterval(() => {

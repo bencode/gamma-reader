@@ -36,6 +36,7 @@ const skipped: Record<SkipReason, string> = {
   'path-taken': 'another file has its path',
   'cannot-merge': 'it could not be merged with the copy on disk',
   'invalid-path': 'it is outside the source',
+  unresolved: 'it still has conflicts marked in it',
   failed: 'saving it failed',
 }
 
@@ -58,9 +59,12 @@ const outside = (name: string, path: string, scope?: SourceScope) => {
 }
 
 // What a save did, with what needs the reader's hand named after it: conflicts git marked in a
-// file, and changes left unsaved with the reason for each.
+// file, on disk or here, and changes left unsaved with the reason for each.
 const savedMessage = (name: string, results: readonly SaveResult[], scope?: SourceScope) => {
-  const done = results.filter(result => result.kind !== 'skipped').length
+  const done = results.filter(
+    result => result.kind !== 'skipped' && result.kind !== 'conflicted',
+  ).length
+  const clashes = results.flatMap(result => (result.kind === 'conflicted' ? [result] : []))
   const conflicts = results.flatMap(result =>
     result.kind === 'merged' && result.conflicts > 0 ? [result] : [],
   )
@@ -70,6 +74,10 @@ const savedMessage = (name: string, results: readonly SaveResult[], scope?: Sour
     ...conflicts.map(
       result =>
         `${result.path} has ${result.conflicts === 1 ? 'a conflict' : `${result.conflicts} conflicts`} marked in the file; resolve it in your editor.`,
+    ),
+    ...clashes.map(
+      result =>
+        `${result.path} was not saved: it clashes with a newer edit in ${name}, marked in the file here; resolve it and save again.`,
     ),
     ...left.map(
       result =>

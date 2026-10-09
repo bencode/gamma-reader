@@ -43,6 +43,7 @@ const skipReasons = new Set<string>([
   'path-taken',
   'cannot-merge',
   'invalid-path',
+  'unresolved',
   'failed',
 ])
 
@@ -53,6 +54,8 @@ export const isSaveResult = (value: unknown): value is SaveResult => {
   if (result.kind === 'written') return typeof result.version === 'string'
   if (result.kind === 'merged')
     return typeof result.version === 'string' && typeof result.conflicts === 'number'
+  if (result.kind === 'conflicted')
+    return typeof result.version === 'string' && typeof result.text === 'string'
   if (result.kind === 'moved') return typeof result.from === 'string'
   if (result.kind === 'deleted') return true
   return (
