@@ -8,15 +8,14 @@ A browser-native, local-first workspace for reading, experimenting, and creating
 
 ## Features
 
-The app opens on a Tutorial project that shows every feature in use; its chapters are also readable here, in [`tutorial/`](tutorial/Start%20here.md).
+The app opens on a Tutorial project that shows every feature in use; its chapters are also readable in [`tutorial/`](tutorial/Start%20here.md).
 
-- **Read** PDF, Word, Excel, CSV, Markdown, HTML, images and source code in tabs, each with the controls its format allows. See [Reading documents](tutorial/guide/Reading%20documents.md).
-- **Write** Markdown with formulas, diagrams and images, and save it in the browser. See [Writing in Markdown](tutorial/guide/Writing%20in%20Markdown.md).
-- **Link notes** by name with `[[…]]`, see what links back, and embed one note, section or passage in another. See [Links and embeds](tutorial/guide/Links%20and%20embeds.md).
-- **Run code** in Labs, Markdown with Scheme, Clojure, Python and TypeScript cells, and embed p5 sketches and HTML pages at any size. See [Labs](tutorial/guide/Labs.md) and [Interactive pages](tutorial/guide/Interactive%20pages.md).
-- **Ask the assistant** about what you read: it searches and reads your files, compares sources, runs Lab cells, searches the web when allowed, and writes notes. Its agent loop runs in the browser. See [The reading assistant](tutorial/guide/The%20reading%20assistant.md).
-- **Organise** files in projects, bring in folders and links, and keep a project in step with a source. See [Files and projects](tutorial/guide/Files%20and%20projects.md).
-- **Keep your files local.** Documents are stored in the browser and never uploaded to an application server. See [Your data and models](tutorial/guide/Your%20data%20and%20models.md).
+- **Read** PDF, Word, Excel, CSV, Markdown, HTML, images and source code in tabs, each with the controls its format allows.
+- **Write** Markdown with formulas, diagrams and images, and save it in the browser.
+- **Link notes** by name with `[[…]]`, see what links back, and embed one note, section or passage in another.
+- **Run code** in Labs, Markdown with Scheme, Clojure, Python and TypeScript cells, and embed p5 sketches and HTML pages at any size.
+- **Ask the assistant** about what you read: it searches and reads your files, compares sources, runs Lab cells, searches the web when allowed, and writes notes. Its agent loop runs in the browser.
+- **Organise** files in projects, bring in folders and links, and keep a project in step with a source.
 
 ## Three ways to use it
 
@@ -41,9 +40,9 @@ Files are copied into IndexedDB, and previewing, parsing, searching and the pi a
 
 ![Browser storage, local tools, and the two routes to a model provider](tutorial/examples/How%20Gamma%20Reader%20works.svg)
 
-## Run from a checkout
+## Development
 
-To work on the reader itself, use Node 24 and pnpm 10.14.0.
+Use Node 24 and pnpm 10.14.0.
 
 ```sh
 corepack enable
@@ -57,16 +56,7 @@ Open [http://localhost:5302](http://localhost:5302). Reading, editing, and exper
 GAMMA_SOURCE_NAME=notes GAMMA_SOURCE_WORKTREE=$HOME/notes pnpm dev
 ```
 
-[Self-hosting](docs/self-hosting.md) lists every variable and covers deploying with Docker and releasing a version.
-
-## Development
-
-```sh
-pnpm check
-pnpm build
-```
-
-`check` runs Biome, TypeScript, and package tests without rewriting source. Tests do not call external model services. [`AGENTS.md`](AGENTS.md) describes the packages and how the web source is layered.
+`pnpm check` runs Biome, TypeScript, and package tests without rewriting source. Tests do not call external model services. [`AGENTS.md`](AGENTS.md) describes the packages and how the web source is layered, and [Self-hosting](docs/self-hosting.md) lists every variable and covers deploying with Docker and releasing a version.
 
 The independent React Code Lab package lives in `ui-packages/code-lab`. Run its standalone examples with `pnpm --filter @gamma-reader/code-lab-playground dev`.
 
