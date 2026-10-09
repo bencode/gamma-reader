@@ -817,6 +817,32 @@ svg {
   font-size: 12px;
   line-height: 1.5;
 }
+.source-sync-files {
+  width: 300px;
+  max-height: 280px;
+  overflow: auto;
+}
+.source-sync-files ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.source-sync-files li {
+  display: grid;
+  overflow-wrap: anywhere;
+}
+.source-sync-files span {
+  color: var(--muted);
+}
+.source-save-notice .text-button {
+  flex-shrink: 0;
+  padding: 0;
+  color: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+}
 .file-progress {
   margin: 0 10px 6px;
   color: var(--muted);
