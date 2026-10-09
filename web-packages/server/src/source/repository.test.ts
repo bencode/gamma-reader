@@ -186,6 +186,35 @@ describe('cloned source pushed to', () => {
     expect(git(remote, 'rev-parse', 'main')).toBe(pushedByColleague)
   })
 
+  it('commits the rest of a save whose deletion someone else made first', async () => {
+    const source = publishing(clone, { dir, scope })
+    share('notes/stale.md', 'stale\n')
+    await source.update()
+    const stale = await versionOf(source, 'notes/stale.md')
+    const plan = await versionOf(source, 'notes/plan.md')
+    git(colleague, 'rm', '-q', 'notes/stale.md')
+    git(colleague, 'commit', '-qm', 'colleague deletes notes/stale.md')
+    git(colleague, 'push', '-q', 'origin', 'HEAD:main')
+
+    const form = new FormData()
+    form.append('c0', new Blob(['plan, from ada\n']))
+    form.append(
+      'changes',
+      JSON.stringify([
+        { kind: 'delete', path: 'notes/stale.md', base: stale },
+        { kind: 'write', path: 'notes/plan.md', base: plan, part: 'c0' },
+      ]),
+    )
+    const routes = new Hono().route('/api/library', createRoutes(source))
+    const response = await routes.request('/api/library/save', { method: 'POST', body: form })
+
+    expect(await response.json()).toMatchObject([
+      { kind: 'written', path: 'notes/plan.md' },
+      { kind: 'deleted', path: 'notes/stale.md' },
+    ])
+    expect(git(remote, 'show', 'main:notes/plan.md')).toBe('plan, from ada')
+  })
+
   it('replays a save on a commit pushed while it was being made', async () => {
     // A clone that missed the colleague's push, as one does when the push lands mid-save.
     const stale = publishing({ ...clone, update: async () => undefined }, { dir, scope })

@@ -1,5 +1,5 @@
 import { access } from 'node:fs/promises'
-import { join } from 'node:path'
+import { resolve } from 'node:path'
 import type { SaveResult } from '@gamma-reader/shared/source-protocol'
 import { type Author, git, type Source } from './repository.js'
 import { applySave } from './save.js'
@@ -8,23 +8,21 @@ import type { SourceScope } from './scope.js'
 type Repository = Source & { update: () => Promise<void> }
 
 // The committer of every save, and its author when the sign-in names nobody.
-const reader: Author = { name: 'Gamma Reader', email: 'gamma-reader@users.noreply.github.com' }
+const reader: Author = { name: 'Gamma Reader', email: 'reader@gamma-reader.invalid' }
 
-// The paths a save changed in the clone; what was skipped or handed back changed nothing there.
-const changedPaths = (results: readonly SaveResult[]) =>
-  results.flatMap(result => {
-    if (result.kind === 'skipped' || result.kind === 'conflicted') return []
-    return result.kind === 'moved' ? [result.from, result.path] : [result.path]
-  })
+// What was skipped or handed back changed nothing in the clone.
+const changedClone = (results: readonly SaveResult[]) =>
+  results.some(result => result.kind !== 'skipped' && result.kind !== 'conflicted')
 
 const message = (paths: readonly string[]) =>
   paths.length === 1
     ? ['-m', `Edit ${paths[0]} in Gamma Reader`]
     : ['-m', `Edit ${paths.length} files in Gamma Reader`, '-m', paths.join('\n')]
 
-// Whether the paths held anything to commit: a file saved as it already was changes nothing.
-const commit = async (dir: string, paths: readonly string[], { name, email }: Author) => {
-  await git(dir, ['--literal-pathspecs', 'add', '--all', '--', ...paths])
+// Whether there was anything to commit: a file saved as it already was, or deleted after someone
+// else deleted it, changes nothing. A save finds the clone clean, so all it holds is this save.
+const commit = async (dir: string, { name, email }: Author) => {
+  await git(dir, ['add', '--all'])
   const staged = (await git(dir, ['diff', '--cached', '--name-only', '-z']))
     .split('\0')
     .filter(Boolean)
@@ -75,7 +73,7 @@ const rebasing = async (dir: string) => {
       .split('\n')
       .filter(Boolean)
       .map(path =>
-        access(join(dir, path)).then(
+        access(resolve(dir, path)).then(
           () => true,
           (cause: NodeJS.ErrnoException) => {
             if (cause.code === 'ENOENT') return false
@@ -117,10 +115,9 @@ export const publishing = (
   const save: NonNullable<Source['save']> = async (changes, content, author) => {
     await repository.update()
     const results = await applySave(dir, scope, changes, content, 'return-to-reader')
-    const paths = changedPaths(results)
-    if (paths.length === 0) return results
+    if (!changedClone(results)) return results
     try {
-      if (!(await commit(dir, paths, author ?? reader))) return results
+      if (!(await commit(dir, author ?? reader))) return results
     } catch (cause) {
       console.error('Unable to commit the saved changes', cause)
       return undo(dir, results)
