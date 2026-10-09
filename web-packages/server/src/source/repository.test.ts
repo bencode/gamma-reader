@@ -2,10 +2,11 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import type { SourceListing } from '@gamma-reader/shared/source-protocol'
+import type { SaveResult, SourceListing } from '@gamma-reader/shared/source-protocol'
 import { Hono } from 'hono'
 import { afterAll, describe, expect, it } from 'vitest'
-import { openRepository } from './repository.js'
+import { publishing } from './publish.js'
+import { openRepository, type Source } from './repository.js'
 import { createRoutes } from './routes.js'
 
 const root = mkdtempSync(join(tmpdir(), 'gamma-reader-clone-'))
@@ -109,5 +110,121 @@ describe('cloned source', () => {
     const paths = (await whole.listing()).files.map(file => file.path).sort()
     expect(paths).toEqual(['assets/paper.pdf', 'knowledge/agents.md', 'knowledge/学习 笔记.md'])
     expect(await whole.blob('meta/index.json')).toBeNull()
+  })
+})
+
+describe('cloned source pushed to', () => {
+  const remote = join(root, 'remote.git')
+  const colleague = join(root, 'colleague')
+  git(root, 'init', '-q', '--bare', '-b', 'main', remote)
+  git(root, 'clone', '-q', remote, colleague)
+  const share = (path: string, content: string) => {
+    if (git(colleague, 'branch', '-r')) git(colleague, 'pull', '-q', '--ff-only')
+    mkdirSync(dirname(join(colleague, path)), { recursive: true })
+    writeFileSync(join(colleague, path), content)
+    git(colleague, 'add', '-A')
+    git(colleague, 'commit', '-qm', `colleague edits ${path}`)
+    git(colleague, 'push', '-q', 'origin', 'HEAD:main')
+  }
+  share('notes/plan.md', 'one\ntwo\nthree\n')
+  share('notes/other.md', 'other\n')
+
+  const dir = join(root, 'pushed')
+  const clone = openRepository({ repo: remote, dir, include: ['notes'] })
+  const scope = { include: ['notes'], exclude: [] }
+  const signedIn = { 'x-forwarded-user': 'ada', 'x-forwarded-email': 'ada@example.com' }
+
+  const save = async (source: Source, path: string, base: string, content: string) => {
+    const form = new FormData()
+    form.append('c0', new Blob([content]))
+    form.append('changes', JSON.stringify([{ kind: 'write', path, base, part: 'c0' }]))
+    const routes = new Hono().route('/api/library', createRoutes(source))
+    const response = await routes.request('/api/library/save', {
+      method: 'POST',
+      body: form,
+      headers: signedIn,
+    })
+    return (await response.json()) as SaveResult[]
+  }
+  const versionOf = async (source: Source, path: string) =>
+    (await source.listing()).files.find(file => file.path === path)?.version as string
+  const upstreamLog = () => git(remote, 'log', '-1', '--format=%an <%ae>|%s')
+
+  it('commits a save as the reader who signed in and pushes it', async () => {
+    const source = publishing(clone, { dir, scope })
+    await source.update()
+    const base = await versionOf(source, 'notes/plan.md')
+
+    const [result] = await save(source, 'notes/plan.md', base, 'one\ntwo\nthree\nfour\n')
+
+    expect(result).toMatchObject({ kind: 'written', path: 'notes/plan.md' })
+    expect(upstreamLog()).toBe('ada <ada@example.com>|Edit notes/plan.md in Gamma Reader')
+    expect(git(remote, 'show', 'main:notes/plan.md')).toBe('one\ntwo\nthree\nfour')
+    expect((await source.listing()).version).toBe(git(remote, 'rev-parse', 'main'))
+  })
+
+  it('hands a clash back to the reader and commits no markers', async () => {
+    const source = publishing(clone, { dir, scope })
+    const base = await versionOf(source, 'notes/plan.md')
+    share('notes/plan.md', 'one, from a colleague\ntwo\nthree\nfour\n')
+    const pushedByColleague = git(remote, 'rev-parse', 'main')
+
+    const [result] = await save(source, 'notes/plan.md', base, 'one, from ada\ntwo\nthree\nfour\n')
+
+    expect(result).toMatchObject({
+      kind: 'conflicted',
+      path: 'notes/plan.md',
+      version: git(remote, 'rev-parse', 'main:notes/plan.md'),
+    })
+    if (result?.kind !== 'conflicted') throw new Error('The clash was handed back')
+    expect(result.text).toContain('<<<<<<< reader\none, from ada\n')
+    expect(result.text).toContain('>>>>>>> repository\n')
+    expect(git(remote, 'rev-parse', 'main')).toBe(pushedByColleague)
+
+    const unresolved = await save(source, 'notes/plan.md', result.version, result.text)
+    expect(unresolved).toEqual([{ kind: 'skipped', path: 'notes/plan.md', reason: 'unresolved' }])
+    expect(git(remote, 'rev-parse', 'main')).toBe(pushedByColleague)
+  })
+
+  it('commits the rest of a save whose deletion someone else made first', async () => {
+    const source = publishing(clone, { dir, scope })
+    share('notes/stale.md', 'stale\n')
+    await source.update()
+    const stale = await versionOf(source, 'notes/stale.md')
+    const plan = await versionOf(source, 'notes/plan.md')
+    git(colleague, 'rm', '-q', 'notes/stale.md')
+    git(colleague, 'commit', '-qm', 'colleague deletes notes/stale.md')
+    git(colleague, 'push', '-q', 'origin', 'HEAD:main')
+
+    const form = new FormData()
+    form.append('c0', new Blob(['plan, from ada\n']))
+    form.append(
+      'changes',
+      JSON.stringify([
+        { kind: 'delete', path: 'notes/stale.md', base: stale },
+        { kind: 'write', path: 'notes/plan.md', base: plan, part: 'c0' },
+      ]),
+    )
+    const routes = new Hono().route('/api/library', createRoutes(source))
+    const response = await routes.request('/api/library/save', { method: 'POST', body: form })
+
+    expect(await response.json()).toMatchObject([
+      { kind: 'written', path: 'notes/plan.md' },
+      { kind: 'deleted', path: 'notes/stale.md' },
+    ])
+    expect(git(remote, 'show', 'main:notes/plan.md')).toBe('plan, from ada')
+  })
+
+  it('replays a save on a commit pushed while it was being made', async () => {
+    // A clone that missed the colleague's push, as one does when the push lands mid-save.
+    const stale = publishing({ ...clone, update: async () => undefined }, { dir, scope })
+    const base = await versionOf(stale, 'notes/other.md')
+    share('notes/plan.md', 'pushed meanwhile\n')
+
+    const [result] = await save(stale, 'notes/other.md', base, 'other, from ada\n')
+
+    expect(result).toMatchObject({ kind: 'written', path: 'notes/other.md' })
+    expect(git(remote, 'show', 'main:notes/other.md')).toBe('other, from ada')
+    expect(git(remote, 'show', 'main:notes/plan.md')).toBe('pushed meanwhile')
   })
 })

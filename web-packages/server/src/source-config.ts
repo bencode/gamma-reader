@@ -3,7 +3,8 @@ import { resolve } from 'node:path'
 
 // A deployment can bind its library to a source, which the reader keeps in sync. The source is
 // either any address serving the listing the reader asks for, or a git repository this server
-// serves itself: a working tree read as it is on disk, or a clone it keeps pulling.
+// serves itself: a working tree read as it is on disk, or a clone it keeps pulling, and pushes
+// the reader's saves to when told to.
 export type SourceConfig =
   | { kind: 'remote'; name: string; url: string }
   | { kind: 'worktree'; name: string; dir: string; include: string[]; exclude: string[] }
@@ -15,6 +16,7 @@ export type SourceConfig =
       include: string[]
       exclude: string[]
       pullSeconds: number
+      push: boolean
     }
 
 type Env = Record<string, string | undefined>
@@ -71,23 +73,26 @@ export const readSourceConfig = (env: Env): SourceConfig | null => {
     include,
     exclude,
     pullSeconds: positiveInteger('GAMMA_SOURCE_PULL_SECONDS', env.GAMMA_SOURCE_PULL_SECONDS, 120),
+    push: env.GAMMA_SOURCE_PUSH?.trim() === '1',
   }
 }
 
-// What the reader is told: where to fetch the listing from. A working tree also takes changes
-// back, and names which folder it is, so a library synced from one is never saved into another.
-// A repository served from here also says which of its folders it holds, so the reader can say
-// why a file was not saved.
+const writableAt = (place: string) => ({
+  writable: true,
+  id: createHash('sha1').update(place).digest('hex'),
+})
+
+// What the reader is told: where to fetch the listing from. A working tree, and a clone pushed
+// to, also take changes back, and name which folder or repository they are, so a library synced
+// from one is never saved into another. A repository served from here also says which of its
+// folders it holds, so the reader can say why a file was not saved.
 export const sourceLocation = (config: SourceConfig) => {
   if (config.kind === 'remote') return { name: config.name, url: config.url }
-  const scope = { include: config.include, exclude: config.exclude }
-  return config.kind === 'worktree'
-    ? {
-        name: config.name,
-        url: libraryPath,
-        writable: true,
-        id: createHash('sha1').update(resolve(config.dir)).digest('hex'),
-        scope,
-      }
-    : { name: config.name, url: libraryPath, scope }
+  const location = {
+    name: config.name,
+    url: libraryPath,
+    scope: { include: config.include, exclude: config.exclude },
+  }
+  if (config.kind === 'worktree') return { ...location, ...writableAt(resolve(config.dir)) }
+  return config.push ? { ...location, ...writableAt(config.repo) } : location
 }

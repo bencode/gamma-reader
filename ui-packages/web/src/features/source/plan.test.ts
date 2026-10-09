@@ -183,6 +183,26 @@ describe('saving to a writable source', () => {
     ])
   })
 
+  it('keeps a clash handed back as an edit from the version the source now holds', () => {
+    const after = snapshotAfterSave(
+      synced,
+      [{ kind: 'conflicted', path: 'notes/edited.md', version: 'b3', text: '<<<<<<< reader' }],
+      now,
+    )
+    const disk = listing({ 'notes/same.md': 'a', 'notes/edited.md': 'b3' })
+    const resolved = now.map(file =>
+      file.id === 'edited' ? { ...file, revision: file.revision + 2 } : file,
+    )
+
+    expect(planSync(after, disk, resolved, true).download).toEqual([])
+    expect(planSave(after, resolved)).toContainEqual({
+      kind: 'write',
+      id: 'edited',
+      path: 'notes/edited.md',
+      base: 'b3',
+    })
+  })
+
   it('keeps a skipped change to save again', () => {
     const after = snapshotAfterSave(
       synced,

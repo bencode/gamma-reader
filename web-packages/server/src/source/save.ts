@@ -28,6 +28,18 @@ export type SaveChange =
 // The bytes the reader sent for a write, by the part that carries them.
 export type SaveContent = (part: string) => Promise<Uint8Array | null>
 
+// Where a clash is settled. A working tree marks it in the file on disk, for the reader to resolve
+// in an editor. A repository the server pushes to commits no markers: the reader gets the marked
+// file back to resolve, and a file that still holds them is not saved.
+export type Clashes = 'mark-on-disk' | 'return-to-reader'
+
+const theirs: Record<Clashes, string> = { 'mark-on-disk': 'disk', 'return-to-reader': 'repository' }
+
+const unresolved = (bytes: Uint8Array) => {
+  const text = Buffer.from(bytes).toString('utf8')
+  return /^<<<<<<< reader\r?$/m.test(text) && /^>>>>>>> repository\r?$/m.test(text)
+}
+
 const run = promisify(execFile)
 const maxBuffer = 256 * 1024 * 1024
 
@@ -112,14 +124,20 @@ const isExitError = (cause: unknown): cause is ExitError =>
 
 // git merge-file exits with the number of conflicts it marked, and a negative value (an exit
 // status of 128 or more) when it cannot merge at all, as with binary files.
-const merge = async (dir: string, path: string, mine: Uint8Array, base: string | null) => {
+const merge = async (
+  dir: string,
+  path: string,
+  mine: Uint8Array,
+  base: string | null,
+  label: string,
+) => {
   const ancestor = base === null ? Buffer.alloc(0) : await readObject(dir, base)
   if (!ancestor) return null
   const scratch = await mkdtemp(join(tmpdir(), 'gamma-reader-merge-'))
   try {
     await writeFile(join(scratch, 'mine'), mine)
     await writeFile(join(scratch, 'base'), ancestor)
-    const args = ['merge-file', '-p', '-L', 'reader', '-L', 'base', '-L', 'disk']
+    const args = ['merge-file', '-p', '-L', 'reader', '-L', 'base', '-L', label]
     try {
       const { stdout } = await run(
         'git',
@@ -142,11 +160,13 @@ const write = async (
   dir: string,
   change: Extract<SaveChange, { kind: 'write' }>,
   content: SaveContent,
+  clashes: Clashes,
 ): Promise<SaveResult> => {
   const { path, base } = change
   const full = join(dir, path)
   const mine = await content(change.part)
   if (!mine) return skipped(path, 'missing')
+  if (clashes === 'return-to-reader' && unresolved(mine)) return skipped(path, 'unresolved')
   const stats = await statOf(full)
   if (stats && !stats.isFile()) return skipped(path, 'path-taken')
   if (!stats && base !== null) return skipped(path, 'deleted-on-disk')
@@ -154,8 +174,15 @@ const write = async (
     await writeAtomically(full, mine)
     return { kind: 'written', path, version: await store(dir, path) }
   }
-  const merged = await merge(dir, path, mine, base)
+  const merged = await merge(dir, path, mine, base, theirs[clashes])
   if (!merged) return skipped(path, 'cannot-merge')
+  if (merged.conflicts > 0 && clashes === 'return-to-reader')
+    return {
+      kind: 'conflicted',
+      path,
+      version: await hashOf(dir, path),
+      text: merged.bytes.toString('utf8'),
+    }
   await writeAtomically(full, merged.bytes)
   return { kind: 'merged', path, version: await store(dir, path), conflicts: merged.conflicts }
 }
@@ -190,11 +217,11 @@ const remove = async (
 
 const target = (change: SaveChange) => (change.kind === 'move' ? change.to : change.path)
 
-const apply = (dir: string, change: SaveChange, content: SaveContent) =>
+const apply = (dir: string, change: SaveChange, content: SaveContent, clashes: Clashes) =>
   change.kind === 'move'
     ? move(dir, change)
     : change.kind === 'write'
-      ? write(dir, change, content)
+      ? write(dir, change, content, clashes)
       : remove(dir, change)
 
 // Moves go first so that a file moved and then edited is written at its new path; a move that
@@ -205,6 +232,7 @@ export const applySave = async (
   scope: SourceScope,
   changes: readonly SaveChange[],
   content: SaveContent,
+  clashes: Clashes = 'mark-on-disk',
 ) => {
   const order = { move: 0, write: 1, delete: 2 } as const
   const ordered = [...changes].sort((a, b) => order[a.kind] - order[b.kind])
@@ -220,7 +248,7 @@ export const applySave = async (
       const inside = await Promise.all(paths.map(path => insideTree(dir, path)))
       const result =
         paths.every(path => inScope(path, scope)) && inside.every(Boolean)
-          ? await apply(dir, change, content)
+          ? await apply(dir, change, content, clashes)
           : skipped(target(change), 'invalid-path')
       if (change.kind === 'move' && result.kind === 'skipped') unmoved.add(change.to)
       results.push(result)

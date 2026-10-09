@@ -2,7 +2,12 @@ import type { SaveResult, SourceFile } from '@gamma-reader/shared/source-protoco
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { StoredFileMetadata } from '../../core/files'
 import type { ProjectSource } from '../../core/projects'
-import { importStoredFiles, listStoredFiles, removeStoredFiles } from '../../data/file-store'
+import {
+  importStoredFiles,
+  listStoredFiles,
+  removeStoredFiles,
+  writeStoredTextFile,
+} from '../../data/file-store'
 import { workspaceStorageBases, workspaceStorageKey } from '../../data/workspace-database'
 import { baseName } from '../../utils/path'
 import {
@@ -105,6 +110,12 @@ const pull = async (source: ProjectSource, onProgress: (done: number, total: num
   return { kept: plan.kept, replaced: plan.replaced, refused: result.rejected.length }
 }
 
+// A clash the source handed back replaces the copy here, with both sides marked, to resolve here.
+const takeBackClashes = async (results: readonly SaveResult[]) => {
+  for (const result of results)
+    if (result.kind === 'conflicted') await writeStoredTextFile(result.path, result.text)
+}
+
 export const useSourceSync = (
   source: ProjectSource | null,
   reload: () => Promise<void>,
@@ -186,6 +197,7 @@ export const useSourceSync = (
       setState({ kind: 'saving', total: changes.length })
       const results = await saveToSource(source, changes)
       writeSnapshot(snapshotAfterSave(snapshot, results, local))
+      await takeBackClashes(results)
       await pull(source, () => undefined)
       await reload()
       checkedAt.current = Date.now()

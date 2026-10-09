@@ -169,7 +169,8 @@ export const saveReady = (snapshot: SyncSnapshot | null, source: ProjectSource) 
 
 // What was saved counts as synced at the version the source reported, so the next sync does not
 // fetch it again. A merged file is marked with no version, so the next sync brings the merge in.
-// What was skipped stays a change here.
+// A clash handed back is an edit from the version the source now holds, so the next sync leaves
+// the marked copy here alone and Save sends it once resolved. What was skipped stays a change here.
 export const snapshotAfterSave = (
   snapshot: SyncSnapshot,
   results: readonly SaveResult[],
@@ -191,6 +192,13 @@ export const snapshotAfterSave = (
       const version = result.kind === 'written' ? result.version : ''
       files.set(result.path, { version, revision: held.revision, id: held.id })
     }
+    if (result.kind === 'conflicted' && held)
+      files.set(result.path, {
+        version: result.version,
+        revision: held.revision,
+        id: held.id,
+        kept: true,
+      })
   }
   return { ...snapshot, files: Object.fromEntries(files) }
 }

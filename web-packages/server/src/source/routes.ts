@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import type { Source } from './repository.js'
+import type { Author, Source } from './repository.js'
 import type { SaveChange } from './save.js'
 
 const contentTypes: Record<string, string> = {
@@ -60,6 +60,14 @@ const readSave = async (request: Request) => {
   return { changes, content }
 }
 
+// Who saves, as the sign-in in front of the server names them; oauth2-proxy passes these
+// headers. Angle brackets would end the name git records.
+const authorOf = (request: Request): Author | null => {
+  const header = (name: string) => request.headers.get(name)?.replace(/[<>]/g, '').trim() ?? ''
+  const email = header('x-forwarded-email')
+  return email ? { name: header('x-forwarded-user') || email, email } : null
+}
+
 export const createRoutes = (source: Source) => {
   const app = new Hono()
   app.get('/', async c => {
@@ -74,7 +82,7 @@ export const createRoutes = (source: Source) => {
         throw cause
       })
       if (!request) return c.json({ error: 'The changes could not be read.' }, 400)
-      return c.json(await save(request.changes, request.content))
+      return c.json(await save(request.changes, request.content, authorOf(c.req.raw)))
     })
   app.get('/files/*', async c => {
     const path = filePath(c.req.url)

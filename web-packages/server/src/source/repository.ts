@@ -7,12 +7,19 @@ import type { SaveResult, SourceFile, SourceListing } from '@gamma-reader/shared
 import type { SaveChange, SaveContent } from './save.js'
 import { inScope } from './scope.js'
 
+// Who saved, as the sign-in in front of the server names them.
+export type Author = { name: string; email: string }
+
 // What the routes serve, whichever way the files are kept. A file is read only by a listed path.
 // A source that takes changes back also saves them.
 export type Source = {
   listing: () => Promise<SourceListing>
   blob: (path: string) => Promise<{ file: SourceFile; stream: ReadableStream<Uint8Array> } | null>
-  save?: (changes: readonly SaveChange[], content: SaveContent) => Promise<SaveResult[]>
+  save?: (
+    changes: readonly SaveChange[],
+    content: SaveContent,
+    author: Author | null,
+  ) => Promise<SaveResult[]>
 }
 
 const run = promisify(execFile)
