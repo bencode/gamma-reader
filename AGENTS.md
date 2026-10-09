@@ -1,6 +1,6 @@
 # Gamma Reader
 
-Run `pnpm check` (Biome, TypeScript, unit and integration tests) before proposing a change. The README covers running, deploying and the server contracts.
+Run `pnpm check` (Biome, TypeScript, unit and integration tests) before proposing a change. The README covers running locally; `docs/` covers self-hosting and syncing from a repository.
 
 ## Packages
 
