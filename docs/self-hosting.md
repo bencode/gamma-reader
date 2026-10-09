@@ -73,7 +73,7 @@ The project menu shows the version, such as `Gamma Reader 1.0.0 (46b53a0)`: the 
 git tag v1.1.0 && git push origin v1.1.0
 ```
 
-Pushing the tag also publishes the [`gamma-reader`](../web-packages/cli) package to npm at that version, which `npx gamma-reader` runs. The workflow needs an npm token in the repository secret `NPM_TOKEN`.
+Pushing the tag also publishes the [`@lesscap/gamma-reader`](../web-packages/cli) package to npm at that version, which `npx @lesscap/gamma-reader` runs. The workflow needs an npm token in the repository secret `NPM_TOKEN`.
 
 The image has no `.git`, so a deployment passes the version in, and the commit as the image tag. `git pull` does not bring a tag on a commit it already has, so fetch tags first:
 

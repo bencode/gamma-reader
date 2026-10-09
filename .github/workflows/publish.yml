@@ -1,4 +1,4 @@
-# A release tag also publishes the gamma-reader package, which serves a working tree with npx.
+# A release tag also publishes the @lesscap/gamma-reader package, which serves a working tree with npx.
 name: Publish to npm
 
 on:

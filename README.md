@@ -29,8 +29,8 @@ The app opens on a Tutorial project that shows every feature in use; its chapter
 The online reader needs nothing installed. A working tree needs Node 24 and git, and one command run in it:
 
 ```sh
-npx gamma-reader                                  # the current folder, at http://127.0.0.1:3302
-npx gamma-reader ~/notes --exclude tmp,output     # or name one; --help lists the options
+npx @lesscap/gamma-reader                                # the current folder, at http://127.0.0.1:3302
+npx @lesscap/gamma-reader ~/notes --exclude tmp,output   # or name one; --help lists the options
 ```
 
 The project is named after the folder. Chat uses `GLM_API_KEY` or `DEEPSEEK_API_KEY` from the environment, or a model added in the reader. A server following a repository is a deployment of its own and must sit behind a sign-in; see [Sync from a repository](docs/sync-from-repository.md).
