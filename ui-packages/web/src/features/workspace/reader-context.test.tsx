@@ -107,6 +107,24 @@ describe('reader state tools', () => {
     })
   })
 
+  it('opens a file and resolves once it is the active tab', async () => {
+    let tools: LocalTools | undefined
+    render(
+      <MemoryRouter initialEntries={['/files/first']}>
+        <Harness
+          onTools={value => {
+            tools = value
+          }}
+        />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(tools?.get_reader_state().activeFile?.id).toBe('first'))
+    await expect(tools?.open({ fileId: 'missing' })).rejects.toThrow('File not found')
+    const state = await tools?.open({ fileId: 'second' })
+    expect(state?.activeFile?.id).toBe('second')
+    expect(state?.openFiles.map(file => file.id)).toEqual(['first', 'second'])
+  })
+
   it('excludes hidden readers, suppresses covered viewports and drops removed files', async () => {
     let tools: LocalTools | undefined
     const capture = (value: LocalTools) => {

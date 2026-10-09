@@ -49,6 +49,8 @@ const readSavedText = async (fileId: string) => {
   return text
 }
 
+const openTimeout = 2000
+
 export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
   const { workspace, rootRef, readers, labs, noteIndex } = options
   const current = useRef(workspace)
@@ -121,46 +123,59 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
     [labs],
   )
 
-  return useMemo(
-    () =>
-      createLocalTools(
-        () => {
-          const latest = current.current
-          const openFiles = latest.store.getState().tabs.flatMap(id => {
-            const file = latest.files.find(file => file.id === id)
-            return file ? [{ id: file.id, path: file.path, type: file.previewKind }] : []
-          })
-          const file = latest.files.find(file => file.id === latest.activeId)
-          const binding = file ? readers.current.get(file.id) : undefined
-          const pageNumber = binding?.getPageNumber?.()
-          const draft = file ? latest.store.getState().sourceDrafts[file.id] : undefined
-          const blocked = !rootRef.current || Boolean(rootRef.current.querySelector('dialog[open]'))
-          const page = latest.activeId ? pageOfTab(latest.activeId) : null
-          return {
-            openFiles,
-            activeFile: file
-              ? {
-                  id: file.id,
-                  path: file.path,
-                  type: file.previewKind,
-                  ...(pageNumber !== undefined ? { pageNumber } : {}),
-                  ...(draft ? { source: { dirty: sourceDirty(draft) } } : {}),
-                }
-              : null,
-            ...(page !== null ? { activePage: pageName(noteIndex?.getState().graph, page) } : {}),
-            viewport: blocked ? null : (binding?.getViewport() ?? null),
-          }
-        },
-        (path, content, signal) => writer.current(path, content, signal),
-        (fileId, path, signal) => mover.current(fileId, path, signal),
-        activeSource,
-        links,
-        labAccess,
-        (path, file, signal) => {
-          if (!saver.current) throw new LocalToolError('Saving files is unavailable.')
-          return saver.current(path, file, signal)
-        },
-      ),
-    [activeSource, labAccess, links, noteIndex, readers, rootRef],
-  )
+  return useMemo(() => {
+    const readerState = (): ReaderState => {
+      const latest = current.current
+      const openFiles = latest.store.getState().tabs.flatMap(id => {
+        const file = latest.files.find(file => file.id === id)
+        return file ? [{ id: file.id, path: file.path, type: file.previewKind }] : []
+      })
+      const file = latest.files.find(file => file.id === latest.activeId)
+      const binding = file ? readers.current.get(file.id) : undefined
+      const pageNumber = binding?.getPageNumber?.()
+      const draft = file ? latest.store.getState().sourceDrafts[file.id] : undefined
+      const blocked = !rootRef.current || Boolean(rootRef.current.querySelector('dialog[open]'))
+      const page = latest.activeId ? pageOfTab(latest.activeId) : null
+      return {
+        openFiles,
+        activeFile: file
+          ? {
+              id: file.id,
+              path: file.path,
+              type: file.previewKind,
+              ...(pageNumber !== undefined ? { pageNumber } : {}),
+              ...(draft ? { source: { dirty: sourceDirty(draft) } } : {}),
+            }
+          : null,
+        ...(page !== null ? { activePage: pageName(noteIndex?.getState().graph, page) } : {}),
+        viewport: blocked ? null : (binding?.getViewport() ?? null),
+      }
+    }
+    // The address changes at once, but the active tab follows only once React renders it.
+    const openFile = async (fileId: string, signal?: AbortSignal) => {
+      if (!current.current.files.some(file => file.id === fileId))
+        throw new LocalToolError('File not found. Run list to choose a workspace file.')
+      current.current.openDocument(fileId)
+      const deadline = Date.now() + openTimeout
+      while (current.current.activeId !== fileId) {
+        signal?.throwIfAborted()
+        if (Date.now() > deadline) throw new LocalToolError('The file did not open. Try again.')
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+      return readerState()
+    }
+    return createLocalTools(
+      readerState,
+      (path, content, signal) => writer.current(path, content, signal),
+      (fileId, path, signal) => mover.current(fileId, path, signal),
+      activeSource,
+      links,
+      labAccess,
+      (path, file, signal) => {
+        if (!saver.current) throw new LocalToolError('Saving files is unavailable.')
+        return saver.current(path, file, signal)
+      },
+      openFile,
+    )
+  }, [activeSource, labAccess, links, noteIndex, readers, rootRef])
 }

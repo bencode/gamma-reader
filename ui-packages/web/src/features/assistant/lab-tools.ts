@@ -117,7 +117,7 @@ const fitted = (result: LabCellsResult): LabCellsResult => {
 const openLab = (access: LabAccess, input: LabCellsInput) => {
   const lab = access.active()
   if (!lab)
-    throw new LocalToolError('The active tab is not a lab (.lab.md). Ask the reader to open it.')
+    throw new LocalToolError('The active tab is not a lab (.lab.md). Open the lab with open first.')
   const { path, runner } = lab
   const document = runner.document()
   if (!document) throw new LocalToolError('The lab is still loading. Call again shortly.')

@@ -22,6 +22,7 @@ export type EditActiveSourceInput = {
   newText: string
 }
 export type EditActiveSourceResult = { version: string }
+export type OpenInput = { fileId: string }
 export type MoveInput = { fileId: string; path: string }
 export type MoveResult = { fileId: string; from: string; path: string }
 export type WriteInput = { path: string; content: string }
