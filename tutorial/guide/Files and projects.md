@@ -21,7 +21,7 @@ You can also drop files or folders onto Files.
 | A GitHub repository or folder, `…/tree/<ref>/<folder>` | The folder, file by file |
 | Any other `https` link | The file, if its site lets web pages download it |
 
-GitHub allows 60 folder listings an hour from one network, and private repositories cannot be read. When a site refuses the download, save the file and drop it onto Files instead.
+Adding a GitHub URL imports a snapshot; it does not set up sync or push. GitHub allows 60 folder listings an hour from one network, and private repositories cannot be read. When a site refuses the download, save the file and drop it onto Files instead.
 
 ### What a folder leaves out
 
@@ -41,9 +41,14 @@ Opening a document unfolds the folders above it, so the tree always shows where 
 
 ## Keep copies and remove files
 
-Each file row has two actions: **Save as…** writes the saved copy to your computer, and **Remove from Files** deletes the copy in this browser. A folder row offers **Remove folder**. Removing never touches the original on your computer.
+| Action | Saves to |
+| --- | --- |
+| **Save** in the document editor, or ⌘/Ctrl+S | This browser's saved copy |
+| **Save as…** on a file row | A downloaded copy on your computer |
+| **Save files to folder**, above Files without a writable source | A folder you choose; recreates the project tree, then exports only changes. Requires desktop Chrome or Edge |
+| **Save … to [source name]**, above Files in a writable-source project | The connected folder or repository; see [[Files and projects#Keeping a project in step with a source]] |
 
-**Save files to folder**, at the top of Files, writes the whole project to a folder on your computer and recreates its tree. Afterwards it saves only what changed. It needs desktop Chrome or Edge.
+**Remove from Files** deletes the browser copy; a folder row offers **Remove folder**. In a writable-source project, the next source Save also requests deletion of synced originals, with confirmation first.
 
 ## Projects
 
@@ -57,19 +62,19 @@ Each project opens in its own browser tab, so the assistant can work in two proj
 
 ## Keeping a project in step with a source
 
-A project can follow a source: Tutorial follows the copy shipped with Gamma Reader, and a deployment can follow a git repository. The line under **Files** says whether the source has changed and offers **Update**.
+A project can follow a source. The line under **Files** shows sync progress and any changes waiting to be saved.
 
-An update changes only the files the source changed:
+- **Read-only source** (Tutorial, a clone without push enabled, or a listing URL): choose **Update**. The reader warns before replacing edits to files the source changed; export a copy first to keep them.
+- **Writable source** (a local working tree opened with npx, or a push-enabled clone): sync runs automatically every minute, keeping browser edits until source Save.
 
-| The source… | Your copy… | After **Update** |
-| --- | --- | --- |
-| changed a file | unchanged | The new version |
-| changed a file | edited here | The new version, replacing your edit |
-| did not change a file | edited or deleted here | Left as it is |
-| removed a file | unchanged | Removed |
-| removed a file | edited here | Kept, as your own file |
+Files the source did not change stay as they are here. A source deletion removes an unchanged browser copy; an edited copy stays. Files you add remain in the project.
 
-Before an update replaces your edits, the line names the files: *Tutorial has updates. Updating replaces your edits to …*. Save a copy first if you want to keep one. Files you add yourself are never touched.
+To save to a writable source:
+
+1. Choose **Save** in the document editor to keep the draft in the browser.
+2. Choose **Save … to [source name]** above Files to write changes back. Commit and push local changes with git; a push-enabled clone does both on Save.
+
+If source Save reports conflicts, follow **Details**: resolve local working-tree markers in your editor, or remote-repository markers in the reader, then save again.
 
 Deleting Tutorial is a way to start it afresh: it returns on your next visit, with every file as it ships.
 

@@ -1,51 +1,87 @@
 # Sync from a repository
 
-A project can follow a git repository instead of files added by hand. Name the source and point at the repository:
+A connected source keeps a project's browser copy in step with files on disk or in a remote repository.
+
+## Local working tree
+
+With Node 24 and git installed, run:
 
 ```sh
-GAMMA_SOURCE_NAME=notes GAMMA_SOURCE_WORKTREE=$HOME/notes pnpm dev
+npx gamma-reader ~/notes --exclude tmp,output
 ```
 
-The reader opens a project named after the source and offers **Update** whenever the repository has changed; it checks when the library opens and when its tab comes back into view, at most once a minute. Sync from a clone or an address only brings files in, and the source has the last word on what it changes: an update replaces a browser edit to a file the source changed, and says so first, while files the source did not change stay as they are in the browser. A working tree can also take changes back — see [Saving back to a working tree](#saving-back-to-a-working-tree) — and so can a clone the server pushes to — see [Saving back to a repository](#saving-back-to-a-repository).
+The folder must belong to a git working tree. The reader opens a project named after it, syncs disk changes automatically, and can [save changes back](#saving-back-to-a-working-tree). npx serves only a local working tree; it does not clone a remote repository. For model keys and `.env` loading, see [Configuration](self-hosting.md#configuration).
 
-Set exactly one of these with `GAMMA_SOURCE_NAME`:
+## Remote repository
 
-| Variable | Serves | Changes show |
+On a server with Node 24, pnpm 10.14.0 and git, run these commands from a Gamma Reader checkout:
+
+```sh
+pnpm install
+pnpm build
+GAMMA_SOURCE_NAME=notes GAMMA_SOURCE_REPO=https://github.com/you/notes.git pnpm start
+```
+
+The server clones the repository and pulls every 120 seconds by default. Set `GAMMA_SOURCE_PUSH=1` in the checkout's untracked `.env` to enable [commit and push on Save](#saving-back-to-a-repository). Private repositories need git credentials; SSH keys can be selected with `GIT_SSH_COMMAND`. Serve the source behind a sign-in: the server does not authenticate file requests itself.
+
+For Docker, build the `runtime-git` target and pass the source variables into the container. The shipped [Compose file](../compose.production.yml) uses the git-free target and does not forward `GAMMA_SOURCE_*`; see [Self-hosting](self-hosting.md#production) for the deployment workflow.
+
+## Source configuration
+
+When starting the server directly, set `GAMMA_SOURCE_NAME` and exactly one source variable. npx sets the name and working tree for you.
+
+| Variable | Serves |
+| --- | --- |
+| `GAMMA_SOURCE_WORKTREE` | Files on disk, including uncommitted files, subject to the filters below |
+| `GAMMA_SOURCE_REPO` | Committed files of a clone the server keeps pulling |
+| `GAMMA_SOURCE_URL` | A read-only listing endpoint: `GET <url>` returns `{ version, files: [{ path, version, size }] }`; `GET <url>/files/<path>` returns a file |
+
+| Optional variable | Default | Purpose |
 | --- | --- | --- |
-| `GAMMA_SOURCE_WORKTREE` | The files on disk, committed or not, leaving out what git ignores | As soon as they are saved |
-| `GAMMA_SOURCE_REPO` | The committed files of a clone the server keeps under `GAMMA_SOURCE_DIR` | After the next pull, every `GAMMA_SOURCE_PULL_SECONDS` |
-| `GAMMA_SOURCE_URL` | Whatever that address serves: `GET <url>` lists `{ version, files: [{ path, version, size }] }`, and `GET <url>/files/<path>` returns a file | When that address says so |
-
-The rest are optional:
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `GAMMA_SOURCE_EXCLUDE` | Unset | Folders of the repository to leave out, comma separated |
-| `GAMMA_SOURCE_INCLUDE` | Unset (all) | Folders of the repository to list, comma separated, when only some are wanted |
+| `GAMMA_SOURCE_EXCLUDE` | Unset | Folders to leave out, comma separated; also available as npx `--exclude` |
+| `GAMMA_SOURCE_INCLUDE` | Unset (all) | Only these folders, comma separated; also available as npx `--include` |
 | `GAMMA_SOURCE_DIR` | `$GAMMA_DATA_DIR/source` | Where a cloned repository lives |
-| `GAMMA_SOURCE_PULL_SECONDS` | `120` | How often a cloned repository is pulled |
-| `GAMMA_SOURCE_PUSH` | Unset | `1` commits Save to a cloned repository and pushes it; see [Saving back to a repository](#saving-back-to-a-repository) |
+| `GAMMA_SOURCE_PULL_SECONDS` | `120` | Seconds between pulls |
+| `GAMMA_SOURCE_PUSH` | Unset | `1` enables commit and push to the cloned repository |
 
-Give paths in full: `.env` does not expand `~` or `$HOME`. A source holds the whole repository but what git ignores and hidden files and folders, such as `.github/`. `GAMMA_SOURCE_EXCLUDE=meta,tmp` also leaves those folders out, and `GAMMA_SOURCE_INCLUDE=knowledge,journal` limits it to those folders instead; a hidden folder named there, such as `.github`, is held too, though nothing hidden inside it is. A file outside the source is neither listed nor saved, and the reader says which rule left it out. For a private repository, give git its key with `GIT_SSH_COMMAND`. The default container image has no git; build one that serves a repository with `docker build --target runtime-git`. The server does not check who asks for the files, so a deployment that serves a repository must sit behind a sign-in.
+Use absolute paths in `.env`: it does not expand `~` or `$HOME`.
+
+### What is synced
+
+- **Local working tree:** tracked files and untracked files allowed by git's ignore rules. Already tracked files remain eligible even if they match `.gitignore`.
+- **Remote clone:** committed files only; `.gitignore` does not remove files already committed.
+- **Path filters:** hidden files and folders stay out. Include/exclude folders are relative to the selected local folder or the remote repository root; exclude wins. Explicitly including a hidden folder such as `.github` allows its non-hidden contents.
+- **Repository boundaries:** symlinks and submodules stay out. Nested independent git repositories are not recursively synced as part of a local working tree.
+
+A file outside the include/exclude or hidden-path rules is neither listed nor saved. These source rules differ from the browser's [one-time folder import filters](../tutorial/guide/Files%20and%20projects.md#what-a-folder-leaves-out).
+
+### When updates arrive
+
+| Source | Updates | Browser edits |
+| --- | --- | --- |
+| Read-only clone or URL | Checked when the project opens or its tab becomes visible, at most once a minute; choose **Update** | Replaced if the source changed the same file; the reader warns first |
+| Local working tree or push-enabled clone | Also checked every minute; updates arrive automatically | Kept until you save back |
+
+Both leave browser edits alone when the source did not change the file. Newly added browser files stay in the project.
 
 ## Saving back to a working tree
 
-A working tree also takes changes back. Its project checks for updates every minute and brings them in without asking, and the **Save** button above Files writes what changed in the browser since the last update to the folder: edits, new files, moves, and deletions. Deleting files on disk is confirmed first. Nothing is committed; review and commit the changes with git as usual.
+1. Choose **Save** in the document editor (⌘/Ctrl+S) to keep the draft in IndexedDB.
+2. Choose **Save** above Files to write the project's edits, additions, moves and deletions to its source. Deletions are confirmed first.
+3. Review, commit and push with git yourself; local Save does not commit or push.
 
-Save compares the library with what it last brought in, so any change made here counts, however it was made. Each file is sent with the version it started from:
+Save compares each file with the version last synced:
 
-- A file nobody else changed is written as it is.
-- A file someone changed on disk meanwhile — in an editor, or by an agent — is merged with `git merge-file`. Edits to different lines combine on their own; edits to the same line leave conflict markers in the file, and the reader names it so you can resolve it in your editor. The resolved file comes back with the next update.
-- A file you edited that was deleted on disk meanwhile stays deleted; your copy remains here as a new file, and saving again writes it back. A file you deleted that was changed on disk meanwhile is kept, and the next update brings it back here. The reader says which files these are.
+- **Concurrent edits:** different lines merge automatically. Conflicting lines are written with markers; resolve them in your editor and the next sync brings the result in.
+- **Deletion conflicts:** a file deleted on disk stays deleted, with your edit kept in the browser to save again. A file you deleted here is kept on disk if someone changed it meanwhile.
 
-A project saves only to the folder it was synced from. Pointing the same source name at another folder blocks Save for that project; give the new folder its own name.
+A project saves only to the folder it was synced from. Give another folder a different source name.
 
 ## Saving back to a repository
 
-With `GAMMA_SOURCE_PUSH=1`, a clone takes changes back too: Save works as it does for a working tree, and the server commits what it wrote and pushes it to the branch it cloned at once, so the repository's history records every save. The clone's key must be allowed to push.
+With `GAMMA_SOURCE_PUSH=1`, the two Save steps above also apply to a remote clone. The server pulls before saving, commits the changes and pushes to the branch it cloned. Its git credentials must allow push.
 
-- Each save starts from the repository's latest commit, and saves take turns with the pulls. A file someone changed meanwhile is merged as it is in a working tree.
-- A clash on the same lines is never committed. The reader gets the file back with both sides marked in it, resolves it there, and saves again; a file that still holds the markers is not saved.
-- A push the repository refuses because it moved on is replayed on its newer commit once. If that fails too, the clone goes back to the repository's commit and the changes stay in the browser to save again.
+- **Conflicts:** conflicting text is returned to the reader without being committed. Resolve the markers, save the document, then save to the source again.
+- **Push failure:** if the repository moved on, the server rebases and retries once. If commit or push still fails, the clone is restored and your browser changes remain available to save again.
 
-A commit's author is the reader the sign-in in front of the server names in `X-Forwarded-Email` and `X-Forwarded-User`, as oauth2-proxy passes them; without them it is Gamma Reader. The server believes these headers as given, so serve it only through that sign-in.
+The sign-in's `X-Forwarded-Email` and `X-Forwarded-User` headers name the commit author; without them it is Gamma Reader. Only the sign-in should be allowed to set these headers.
