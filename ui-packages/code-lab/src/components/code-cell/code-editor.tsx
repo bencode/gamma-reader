@@ -1,3 +1,4 @@
+import { indentWithTab } from '@codemirror/commands'
 import { Compartment, EditorState, Prec } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { basicSetup } from 'codemirror'
@@ -85,6 +86,8 @@ export const CodeEditor = ({
           doc: sourceRef.current,
           extensions: [
             basicSetup,
+            // basicSetup leaves Tab to move focus; Escape then Tab still leaves the editor.
+            keymap.of([indentWithTab]),
             EditorView.contentAttributes.of({ 'aria-label': 'Code' }),
             languageCompartment.current.of([]),
             editableCompartment.current.of([
