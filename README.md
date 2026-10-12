@@ -2,7 +2,7 @@
 
 A browser-native, local-first workspace for reading, experimenting, and creating with AI, powered by [pi](https://github.com/earendil-works/pi).
 
-[Try Gamma Reader](https://reader.upivot.io). Your documents stay in your browser, and there is no account to create.
+[Try Gamma Reader](https://reader.upivot.io). Import documents into your browser; no account is needed for browser-only projects.
 
 [![Gamma Reader with an executable Markdown article, local files, and the reading assistant](.github/assets/reader.png)](https://reader.upivot.io)
 
@@ -19,24 +19,26 @@ The app opens on a Tutorial project that shows every feature in use; its chapter
 
 ## Three ways to use it
 
-| Way | Files live in | Changes go back |
+| Mode | Start here | Save back |
 | --- | --- | --- |
-| [The online reader](https://reader.upivot.io) | This browser's IndexedDB | They stay in this browser |
-| A server following a repository | A clone the server keeps pulling, copied into each browser | Not yet; the server only brings files in |
-| A working tree on your machine | A git checkout on disk, copied into the browser | **Save** writes them to the folder; you review and commit with git |
+| **Browser only** | Open [the online reader](https://reader.upivot.io) and add files, a folder or a URL | Export files to your computer |
+| **Remote git repository** | [Configure a server](docs/sync-from-repository.md#remote-repository) to keep pulling a clone | Read-only by default; `GAMMA_SOURCE_PUSH=1` enables commit and push |
+| **Local git working tree** | Run `npx gamma-reader` in your checkout | **Save** above Files writes to disk; you commit and push with git |
 
-The online reader needs nothing installed. A working tree needs Node 24 and git, and one command run in it:
+All three keep a copy of the imported or synced documents in this browser's IndexedDB. Adding a folder is a one-time import with [filters](tutorial/guide/Files%20and%20projects.md#what-a-folder-leaves-out); connecting a source keeps the copy in sync.
+
+The online reader needs nothing installed. For a local working tree, install **Node 24 and git**, then run:
 
 ```sh
 npx gamma-reader                                  # the current folder, at http://127.0.0.1:3302
 npx gamma-reader ~/notes --exclude tmp,output     # or name one; --help lists the options
 ```
 
-The project is named after the folder. Chat uses `GLM_API_KEY` or `DEEPSEEK_API_KEY` from the environment, or a model added in the reader. A server following a repository is a deployment of its own and must sit behind a sign-in; see [Sync from a repository](docs/sync-from-repository.md).
+The project is named after the folder, which must belong to a git working tree. Chat uses `GLM_API_KEY` or `DEEPSEEK_API_KEY` from the process environment, or a model added in the reader. npx does not load `.env` automatically; see [Configuration](docs/self-hosting.md#configuration) for loading it and setting chat allowances.
 
 ## Local-first by design
 
-Files are copied into IndexedDB, and previewing, parsing, searching and the pi agent loop all run in the browser. AI inference runs at the model provider: on the shared allowance through a small Node proxy that holds the credentials and keeps no files or conversations, and with a reader's own key straight from the browser. When a reader turns on web search, the agent's queries go through this server to Tavily. See [Self-hosting](docs/self-hosting.md) for the allowance and what the proxy records.
+Previewing, parsing, searching and the pi agent loop run in the browser. A connected source can also hold your documents on disk or in a repository. AI inference runs at the model provider: on the shared allowance through a Node proxy that holds the credentials but stores no conversation content, and with a reader's own key straight from the browser. Web search queries go through the server to Tavily. See [Your data and models](tutorial/guide/Your%20data%20and%20models.md) for what leaves the browser.
 
 ![Browser storage, local tools, and the two routes to a model provider](tutorial/examples/How%20Gamma%20Reader%20works.svg)
 
