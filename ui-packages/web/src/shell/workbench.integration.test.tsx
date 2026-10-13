@@ -78,12 +78,14 @@ describe('reading workspace', () => {
       'guides/Start here.md',
     )
     // The address followed the move, so the document stayed open and its folder unfolded.
-    expect(screen.getByRole('tab', { name: 'Start here.md' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    )
-    expect(material('guides')).toHaveAttribute('aria-expanded', 'true')
-    expect(material('Start here.md')).toHaveAttribute('aria-current', 'page')
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Start here.md' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
+      expect(material('guides')).toHaveAttribute('aria-expanded', 'true')
+      expect(material('Start here.md')).toHaveAttribute('aria-current', 'page')
+    })
   })
 
   it('shows an agent-written file without changing the active document', async () => {
