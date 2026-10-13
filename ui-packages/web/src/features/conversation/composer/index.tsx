@@ -96,7 +96,8 @@ export const ConversationComposer = ({
   const value = draft || command
   const matches = command ? matchCommands(command, commands) : []
   const menuOpen = !dismissed && matches.length > 0
-  const running = phase === 'running' || phase === 'stopping'
+  // A summary being written can be stopped like a reply, and messages sent meanwhile are queued.
+  const running = phase === 'running' || phase === 'stopping' || phase === 'compacting'
   const readyAttachments = attachments.filter(item => item.status === 'ready')
   const hasUnavailable = readyAttachments.some(item => !availableFileIds.has(item.metadata.id))
   // While a reply runs, sending queues the message.

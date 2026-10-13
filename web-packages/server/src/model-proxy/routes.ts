@@ -1,3 +1,4 @@
+import { getOverflowPatterns } from '@earendil-works/pi-ai'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { setCookie } from 'hono/cookie'
@@ -16,6 +17,38 @@ type Granted = Extract<Admission, { ok: true }>
 
 const fail = (status: number, message: string) =>
   Response.json({ error: { message } }, { status, headers: { 'Cache-Control': 'no-store' } })
+
+const errorPreviewBytes = 4096
+
+// The start of a refusal, enough to recognise it; the rest is never read.
+const errorPreview = async (response: Response) => {
+  const reader = response.body?.getReader()
+  if (!reader) return ''
+  const chunks: Uint8Array[] = []
+  let size = 0
+  try {
+    while (size < errorPreviewBytes) {
+      const { done, value } = await reader.read()
+      if (done) break
+      chunks.push(value)
+      size += value.byteLength
+    }
+  } catch (cause) {
+    console.warn('Model error body could not be read', {
+      name: cause instanceof Error ? cause.name : 'UnknownError',
+    })
+  } finally {
+    await reader.cancel()
+  }
+  return Buffer.concat(chunks).subarray(0, errorPreviewBytes).toString('utf8')
+}
+
+// Provider text is never passed on. A refusal for length is named in a fixed sentence the
+// reader's client recognises, so it can compact the conversation and ask again.
+const refusalMessage = (status: number, preview: string) =>
+  getOverflowPatterns().some(pattern => pattern.test(preview))
+    ? 'The model provider rejected the request: context length exceeded.'
+    : `The model provider returned HTTP ${status}.`
 
 const validBody = (body: unknown, modelIds: readonly string[]): body is Record<string, unknown> =>
   typeof body === 'object' &&
@@ -60,10 +93,10 @@ const forward = async (
       body: payload,
     })
     if (!response.ok) {
-      await response.body?.cancel()
+      const preview = await errorPreview(response)
       granted.done(0)
       console.warn('Model request rejected', { status: response.status })
-      return fail(response.status, `The model provider returned HTTP ${response.status}.`)
+      return fail(response.status, refusalMessage(response.status, preview))
     }
     if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
       await response.body?.cancel()

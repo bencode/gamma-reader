@@ -408,6 +408,26 @@ describe('model proxy', () => {
     expect(log).toHaveBeenCalledWith('Model connection failed', { name: 'TypeError' })
   })
 
+  it('names a refusal for context length without passing on what the provider said', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      Response.json(
+        {
+          error: {
+            message:
+              "This model's maximum context length is 1048576 tokens. However, you requested 1200000 tokens. request id abc-private",
+          },
+        },
+        { status: 400 },
+      ),
+    )
+    const refused = await post()
+    const text = await refused.text()
+    expect(refused.status).toBe(400)
+    expect(text).toContain('context length exceeded')
+    expect(text).not.toContain('abc-private')
+  })
+
   it('times out upstream requests', async () => {
     vi.useFakeTimers()
     const timeout = new AbortController()

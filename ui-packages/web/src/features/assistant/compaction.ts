@@ -9,6 +9,7 @@ import {
 import {
   type CompactionMessage,
   compactionSettings,
+  keepRecentFor,
   planCompaction,
   serializeConversation,
 } from '../../core/agent/compaction'
@@ -145,7 +146,7 @@ export const compactConversation = async (
   conversation: readonly AgentMessage[],
   signal?: AbortSignal,
 ): Promise<CompactionMessage | null> => {
-  const plan = planCompaction(conversation)
+  const plan = planCompaction(conversation, keepRecentFor(model.contextWindow))
   if (!plan) return null
   const { firstKept, history, turnPrefix, previousSummary, tokensBefore } = plan
   const [summary, prefix] = await Promise.all([
