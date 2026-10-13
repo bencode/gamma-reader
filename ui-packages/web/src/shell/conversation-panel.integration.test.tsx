@@ -720,7 +720,7 @@ describe('conversation', () => {
     await user.click(screen.getByRole('button', { name: 'Conversation history' }))
     const history = screen.getByRole('region', { name: 'Conversation history' })
     await user.click(
-      within(history).getByRole('button', { name: 'More actions for Birdsong at dawn' }),
+      await within(history).findByRole('button', { name: 'More actions for Birdsong at dawn' }),
     )
     await user.click(within(history).getByRole('button', { name: 'Rename' }))
     const field = within(history).getByRole('textbox', { name: 'Conversation name' })
