@@ -45,6 +45,7 @@ export const ConversationPanel = ({
     renameConversation,
     send,
     stop,
+    compact,
     queued,
     removeQueued,
     draftAttachments,
@@ -52,6 +53,11 @@ export const ConversationPanel = ({
   const running = phase === 'running' || phase === 'stopping'
   const commands = [
     { name: 'clear', description: 'Start a new conversation', run: () => void startNew() },
+    {
+      name: 'compact',
+      description: 'Summarize earlier messages to free up context',
+      run: () => void compact(),
+    },
     { name: 'shortcuts', description: 'Keyboard shortcuts', run: () => setShowingShortcuts(true) },
   ]
   const switching = phase === 'switching'
@@ -62,7 +68,9 @@ export const ConversationPanel = ({
         ? 'Connecting…'
         : phase === 'unavailable'
           ? 'Chat is currently unavailable.'
-          : undefined
+          : phase === 'compacting'
+            ? 'Summarizing earlier messages…'
+            : undefined
   return (
     <aside className="conversation-panel panel-surface" aria-label="Reading assistant">
       <Activity mode={view === 'chat' ? 'visible' : 'hidden'}>

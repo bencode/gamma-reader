@@ -1,4 +1,5 @@
 import { Agent, type AgentMessage, type AgentState } from '@earendil-works/pi-agent-core'
+import { projectContext } from '../../core/agent/compaction'
 import { type AgentDefinition, assemble, type Skill, streamFn } from '../../core/agent/definition'
 import { LocalToolError } from '../../core/agent/tool'
 import {
@@ -145,7 +146,11 @@ export const createReaderAgent = (
       messages: [...session.messages],
       ...assembled,
     },
-    transformContext: memory?.transformContext,
+    // A compacted conversation is sent as its summary and the messages it kept.
+    transformContext: async messages => {
+      const projected = projectContext(messages)
+      return memory ? memory.transformContext(projected) : projected
+    },
     streamFn,
   })
   agent.subscribe(async event => {

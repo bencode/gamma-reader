@@ -32,6 +32,7 @@ import {
   touchStoredConversation,
 } from '../../data/conversation-store'
 import { workspaceStorageBases, workspaceStorageKey } from '../../data/workspace-database'
+import { compactConversation } from '../assistant/compaction'
 import { generateConversationTitle } from '../assistant/conversation-title'
 import { conversationMessages, createReaderAgent } from '../assistant/create-reader-agent'
 import type { LocalTools } from '../assistant/local-tools'
@@ -44,7 +45,7 @@ import { useDraftAttachments } from './use-draft-attachments'
 type ToolStatus = 'Pending' | 'Running' | 'Completed' | 'Failed' | 'Stopped'
 export type ConversationMessage = {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'compaction'
   text: string
   attachments: ConversationAttachment[]
   tools: { id: string; name: string; status: ToolStatus }[]
@@ -60,6 +61,7 @@ export type ConversationPhase =
   | 'error'
   | 'running'
   | 'stopping'
+  | 'compacting'
   | 'switching'
 export type ConversationView = 'chat' | 'history'
 
@@ -107,6 +109,16 @@ const snapshot = (
   index: number,
   statuses: ReadonlyMap<string, ToolStatus>,
 ): ConversationMessage[] => {
+  if (message.role === 'compaction')
+    return [
+      {
+        id: `compaction:${index}`,
+        role: 'compaction',
+        text: message.summary,
+        attachments: [],
+        tools: [],
+      },
+    ]
   if (message.role !== 'user' && message.role !== 'assistant') return []
   const blocks =
     typeof message.content === 'string'
@@ -202,6 +214,7 @@ export const useConversation = (
   const persistedMessageCount = useRef(0)
   const persistedIds = useRef(new Set<string>())
   const agentRef = useRef<Agent | null>(null)
+  const compaction = useRef<AbortController | null>(null)
   const unsubscribeRef = useRef<(() => void) | null>(null)
   const busy = useRef(false)
   const switching = useRef(false)
@@ -392,6 +405,7 @@ export const useConversation = (
       const agent = agentRef.current
       // Taken before stopping, so the run does not send it to an agent about to be dropped.
       const queued = takeQueued()
+      compaction.current?.abort()
       if (agent?.state.isStreaming) agent.abort()
       if (agent) await agent.waitForIdle()
       await settleDraftAttachments()
@@ -564,6 +578,7 @@ export const useConversation = (
     })()
     return () => {
       controller.abort()
+      compaction.current?.abort()
       unsubscribeRef.current?.()
       agentRef.current?.abort()
       unsubscribeRef.current = null
@@ -773,6 +788,43 @@ export const useConversation = (
     if (!queuing) void run(agent, [item])
   }
 
+  // The summary is appended like any message, so the conversation is saved whole and the provider
+  // is sent the summary and what it kept from the next request on.
+  const compact = async () => {
+    const agent = agentRef.current
+    if (!agent || busy.current || switching.current) return
+    const controller = new AbortController()
+    compaction.current = controller
+    busy.current = true
+    setError(undefined)
+    setPhase('compacting')
+    try {
+      const message = await compactConversation(
+        agent.state.model,
+        conversationMessages(agent),
+        controller.signal,
+      )
+      if (agentRef.current !== agent) return
+      if (!message) {
+        setError('Nothing to compact yet: the conversation still fits in its recent context.')
+        return
+      }
+      agent.state.messages = [...agent.state.messages, message]
+      refresh(agent)
+      await persistAgentMessages(agent)
+    } catch (cause) {
+      if (agentRef.current !== agent || controller.signal.aborted) return
+      console.error('Unable to compact the conversation', cause)
+      setError(cause instanceof Error ? cause.message : 'Could not compact the conversation.')
+    } finally {
+      if (compaction.current === controller) compaction.current = null
+      if (agentRef.current === agent) {
+        busy.current = false
+        setPhase('ready')
+      }
+    }
+  }
+
   const removeQueued = (index: number) => {
     setQueued((activeRef.current.queued ?? []).filter((_, position) => position !== index))
     void queueDraft(activeRef.current, true)
@@ -872,6 +924,7 @@ export const useConversation = (
     renameConversation: (id: ConversationId, title: string) => applyTitle(id, title, 'reader'),
     send,
     stop,
+    compact,
     queued: active.queued ?? [],
     removeQueued,
     draftAttachments,

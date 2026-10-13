@@ -1,6 +1,7 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { Usage } from '@earendil-works/pi-ai'
 import { calculateContextTokens, estimateContextTokens } from '@earendil-works/pi-ai/utils/estimate'
+import { projectContext } from '../../core/agent/compaction'
 
 export type TokenUsage = {
   /** Tokens the next request will carry, anchored on the last reported usage. */
@@ -15,15 +16,18 @@ export type TokenUsage = {
 export type ConversationTokenUsage = TokenUsage & { contextWindow?: number }
 
 const reported = (message: AgentMessage): Usage[] =>
-  (message.role === 'assistant' || message.role === 'toolResult') && message.usage
-    ? [message.usage]
-    : []
+  message.role === 'compaction'
+    ? message.usages
+    : (message.role === 'assistant' || message.role === 'toolResult') && message.usage
+      ? [message.usage]
+      : []
 
 export const tokenUsage = (messages: readonly AgentMessage[]): TokenUsage | null => {
   const usages = messages.flatMap(reported).filter(usage => calculateContextTokens(usage) > 0)
   if (!usages.length) return null
   return {
-    context: estimateContextTokens(messages).tokens,
+    // What a compacted conversation sends: the summary and the messages kept after it.
+    context: estimateContextTokens(projectContext(messages)).tokens,
     used: usages.reduce((total, usage) => total + calculateContextTokens(usage), 0),
     input: usages.reduce(
       (total, usage) => total + usage.input + usage.cacheRead + usage.cacheWrite,
