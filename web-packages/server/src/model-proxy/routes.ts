@@ -34,18 +34,26 @@ const errorPreview = async (response: Response) => {
       size += value.byteLength
     }
   } catch (cause) {
+    // A stream that failed is already closed; the status alone is reported.
     console.warn('Model error body could not be read', {
       name: cause instanceof Error ? cause.name : 'UnknownError',
     })
-  } finally {
-    await reader.cancel()
+    return ''
   }
+  await reader.cancel()
   return Buffer.concat(chunks).subarray(0, errorPreviewBytes).toString('utf8')
 }
+
+// A request too large comes back as 400 or 413; a rate limit can still mention "too many
+// tokens", so it is ruled out first, as pi-ai's own isContextOverflow does.
+const overflowStatuses = new Set([400, 413])
+const notOverflow = [/rate limit/i, /too many requests/i]
 
 // Provider text is never passed on. A refusal for length is named in a fixed sentence the
 // reader's client recognises, so it can compact the conversation and ask again.
 const refusalMessage = (status: number, preview: string) =>
+  overflowStatuses.has(status) &&
+  !notOverflow.some(pattern => pattern.test(preview)) &&
   getOverflowPatterns().some(pattern => pattern.test(preview))
     ? 'The model provider rejected the request: context length exceeded.'
     : `The model provider returned HTTP ${status}.`

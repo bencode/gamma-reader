@@ -426,6 +426,26 @@ describe('model proxy', () => {
     expect(refused.status).toBe(400)
     expect(text).toContain('context length exceeded')
     expect(text).not.toContain('abc-private')
+
+    // A rate limit that mentions tokens is still a rate limit.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      Response.json(
+        { error: { message: 'Rate limit reached: too many tokens per minute' } },
+        { status: 429 },
+      ),
+    )
+    const limited = await post()
+    expect(limited.status).toBe(429)
+    expect(await limited.text()).toContain('HTTP 429')
+
+    // A refusal whose body fails midway keeps its own status.
+    const broken = new ReadableStream<Uint8Array>({
+      start: controller => controller.error(new TypeError('connection reset')),
+    })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(broken, { status: 400 }))
+    const unread = await post()
+    expect(unread.status).toBe(400)
+    expect(await unread.text()).toContain('HTTP 400')
   })
 
   it('times out upstream requests', async () => {
