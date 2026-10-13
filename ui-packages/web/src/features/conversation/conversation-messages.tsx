@@ -119,6 +119,15 @@ const MessageItem = memo(
     sameMessage(prev.message, next.message),
 )
 
+// Where the conversation was compacted. The messages above stay for the reader; the model is sent
+// the summary in their place.
+const CompactionDivider = memo(({ summary }: { summary: string }) => (
+  <details className="conversation-compaction">
+    <summary>Earlier messages summarized</summary>
+    <Markdown text={summary} variant="chat" />
+  </details>
+))
+
 // answered[i]: an assistant message with text comes after message i.
 const answeredFlags = (messages: readonly ConversationMessage[]) =>
   messages.reduceRight<{ flags: boolean[]; seen: boolean }>(
@@ -165,15 +174,19 @@ export const ConversationMessages = memo(
             Messages and document excerpts used in chat are sent to the AI provider.
           </p>
         )}
-        {messages.map((message, index) => (
-          <MessageItem
-            key={message.id}
-            message={message}
-            answered={answered[index] ?? false}
-            onOpenFile={onOpenFile}
-            availableFileIds={availableFileIds}
-          />
-        ))}
+        {messages.map((message, index) =>
+          message.role === 'compaction' ? (
+            <CompactionDivider key={message.id} summary={message.text} />
+          ) : (
+            <MessageItem
+              key={message.id}
+              message={message}
+              answered={answered[index] ?? false}
+              onOpenFile={onOpenFile}
+              availableFileIds={availableFileIds}
+            />
+          ),
+        )}
         {running && (
           <p className="conversation-notice" role="status">
             Working…

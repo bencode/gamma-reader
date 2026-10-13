@@ -48,4 +48,23 @@ describe('conversation token usage', () => {
     })
     expect(tokenUsage(messages.slice(0, 1))).toBeNull()
   })
+
+  it('stops anchoring the context on usage reported before a compaction', () => {
+    const before = { ...reply(usage(90_000, 1_000)), timestamp: 1 }
+    const messages: AgentMessage[] = [
+      { role: 'user', content: 'Summarize chapter 1', timestamp: 1 },
+      before,
+      {
+        role: 'compaction',
+        summary: 'x'.repeat(400),
+        firstKept: 1,
+        tokensBefore: 91_000,
+        usages: [usage(20_000, 500)],
+        timestamp: 2,
+      },
+    ]
+
+    expect(tokenUsage(messages)).toMatchObject({ used: 111_500, output: 1_500 })
+    expect(tokenUsage(messages)?.context).toBeLessThan(1_000)
+  })
 })
