@@ -1,7 +1,6 @@
-import type { Agent, AgentMessage, AgentState } from '@earendil-works/pi-agent-core'
+import type { Agent, AgentMessage } from '@earendil-works/pi-agent-core'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
-import type { ModelReference, PublicModelConfig } from '@gamma-reader/shared/model-config'
-import { nanoid } from 'nanoid'
+import type { ModelReference } from '@gamma-reader/shared/model-config'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   type ConversationDraft,
@@ -12,16 +11,11 @@ import {
   type ModelSelection,
   type StoredConversation,
   type TitleSource,
-} from '../../core/conversations'
-import { loadModelConfig } from '../../core/models/model-config'
-import { createModelRuntime, type ModelRuntime } from '../../core/models/model-runtime'
-import { resolveModelSelection } from '../../core/models/model-selection'
-import { readableProxyError } from '../../core/models/proxy-error'
-import {
-  type ConversationAttachment,
-  createReaderUserMessage,
-  isReaderUserMessage,
-} from '../../core/reader-message'
+} from '../../../core/conversations'
+import { loadModelConfig } from '../../../core/models/model-config'
+import { createModelRuntime } from '../../../core/models/model-runtime'
+import { resolveModelSelection } from '../../../core/models/model-selection'
+import { createReaderUserMessage, isReaderUserMessage } from '../../../core/reader-message'
 import {
   appendStoredConversationMessages,
   getStoredConversation,
@@ -30,166 +24,39 @@ import {
   renameStoredConversation,
   saveStoredConversationDraft,
   touchStoredConversation,
-} from '../../data/conversation-store'
-import { workspaceStorageBases, workspaceStorageKey } from '../../data/workspace-database'
-import { compactConversation } from '../assistant/compaction'
-import { generateConversationTitle } from '../assistant/conversation-title'
-import { conversationMessages, createReaderAgent } from '../assistant/create-reader-agent'
-import type { LocalTools } from '../assistant/local-tools'
-import { withWebSearch } from '../assistant/web-tools'
-import { useMemoryEnabled } from '../memory'
-import type { FileLibrary } from '../resources/use-file-library'
-import { type TokenUsage, tokenUsage } from './token-usage'
-import { useDraftAttachments } from './use-draft-attachments'
+} from '../../../data/conversation-store'
+import { compactConversation } from '../../assistant/compaction'
+import { generateConversationTitle } from '../../assistant/conversation-title'
+import { conversationMessages, createReaderAgent } from '../../assistant/create-reader-agent'
+import type { LocalTools } from '../../assistant/local-tools'
+import { withWebSearch } from '../../assistant/web-tools'
+import { useMemoryEnabled } from '../../memory'
+import type { FileLibrary } from '../../resources/use-file-library'
+import { type TokenUsage, tokenUsage } from '../token-usage'
+import { useDraftAttachments } from '../use-draft-attachments'
+import { createDraftQueue } from './draft-queue'
+import { useConversationHistory } from './history'
+import {
+  type ConversationMessage,
+  displayMessages,
+  failedRun,
+  runContinues,
+  statusMap,
+  type ToolStatus,
+} from './messages'
+import {
+  activeConversationKey,
+  type ConfigState,
+  type ConversationPhase,
+  type ConversationView,
+  createConversation,
+  nextActivityTime,
+  selectionFromState,
+  webSearchAvailable,
+} from './session'
 
-type ToolStatus = 'Pending' | 'Running' | 'Completed' | 'Failed' | 'Stopped'
-export type ConversationMessage = {
-  id: string
-  role: 'user' | 'assistant' | 'compaction'
-  text: string
-  attachments: ConversationAttachment[]
-  tools: { id: string; name: string; status: ToolStatus }[]
-  notice?: string
-  failed?: boolean
-  copyable?: boolean
-}
-export type ConversationPhase =
-  | 'loading'
-  | 'connecting'
-  | 'ready'
-  | 'unavailable'
-  | 'error'
-  | 'running'
-  | 'stopping'
-  | 'compacting'
-  | 'switching'
-export type ConversationView = 'chat' | 'history'
-
-type ConfigState =
-  | { kind: 'loading' }
-  | {
-      kind: 'enabled'
-      runtime: ModelRuntime
-      config: Extract<PublicModelConfig, { enabled: true }>
-    }
-  | { kind: 'unavailable' }
-  | { kind: 'error'; message: string }
-
-const webSearchAvailable = (state: ConfigState) =>
-  state.kind === 'enabled' && state.config.webSearch === true
-
-const activeConversationKey = () => workspaceStorageKey(workspaceStorageBases.activeConversation)
-
-const createConversation = (): StoredConversation => {
-  const now = Date.now()
-  return {
-    id: nanoid(),
-    title: null,
-    draft: emptyConversationDraft(),
-    createdAt: now,
-    lastActiveAt: now,
-  }
-}
-
-const statusMap = (messages: readonly AgentMessage[]) => {
-  const statuses = new Map<string, ToolStatus>()
-  messages.forEach(message => {
-    if (message.role === 'assistant')
-      message.content.forEach(block => {
-        if (block.type === 'toolCall') statuses.set(block.id, 'Stopped')
-      })
-    if (message.role === 'toolResult')
-      statuses.set(message.toolCallId, message.isError ? 'Failed' : 'Completed')
-  })
-  return statuses
-}
-
-const snapshot = (
-  message: AgentMessage,
-  index: number,
-  statuses: ReadonlyMap<string, ToolStatus>,
-): ConversationMessage[] => {
-  if (message.role === 'compaction')
-    return [
-      {
-        id: `compaction:${index}`,
-        role: 'compaction',
-        text: message.summary,
-        attachments: [],
-        tools: [],
-      },
-    ]
-  if (message.role !== 'user' && message.role !== 'assistant') return []
-  const blocks =
-    typeof message.content === 'string'
-      ? [{ type: 'text' as const, text: message.content }]
-      : message.content
-  const text = blocks.flatMap(block => (block.type === 'text' ? [block.text] : [])).join('')
-  const tools = blocks.flatMap(block =>
-    block.type === 'toolCall'
-      ? [{ id: block.id, name: block.name, status: statuses.get(block.id) ?? 'Pending' }]
-      : [],
-  )
-  if (message.role === 'user') {
-    const reader = isReaderUserMessage(message) ? message.reader : null
-    return [
-      {
-        id: reader?.id ?? `user:${index}`,
-        role: 'user',
-        text: reader?.text ?? text,
-        attachments: reader?.attachments ?? [],
-        tools,
-      },
-    ]
-  }
-  const notice =
-    message.stopReason === 'aborted'
-      ? 'Generation stopped.'
-      : message.stopReason === 'error'
-        ? readableProxyError(message.errorMessage) ||
-          'Could not generate a reply. Send a message to try again.'
-        : message.stopReason === 'length'
-          ? 'The response reached its output limit.'
-          : undefined
-  return [
-    {
-      id: `assistant:${index}`,
-      role: 'assistant',
-      text,
-      attachments: [],
-      tools,
-      notice,
-      failed: message.stopReason === 'error',
-      copyable: message.stopReason === 'stop' || message.stopReason === 'length',
-    },
-  ]
-}
-
-// A turn that ended this way stops the run, so the library would never read a steered message.
-const runContinues = (message: AgentMessage) =>
-  message.role === 'assistant' && message.stopReason !== 'error' && message.stopReason !== 'aborted'
-
-const failedRun = (agent: Agent) => {
-  const last = agent.state.messages.at(-1)
-  return last?.role === 'assistant' && last.stopReason === 'error'
-}
-
-const displayMessages = (
-  messages: readonly AgentMessage[],
-  statuses: ReadonlyMap<string, ToolStatus>,
-) => messages.flatMap((message, index) => snapshot(message, index, statuses))
-
-const nextActivityTime = (conversation: StoredConversation) =>
-  Math.max(Date.now(), conversation.lastActiveAt + 1)
-
-const selectionFromState = ({
-  model,
-  thinkingLevel,
-}: Pick<AgentState, 'model' | 'thinkingLevel'>): ModelSelection => ({
-  provider: model.provider,
-  modelId: model.id,
-  effort: thinkingLevel,
-})
+export type { ConversationMessage } from './messages'
+export type { ConversationPhase, ConversationView } from './session'
 
 export const useConversation = (
   tools: LocalTools,
@@ -203,16 +70,11 @@ export const useConversation = (
   const [error, setError] = useState<string>()
   const [storageError, setStorageError] = useState<string>()
   const [view, setView] = useState<ConversationView>('chat')
-  const [historyItems, setHistoryItems] = useState<StoredConversation[]>([])
-  const [historyCursor, setHistoryCursor] = useState<readonly [number, string] | null>(null)
-  const [historyLoading, setHistoryLoading] = useState(true)
-  const [historyError, setHistoryError] = useState<string | null>(null)
   const [usage, setUsage] = useState<TokenUsage | null>(null)
   const activeRef = useRef(active)
   const draftRef = useRef('')
   const rawMessages = useRef<AgentMessage[]>([])
   const persistedMessageCount = useRef(0)
-  const persistedIds = useRef(new Set<string>())
   const agentRef = useRef<Agent | null>(null)
   const compaction = useRef<AbortController | null>(null)
   const unsubscribeRef = useRef<(() => void) | null>(null)
@@ -221,30 +83,23 @@ export const useConversation = (
   const initialized = useRef(false)
   const statuses = useRef(new Map<string, ToolStatus>())
   const configRef = useRef<ConfigState>({ kind: 'loading' })
-  const draftQueue = useRef<{ pending?: StoredConversation; running?: Promise<void> }>({})
   const draftAttachments = useDraftAttachments(addWorkspaceAttachments)
   const readyDraftAttachments = draftAttachments.ready
   const settleDraftAttachments = draftAttachments.settle
   const replaceDraftAttachments = draftAttachments.replaceReady
   const restoreDraftAttachments = draftAttachments.restore
 
+  const history = useConversationHistory()
+  const { isPersisted, markPersisted, placeFirst, remove, replace, settle, update } = history
+
   const reportStorageError = useCallback((cause: unknown) => {
     console.error('Unable to save conversation', cause)
     setStorageError('Conversation changes could not be saved in this browser. We will retry.')
   }, [])
 
-  const placeFirst = useCallback((conversation: StoredConversation) => {
-    persistedIds.current.add(conversation.id)
-    setHistoryItems(current => [
-      conversation,
-      ...current.filter(item => item.id !== conversation.id),
-    ])
-  }, [])
-
-  const drainDrafts = useCallback(async () => {
-    while (draftQueue.current.pending) {
-      const conversation = draftQueue.current.pending
-      draftQueue.current.pending = undefined
+  // Created once; placeFirst, reportStorageError and the state setters it uses are stable.
+  const [drafts] = useState(() =>
+    createDraftQueue(async conversation => {
       try {
         await saveStoredConversationDraft(conversation)
         placeFirst(conversation)
@@ -253,23 +108,18 @@ export const useConversation = (
       } catch (cause) {
         reportStorageError(cause)
       }
-    }
-  }, [placeFirst, reportStorageError])
+    }),
+  )
 
   const queueDraft = useCallback(
     (conversation: StoredConversation, saveEmpty = false) => {
       const hasDraft = Boolean(
         conversation.draft.text.trim() || conversation.draft.attachments.length,
       )
-      if (!persistedIds.current.has(conversation.id) && !hasDraft && !saveEmpty)
-        return Promise.resolve()
-      draftQueue.current.pending = conversation
-      draftQueue.current.running ??= drainDrafts().finally(() => {
-        draftQueue.current.running = undefined
-      })
-      return draftQueue.current.running
+      if (!isPersisted(conversation.id) && !hasDraft && !saveEmpty) return Promise.resolve()
+      return drafts.queue(conversation)
     },
-    [drainDrafts],
+    [drafts, isPersisted],
   )
 
   const currentDraft = useCallback(
@@ -323,7 +173,7 @@ export const useConversation = (
       const current = activeRef.current
       if (current.id !== id) {
         const renamed = await renameStoredConversation(id, title, titledBy)
-        setHistoryItems(items => items.map(item => (item.id === id ? renamed : item)))
+        update(renamed)
         return
       }
       if (titledBy === 'model' && current.titledBy === 'reader') return
@@ -332,7 +182,7 @@ export const useConversation = (
       setActive(next)
       await queueDraft(next, true)
     },
-    [queueDraft],
+    [queueDraft, update],
   )
 
   const setDraft = useCallback(
@@ -413,13 +263,13 @@ export const useConversation = (
         updateActiveDraft(foldQueued(currentDraft(), queued))
         await queueDraft(activeRef.current)
       }
-      await draftQueue.current.running
+      await drafts.idle()
       unsubscribeRef.current?.()
       unsubscribeRef.current = null
       agentRef.current = null
       busy.current = false
     },
-    [currentDraft, queueDraft, settleDraftAttachments, takeQueued, updateActiveDraft],
+    [currentDraft, drafts, queueDraft, settleDraftAttachments, takeQueued, updateActiveDraft],
   )
 
   const attachAgent = useCallback(
@@ -503,22 +353,6 @@ export const useConversation = (
     [attachAgent, replaceDraftAttachments],
   )
 
-  const reloadHistory = useCallback(async () => {
-    setHistoryLoading(true)
-    setHistoryError(null)
-    try {
-      const page = await listStoredConversations()
-      persistedIds.current = new Set(page.items.map(item => item.id))
-      setHistoryItems(page.items)
-      setHistoryCursor(page.nextCursor)
-    } catch (cause) {
-      console.error('Unable to load conversation history', cause)
-      setHistoryError('Conversation history could not be loaded.')
-    } finally {
-      setHistoryLoading(false)
-    }
-  }, [])
-
   useEffect(() => {
     const controller = new AbortController()
     const configPromise = loadModelConfig(controller.signal)
@@ -539,9 +373,7 @@ export const useConversation = (
       try {
         const page = await listStoredConversations()
         if (controller.signal.aborted) return
-        persistedIds.current = new Set(page.items.map(item => item.id))
-        setHistoryItems(page.items)
-        setHistoryCursor(page.nextCursor)
+        replace(page)
         const requestedId = localStorage.getItem(activeConversationKey())
         const requested = requestedId ? await getStoredConversation(requestedId) : null
         const fallback =
@@ -549,7 +381,7 @@ export const useConversation = (
         if (fallback) {
           conversation = fallback.conversation
           storedMessages = fallback.messages
-          persistedIds.current.add(conversation.id)
+          markPersisted(conversation.id)
           localStorage.setItem(activeConversationKey(), conversation.id)
         } else if (requestedId) localStorage.removeItem(activeConversationKey())
       } catch (cause) {
@@ -557,7 +389,7 @@ export const useConversation = (
         console.error('Unable to restore conversations', cause)
         setStorageError('Saved conversations could not be opened. This chat will stay in memory.')
       } finally {
-        setHistoryLoading(false)
+        settle()
       }
       if (controller.signal.aborted) return
       activeRef.current = conversation
@@ -585,7 +417,7 @@ export const useConversation = (
       agentRef.current = null
       busy.current = false
     }
-  }, [attachAgent, initial, replaceDraftAttachments])
+  }, [attachAgent, initial, markPersisted, replace, replaceDraftAttachments, settle])
 
   const switchTo = useCallback(
     async (id: ConversationId) => {
@@ -622,7 +454,7 @@ export const useConversation = (
     if (switching.current) return
     const draftNow = currentDraft()
     if (
-      !persistedIds.current.has(activeRef.current.id) &&
+      !isPersisted(activeRef.current.id) &&
       !draftNow.text.trim() &&
       !draftNow.attachments.length &&
       rawMessages.current.length === 0
@@ -641,7 +473,7 @@ export const useConversation = (
     } finally {
       switching.current = false
     }
-  }, [currentDraft, disposeAgent, showSession])
+  }, [currentDraft, disposeAgent, isPersisted, showSession])
 
   const deleteConversation = useCallback(
     async (id: ConversationId) => {
@@ -652,16 +484,11 @@ export const useConversation = (
       try {
         if (deletingActive) await disposeAgent(false)
         await removeStoredConversation(id)
-        persistedIds.current.delete(id)
-        if (!deletingActive) {
-          setHistoryItems(current => current.filter(item => item.id !== id))
-          return
-        }
+        remove(id)
+        if (!deletingActive) return
         localStorage.removeItem(activeConversationKey())
         const page = await listStoredConversations()
-        persistedIds.current = new Set(page.items.map(item => item.id))
-        setHistoryItems(page.items)
-        setHistoryCursor(page.nextCursor)
+        replace(page)
         const nextStored = page.items[0] ? await getStoredConversation(page.items[0].id) : null
         if (nextStored) {
           showSession(nextStored.conversation, nextStored.messages)
@@ -675,30 +502,8 @@ export const useConversation = (
         switching.current = false
       }
     },
-    [attachAgent, disposeAgent, showSession],
+    [attachAgent, disposeAgent, remove, replace, showSession],
   )
-
-  const loadMore = useCallback(async () => {
-    if (historyLoading || (!historyCursor && historyItems.length)) return
-    setHistoryLoading(true)
-    setHistoryError(null)
-    try {
-      const page = await listStoredConversations({ before: historyCursor })
-      page.items.forEach(item => {
-        persistedIds.current.add(item.id)
-      })
-      setHistoryItems(current => [
-        ...current,
-        ...page.items.filter(item => !current.some(existing => existing.id === item.id)),
-      ])
-      setHistoryCursor(page.nextCursor)
-    } catch (cause) {
-      console.error('Unable to load more conversations', cause)
-      setHistoryError('More conversations could not be loaded.')
-    } finally {
-      setHistoryLoading(false)
-    }
-  }, [historyCursor, historyItems.length, historyLoading])
 
   // A title cut from the first message is often "summarize this"; once a reply has finished, the
   // model names the conversation from the exchange. A failure keeps the cut title and is tried
@@ -912,12 +717,12 @@ export const useConversation = (
     view,
     showChat: () => setView('chat'),
     showHistory: () => setView('history'),
-    historyItems,
-    historyLoading,
-    historyError,
-    historyHasMore: historyCursor !== null,
-    reloadHistory,
-    loadMore,
+    historyItems: history.items,
+    historyLoading: history.loading,
+    historyError: history.error,
+    historyHasMore: history.hasMore,
+    reloadHistory: history.reload,
+    loadMore: history.loadMore,
     switchTo,
     startNew,
     deleteConversation,
