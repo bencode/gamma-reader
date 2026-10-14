@@ -7,6 +7,7 @@ import type { StoredFileMetadata } from '../../../core/files'
 // would show itself again is caught; how deep it is; and what it renders with. Embeds written in
 // the note being read can also be resized, which writes the size into that note.
 export type EmbedScope = {
+  basePath: string
   chain: readonly string[]
   depth: number
   files: readonly StoredFileMetadata[]

@@ -26,6 +26,67 @@ const Navigation = () => {
 const article = () => screen.getByRole('tabpanel').querySelector('article') as HTMLElement
 
 describe('following links between notes', () => {
+  it('follows relative series links within the project and Back returns to the article', async () => {
+    const folder = 'knowledge/ai-agent-systems/rea'
+    const current = `${folder}/02-CLI与MCP的启动和调用链.md`
+    const destinations = [
+      ['上一篇 项目定位', '01-项目定位与逆向调查模型.md'],
+      ['返回系列入口', 'README.md'],
+      ['下一篇 Provider 选择与目标会话', '03-Provider选择与目标会话.md'],
+    ] as const
+    await writeStoredTextFile(
+      current,
+      destinations.map(([label, name]) => `[${label}](./${name})`).join(' · '),
+    )
+    await writeStoredTextFile('README.md', '# Another README')
+    await Promise.all(
+      destinations.map(([label, name]) => writeStoredTextFile(`${folder}/${name}`, `# ${label}`)),
+    )
+    render(
+      <MemoryRouter
+        basename="/p/source-brain2"
+        initialEntries={[`/p/source-brain2/files/${current}`]}
+      >
+        <Workbench project={testProject} />
+        <Navigation />
+      </MemoryRouter>,
+    )
+    const user = userEvent.setup({ delay: null })
+    const route = screen.getByLabelText('Current route')
+    for (const [label, name] of destinations) {
+      const link = await screen.findByRole('link', { name: label })
+      expect(link).toHaveAttribute(
+        'href',
+        `/p/source-brain2/files/${folder}/${encodeURIComponent(name)}`,
+      )
+      await user.click(link)
+      await waitFor(() => expect(route).toHaveTextContent(`/files/${folder}/${name}`))
+      expect(await screen.findByRole('heading', { name: label })).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Back' }))
+      await waitFor(() => expect(route).toHaveTextContent(`/files/${current}`))
+    }
+  })
+
+  it('resolves a relative link from the embedded article directory', async () => {
+    await writeStoredTextFile('Home.md', '# Home\n\n![[Chapter]]')
+    await writeStoredTextFile('series/Chapter.md', '# Chapter\n\n[Series entry](./README.md)')
+    await writeStoredTextFile('series/README.md', '# Series')
+    await writeStoredTextFile('README.md', '# Root')
+    render(
+      <MemoryRouter initialEntries={['/files/Home.md']}>
+        <Workbench project={testProject} />
+        <Navigation />
+      </MemoryRouter>,
+    )
+    const link = await screen.findByRole('link', { name: 'Series entry' })
+    expect(link).toHaveAttribute('href', '/files/series/README.md')
+    await userEvent.click(link)
+    await waitFor(() =>
+      expect(screen.getByLabelText('Current route')).toHaveTextContent('/files/series/README.md'),
+    )
+    expect(await screen.findByRole('heading', { name: 'Series' })).toBeInTheDocument()
+  })
+
   it('opens the linked note at the named block, and Back returns to the note before', async () => {
     await writeStoredTextFile('notes/Reading.md', '# Reading\n\nSee [[Retrieval#^first|why]].')
     await writeStoredTextFile(

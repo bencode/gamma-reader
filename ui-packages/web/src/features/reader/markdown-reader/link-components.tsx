@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react'
 import type { Components, ExtraProps } from 'react-markdown'
+import { FileLink } from './file-link'
 import { WikiEmbed } from './wiki-embed'
 import { WikiLink } from './wiki-link'
 
@@ -39,4 +40,4 @@ const EmbedAside = ({ node: _node, children, ...props }: ComponentProps<'aside'>
 }
 
 // What links and embeds render with, in a note and in the notes it embeds.
-export const linkComponents: Components = { button: LinkButton, aside: EmbedAside }
+export const linkComponents: Components = { a: FileLink, button: LinkButton, aside: EmbedAside }
