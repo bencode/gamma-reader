@@ -1,5 +1,5 @@
 import { Agent, type AgentMessage, type AgentState } from '@earendil-works/pi-agent-core'
-import { projectContext } from '../../core/agent/compaction'
+import { needsCompaction, projectContext } from '../../core/agent/compaction'
 import { type AgentDefinition, assemble, type Skill, streamFn } from '../../core/agent/definition'
 import { LocalToolError } from '../../core/agent/tool'
 import {
@@ -11,6 +11,7 @@ import { type ModelRuntime, visionModelFor } from '../../core/models/model-runti
 import { getStoredFile, listStoredFiles } from '../../data/file-store'
 import { markdownText } from '../../formats/markdown-text'
 import { memoryAgentParts } from '../memory'
+import { compactConversation } from './compaction'
 import { createDocumentTools, type DocumentAccess } from './document-tools'
 import { createDocxRuntime, type DocxRuntime } from './docx/runtime'
 import { createImageTools } from './image-tools'
@@ -110,6 +111,27 @@ const readerAgent: AgentDefinition<ReaderContext> = {
 export const conversationMessages = (agent: Agent) =>
   agent.state.messages.filter(message => message.role !== 'system')
 
+// A reply that reads page after page can pass the threshold between two of its own requests. The
+// summary joins the transcript before the next one; a failure leaves the reply to go on without it.
+const compactBetweenTurns = async (
+  agent: Agent,
+  signal?: AbortSignal,
+  onCompactionChange?: (compacting: boolean) => void,
+) => {
+  const { model } = agent.state
+  if (!needsCompaction(agent.state.messages, model.contextWindow)) return undefined
+  onCompactionChange?.(true)
+  try {
+    const message = await compactConversation(model, conversationMessages(agent), signal)
+    return message && !signal?.aborted ? { messages: [message] } : undefined
+  } catch (cause) {
+    if (!signal?.aborted) console.error('Unable to compact the conversation between turns', cause)
+    return undefined
+  } finally {
+    onCompactionChange?.(false)
+  }
+}
+
 export const createReaderAgent = (
   runtime: ModelRuntime,
   local: LocalTools,
@@ -118,6 +140,7 @@ export const createReaderAgent = (
     messages: readonly AgentMessage[]
     // Read at each call, so turning web search on or off needs no new agent.
     web?: () => WebState
+    onCompactionChange?: (compacting: boolean) => void
   } & Pick<AgentState, 'model' | 'thinkingLevel'>,
 ) => {
   const pdf = createPdfRuntime(getStoredFile)
@@ -151,6 +174,8 @@ export const createReaderAgent = (
       const projected = projectContext(messages)
       return memory ? memory.transformContext(projected) : projected
     },
+    prepareNextTurnWithContext: (_turn, signal) =>
+      compactBetweenTurns(agent, signal, session.onCompactionChange),
     streamFn,
   })
   agent.subscribe(async event => {

@@ -96,12 +96,13 @@ export const ConversationComposer = ({
   const value = draft || command
   const matches = command ? matchCommands(command, commands) : []
   const menuOpen = !dismissed && matches.length > 0
-  const running = phase === 'running' || phase === 'stopping'
+  // A summary can be stopped like a reply, but accepts no new messages.
+  const running = phase === 'running' || phase === 'stopping' || phase === 'compacting'
   const readyAttachments = attachments.filter(item => item.status === 'ready')
   const hasUnavailable = readyAttachments.some(item => !availableFileIds.has(item.metadata.id))
   // While a reply runs, sending queues the message.
   const canSend =
-    (phase === 'ready' || running) &&
+    (phase === 'ready' || phase === 'running') &&
     !unsettled &&
     !hasUnavailable &&
     Boolean(value.trim() || readyAttachments.length)

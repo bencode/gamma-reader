@@ -1,7 +1,15 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { AssistantMessage, Message, ToolResultMessage } from '@earendil-works/pi-ai'
 import { describe, expect, it } from 'vitest'
-import { type CompactionMessage, planCompaction, projectContext } from './compaction'
+import {
+  autoCompactionEnabled,
+  type CompactionMessage,
+  compactionThreshold,
+  keepRecentFor,
+  needsCompaction,
+  planCompaction,
+  projectContext,
+} from './compaction'
 
 const user = (text: string): Message => ({ role: 'user', content: text, timestamp: 1 })
 
@@ -142,5 +150,44 @@ describe('planCompaction', () => {
 
     expect(planCompaction(messages, 1000)).toBeNull()
     expect(planCompaction([...messages, compaction('done', 1)], 0)).toBeNull()
+  })
+})
+
+describe('when to compact', () => {
+  it('scales the threshold and what is kept with the window', () => {
+    const budget = (window: number) => [compactionThreshold(window), keepRecentFor(window)]
+
+    expect(budget(1_000_000)).toEqual([512_000, 40_000])
+    expect(budget(128_000)).toEqual([111_616, 40_000])
+    expect(budget(32_000)).toEqual([16_000, 6_400])
+    expect(budget(8_000)).toEqual([4_000, 1_600])
+    // A window the catalog does not know.
+    expect(budget(0)).toEqual([512_000, 40_000])
+  })
+
+  it('compacts once the context passes the threshold, and not again after', () => {
+    const window = 128_000
+    const messages: AgentMessage[] = [
+      user('x'.repeat(400_000)),
+      assistant('y'.repeat(400_000)),
+      user('z'.repeat(400)),
+    ]
+
+    expect(needsCompaction(messages, window)).toBe(true)
+    expect(needsCompaction([...messages, compaction('short', 2)], window)).toBe(false)
+  })
+
+  it('automates only known windows of at least 128K', () => {
+    const messages = [user('x'.repeat(2_000_000))]
+    const smallWindows = [0, 32_000, 127_999]
+    smallWindows.forEach(window => {
+      expect(autoCompactionEnabled(window)).toBe(false)
+      expect(needsCompaction(messages, window)).toBe(false)
+    })
+    const supportedWindows = [128_000, 1_000_000]
+    supportedWindows.forEach(window => {
+      expect(autoCompactionEnabled(window)).toBe(true)
+      expect(needsCompaction(messages, window)).toBe(true)
+    })
   })
 })

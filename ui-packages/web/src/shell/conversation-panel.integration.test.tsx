@@ -10,6 +10,7 @@ import {
   getStoredConversation,
   saveStoredConversationDraft,
 } from '../data/conversation-store'
+import * as compaction from '../features/assistant/compaction'
 import {
   DraftAttachmentTray,
   MessageAttachments,
@@ -53,6 +54,56 @@ describe('conversation', () => {
     await user.click(send())
 
     expect(await screen.findByText(limit)).toBeInTheDocument()
+  })
+
+  it('keeps editing available but blocks sending while compacting, and can stop', async () => {
+    const user = userEvent.setup({ delay: null })
+    let finish: () => void = () => {
+      throw new Error('Compaction has not started')
+    }
+    let aborted = false
+    vi.spyOn(compaction, 'compactConversation').mockImplementation(
+      async (_model, _messages, signal) =>
+        new Promise(resolve => {
+          signal?.addEventListener(
+            'abort',
+            () => {
+              aborted = true
+            },
+            { once: true },
+          )
+          finish = () => resolve(null)
+        }),
+    )
+    let requests = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      if (isTitleRequest(init)) return complete('Reading')
+      requests += 1
+      return complete('A short answer')
+    })
+    open()
+    await waitFor(() => expect(question()).toBeEnabled())
+    await user.type(question(), 'Read the guide')
+    await user.click(send())
+    await screen.findByText('A short answer')
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Chat model' })).toBeEnabled())
+    await user.type(question(), '/compact{Enter}')
+    expect(await screen.findByText('Summarizing earlier messages…')).toBeVisible()
+    await user.type(question(), 'Keep this draft{Enter}')
+    expect(question()).toHaveValue('Keep this draft')
+    expect(screen.queryByRole('button', { name: 'Queue message' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Send question' })).not.toBeInTheDocument()
+    expect(requests).toBe(1)
+    await user.click(screen.getByRole('button', { name: 'Stop generation' }))
+    expect(aborted).toBe(true)
+    expect(screen.getByRole('button', { name: 'Stop generation' })).toBeDisabled()
+    await user.keyboard('{Enter}')
+    expect(question()).toHaveValue('Keep this draft')
+    await act(async () => finish())
+    await waitFor(() => expect(send()).toBeEnabled())
+    expect(question()).toHaveValue('Keep this draft')
+    expect(requests).toBe(1)
   })
 
   it('offers web search only where the server searches, off until the reader turns it on', async () => {

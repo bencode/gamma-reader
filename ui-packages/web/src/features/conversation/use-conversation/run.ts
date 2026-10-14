@@ -6,9 +6,8 @@ import {
   foldQueued,
 } from '../../../core/conversations'
 import { createReaderUserMessage, isReaderUserMessage } from '../../../core/reader-message'
-import { compactConversation } from '../../assistant/compaction'
-import { conversationMessages } from '../../assistant/create-reader-agent'
-import { persistAgentMessages, refresh } from './agent-session'
+import { refresh } from './agent-session'
+import { compactBeforeSending, recoverFromOverflow } from './compaction'
 import { queueDraft, restoreToDraft, takeQueued } from './drafts'
 import { failedRun } from './messages'
 import { nextActivityTime } from './session'
@@ -28,8 +27,16 @@ const run = async (ctx: Ctx, agent: Agent, batch: readonly ConversationDraft[]) 
         item,
         message: createReaderUserMessage(item.text, item.attachments),
       }))
+      const messages = sending.map(entry => entry.message)
+      // Stopped while compacting: nothing was sent, so the messages go back to the draft.
+      if (!(await compactBeforeSending(ctx, agent, messages))) {
+        if (runtime.agent === agent) restoreToDraft(ctx, [...items, ...takeQueued(ctx)])
+        return
+      }
+      store.setState({ phase: 'running' })
       try {
-        await agent.prompt(sending.map(entry => entry.message))
+        await agent.prompt(messages)
+        if (runtime.agent === agent) await recoverFromOverflow(ctx, agent)
       } catch (cause) {
         if (runtime.agent !== agent) return
         store.setState({
@@ -68,7 +75,9 @@ export const send = (
 ) => {
   const { runtime, store } = ctx
   const agent = runtime.agent
-  const text = store.getState().draft.trim()
+  const { draft, phase } = store.getState()
+  if (phase !== 'ready' && phase !== 'running') return
+  const text = draft.trim()
   if (!agent || unsettled || (!text && !hasAttachments)) return
   const item = { text, attachments: ctx.attachments.takeReady().map(entry => entry.metadata) }
   const current = getActive(ctx)
@@ -89,46 +98,6 @@ export const send = (
 export const stop = (ctx: Ctx) => {
   if (!ctx.runtime.busy) return
   ctx.store.setState({ phase: 'stopping' })
+  ctx.runtime.compaction?.abort()
   ctx.runtime.agent?.abort()
-}
-
-// The summary is appended like any message, so the conversation is saved whole and the provider
-// is sent the summary and what it kept from the next request on.
-export const compact = async (ctx: Ctx) => {
-  const { runtime, store } = ctx
-  const agent = runtime.agent
-  if (!agent || runtime.busy || runtime.switching) return
-  const controller = new AbortController()
-  runtime.compaction = controller
-  runtime.busy = true
-  store.setState({ error: undefined, phase: 'compacting' })
-  try {
-    const message = await compactConversation(
-      agent.state.model,
-      conversationMessages(agent),
-      controller.signal,
-    )
-    if (runtime.agent !== agent) return
-    if (!message) {
-      store.setState({
-        error: 'Nothing to compact yet: the conversation still fits in its recent context.',
-      })
-      return
-    }
-    agent.state.messages = [...agent.state.messages, message]
-    refresh(ctx, agent)
-    await persistAgentMessages(ctx, agent)
-  } catch (cause) {
-    if (runtime.agent !== agent || controller.signal.aborted) return
-    console.error('Unable to compact the conversation', cause)
-    store.setState({
-      error: cause instanceof Error ? cause.message : 'Could not compact the conversation.',
-    })
-  } finally {
-    if (runtime.compaction === controller) runtime.compaction = null
-    if (runtime.agent === agent) {
-      runtime.busy = false
-      store.setState({ phase: 'ready' })
-    }
-  }
 }

@@ -30,9 +30,27 @@ export const isCompactionMessage = (message: AgentMessage): message is Compactio
 export const compactionSettings = {
   /** Room left for the reply; it also bounds the summary's length. */
   reserveTokens: 16_384,
-  /** Recent context kept as it is. */
-  keepRecentTokens: 20_000,
+  /** Every request resends the whole context, mostly from the provider's cache, so compacting
+   *  rarely costs less than it loses; very long contexts still answer worse. */
+  maximumThreshold: 512_000,
+  /** Recent context kept as it is, enough to quote the last pages read. */
+  maximumKeep: 40_000,
 }
+
+// A window of 0 is one the catalog does not know. Half the window keeps a tiny one usable.
+export const compactionThreshold = (contextWindow: number) =>
+  contextWindow > 0
+    ? Math.min(
+        compactionSettings.maximumThreshold,
+        Math.max(contextWindow - compactionSettings.reserveTokens, Math.floor(contextWindow / 2)),
+      )
+    : compactionSettings.maximumThreshold
+
+export const autoCompactionEnabled = (contextWindow: number): boolean => contextWindow >= 128_000
+
+// A retention budget, not a bound on the summary or an indivisible message kept with it.
+export const keepRecentFor = (contextWindow: number) =>
+  Math.min(compactionSettings.maximumKeep, Math.floor(0.4 * compactionThreshold(contextWindow)))
 
 const summaryPrefix =
   'The conversation history before this point was compacted into the following summary:\n\n<summary>\n'
@@ -100,7 +118,7 @@ const isCutPoint = (message: AgentMessage) =>
 // valid point at or after it. Returns null when there is nothing to fold away.
 export const planCompaction = (
   conversation: readonly AgentMessage[],
-  keepRecentTokens = compactionSettings.keepRecentTokens,
+  keepRecentTokens: number,
 ): CompactionPlan | null => {
   const last = conversation.at(-1)
   if (!last || isCompactionMessage(last)) return null
@@ -138,6 +156,11 @@ export const planCompaction = (
     tokensBefore: estimateContextTokens(projectContext(conversation)).tokens,
   }
 }
+
+// Whether the context the provider would be sent has passed the threshold.
+export const needsCompaction = (messages: readonly AgentMessage[], contextWindow: number) =>
+  autoCompactionEnabled(contextWindow) &&
+  estimateContextTokens(projectContext(messages)).tokens > compactionThreshold(contextWindow)
 
 const toolResultLimit = 2_000
 

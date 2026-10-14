@@ -408,6 +408,46 @@ describe('model proxy', () => {
     expect(log).toHaveBeenCalledWith('Model connection failed', { name: 'TypeError' })
   })
 
+  it('names a refusal for context length without passing on what the provider said', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      Response.json(
+        {
+          error: {
+            message:
+              "This model's maximum context length is 1048576 tokens. However, you requested 1200000 tokens. request id abc-private",
+          },
+        },
+        { status: 400 },
+      ),
+    )
+    const refused = await post()
+    const text = await refused.text()
+    expect(refused.status).toBe(400)
+    expect(text).toContain('context length exceeded')
+    expect(text).not.toContain('abc-private')
+
+    // A rate limit that mentions tokens is still a rate limit.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      Response.json(
+        { error: { message: 'Rate limit reached: too many tokens per minute' } },
+        { status: 429 },
+      ),
+    )
+    const limited = await post()
+    expect(limited.status).toBe(429)
+    expect(await limited.text()).toContain('HTTP 429')
+
+    // A refusal whose body fails midway keeps its own status.
+    const broken = new ReadableStream<Uint8Array>({
+      start: controller => controller.error(new TypeError('connection reset')),
+    })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(broken, { status: 400 }))
+    const unread = await post()
+    expect(unread.status).toBe(400)
+    expect(await unread.text()).toContain('HTTP 400')
+  })
+
   it('times out upstream requests', async () => {
     vi.useFakeTimers()
     const timeout = new AbortController()

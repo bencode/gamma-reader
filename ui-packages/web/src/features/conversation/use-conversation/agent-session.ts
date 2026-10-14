@@ -113,6 +113,12 @@ export const attachAgent = (
           : getActive(ctx).webSearch
             ? 'on'
             : 'off',
+      onCompactionChange: compacting => {
+        if (runtime.agent !== agent || runtime.switching) return
+        const { phase } = store.getState()
+        if (compacting && phase === 'running') store.setState({ phase: 'compacting' })
+        if (!compacting && phase === 'compacting') store.setState({ phase: 'running' })
+      },
     })
     agent.state.tools = withWebSearch(
       agent.state.tools,
