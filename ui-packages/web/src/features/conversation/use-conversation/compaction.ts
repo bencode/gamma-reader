@@ -1,6 +1,6 @@
 import type { Agent, AgentMessage } from '@earendil-works/pi-agent-core'
 import { isContextOverflow } from '@earendil-works/pi-ai'
-import { needsCompaction } from '../../../core/agent/compaction'
+import { autoCompactionEnabled, needsCompaction } from '../../../core/agent/compaction'
 import { compactConversation } from '../../assistant/compaction'
 import { conversationMessages } from '../../assistant/create-reader-agent'
 import { persistAgentMessages, refresh } from './agent-session'
@@ -24,6 +24,7 @@ const summarize = async (ctx: Ctx, agent: Agent) => {
     agent.state.messages = [...agent.state.messages, message]
     refresh(ctx, agent)
     await persistAgentMessages(ctx, agent)
+    if (runtime.agent !== agent || controller.signal.aborted) return 'aborted'
     return 'compacted'
   } catch (cause) {
     if (runtime.agent !== agent || controller.signal.aborted) return 'aborted'
@@ -81,6 +82,7 @@ export const compactBeforeSending = async (
 export const recoverFromOverflow = async (ctx: Ctx, agent: Agent) => {
   const last = agent.state.messages.at(-1)
   if (
+    !autoCompactionEnabled(agent.state.model.contextWindow) ||
     last?.role !== 'assistant' ||
     last.stopReason !== 'error' ||
     !isContextOverflow(last, agent.state.model.contextWindow)

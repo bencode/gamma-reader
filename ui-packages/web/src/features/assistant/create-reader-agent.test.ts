@@ -59,10 +59,10 @@ const xlsx = vi.hoisted(() => ({ read: vi.fn() }))
 vi.mock('read-excel-file/browser', () => ({ default: xlsx.read }))
 
 const config = await createModelRuntime(modelConfig)
-const event = (delta: unknown, finish: string | null = null) =>
-  `data: ${JSON.stringify({ id: 'reply', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`
-const reply = (text: string) =>
-  new Response(`${event({ content: text }) + event({}, 'stop')}data: [DONE]\n\n`, {
+const event = (delta: unknown, finish: string | null = null, tokens = 0) =>
+  `data: ${JSON.stringify({ id: 'reply', choices: [{ index: 0, delta, finish_reason: finish }], ...(tokens ? { usage: { prompt_tokens: tokens, completion_tokens: 0, total_tokens: tokens } } : {}) })}\n\n`
+const reply = (text: string, tokens = 0) =>
+  new Response(`${event({ content: text }) + event({}, 'stop', tokens)}data: [DONE]\n\n`, {
     headers: { 'Content-Type': 'text/event-stream' },
   })
 const call = (name: string, args: unknown) =>
@@ -87,6 +87,67 @@ const localTools = () => createLocalTools(emptyState, writeStoredTextFile, moveS
 const session = { id: 'test-conversation', messages: [], ...resolveModelSelection(config) }
 
 describe('reader agent', () => {
+  it.each([0, 32_000, 127_999, 128_000])(
+    'automates between tool turns only for a supported %i window',
+    async window => {
+      const notifications = vi.fn()
+      const fetchModel = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(reply('x'.repeat(150_000), 120_000))
+      const agent = createReaderAgent(config, localTools(), {
+        ...session,
+        model: { ...session.model, contextWindow: window },
+        onCompactionChange: notifications,
+      })
+      await agent.prompt('Earlier question')
+      const requests: string[] = []
+      fetchModel.mockImplementation(async (_url, init) => {
+        const summary = String(init?.body).includes('context summarization assistant')
+        requests.push(summary ? 'summary' : 'chat')
+        if (summary) return reply('Earlier question summarized')
+        return requests.length === 1 ? call('get_reader_state', {}) : reply('Finished')
+      })
+      await agent.prompt('Read more')
+      expect(requests).toEqual(window >= 128_000 ? ['chat', 'summary', 'chat'] : ['chat', 'chat'])
+      expect(notifications.mock.calls).toEqual(window >= 128_000 ? [[true], [false]] : [])
+      expect(agent.state.messages.at(-1)).toMatchObject({ stopReason: 'stop' })
+    },
+  )
+
+  it.each(['failure', 'stop'])(
+    'ends between-turn compaction notifications after a %s',
+    async outcome => {
+      const notifications: boolean[] = []
+      const fetchModel = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(reply('x'.repeat(150_000), 120_000))
+      vi.spyOn(console, 'error').mockImplementation(vi.fn())
+      const agent = createReaderAgent(config, localTools(), {
+        ...session,
+        model: { ...session.model, contextWindow: 128_000 },
+        onCompactionChange: compacting => {
+          notifications.push(compacting)
+          if (compacting && outcome === 'stop') agent.abort()
+        },
+      })
+      await agent.prompt('Earlier question')
+      let chats = 0
+      fetchModel.mockImplementation(async (_url, init) => {
+        if (String(init?.body).includes('context summarization assistant'))
+          return Response.json({ error: { message: 'Unavailable' } }, { status: 503 })
+        chats += 1
+        return chats === 1 ? call('get_reader_state', {}) : reply('Finished')
+      })
+      await agent.prompt('Read more')
+      expect(notifications).toEqual([true, false])
+      expect(conversationMessages(agent).some(message => message.role === 'compaction')).toBe(false)
+      expect(chats).toBe(outcome === 'stop' ? 1 : 2)
+      expect(agent.state.messages.at(-1)).toMatchObject({
+        stopReason: outcome === 'stop' ? 'aborted' : 'stop',
+      })
+    },
+  )
+
   it('restores the transcript under the selected conversation id', () => {
     const message = createReaderUserMessage('Earlier question', [])
     const agent = createReaderAgent(config, localTools(), {

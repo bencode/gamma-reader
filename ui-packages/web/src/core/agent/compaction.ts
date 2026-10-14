@@ -46,7 +46,9 @@ export const compactionThreshold = (contextWindow: number) =>
       )
     : compactionSettings.maximumThreshold
 
-// Scaled with the threshold, so a compacted context always falls below it.
+export const autoCompactionEnabled = (contextWindow: number): boolean => contextWindow >= 128_000
+
+// A retention budget, not a bound on the summary or an indivisible message kept with it.
 export const keepRecentFor = (contextWindow: number) =>
   Math.min(compactionSettings.maximumKeep, Math.floor(0.4 * compactionThreshold(contextWindow)))
 
@@ -157,6 +159,7 @@ export const planCompaction = (
 
 // Whether the context the provider would be sent has passed the threshold.
 export const needsCompaction = (messages: readonly AgentMessage[], contextWindow: number) =>
+  autoCompactionEnabled(contextWindow) &&
   estimateContextTokens(projectContext(messages)).tokens > compactionThreshold(contextWindow)
 
 const toolResultLimit = 2_000

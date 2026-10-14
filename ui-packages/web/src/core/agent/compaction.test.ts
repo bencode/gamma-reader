@@ -2,6 +2,7 @@ import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { AssistantMessage, Message, ToolResultMessage } from '@earendil-works/pi-ai'
 import { describe, expect, it } from 'vitest'
 import {
+  autoCompactionEnabled,
   type CompactionMessage,
   compactionThreshold,
   keepRecentFor,
@@ -165,14 +166,28 @@ describe('when to compact', () => {
   })
 
   it('compacts once the context passes the threshold, and not again after', () => {
-    const window = 32_000
+    const window = 128_000
     const messages: AgentMessage[] = [
-      user('x'.repeat(40_000)),
-      assistant('y'.repeat(40_000)),
+      user('x'.repeat(400_000)),
+      assistant('y'.repeat(400_000)),
       user('z'.repeat(400)),
     ]
 
     expect(needsCompaction(messages, window)).toBe(true)
     expect(needsCompaction([...messages, compaction('short', 2)], window)).toBe(false)
+  })
+
+  it('automates only known windows of at least 128K', () => {
+    const messages = [user('x'.repeat(2_000_000))]
+    const smallWindows = [0, 32_000, 127_999]
+    smallWindows.forEach(window => {
+      expect(autoCompactionEnabled(window)).toBe(false)
+      expect(needsCompaction(messages, window)).toBe(false)
+    })
+    const supportedWindows = [128_000, 1_000_000]
+    supportedWindows.forEach(window => {
+      expect(autoCompactionEnabled(window)).toBe(true)
+      expect(needsCompaction(messages, window)).toBe(true)
+    })
   })
 })

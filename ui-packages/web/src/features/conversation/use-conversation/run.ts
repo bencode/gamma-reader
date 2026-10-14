@@ -75,7 +75,9 @@ export const send = (
 ) => {
   const { runtime, store } = ctx
   const agent = runtime.agent
-  const text = store.getState().draft.trim()
+  const { draft, phase } = store.getState()
+  if (phase !== 'ready' && phase !== 'running') return
+  const text = draft.trim()
   if (!agent || unsettled || (!text && !hasAttachments)) return
   const item = { text, attachments: ctx.attachments.takeReady().map(entry => entry.metadata) }
   const current = getActive(ctx)
