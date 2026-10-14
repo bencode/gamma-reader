@@ -109,11 +109,12 @@ const EmbeddedNote = ({
   const inner = useMemo<EmbedScope>(
     () => ({
       ...scope,
+      basePath: file.path,
       resize: undefined,
       chain: [...scope.chain, placeKey(file.id, { block, heading })],
       depth: scope.depth + 1,
     }),
-    [block, file.id, heading, scope],
+    [block, file.id, file.path, heading, scope],
   )
   const images = useMemo(
     () => ({ basePath: file.path, resolve: createMarkdownImageResolver(scope.files) }),

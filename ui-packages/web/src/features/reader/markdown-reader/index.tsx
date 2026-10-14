@@ -100,13 +100,14 @@ export const MarkdownReader = ({
   const resizable = document.previewKind === 'markdown' && !imageResolver
   const embedScope = useMemo(
     () => ({
+      basePath: document.path,
       chain: [placeKey(document.id, {})],
       depth: 0,
       files,
       components: linkComponents,
       ...(resizable ? { resize } : {}),
     }),
-    [document.id, files, resizable, resize],
+    [document.id, document.path, files, resizable, resize],
   )
   const extensions = useMemo<MarkdownExtensions>(
     () => ({

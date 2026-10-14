@@ -1,4 +1,10 @@
-import { type ComponentProps, isValidElement, useMemo } from 'react'
+import {
+  type ComponentProps,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+  useMemo,
+} from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeKatex from 'rehype-katex'
@@ -41,6 +47,25 @@ export const MarkdownCodeBlock = ({ children, ...props }: ComponentProps<'pre'>)
 
 type MarkdownVariant = 'reader' | 'chat'
 
+export type MarkdownAnchorProps = {
+  href?: string
+  children?: ReactNode
+  variant: MarkdownVariant
+}
+
+export const MarkdownAnchor = ({ href, children, variant }: MarkdownAnchorProps): ReactElement => {
+  const fragment = variant === 'reader' && href?.startsWith('#')
+  return (
+    <a
+      href={fragment || /^https?:\/\//.test(href ?? '') ? href : undefined}
+      target={fragment ? undefined : '_blank'}
+      rel="noopener noreferrer"
+    >
+      {children}
+    </a>
+  )
+}
+
 const createComponents = (variant: MarkdownVariant, images?: MarkdownImageContext): Components => ({
   pre: ({ node: _node, ...props }) => <MarkdownCodeBlock {...props} />,
   img: ({ alt, src }) => {
@@ -48,18 +73,11 @@ const createComponents = (variant: MarkdownVariant, images?: MarkdownImageContex
     if (!images || !src) return <span className="omitted-image">{fallback}</span>
     return <MarkdownImage alt={alt ?? undefined} context={images} fallback={fallback} src={src} />
   },
-  a: ({ href, children }) => {
-    const fragment = variant === 'reader' && href?.startsWith('#')
-    return (
-      <a
-        href={fragment || /^https?:\/\//.test(href ?? '') ? href : undefined}
-        target={fragment ? undefined : '_blank'}
-        rel="noopener noreferrer"
-      >
-        {children}
-      </a>
-    )
-  },
+  a: ({ href, children }) => (
+    <MarkdownAnchor href={href} variant={variant}>
+      {children}
+    </MarkdownAnchor>
+  ),
 })
 
 export type MarkdownExtensions = {
