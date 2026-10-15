@@ -75,22 +75,28 @@ const skills: Skill<ReaderContext>[] = [
   {
     name: 'pdf',
     description:
-      'Read and understand PDFs using outlines, text search, page reading and visual analysis. Includes guidance for large documents and scanned pages.',
+      'Read PDFs using physical pages, embedded outlines, text and visual analysis of scans, figures and tables.',
     load: async () => (await import('./pdf/SKILL.md?raw')).default,
     tools: ({ pdf, analyze }) => createPdfTools(pdf, analyze),
   },
   {
     name: 'spreadsheet',
     description:
-      'Read and understand spreadsheets by sheet and A1 range, with guidance on locating values, merged and empty cells, and formulas.',
+      'Read XLSX workbooks by sheet and A1 range, including empty cells and cached formula values.',
     load: async () => (await import('./xlsx/SKILL.md?raw')).default,
     tools: ({ xlsx }) => createXlsxTools(xlsx),
   },
   {
     name: 'links',
     description:
-      'Follow and write links between notes: pages, sections and named blocks, what links to them and what they link to, and the link syntax to use.',
+      'Query note relationships; write wiki links, tags, block references and sized embeds.',
     load: async () => (await import('./links/SKILL.md?raw')).default,
+  },
+  {
+    name: 'authoring',
+    description:
+      'Create or edit rich notes, runnable .lab.md experiments, native p5 sketches, HTML pages, SVG images and CSV tables in Gamma Reader.',
+    load: async () => (await import('./authoring/SKILL.md?raw')).default,
   },
 ]
 
