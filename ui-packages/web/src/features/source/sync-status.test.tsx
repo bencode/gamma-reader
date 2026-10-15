@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { SourceSyncStatus } from './sync-status'
 import type { SourceSync, SourceSyncState } from './use-source-sync'
 
-const show = (state: SourceSyncState, overrides: Partial<SourceSync> = {}) => {
+const show = (state: SourceSyncState, overrides: Partial<SourceSync> = {}, compact = false) => {
   const sync = {
     state,
     localChanges: 0,
@@ -15,7 +15,7 @@ const show = (state: SourceSyncState, overrides: Partial<SourceSync> = {}) => {
     sync: vi.fn(async () => undefined),
     ...overrides,
   } as unknown as SourceSync
-  render(<SourceSyncStatus name="brain2" sync={sync} />)
+  render(<SourceSyncStatus name="brain2" sync={sync} compact={compact} />)
   return sync
 }
 
@@ -26,6 +26,22 @@ const refused: SaveResult[] = ['a.md', 'b.md', 'c.md'].map(path => ({
 }))
 
 describe('the status of a writable source', () => {
+  it('compacts a healthy source without confusing it with unsaved changes', () => {
+    const sync = show({ kind: 'current' }, {}, true)
+    expect(screen.getByRole('status')).toHaveAttribute('title', 'brain2 is up to date.')
+    render(<SourceSyncStatus name="other" sync={{ ...sync, localChanges: 1 }} compact />)
+    expect(screen.getByText(/1 change not saved to other/)).toBeVisible()
+  })
+
+  it('keeps refused sync results and failed updates visible in compact mode', async () => {
+    show({ kind: 'synced', kept: [], replaced: [], refused: 2 }, {}, true)
+    expect(screen.getByRole('status')).not.toHaveAttribute('title')
+    expect(screen.getByText(/2 files did not fit/)).toBeVisible()
+    const sync = show({ kind: 'failed', message: 'Offline' }, {}, true)
+    await userEvent.click(screen.getByRole('button', { name: 'Update' }))
+    expect(sync.sync).toHaveBeenCalled()
+  })
+
   it('sums up a save in one notice and lists each file only when asked', async () => {
     show({ kind: 'saved', results: refused }, { localChanges: 3 })
 

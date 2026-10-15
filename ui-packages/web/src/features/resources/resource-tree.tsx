@@ -1,31 +1,15 @@
-import {
-  ChevronDown,
-  ChevronRight,
-  FileCode2,
-  FileDown,
-  FileImage,
-  FileQuestion,
-  FileText,
-  LoaderCircle,
-  Trash2,
-} from 'lucide-react'
+import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import type { PreviewKind, StoredFileMetadata } from '../../core/files'
-import { formatBytes } from '../../utils/bytes'
+import type { StoredFileMetadata } from '../../core/files'
+import { FileRow, type FileRowContext } from './file-row'
 import { ancestorFolders, buildFileTree, type FileTreeNode } from './file-tree'
 
-type ResourceTreeProps = {
+type ResourceTreeProps = FileRowContext & {
   files: StoredFileMetadata[]
   // The normalized filter the files were chosen by; empty when nothing is filtered.
   filter: string
   label: 'Files' | 'Attachments'
-  activeId: string | null
-  onOpen: (id: string) => void
-  onRemove: (file: StoredFileMetadata) => void
   onRemoveFolder: (path: string) => void
-  onSaveAs: (id: string) => void
-  savingFileId: string | null
-  exportBusy: boolean
 }
 
 type RowContext = Omit<ResourceTreeProps, 'files' | 'filter'> & {
@@ -34,64 +18,6 @@ type RowContext = Omit<ResourceTreeProps, 'files' | 'filter'> & {
 }
 
 const indent = (depth: number) => ({ paddingLeft: 8 + depth * 14 })
-
-const FileKindIcon = ({ kind }: { kind: PreviewKind }) => {
-  if (kind === 'image') return <FileImage size={15} />
-  if (kind === 'html') return <FileCode2 size={15} />
-  if (kind === 'unsupported') return <FileQuestion size={15} />
-  return <FileText size={15} />
-}
-
-const FileRow = ({
-  file,
-  name,
-  depth,
-  context,
-}: {
-  file: StoredFileMetadata
-  name: string
-  depth: number
-  context: RowContext
-}) => (
-  <li className="resource-row">
-    <button
-      type="button"
-      className={context.activeId === file.id ? 'resource-item active' : 'resource-item'}
-      style={indent(depth)}
-      onClick={() => context.onOpen(file.id)}
-      aria-current={context.activeId === file.id ? 'page' : undefined}
-      title={`${file.path} · ${formatBytes(file.size)}`}
-    >
-      <FileKindIcon kind={file.previewKind} />
-      <span>{name}</span>
-    </button>
-    <span className="resource-actions">
-      <button
-        type="button"
-        className="icon-button"
-        aria-label={`Save ${file.path} as`}
-        title="Save as…"
-        disabled={context.exportBusy}
-        onClick={() => context.onSaveAs(file.id)}
-      >
-        {context.savingFileId === file.id ? (
-          <LoaderCircle className="folder-save-spinner" size={13} />
-        ) : (
-          <FileDown size={13} />
-        )}
-      </button>
-      <button
-        type="button"
-        className="icon-button"
-        aria-label={`Remove ${file.path} from ${context.label}`}
-        title={`Remove from ${context.label}`}
-        onClick={() => context.onRemove(file)}
-      >
-        <Trash2 size={13} />
-      </button>
-    </span>
-  </li>
-)
 
 const TreeRows = ({
   nodes,
@@ -104,15 +30,7 @@ const TreeRows = ({
 }) =>
   nodes.map(node => {
     if (node.kind === 'file')
-      return (
-        <FileRow
-          key={node.file.id}
-          file={node.file}
-          name={node.name}
-          depth={depth}
-          context={context}
-        />
-      )
+      return <FileRow key={node.file.id} file={node.file} depth={depth} context={context} />
     const open = context.isOpen(node.key)
     return (
       <li key={node.key}>

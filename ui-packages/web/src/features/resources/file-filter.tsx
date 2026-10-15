@@ -1,14 +1,17 @@
 import { LoaderCircle, Search } from 'lucide-react'
 import { useState, useTransition } from 'react'
+import type { FileView } from './file-navigation'
 
 // The box keeps what is typed, so a key press redraws only the box. The library hears of it in a
 // transition: a long list being drawn gives way to the next key instead of holding it up.
 export const FileFilter = ({
   count,
+  view = 'files',
   onQueryChange,
   onSubmit,
 }: {
   count: number
+  view?: FileView
   onQueryChange: (query: string) => void
   onSubmit: (query: string) => void
 }) => {
@@ -27,8 +30,12 @@ export const FileFilter = ({
       )}
       <input
         type="search"
-        aria-label="Filter files"
-        placeholder={`Filter ${count.toLocaleString()} ${count === 1 ? 'file' : 'files'}`}
+        aria-label={view === 'files' ? 'Filter files' : `Filter ${view} files`}
+        placeholder={
+          view === 'files'
+            ? `Filter ${count.toLocaleString()} ${count === 1 ? 'file' : 'files'}`
+            : `Filter ${view} files…`
+        }
         value={value}
         onChange={event => change(event.target.value)}
         onKeyDown={event => {
