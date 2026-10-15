@@ -1,5 +1,5 @@
 import { PanelLeft, X } from 'lucide-react'
-import { type DragEvent, type ReactNode, useEffect, useRef, useState } from 'react'
+import { type DragEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import type { StoredFileMetadata } from '../../core/files'
 import type { Project } from '../../core/projects'
 import { normalizeSearchText } from '../../utils/text'
@@ -14,6 +14,8 @@ import { AddFromUrlDialog } from './add-from-url-dialog'
 import { AddMenu } from './add-menu'
 import { DuplicateFilesDialog, RemoveFileDialog, RemoveFolderDialog } from './file-dialogs'
 import { FileFilter } from './file-filter'
+import { FileList } from './file-list'
+import type { FileRowContext } from './file-row'
 import { buildFileTree, filesInFolder, firstFile, matchesFilter } from './file-tree'
 import { FolderExportControl } from './folder-export-control'
 import {
@@ -27,12 +29,14 @@ import {
 import { ResourceTree } from './resource-tree'
 import type { FileExportController } from './use-file-export'
 import type { FileLibrary } from './use-file-library'
+import type { FileNavigation } from './use-file-navigation'
 
 type ResourcePanelProps = {
   project: Project
   // The project menu, which the workbench builds.
   switcher: ReactNode
   activeId: string | null
+  navigation: FileNavigation
   library: FileLibrary
   exporter: FileExportController
   sourceSync: SourceSync
@@ -56,6 +60,7 @@ export const ResourcePanel = ({
   project,
   switcher,
   activeId,
+  navigation,
   library,
   exporter,
   sourceSync,
@@ -101,11 +106,37 @@ export const ResourcePanel = ({
   const attachments = library.files.filter(file => file.collection === 'attachments')
   const shownFiles = files.filter(file => matchesFilter(file.path, filter))
   const shownAttachments = attachments.filter(file => matchesFilter(file.path, filter))
+  const byId = useMemo(() => new Map(library.files.map(file => [file.id, file])), [library.files])
+  const starredIds = useMemo(() => new Set(navigation.starred), [navigation.starred])
+  const entries =
+    navigation.view === 'recent'
+      ? navigation.recent.flatMap(item => {
+          const file = byId.get(item.fileId)
+          return file ? [{ file, openedAt: item.openedAt }] : []
+        })
+      : navigation.starred.flatMap(id => {
+          const file = byId.get(id)
+          return file ? [{ file }] : []
+        })
+  const shownEntries = entries.filter(item => matchesFilter(item.file.path, filter))
+  const rowContext: FileRowContext = {
+    activeId,
+    onOpen,
+    onRemove: file => setRemoval({ kind: 'file', file }),
+    onSaveAs: id => void exporter.saveAs(id),
+    savingFileId: exporter.savingFileId,
+    exportBusy: exporter.phase === 'saving' || exporter.savingFileId !== null,
+    starredIds,
+    onToggleStar: navigation.toggleStar,
+  }
   // Enter reads what is in the box, not the filter still being drawn.
   const openFirstMatch = (typed: string) => {
     const match = (pool: StoredFileMetadata[]) =>
       firstFile(buildFileTree(pool.filter(file => matchesFilter(file.path, typed))))
-    const first = match(files) ?? match(attachments)
+    const first =
+      navigation.view === 'files'
+        ? (match(files) ?? match(attachments))
+        : entries.find(item => matchesFilter(item.file.path, typed))?.file
     if (first) onOpen(first.id)
   }
 
@@ -149,7 +180,18 @@ export const ResourcePanel = ({
         </button>
       </header>
       <div className="resource-toolbar">
-        <h2>Files</h2>
+        <fieldset className="resource-views" aria-label="File views">
+          {(['files', 'recent', 'starred'] as const).map(view => (
+            <button
+              type="button"
+              key={view}
+              aria-pressed={navigation.view === view}
+              onClick={() => navigation.setView(view)}
+            >
+              {{ files: 'Files', recent: 'Recent', starred: 'Starred' }[view]}
+            </button>
+          ))}
+        </fieldset>
         <div className="resource-toolbar-actions">
           {project.source?.writable ? (
             <div className="folder-save-control">
@@ -169,6 +211,14 @@ export const ResourcePanel = ({
             onAddFromUrl={() => setAddingUrl(true)}
           />
         </div>
+        {project.source && (
+          <SourceSyncStatus
+            compact
+            name={project.source.name}
+            scope={project.source.scope}
+            sync={sourceSync}
+          />
+        )}
         <input
           ref={inputRef}
           className="visually-hidden"
@@ -197,13 +247,6 @@ export const ResourcePanel = ({
           }}
         />
       </div>
-      {project.source && (
-        <SourceSyncStatus
-          name={project.source.name}
-          scope={project.source.scope}
-          sync={sourceSync}
-        />
-      )}
       {library.progress && (
         <p className="file-progress" role="status">
           {library.progress}
@@ -240,6 +283,7 @@ export const ResourcePanel = ({
       {(query || (!library.loading && !library.error && library.files.length > 0)) && (
         <FileFilter
           count={library.files.length}
+          view={navigation.view}
           onQueryChange={setQuery}
           onSubmit={openFirstMatch}
         />
@@ -256,45 +300,50 @@ export const ResourcePanel = ({
               Try again
             </button>
           </div>
-        ) : library.files.length === 0 ? (
-          <div className="resource-state empty-files">
-            <p>Add a document when you are ready to read.</p>
-          </div>
-        ) : filter && shownFiles.length === 0 && shownAttachments.length === 0 ? (
-          <p className="resource-state">No matching files</p>
         ) : (
           <>
-            {shownFiles.length > 0 && (
+            <div hidden={navigation.view !== 'files'}>
+              {library.files.length === 0 ? (
+                <p className="resource-state">Add a document when you are ready to read.</p>
+              ) : filter && shownFiles.length === 0 && shownAttachments.length === 0 ? (
+                <p className="resource-state">No matching files</p>
+              ) : null}
               <ResourceTree
                 files={shownFiles}
                 filter={filter}
                 label="Files"
-                activeId={activeId}
-                onOpen={onOpen}
-                onRemove={file => setRemoval({ kind: 'file', file })}
+                {...rowContext}
                 onRemoveFolder={path => setRemoval({ kind: 'folder', path })}
-                onSaveAs={id => void exporter.saveAs(id)}
-                savingFileId={exporter.savingFileId}
-                exportBusy={exporter.phase === 'saving' || exporter.savingFileId !== null}
               />
-            )}
-            {shownAttachments.length > 0 && (
-              <section className="resource-group" aria-labelledby="attachments-heading">
-                <h3 id="attachments-heading">Attachments</h3>
-                <ResourceTree
-                  files={shownAttachments}
-                  filter={filter}
-                  label="Attachments"
-                  activeId={activeId}
-                  onOpen={onOpen}
-                  onRemove={file => setRemoval({ kind: 'file', file })}
-                  onRemoveFolder={path => setRemoval({ kind: 'folder', path })}
-                  onSaveAs={id => void exporter.saveAs(id)}
-                  savingFileId={exporter.savingFileId}
-                  exportBusy={exporter.phase === 'saving' || exporter.savingFileId !== null}
+              {shownAttachments.length > 0 && (
+                <section className="resource-group" aria-labelledby="attachments-heading">
+                  <h3 id="attachments-heading">Attachments</h3>
+                  <ResourceTree
+                    files={shownAttachments}
+                    filter={filter}
+                    label="Attachments"
+                    {...rowContext}
+                    onRemoveFolder={path => setRemoval({ kind: 'folder', path })}
+                  />
+                </section>
+              )}
+            </div>
+            {navigation.view !== 'files' &&
+              (shownEntries.length > 0 ? (
+                <FileList
+                  label={navigation.view === 'recent' ? 'Recent' : 'Starred'}
+                  items={shownEntries}
+                  context={rowContext}
                 />
-              </section>
-            )}
+              ) : (
+                <p className="resource-state">
+                  {filter
+                    ? `No matching ${navigation.view} files`
+                    : navigation.view === 'recent'
+                      ? 'Files you open will appear here.'
+                      : 'Star a file to find it here quickly.'}
+                </p>
+              ))}
           </>
         )}
       </div>

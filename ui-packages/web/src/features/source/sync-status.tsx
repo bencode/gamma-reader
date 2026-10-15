@@ -1,6 +1,6 @@
 import type { SaveResult } from '@gamma-reader/shared/source-protocol'
 import * as Popover from '@radix-ui/react-popover'
-import { Info, RefreshCw, X } from 'lucide-react'
+import { Check, Info, RefreshCw, X } from 'lucide-react'
 import { useState } from 'react'
 import type { SourceScope } from '../../core/projects'
 import { changeCount, type FileNote, fileCount, savedText, statusText } from './sync-text'
@@ -68,10 +68,12 @@ export const SourceSyncStatus = ({
   name,
   scope,
   sync,
+  compact = false,
 }: {
   name: string
   scope?: SourceScope
   sync: SourceSync
+  compact?: boolean
 }) => {
   const { state, localChanges } = sync
   const [dismissed, setDismissed] = useState<readonly SaveResult[] | null>(null)
@@ -81,10 +83,23 @@ export const SourceSyncStatus = ({
     state.kind === 'saved' && state.results !== dismissed && (saved?.files.length ?? 0) > 0
   const actionable = state.kind === 'available' || state.kind === 'failed' || sync.saveBlocked
   const pending = localChanges > 0 && !sync.busy && !notice
+  const quietState =
+    state.kind === 'current' ||
+    (state.kind === 'synced' &&
+      state.kept.length === 0 &&
+      state.replaced.length === 0 &&
+      state.refused === 0) ||
+    (state.kind === 'saved' && saved?.files.length === 0)
+  const quiet = compact && quietState && localChanges === 0 && !sync.saveBlocked && !sync.busy
   return (
     <>
-      <div className="source-sync" role="status">
-        <span>
+      <div
+        className={quiet ? 'source-sync source-sync-compact' : 'source-sync'}
+        role="status"
+        title={quiet ? status.summary : undefined}
+      >
+        {quiet && <Check size={13} aria-hidden="true" />}
+        <span className={quiet ? 'visually-hidden' : undefined}>
           {status.summary}
           {pending && ' '}
           {pending &&

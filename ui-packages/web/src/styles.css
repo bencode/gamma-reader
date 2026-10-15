@@ -150,23 +150,76 @@ svg {
   /* The hint must not become the drop target itself. */
   pointer-events: none;
 }
+.resource-panel {
+  container-type: inline-size;
+}
 .resource-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  height: 32px;
+  gap: 4px;
+  min-height: 36px;
   flex-shrink: 0;
-  padding: 0 8px 0 14px;
+  padding: 2px 8px 6px;
 }
-.resource-toolbar h2 {
+.resource-views {
   margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex: 1 0 auto;
+  gap: 2px;
+  min-width: 0;
+}
+.resource-views button {
+  padding: 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 4px 4px 0 0;
+  background: none;
+  color: var(--muted);
   font-size: 12px;
+}
+.resource-views button:hover,
+.resource-views button:focus-visible {
+  background: var(--selected);
+  color: var(--accent);
+}
+.resource-views button:active {
+  background: var(--line);
+}
+.resource-views button[aria-pressed="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
   font-weight: 600;
 }
 .resource-toolbar-actions {
   display: flex;
+  order: 2;
   align-items: center;
   gap: 2px;
+  margin-left: auto;
+}
+.resource-toolbar-actions .icon-button:disabled {
+  opacity: 0.45;
+}
+.resource-panel .icon-button:hover:not(:disabled),
+.resource-panel .icon-button:focus-visible:not(:disabled) {
+  background: var(--selected);
+  color: var(--accent);
+}
+.resource-panel .icon-button:active:not(:disabled) {
+  background: var(--line);
+}
+@container (max-width: 260px) {
+  .resource-views {
+    flex-basis: 100%;
+  }
+  .resource-views button {
+    flex: 1;
+    padding-inline: 4px;
+    font-size: 11px;
+  }
 }
 .folder-save-control {
   position: relative;
@@ -761,16 +814,68 @@ svg {
 .resource-actions {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   margin-right: 3px;
-  opacity: 0;
 }
-.resource-actions .icon-button {
+.resource-actions :where(.icon-button) {
+  opacity: 0;
   width: 24px;
   height: 24px;
 }
-.resource-row:hover .resource-actions,
-.resource-row:focus-within .resource-actions {
+:where(.resource-row:hover, .resource-row:focus-within) .resource-actions :where(.icon-button),
+.resource-actions :where(.resource-star[aria-pressed="true"]) {
   opacity: 1;
+}
+.resource-star[aria-pressed="true"] {
+  color: var(--accent);
+}
+.resource-item .resource-file-label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.resource-file-label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resource-file-path,
+.resource-file-time {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.resource-file-time {
+  font-variant-numeric: tabular-nums;
+}
+.resource-flat-list .resource-row {
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+.resource-flat-list .resource-item {
+  align-items: flex-start;
+  padding-block: 7px;
+}
+.resource-flat-list .resource-item > svg {
+  margin-top: 1px;
+}
+.resource-flat-list .resource-actions {
+  padding-top: 3px;
+}
+@container (max-width: 200px) {
+  .resource-row:has(.resource-file-label) {
+    flex-wrap: wrap;
+  }
+  .resource-row:has(.resource-file-label) .resource-item {
+    flex-basis: 100%;
+  }
+  .resource-row:has(.resource-file-label) .resource-actions {
+    margin-left: auto;
+    padding-top: 0;
+  }
+  .resource-file-time {
+    white-space: normal;
+  }
 }
 .source-sync {
   display: flex;
@@ -859,6 +964,22 @@ svg {
 }
 .empty-files {
   margin-top: 32px;
+}
+.resource-toolbar > .source-sync {
+  order: 3;
+  flex-basis: 100%;
+  margin: 0 2px;
+}
+.resource-toolbar > .source-sync-compact {
+  order: 1;
+  flex-basis: auto;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.resource-toolbar > .source-save-notice {
+  order: 4;
+  width: 100%;
+  margin: 0;
 }
 .file-status {
   display: flex;
@@ -1089,7 +1210,7 @@ svg {
   background: var(--surface);
 }
 @media (pointer: coarse) {
-  .resource-actions {
+  .resource-actions :where(.icon-button) {
     opacity: 1;
   }
 }
