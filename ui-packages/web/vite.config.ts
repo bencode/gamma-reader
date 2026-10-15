@@ -83,7 +83,7 @@ export default defineConfig({
         test: { ...testDefaults, name: 'integration', include: integrationTests },
       },
       // Evaluations ask a real model through a running backend, so they cost tokens and vary run to
-      // run; they are run by hand with `pnpm eval:memory`, never by `pnpm check`.
+      // run; run them by hand with `pnpm eval:memory` or `pnpm eval:assistant`, never `pnpm check`.
       {
         extends: true,
         test: {

@@ -1,28 +1,25 @@
 # Links between notes
 
-Use this guidance when a question is about how notes connect: what links to a page or block, what a note links to, which notes share a topic, or how to write a link.
+## Names and queries
 
-## The graph
+A note is named by frontmatter name:, else its filename without .md or .lab.md. Other files retain their full filename, such as paper.pdf. Names ignore case and folders. A virtual page has links but no file; a shared name is ambiguous, so pass fileId to choose a file.
 
-- Notes link with `[[Page]]`, `[[Page|label]]`, `[[Page#Heading]]` and `[[Page#^name]]`. `![[...]]` embeds the target and `#[[Page]]` tags with it. A bare `#word` is plain text, not a tag. Links inside code are not links.
-- Nodes are pages, sections and blocks:
-  - A page is a Markdown note (named by its frontmatter `name:`, else its file name without `.md` or `.lab.md`), any other file by its full name such as `paper.pdf`, or a virtual page that is only linked to and has no file.
-  - A section is a heading and everything under it until the next heading at its level or above: `Page#Heading`.
-  - A block is a paragraph, list item (with the items under it) or heading named by ` ^name` at the end of its line: `Page#^name`. A table, code block or quote is named by `^name` on a line of its own after it, separated by a blank line.
-- Names are matched without regard to case and never by path, so a file can move without breaking links. A name two files share is ambiguous; pass fileId to choose one.
-- Edges are links. Each starts at a line of a note, inside the innermost named block around it, and points at a node, sometimes at a PDF page (`[[paper.pdf#page=12]]`).
+find_nodes locates names, get_node gives a page's files/outline or a section/block's text, and get_links follows incoming or outgoing links. Pass returned node names directly to the next tool. Incoming links to a page include its sections and blocks. To explore what linking notes discuss, follow outgoing links from their from.node values.
 
-## Query it
+The graph covers saved files; indexing means it is still incomplete. Its lines refer to Markdown source, whereas read uses extracted text lines. Search the returned context to locate a read range.
 
-- find_nodes locates nodes by name. get_node looks inside one. get_links follows its links: `in` for what points to it, `out` for what it points to.
-- Every node in a result is written as a link names it. Pass it straight to the next call to walk the graph: for what notes about a topic also discuss, take get_links in on the topic, then get_links out on each from.node.
-- Links into a page include links to its sections and blocks; ask for the block itself when only those matter.
-- The index covers saved files. Unsaved drafts are not in it, and while indexing is still running a result says so with indexing.
-- line is a line of Markdown source. read counts lines of extracted text, which differ. To show the passage, search for the link's context and read the range search returns.
+## Write links and embeds in notes
 
-## Write a link
+| Syntax | Meaning |
+| --- | --- |
+| `[[Page]]`, `[[Page\|label]]` | A page, optionally relabeled |
+| `[[Page#Heading]]`, `[[Page#^name]]` | A section or named block |
+| `[[paper.pdf#page=12]]` | A physical PDF page |
+| `#[[Page]]` | A tag; bare `#word` is plain text |
+| `![[Page]]` | Embed a note, section, block, image, p5 sketch or HTML page |
+| `![[Orbit.p5.js\|480]]` | Embed at 480 pixels wide |
+| `![[Demo.html\|Title\|520x300]]` | Embed with a title, width and height |
 
-- Link to a page by its name. Before linking to a block or section, check with get_node that it exists, and use the node it lists.
-- To link to a passage that has no name yet, call name_block with the note's fileId, a quote of that one passage as read, search or get_node shows it, and a name of letters, digits and hyphens that describes it, such as `retrieval-first`. It saves the name into the note and returns the link; a passage already named keeps its name.
-- Then write that link where the reader wants it, in the current source with edit_active_source. name_block changes the saved note, not drafts: if the note has unsaved edits in a tab, ask the reader to save or discard them first.
-- Prefer `[[Page]]` over a path: links by name keep working when files move.
+Embeds must occupy their own paragraph. Images and p5 canvases keep their aspect ratio; HTML lays out inside its box. These syntaxes render in notes, not chat, and links inside code remain text.
+
+Before linking to a section or block, verify it with get_node. To name an existing passage, use name_block with its fileId, a quote from that one passage, and a descriptive name using letters, digits and hyphens. Existing names are preserved. This changes the saved note; unsaved drafts must be saved or discarded by the reader first. Insert the returned link using edit_active_source.
