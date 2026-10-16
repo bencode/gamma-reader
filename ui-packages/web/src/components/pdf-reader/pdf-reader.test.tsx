@@ -2,11 +2,14 @@ import { fireEvent, render, renderHook, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { describe, expect, it, vi } from 'vitest'
+import { PdfNavigation } from './pdf-navigation'
 import { loadPdfOutline, PdfOutline, usePdfOutline } from './pdf-outline'
 import { PdfToolbar } from './pdf-toolbar'
 import { usePdfPan } from './use-pdf-pan'
 
-const toolbar = (overrides: Partial<Parameters<typeof PdfToolbar>[0]> = {}) => {
+type ControlsProps = Parameters<typeof PdfToolbar>[0] & Parameters<typeof PdfNavigation>[0]
+
+const toolbar = (overrides: Partial<ControlsProps> = {}) => {
   const onPageChange = vi.fn()
   const onPanActiveChange = vi.fn()
   const onToggleOutline = vi.fn()
@@ -27,7 +30,12 @@ const toolbar = (overrides: Partial<Parameters<typeof PdfToolbar>[0]> = {}) => {
     onThemeChange,
     ...overrides,
   }
-  render(<PdfToolbar {...props} />)
+  render(
+    <>
+      <PdfToolbar {...props} />
+      <PdfNavigation {...props} />
+    </>,
+  )
   return { onPageChange, onPanActiveChange, onToggleOutline, onThemeChange }
 }
 
@@ -83,15 +91,12 @@ describe('PDF reader controls', () => {
 
     render(
       <PdfToolbar
-        pageNumber={1}
-        pageCount={1}
         zoom={1}
         outlineAvailable={false}
         outlineOpen={false}
         panAvailable={false}
         panActive={false}
         theme="original"
-        onPageChange={vi.fn()}
         onZoomChange={vi.fn()}
         onToggleOutline={vi.fn()}
         onPanActiveChange={vi.fn()}
@@ -99,6 +104,22 @@ describe('PDF reader controls', () => {
       />,
     )
     expect(screen.getAllByRole('button', { name: 'Show table of contents' })).toHaveLength(1)
+  })
+
+  it.each([
+    { pageNumber: 1, pageCount: 3, previousDisabled: true, nextDisabled: false },
+    { pageNumber: 3, pageCount: 3, previousDisabled: false, nextDisabled: true },
+    { pageNumber: 1, pageCount: 1, previousDisabled: true, nextDisabled: true },
+    { pageNumber: 1, pageCount: 0, previousDisabled: true, nextDisabled: true },
+  ])('disables navigation at page boundaries ($pageNumber/$pageCount)', props => {
+    toolbar(props)
+    expect(screen.getByRole('button', { name: 'Previous page' }).hasAttribute('disabled')).toBe(
+      props.previousDisabled,
+    )
+    expect(screen.getByRole('button', { name: 'Next page' }).hasAttribute('disabled')).toBe(
+      props.nextDisabled,
+    )
+    if (props.pageCount <= 1) expect(screen.queryByRole('slider')).not.toBeInTheDocument()
   })
 
   it('uses one stable control to show and hide the outline', async () => {

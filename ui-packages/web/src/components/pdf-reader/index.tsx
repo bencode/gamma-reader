@@ -1,10 +1,19 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist'
-import { forwardRef, Suspense, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import {
+  forwardRef,
+  type KeyboardEvent,
+  Suspense,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react'
 import { Document, Page } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import { pdfDocumentOptions } from '../../pdfjs'
 import { PdfErrorBoundary } from './pdf-error-boundary'
+import { PdfNavigation } from './pdf-navigation'
 import { PdfOutline, usePdfOutline } from './pdf-outline'
 import { type PdfReadingTheme, PdfToolbar } from './pdf-toolbar'
 import styles from './style.module.scss'
@@ -49,6 +58,7 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
   const rootRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const scrollPageRef = useRef(pageNumber)
   const [pdf, setPdf] = useState<PDFDocumentProxy>()
   const [pageCount, setPageCount] = useState(0)
   const [textReadyPage, setTextReadyPage] = useState<number>()
@@ -93,12 +103,38 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    if (scrollPageRef.current === pageNumber) return
+    scrollPageRef.current = pageNumber
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
+  }, [pageNumber])
+
   const navigate = (next: number) => {
     if (pageCount === 0) return
     const page = clamp(next, 1, pageCount)
     if (page === pageNumber) return
     setTextReadyPage(undefined)
     onPageChange(page)
+  }
+
+  const onReadingKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const scroll = event.currentTarget
+    if (
+      event.target !== scroll ||
+      event.defaultPrevented ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing ||
+      scroll.scrollWidth > scroll.clientWidth ||
+      scroll.ownerDocument.getSelection()?.isCollapsed === false
+    )
+      return
+    const direction = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0
+    if (!direction) return
+    event.preventDefault()
+    navigate(pageNumber + direction)
   }
 
   const changeZoom = (next: number) => {
@@ -121,15 +157,12 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
       data-outline-open={outlineVisible}
     >
       <PdfToolbar
-        pageNumber={pageNumber}
-        pageCount={pageCount}
         zoom={zoom}
         outlineAvailable={outlineEntries.length > 0}
         outlineOpen={outlineOpen}
         panAvailable={zoom > 1}
         panActive={panActive}
         theme={theme}
-        onPageChange={navigate}
         onZoomChange={changeZoom}
         onToggleOutline={() => setOutlineOpen(open => !open)}
         onPanActiveChange={setPanActive}
@@ -144,63 +177,68 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
             onClose={() => setOutlineOpen(false)}
           />
         )}
-        <div
-          className={`${styles.scroll} ${panActive ? styles.pan : ''} ${pan.dragging ? styles.dragging : ''}`}
-          data-reading-theme={theme}
-          ref={scrollRef}
-          role="document"
-          aria-label={`${name} page ${pageNumber}`}
-          {...pan.bindings}
-        >
-          <PdfErrorBoundary
-            source={source}
-            fallback={
-              <div className="preview-state error-state">
-                <h1>Preview unavailable</h1>
-                <p>This PDF could not be opened.</p>
-              </div>
-            }
-            onError={() => {
-              setPdf(undefined)
-              setPageCount(0)
-              setTextReadyPage(undefined)
-              setOutlineOpen(false)
-            }}
+        <div className={styles.content}>
+          <div
+            className={`${styles.scroll} ${panActive ? styles.pan : ''} ${pan.dragging ? styles.dragging : ''}`}
+            data-reading-theme={theme}
+            ref={scrollRef}
+            tabIndex={pageCount > 0 ? 0 : -1}
+            onKeyDown={onReadingKeyDown}
+            role="document"
+            aria-label={`${name} page ${pageNumber}`}
+            {...pan.bindings}
           >
-            <Suspense fallback={<div className="preview-state">Opening {name}…</div>}>
-              <Document
-                file={source}
-                options={pdfDocumentOptions}
-                onLoadSuccess={loadedPdf => {
-                  setPdf(loadedPdf)
-                  setPageCount(loadedPdf.numPages)
-                  if (pageNumber > loadedPdf.numPages) onPageChange(loadedPdf.numPages)
-                }}
-              >
-                <PdfErrorBoundary
-                  source={source}
-                  pageNumber={pageNumber}
-                  fallback={
-                    <div className="preview-state error-state">
-                      This page could not be rendered.
-                    </div>
-                  }
-                  onError={() => setTextReadyPage(undefined)}
+            <PdfErrorBoundary
+              source={source}
+              fallback={
+                <div className="preview-state error-state">
+                  <h1>Preview unavailable</h1>
+                  <p>This PDF could not be opened.</p>
+                </div>
+              }
+              onError={() => {
+                setPdf(undefined)
+                setPageCount(0)
+                setTextReadyPage(undefined)
+                setOutlineOpen(false)
+              }}
+            >
+              <Suspense fallback={<div className="preview-state">Opening {name}…</div>}>
+                <Document
+                  file={source}
+                  options={pdfDocumentOptions}
+                  onLoadSuccess={loadedPdf => {
+                    setPdf(loadedPdf)
+                    setPageCount(loadedPdf.numPages)
+                    if (pageNumber > loadedPdf.numPages) onPageChange(loadedPdf.numPages)
+                  }}
                 >
-                  <Suspense fallback={<div className="preview-state">Rendering page…</div>}>
-                    <div className={styles.page} ref={pageRef}>
-                      <Page
-                        pageNumber={pageNumber}
-                        pageColors={theme === 'original' ? undefined : pageColors[theme]}
-                        onRenderTextLayerSuccess={() => setTextReadyPage(pageNumber)}
-                        width={Math.max(240, pageViewportWidth - 48) * zoom}
-                      />
-                    </div>
-                  </Suspense>
-                </PdfErrorBoundary>
-              </Document>
-            </Suspense>
-          </PdfErrorBoundary>
+                  <PdfErrorBoundary
+                    source={source}
+                    pageNumber={pageNumber}
+                    fallback={
+                      <div className="preview-state error-state">
+                        This page could not be rendered.
+                      </div>
+                    }
+                    onError={() => setTextReadyPage(undefined)}
+                  >
+                    <Suspense fallback={<div className="preview-state">Rendering page…</div>}>
+                      <div className={styles.page} ref={pageRef}>
+                        <Page
+                          pageNumber={pageNumber}
+                          pageColors={theme === 'original' ? undefined : pageColors[theme]}
+                          onRenderTextLayerSuccess={() => setTextReadyPage(pageNumber)}
+                          width={Math.max(240, pageViewportWidth - 48) * zoom}
+                        />
+                      </div>
+                    </Suspense>
+                  </PdfErrorBoundary>
+                </Document>
+              </Suspense>
+            </PdfErrorBoundary>
+          </div>
+          <PdfNavigation pageNumber={pageNumber} pageCount={pageCount} onPageChange={navigate} />
         </div>
       </div>
     </div>
