@@ -61,7 +61,12 @@ vi.mock('react-pdf', () => ({
     }, [pageNumber])
     if (pageNumber === 2 && loading.pageFailure === 'load') throw new Error('Page loading failed')
     if (pageNumber > 1) use(loading.page)
-    return <div>Page content {pageNumber}</div>
+    return (
+      <>
+        <div>Page content {pageNumber}</div>
+        <a href="#note">PDF link</a>
+      </>
+    )
   },
 }))
 
@@ -89,15 +94,20 @@ it('provides the local PDF.js WASM directory to the document', async () => {
   expect(loading.options).toEqual({ wasmUrl: '/wasm/' })
 })
 
-it('recolors the rendered page when the reading theme changes', async () => {
+it('preserves the reading offset when changing theme or zoom', async () => {
   render(<Reader />)
   expect(await screen.findByText('Page content 1')).toBeVisible()
   expect(loading.pageColors).toBeUndefined()
 
+  const scroll = screen.getByRole('document')
+  scroll.scrollTop = 240
   fireEvent.click(screen.getByRole('button', { name: 'Reading appearance' }))
   fireEvent.click(screen.getByRole('radio', { name: 'Paper' }))
 
   expect(loading.pageColors).toEqual({ background: '#f3ead2', foreground: '#302b26' })
+  expect(scroll.scrollTop).toBe(240)
+  fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+  expect(scroll.scrollTop).toBe(240)
 })
 
 it.each(['next', 'slider', 'outline'])(
@@ -122,6 +132,9 @@ it.each(['next', 'slider', 'outline'])(
           ? screen.getByRole('button', { name: 'Second, page 2' })
           : slider
     target.focus()
+    const scroll = screen.getByRole('document')
+    scroll.scrollTop = 240
+    const navigationBar = screen.getByRole('navigation', { name: 'PDF page navigation' })
     await act(async () => {
       if (navigation === 'slider') fireEvent.change(slider, { target: { value: '2' } })
       else fireEvent.click(target)
@@ -133,6 +146,8 @@ it.each(['next', 'slider', 'outline'])(
     expect(outline).toBeVisible()
     expect(slider).toHaveValue('2')
     expect(target).toHaveFocus()
+    expect(screen.getByRole('navigation', { name: 'PDF page navigation' })).toBe(navigationBar)
+    expect(scroll.scrollTop).toBe(0)
     expect(list.scrollTop).toBe(100)
 
     await act(async () => resolvePage?.())
@@ -185,3 +200,70 @@ it.each(['load', 'render'] as const)(
     expect(screen.getByRole('complementary', { name: 'PDF contents' })).toBe(outline)
   },
 )
+
+it('turns pages from the focused document and keeps focus at page boundaries', async () => {
+  render(<Reader />)
+  const scroll = await screen.findByRole('document')
+  scroll.focus()
+  await act(async () => {
+    fireEvent.keyDown(scroll, { key: 'ArrowLeft' })
+    fireEvent.keyDown(scroll, { key: 'ArrowRight' })
+  })
+  expect(await screen.findByText('Page content 2')).toBeVisible()
+  expect(scroll).toHaveFocus()
+  scroll.scrollTop = 240
+  await act(async () => {
+    fireEvent.keyDown(scroll, { key: 'ArrowLeft' })
+  })
+  expect(await screen.findByText('Page content 1')).toBeVisible()
+  expect(scroll.scrollTop).toBe(0)
+  await act(async () => {
+    fireEvent.keyDown(scroll, { key: 'ArrowRight' })
+  })
+  await act(async () => {
+    fireEvent.keyDown(scroll, { key: 'ArrowRight' })
+  })
+  await act(async () => {
+    fireEvent.keyDown(scroll, { key: 'ArrowRight' })
+  })
+  expect(await screen.findByText('Page content 3')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled()
+  expect(scroll).toHaveFocus()
+})
+
+it('leaves controls, links, selection, scrolling keys and modified arrows to the browser', async () => {
+  render(<Reader />)
+  const scroll = await screen.findByRole('document')
+  const input = screen.getByRole('textbox', { name: 'Page number' })
+  const slider = screen.getByRole('slider', { name: 'Go to page' })
+  const link = screen.getByRole('link', { name: 'PDF link' })
+  ;[input, slider, link].forEach(target => {
+    target.focus()
+    expect(fireEvent.keyDown(target, { key: 'ArrowRight' })).toBe(true)
+  })
+  scroll.focus()
+  ;[
+    { key: 'ArrowRight', altKey: true },
+    { key: 'ArrowRight', ctrlKey: true },
+    { key: 'ArrowRight', metaKey: true },
+    { key: 'ArrowRight', shiftKey: true },
+    { key: 'ArrowRight', isComposing: true },
+    { key: 'PageDown' },
+    { key: 'PageUp' },
+  ].forEach(event => {
+    expect(fireEvent.keyDown(scroll, event)).toBe(true)
+  })
+
+  const selection = window.getSelection()
+  const range = document.createRange()
+  range.selectNodeContents(screen.getByText('Page content 1'))
+  selection?.removeAllRanges()
+  selection?.addRange(range)
+  expect(fireEvent.keyDown(scroll, { key: 'ArrowRight' })).toBe(true)
+  selection?.removeAllRanges()
+
+  vi.spyOn(scroll, 'scrollWidth', 'get').mockReturnValue(1200)
+  vi.spyOn(scroll, 'clientWidth', 'get').mockReturnValue(1000)
+  expect(fireEvent.keyDown(scroll, { key: 'ArrowRight' })).toBe(true)
+  expect(screen.getByText('Page content 1')).toBeVisible()
+})
