@@ -67,7 +67,7 @@ const RenameField = ({
   )
 }
 
-const activityTime = (timestamp: number) =>
+const formatTime = (timestamp: number) =>
   new Intl.DateTimeFormat(undefined, {
     month: 'short',
     day: 'numeric',
@@ -169,9 +169,20 @@ export const ConversationHistory = ({
                       onClick={() => onSelect(conversation.id)}
                     >
                       <strong>{title}</strong>
-                      <time dateTime={new Date(conversation.lastActiveAt).toISOString()}>
-                        {activityTime(conversation.lastActiveAt)}
-                      </time>
+                      <span className="conversation-history-times">
+                        <span>
+                          Created{' '}
+                          <time dateTime={new Date(conversation.createdAt).toISOString()}>
+                            {formatTime(conversation.createdAt)}
+                          </time>
+                        </span>
+                        <span>
+                          Last active{' '}
+                          <time dateTime={new Date(conversation.lastActiveAt).toISOString()}>
+                            {formatTime(conversation.lastActiveAt)}
+                          </time>
+                        </span>
+                      </span>
                     </button>
                   )}
                   <button

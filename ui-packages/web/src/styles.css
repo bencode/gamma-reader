@@ -634,8 +634,7 @@ svg {
   color: inherit;
   text-align: left;
 }
-.conversation-history-main strong,
-.conversation-history-main time {
+.conversation-history-main strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -644,9 +643,15 @@ svg {
   font-size: 12px;
   font-weight: 550;
 }
-.conversation-history-main time {
+.conversation-history-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
   color: var(--muted);
   font-size: 10px;
+}
+.conversation-history-times > span {
+  white-space: nowrap;
 }
 .conversation-history-more {
   margin-right: 4px;
