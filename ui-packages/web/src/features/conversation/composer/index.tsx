@@ -9,11 +9,15 @@ import {
   useState,
 } from 'react'
 import type { ConversationDraft } from '../../../core/conversations'
+import type { ConversationReference } from '../../../core/reader-message'
+import { matchesFilter } from '../../resources/file-tree'
 import { DraftAttachmentTray } from '../conversation-attachments'
 import { ConversationModelControl, type ModelControlProps } from '../model-control'
 import type { ConversationTokenUsage } from '../token-usage'
 import type { ConversationPhase } from '../use-conversation'
 import type { DraftAttachment } from '../use-draft-attachments'
+import { FileMentionMenu } from './file-mention-menu'
+import { insertMention, mentionAt, referencedFiles } from './file-mentions'
 import { QueuedMessages } from './queued-messages'
 import {
   commandOptionId,
@@ -44,9 +48,11 @@ type ComposerProps = {
   onRetry: (key: string) => void
   onRemove: (key: string) => void
   onOpenFile: (id: string) => void
-  onSend: () => void
+  onSend: (references: ConversationReference[]) => void
   onStop: () => void
   availableFileIds: ReadonlySet<string>
+  // The project's files, offered after an @.
+  files: readonly ConversationReference[]
   commands: readonly SlashCommand[]
   // Absent where the server has no search service.
   webSearch: { enabled: boolean; set: (on: boolean) => void } | null
@@ -79,6 +85,7 @@ export const ConversationComposer = ({
   onSend,
   onStop,
   availableFileIds,
+  files,
   commands,
   webSearch,
 }: ComposerProps) => {
@@ -91,11 +98,20 @@ export const ConversationComposer = ({
   const [typedCommand, setTypedCommand] = useState('')
   const [selected, setSelected] = useState(0)
   const [dismissed, setDismissed] = useState(false)
+  const [caret, setCaret] = useState(0)
+  // Where the caret goes once a picked file is in the draft.
+  const [pendingCaret, setPendingCaret] = useState<number | null>(null)
   const menuId = useId()
   const command = draft ? '' : typedCommand
   const value = draft || command
   const matches = command ? matchCommands(command, commands) : []
-  const menuOpen = !dismissed && matches.length > 0
+  const mention = draft ? mentionAt(draft, caret) : null
+  const fileMatches = mention
+    ? files.filter(file => matchesFilter(file.path, mention.query)).slice(0, 8)
+    : []
+  // A command is typed into an empty draft and a file into a written one, so one list at most.
+  const options = matches.length || fileMatches.length
+  const menuOpen = !dismissed && options > 0
   // A summary can be stopped like a reply, but accepts no new messages.
   const running = phase === 'running' || phase === 'stopping' || phase === 'compacting'
   const readyAttachments = attachments.filter(item => item.status === 'ready')
@@ -121,6 +137,13 @@ export const ConversationComposer = ({
     return () => observer.disconnect()
   }, [inputRef])
 
+  useLayoutEffect(() => {
+    if (pendingCaret === null) return
+    inputRef.current?.setSelectionRange(pendingCaret, pendingCaret)
+    setCaret(pendingCaret)
+    setPendingCaret(null)
+  }, [inputRef, pendingCaret])
+
   const changeText = (text: string) => {
     setSelected(0)
     setDismissed(false)
@@ -138,6 +161,13 @@ export const ConversationComposer = ({
     picked.run()
   }
 
+  const pickFile = (file: ConversationReference) => {
+    if (!mention) return
+    const next = insertMention(draft, caret, mention, file.path)
+    onDraftChange(next.text)
+    setPendingCaret(next.caret)
+  }
+
   // A command nothing matches, or one whose menu was closed, is sent as an ordinary message.
   const submit = () => {
     if (!canSend) return
@@ -145,16 +175,21 @@ export const ConversationComposer = ({
       setTypedCommand('')
       onDraftChange(command)
     }
-    onSend()
+    onSend(referencedFiles(value, files))
+  }
+
+  const choose = (key: string) => {
+    const file = fileMatches[selected]
+    const picked = matches[selected]
+    if (file) pickFile(file)
+    else if (picked && key === 'Enter') runCommand(picked)
+    else if (picked) setTypedCommand(`/${picked.name}`)
   }
 
   const handleMenuKey = (key: string) => {
-    const picked = matches[selected]
-    if (!picked) return false
-    if (key === 'ArrowDown') setSelected((selected + 1) % matches.length)
-    else if (key === 'ArrowUp') setSelected((selected - 1 + matches.length) % matches.length)
-    else if (key === 'Enter') runCommand(picked)
-    else if (key === 'Tab') setTypedCommand(`/${picked.name}`)
+    if (key === 'ArrowDown') setSelected((selected + 1) % options)
+    else if (key === 'ArrowUp') setSelected((selected - 1 + options) % options)
+    else if (key === 'Enter' || key === 'Tab') choose(key)
     else if (key === 'Escape') setDismissed(true)
     else return false
     return true
@@ -196,22 +231,27 @@ export const ConversationComposer = ({
           onRemove={onRemove}
           availableFileIds={availableFileIds}
         />
-        {menuOpen && (
+        {menuOpen && matches.length > 0 && (
           <SlashCommandMenu id={menuId} commands={matches} selected={selected} onRun={runCommand} />
+        )}
+        {menuOpen && fileMatches.length > 0 && (
+          <FileMentionMenu id={menuId} files={fileMatches} selected={selected} onPick={pickFile} />
         )}
         <div className={styles.input}>
           <textarea
             ref={inputRef}
             disabled={phase === 'loading' || phase === 'switching'}
             aria-label="Your question"
-            placeholder="Ask about what you are reading, / for commands"
+            placeholder="Ask about what you are reading, @ for files, / for commands"
             aria-controls={menuOpen ? menuId : undefined}
             aria-activedescendant={menuOpen ? commandOptionId(menuId, selected) : undefined}
             value={value}
             onChange={event => {
               resizeTextarea(event.currentTarget)
+              setCaret(event.currentTarget.selectionStart)
               changeText(event.target.value)
             }}
+            onSelect={event => setCaret(event.currentTarget.selectionStart)}
             onPaste={event => {
               const files = Array.from(event.clipboardData.files)
               if (!files.length) return

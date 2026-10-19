@@ -1,5 +1,6 @@
 import { History, MessageSquare, Plus, X } from 'lucide-react'
 import { Activity, type RefObject, useState } from 'react'
+import type { ConversationReference } from '../../core/reader-message'
 import { ModelProviderDialog } from '../settings/model-providers'
 import { ConversationComposer } from './composer'
 import { useReaderConversation } from './conversation-context'
@@ -12,11 +13,13 @@ export const ConversationPanel = ({
   onClose,
   onOpenFile,
   availableFileIds,
+  files,
 }: {
   inputRef: RefObject<HTMLTextAreaElement | null>
   onClose: () => void
   onOpenFile: (id: string) => void
   availableFileIds: ReadonlySet<string>
+  files: readonly ConversationReference[]
 }) => {
   const conversation = useReaderConversation()
   const [configuringModels, setConfiguringModels] = useState(false)
@@ -164,6 +167,7 @@ export const ConversationPanel = ({
               onSend={send}
               onStop={stop}
               availableFileIds={availableFileIds}
+              files={files}
               commands={commands}
               webSearch={conversation.webSearch}
             />

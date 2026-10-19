@@ -170,6 +170,7 @@ export const Workbench = ({ project }: { project: Project }) => {
       inputRef={inputRef}
       onClose={closeAssistant}
       availableFileIds={new Set(library.files.map(file => file.id))}
+      files={library.files}
       onOpenFile={id => {
         workspace.openDocument(id)
         if (overlay === 'assistant') setOverlay(null)

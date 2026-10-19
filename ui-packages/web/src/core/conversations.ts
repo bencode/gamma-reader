@@ -1,7 +1,7 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelReference } from '@gamma-reader/shared/model-config'
-import type { ConversationAttachment } from './reader-message'
+import type { ConversationAttachment, ConversationReference } from './reader-message'
 
 export type ConversationId = string
 
@@ -10,6 +10,8 @@ export type ModelSelection = ModelReference & { effort: ModelThinkingLevel }
 export type ConversationDraft = {
   text: string
   attachments: ConversationAttachment[]
+  // Set on sent and queued messages; a draft's references are read from its text when it is sent.
+  references?: ConversationReference[]
 }
 
 // Absent means the title was cut from the first message; the model or the reader replaces it.

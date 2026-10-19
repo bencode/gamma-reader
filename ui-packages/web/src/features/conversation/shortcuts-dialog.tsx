@@ -13,6 +13,7 @@ const shortcutGroups: readonly ShortcutGroup[] = [
       { keys: 'Shift+Enter', action: 'New line' },
       { keys: 'Esc', action: 'Stop the answer' },
       { keys: '⌘/Ctrl+V', action: 'Paste an image or file to attach' },
+      { keys: '@', action: 'Reference a file' },
       { keys: '/', action: 'Commands' },
     ],
   },

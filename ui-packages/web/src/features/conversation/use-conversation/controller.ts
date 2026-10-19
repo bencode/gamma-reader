@@ -6,7 +6,7 @@ import { createDraftQueue } from './draft-queue'
 import { attachmentsChanged, removeQueued, setDraft, writeDraft } from './drafts'
 import { loadMore, reload } from './history'
 import { deleteConversation, start, startNew, switchTo } from './navigation'
-import { send, stop } from './run'
+import { type SendRequest, send, stop } from './run'
 import { createConversation } from './session'
 import { configureModel, memoryChanged, refreshProviders, setWebSearch } from './settings'
 import { type Ctx, createRuntime, createState, type DraftAttachmentsPort } from './state'
@@ -31,7 +31,7 @@ export const createConversationController = (
     start: () => start(ctx),
     setDraft: (text: string) => setDraft(ctx, text),
     attachmentsChanged: (ready: ConversationAttachment[]) => attachmentsChanged(ctx, ready),
-    send: (draft: { unsettled: boolean; hasAttachments: boolean }) => send(ctx, draft),
+    send: (request: SendRequest) => send(ctx, request),
     stop: () => stop(ctx),
     compact: () => compact(ctx),
     removeQueued: (index: number) => removeQueued(ctx, index),

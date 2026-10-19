@@ -164,6 +164,13 @@
   flex-shrink: 0;
   font-weight: 550;
 }
+.fileName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 550;
+}
 .commandDescription {
   min-width: 0;
   overflow: hidden;
