@@ -100,14 +100,16 @@ export const ConversationComposer = ({
   const [typedCommand, setTypedCommand] = useState('')
   const [selected, setSelected] = useState(0)
   const [dismissed, setDismissed] = useState(false)
-  const [caret, setCaret] = useState(0)
+  // The caret belongs to the text it was read in. A draft replaced from outside has no caret here,
+  // and so no mention, until the reader types or moves the caret.
+  const [caret, setCaret] = useState({ text: '', at: 0 })
   // Where the caret goes once a picked file is in the draft.
   const [pendingCaret, setPendingCaret] = useState<number | null>(null)
   const menuId = useId()
   const command = draft ? '' : typedCommand
   const value = draft || command
   const matches = command ? matchCommands(command, commands) : []
-  const mention = draft ? mentionAt(draft, caret) : null
+  const mention = draft && caret.text === draft ? mentionAt(draft, caret.at) : null
   const fileMatches = mention ? rankMentions(files, mention.query, recentFileIds) : []
   // A command is typed into an empty draft and a file into a written one, so one list at most.
   const options = matches.length || fileMatches.length
@@ -138,11 +140,18 @@ export const ConversationComposer = ({
   }, [inputRef])
 
   useLayoutEffect(() => {
-    if (pendingCaret === null) return
-    inputRef.current?.setSelectionRange(pendingCaret, pendingCaret)
-    setCaret(pendingCaret)
+    const textarea = inputRef.current
+    if (pendingCaret === null || !textarea) return
+    textarea.setSelectionRange(pendingCaret, pendingCaret)
+    setCaret({ text: textarea.value, at: pendingCaret })
     setPendingCaret(null)
   }, [inputRef, pendingCaret])
+
+  // Moving to another place can change the list, so the highlight starts over.
+  const readCaret = (textarea: HTMLTextAreaElement) => {
+    if (textarea.value !== caret.text || textarea.selectionStart !== caret.at) setSelected(0)
+    setCaret({ text: textarea.value, at: textarea.selectionStart })
+  }
 
   const changeText = (text: string) => {
     setSelected(0)
@@ -163,7 +172,7 @@ export const ConversationComposer = ({
 
   const pickFile = (file: ConversationReference) => {
     if (!mention) return
-    const next = insertMention(draft, caret, mention, file.path)
+    const next = insertMention(draft, caret.at, mention, file.path)
     onDraftChange(next.text)
     setPendingCaret(next.caret)
   }
@@ -248,10 +257,10 @@ export const ConversationComposer = ({
             value={value}
             onChange={event => {
               resizeTextarea(event.currentTarget)
-              setCaret(event.currentTarget.selectionStart)
+              readCaret(event.currentTarget)
               changeText(event.target.value)
             }}
-            onSelect={event => setCaret(event.currentTarget.selectionStart)}
+            onSelect={event => readCaret(event.currentTarget)}
             onPaste={event => {
               const files = Array.from(event.clipboardData.files)
               if (!files.length) return

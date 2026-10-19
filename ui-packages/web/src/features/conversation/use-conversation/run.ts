@@ -89,7 +89,7 @@ export const send = (ctx: Ctx, { unsettled, hasAttachments, references = [] }: S
   const item = {
     text,
     attachments: ctx.attachments.takeReady().map(entry => entry.metadata),
-    references: [...references],
+    references: references.map(({ id, path, previewKind }) => ({ id, path, previewKind })),
   }
   const current = getActive(ctx)
   const queuing = runtime.busy
