@@ -2,8 +2,9 @@ import { createContext, type ReactNode, useContext, useMemo } from 'react'
 import type { FileLibrary } from '../resources/use-file-library'
 import { useLocalTools } from '../workspace/workspace-context'
 import { useConversation } from './use-conversation'
+import type { ConversationController } from './use-conversation/controller'
 
-type ConversationActions = { referenceFile: (path: string) => void }
+type ConversationActions = Pick<ConversationController, 'referenceFile'>
 
 const ConversationContext = createContext<ReturnType<typeof useConversation> | null>(null)
 // Never changes, so a component that only acts on the conversation does not render with it.

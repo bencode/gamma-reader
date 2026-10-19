@@ -1,6 +1,7 @@
 import type { ConversationId } from '../../../core/conversations'
 import type { ConversationAttachment } from '../../../core/reader-message'
 import type { LocalTools } from '../../assistant/local-tools'
+import type { NamedFile } from '../composer/file-mentions'
 import { compact } from './compaction'
 import { createDraftQueue } from './draft-queue'
 import { attachmentsChanged, referenceFile, removeQueued, setDraft, writeDraft } from './drafts'
@@ -30,7 +31,8 @@ export const createConversationController = (
     store: ctx.store,
     start: () => start(ctx),
     setDraft: (text: string) => setDraft(ctx, text),
-    referenceFile: (path: string) => referenceFile(ctx, path),
+    referenceFile: (file: NamedFile, files: readonly NamedFile[]) =>
+      referenceFile(ctx, file, files),
     attachmentsChanged: (ready: ConversationAttachment[]) => attachmentsChanged(ctx, ready),
     send: (request: SendRequest) => send(ctx, request),
     stop: () => stop(ctx),

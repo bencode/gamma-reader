@@ -1,5 +1,7 @@
 import { baseName } from '../../../utils/path'
 
+export type NamedFile = { id: string; path: string }
+
 // `start` is the index of the '@'; `query` is what follows it up to the caret.
 export type Mention = { start: number; query: string }
 
@@ -25,7 +27,7 @@ const matchRank = (path: string, query: string) => {
 }
 
 // Ties go to the files opened most recently, then to path order, as the file tree shows them.
-export const rankMentions = <F extends { id: string; path: string }>(
+export const rankMentions = <F extends NamedFile>(
   files: readonly F[],
   query: string,
   recentIds: readonly string[],
@@ -56,28 +58,18 @@ export const insertMention = (text: string, caret: number, mention: Mention, pat
   }
 }
 
-// Adds `@path ` at the end unless the text names that file already; a reference ends at whitespace
-// or the end of the text, so `@notes.md.txt` does not name notes.md.
-export const appendMention = (text: string, path: string) => {
-  const named = [...text.matchAll(mentionSigns)].some(match => {
-    const end = match.index + 1 + path.length
-    return (
-      text.startsWith(path, match.index + 1) && (end === text.length || /\s/.test(text[end] ?? ''))
-    )
-  })
-  if (named) return text
-  return `${text}${text && !/\s$/.test(text) ? ' ' : ''}@${path} `
-}
-
 // Paths may hold spaces, so each '@' takes the longest path the text goes on with: `@a.md.bak`
 // names a.md.bak, not a.md.
-export const referencedFiles = <F extends { id: string; path: string }>(
-  text: string,
-  files: readonly F[],
-): F[] => {
+export const referencedFiles = <F extends NamedFile>(text: string, files: readonly F[]): F[] => {
   const longestFirst = [...files].sort((a, b) => b.path.length - a.path.length)
   const named = [...text.matchAll(mentionSigns)].flatMap(
     match => longestFirst.find(file => text.startsWith(file.path, match.index + 1)) ?? [],
   )
   return [...new Map(named.map(file => [file.id, file])).values()]
 }
+
+// Adds `@path ` at the end unless the text names that file already, read as a sent message is.
+export const appendMention = (text: string, file: NamedFile, files: readonly NamedFile[]) =>
+  referencedFiles(text, files).some(named => named.id === file.id)
+    ? text
+    : `${text}${text && !/\s$/.test(text) ? ' ' : ''}@${file.path} `

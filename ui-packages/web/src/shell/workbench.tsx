@@ -46,7 +46,7 @@ const FilesPanel = ({
     <ResourcePanel
       {...props}
       onReference={file => {
-        referenceFile(file.path)
+        referenceFile(file, props.library.files)
         onReferenced()
       }}
     />
