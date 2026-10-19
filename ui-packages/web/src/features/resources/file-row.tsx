@@ -1,4 +1,5 @@
 import {
+  AtSign,
   FileCode2,
   FileDown,
   FileImage,
@@ -21,6 +22,7 @@ export type FileRowContext = {
   exportBusy: boolean
   starredIds: ReadonlySet<string>
   onToggleStar: (id: string) => void
+  onReference: (file: StoredFileMetadata) => void
 }
 
 export type FileRowProps = {
@@ -78,6 +80,15 @@ export const FileRow = ({ file, depth = 0, showPath = false, openedAt, context }
         </span>
       </button>
       <span className="resource-actions">
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={`Reference ${file.path} in chat`}
+          title="Reference in chat"
+          onClick={() => context.onReference(file)}
+        >
+          <AtSign size={13} />
+        </button>
         <button
           type="button"
           className="icon-button resource-star"

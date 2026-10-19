@@ -42,6 +42,8 @@ type ResourcePanelProps = {
   sourceSync: SourceSync
   noteIndex: NoteIndexStore
   onOpen: (id: string) => void
+  // Puts the file into the chat draft; the workbench wires it to the conversation.
+  onReference: (file: StoredFileMetadata) => void
   onRemoved: (ids: readonly string[]) => void
   onClose: () => void
 }
@@ -66,6 +68,7 @@ export const ResourcePanel = ({
   sourceSync,
   noteIndex,
   onOpen,
+  onReference,
   onRemoved,
   onClose,
 }: ResourcePanelProps) => {
@@ -128,6 +131,7 @@ export const ResourcePanel = ({
     exportBusy: exporter.phase === 'saving' || exporter.savingFileId !== null,
     starredIds,
     onToggleStar: navigation.toggleStar,
+    onReference,
   }
   // Enter reads what is in the box, not the filter still being drawn.
   const openFirstMatch = (typed: string) => {
