@@ -8,6 +8,9 @@ export type ConversationAttachment = Pick<
   'id' | 'mediaType' | 'previewKind' | 'size'
 > & { name: string }
 
+// A workspace file the reader named with @ in a message.
+export type ConversationReference = Pick<StoredFileMetadata, 'id' | 'path' | 'previewKind'>
+
 export type ReaderUserMessage = UserMessage & {
   reader: {
     id: string
@@ -18,28 +21,42 @@ export type ReaderUserMessage = UserMessage & {
 
 const recommendedTool = (kind: PreviewKind) => (kind === 'image' ? 'analyze_image' : 'read')
 
+const fileMetadata = (fileId: string, path: string, type: PreviewKind) => ({
+  fileId,
+  path,
+  type,
+  recommendedTool: recommendedTool(type),
+})
+
+const metadataPart = (label: string, metadata: readonly unknown[]) =>
+  metadata.length
+    ? [
+        {
+          type: 'text' as const,
+          text: `\n\n${label} (reference only; use fileId with tools):\n${JSON.stringify(metadata)}`,
+        },
+      ]
+    : []
+
 export const createReaderUserMessage = (
   text: string,
   attachments: readonly ConversationAttachment[],
+  references: readonly ConversationReference[] = [],
 ): ReaderUserMessage => {
   const reader = { id: nanoid(), text, attachments: [...attachments] }
   const request = text || 'Review the attached workspace files.'
-  const metadata = attachments.map(attachment => ({
-    fileId: attachment.id,
-    // Attachments are always stored at the library root, so the name they keep is their path.
-    path: attachment.name,
-    type: attachment.previewKind,
-    recommendedTool: recommendedTool(attachment.previewKind),
-  }))
-  const content: UserMessage['content'] = attachments.length
-    ? [
-        { type: 'text', text: request },
-        {
-          type: 'text',
-          text: `\n\nWorkspace attachment metadata (reference only; use fileId with tools):\n${JSON.stringify(metadata)}`,
-        },
-      ]
-    : [{ type: 'text', text: request }]
+  const content: UserMessage['content'] = [
+    { type: 'text', text: request },
+    ...metadataPart(
+      'Workspace attachment metadata',
+      // Attachments are always stored at the library root, so the name they keep is their path.
+      attachments.map(item => fileMetadata(item.id, item.name, item.previewKind)),
+    ),
+    ...metadataPart(
+      'Files the reader referenced with @',
+      references.map(item => fileMetadata(item.id, item.path, item.previewKind)),
+    ),
+  ]
   return {
     role: 'user',
     content,

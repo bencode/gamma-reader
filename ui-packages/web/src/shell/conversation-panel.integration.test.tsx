@@ -803,6 +803,40 @@ describe('conversation', () => {
     expect(question()).toHaveValue('Keep this question')
   })
 
+  it('sends the files a message names with @ as references, not their content', async () => {
+    const user = userEvent.setup({ delay: null })
+    const requests: RequestInit[] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      if (init) requests.push(init)
+      return complete('I will read it.')
+    })
+    open()
+    await screen.findByRole('tab', { name: 'Start here.md' })
+    await waitFor(() => expect(question()).toBeEnabled())
+
+    await user.type(question(), 'Summarize @start')
+    const menu = await screen.findByRole('listbox', { name: 'Files' })
+    expect(within(menu).getByRole('option', { name: /Start here\.md/ })).toBeVisible()
+    await user.keyboard('{Enter}')
+    expect(screen.queryByRole('listbox', { name: 'Files' })).not.toBeInTheDocument()
+    await user.type(question(), 'briefly')
+    expect(question()).toHaveValue('Summarize @Start here.md briefly')
+
+    await user.click(send())
+    await screen.findByText('I will read it.')
+
+    const body = JSON.parse(String(requests[0]?.body)) as {
+      messages: Array<{ role: string; content: Array<{ type: string; text: string }> }>
+    }
+    const sent = body.messages.find(message => message.role === 'user')
+    expect(sent?.content[0]?.text).toBe('Summarize @Start here.md briefly')
+    expect(sent?.content[1]?.text).toContain('referenced with @')
+    expect(sent?.content[1]?.text).toContain('"path":"Start here.md"')
+    expect(sent?.content[1]?.text).toContain('"fileId":')
+    expect(String(requests[0]?.body)).not.toContain('using files that stay in your browser')
+  })
+
   it('stores attached files in the workspace and sends only stable attachment metadata', async () => {
     const user = userEvent.setup({ delay: null })
     const requests: RequestInit[] = []

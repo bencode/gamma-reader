@@ -5,7 +5,11 @@ import {
   emptyConversationDraft,
   foldQueued,
 } from '../../../core/conversations'
-import { createReaderUserMessage, isReaderUserMessage } from '../../../core/reader-message'
+import {
+  type ConversationReference,
+  createReaderUserMessage,
+  isReaderUserMessage,
+} from '../../../core/reader-message'
 import { refresh } from './agent-session'
 import { compactBeforeSending, recoverFromOverflow } from './compaction'
 import { queueDraft, restoreToDraft, takeQueued } from './drafts'
@@ -25,7 +29,7 @@ const run = async (ctx: Ctx, agent: Agent, batch: readonly ConversationDraft[]) 
       store.setState({ phase: 'running' })
       const sending = items.map(item => ({
         item,
-        message: createReaderUserMessage(item.text, item.attachments),
+        message: createReaderUserMessage(item.text, item.attachments, item.references),
       }))
       const messages = sending.map(entry => entry.message)
       // Stopped while compacting: nothing was sent, so the messages go back to the draft.
@@ -68,18 +72,25 @@ const run = async (ctx: Ctx, agent: Agent, batch: readonly ConversationDraft[]) 
   }
 }
 
+export type SendRequest = {
+  unsettled: boolean
+  hasAttachments: boolean
+  references?: readonly ConversationReference[]
+}
+
 // While a reply runs, sending queues the message instead.
-export const send = (
-  ctx: Ctx,
-  { unsettled, hasAttachments }: { unsettled: boolean; hasAttachments: boolean },
-) => {
+export const send = (ctx: Ctx, { unsettled, hasAttachments, references = [] }: SendRequest) => {
   const { runtime, store } = ctx
   const agent = runtime.agent
   const { draft, phase } = store.getState()
   if (phase !== 'ready' && phase !== 'running') return
   const text = draft.trim()
   if (!agent || unsettled || (!text && !hasAttachments)) return
-  const item = { text, attachments: ctx.attachments.takeReady().map(entry => entry.metadata) }
+  const item = {
+    text,
+    attachments: ctx.attachments.takeReady().map(entry => entry.metadata),
+    references: references.map(({ id, path, previewKind }) => ({ id, path, previewKind })),
+  }
   const current = getActive(ctx)
   const queuing = runtime.busy
   const submitted = {

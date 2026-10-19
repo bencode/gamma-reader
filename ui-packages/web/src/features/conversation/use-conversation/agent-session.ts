@@ -137,7 +137,7 @@ export const attachAgent = (
   runtime.unsubscribe = agent.subscribe(async (event, signal) => {
     if (event.type === 'turn_end' && !signal.aborted && runContinues(event.message))
       takeQueued(ctx).forEach(item => {
-        agent.steer(createReaderUserMessage(item.text, item.attachments))
+        agent.steer(createReaderUserMessage(item.text, item.attachments, item.references))
       })
     if (event.type === 'tool_execution_start') runtime.statuses.set(event.toolCallId, 'Running')
     if (event.type === 'tool_execution_end')
