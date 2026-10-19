@@ -52,6 +52,7 @@ export const useConversation = (
     active,
     draft: state.draft,
     setDraft: controller.setDraft,
+    referenceFile: controller.referenceFile,
     messages: state.messages,
     phase: state.phase,
     error: state.error,

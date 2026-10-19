@@ -56,6 +56,19 @@ export const insertMention = (text: string, caret: number, mention: Mention, pat
   }
 }
 
+// Adds `@path ` at the end unless the text names that file already; a reference ends at whitespace
+// or the end of the text, so `@notes.md.txt` does not name notes.md.
+export const appendMention = (text: string, path: string) => {
+  const named = [...text.matchAll(mentionSigns)].some(match => {
+    const end = match.index + 1 + path.length
+    return (
+      text.startsWith(path, match.index + 1) && (end === text.length || /\s/.test(text[end] ?? ''))
+    )
+  })
+  if (named) return text
+  return `${text}${text && !/\s$/.test(text) ? ' ' : ''}@${path} `
+}
+
 // Paths may hold spaces, so each '@' takes the longest path the text goes on with: `@a.md.bak`
 // names a.md.bak, not a.md.
 export const referencedFiles = <F extends { id: string; path: string }>(

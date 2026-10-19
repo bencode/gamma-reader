@@ -803,6 +803,25 @@ describe('conversation', () => {
     expect(question()).toHaveValue('Keep this question')
   })
 
+  it('puts a file from the file list into the draft once and leaves the caret after it', async () => {
+    const user = userEvent.setup({ delay: null })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async url =>
+      url === '/api/agent/config' ? Response.json(config) : complete('Unused.'),
+    )
+    open()
+    await screen.findByRole('tab', { name: 'Start here.md' })
+    await waitFor(() => expect(question()).toBeEnabled())
+
+    const reference = screen.getByRole('button', { name: 'Reference Start here.md in chat' })
+    await user.click(reference)
+    expect(question()).toHaveValue('@Start here.md ')
+    await waitFor(() => expect(question()).toHaveFocus())
+
+    await user.keyboard('summarize')
+    await user.click(reference)
+    expect(question()).toHaveValue('@Start here.md summarize')
+  })
+
   it('sends the files a message names with @ as references, not their content', async () => {
     const user = userEvent.setup({ delay: null })
     const requests: RequestInit[] = []
