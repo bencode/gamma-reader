@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { rankMentions, referencedFiles } from './file-mentions'
+import { appendMention, rankMentions, referencedFiles } from './file-mentions'
 
+const notes = { id: 'notes', path: 'notes.md' }
 const files = [
-  { id: 'notes', path: 'notes.md' },
+  notes,
   { id: 'backup', path: 'notes.md.bak' },
   { id: 'start', path: 'docs/Start here.md' },
 ]
@@ -39,5 +40,13 @@ describe('rankMentions', () => {
   it('lets recently opened files lead their rank, and a bare @ lead with them', () => {
     expect(ids('notes', ['notes'])).toEqual(['notes', 'todo', 'field', 'folder'])
     expect(ids('', ['other', 'field'])).toEqual(['other', 'field', 'todo', 'notes', 'folder'])
+  })
+})
+
+describe('appendMention', () => {
+  it('adds a file once, by the rule a sent message is read with', () => {
+    expect(appendMention('', notes, files)).toBe('@notes.md ')
+    expect(appendMention('@notes.md，总结', notes, files)).toBe('@notes.md，总结')
+    expect(appendMention('@notes.md.bak', notes, files)).toBe('@notes.md.bak @notes.md ')
   })
 })

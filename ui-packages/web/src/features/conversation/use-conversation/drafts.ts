@@ -5,6 +5,7 @@ import {
 } from '../../../core/conversations'
 import type { ConversationAttachment } from '../../../core/reader-message'
 import { saveStoredConversationDraft } from '../../../data/conversation-store'
+import { appendMention, type NamedFile } from '../composer/file-mentions'
 import { isPersisted, placeFirst } from './history'
 import { activeConversationKey, nextActivityTime } from './session'
 import { type Ctx, getActive, reportStorageError, setActive } from './state'
@@ -62,6 +63,10 @@ export const setDraft = (ctx: Ctx, text: string) => {
   ctx.store.setState({ draft: text })
   if (ctx.runtime.initialized) updateActiveDraft(ctx, currentDraft(ctx, text))
 }
+
+// Read at call time, so a file row can add a reference without following every keystroke.
+export const referenceFile = (ctx: Ctx, file: NamedFile, files: readonly NamedFile[]) =>
+  setDraft(ctx, appendMention(ctx.store.getState().draft, file, files))
 
 export const removeQueued = (ctx: Ctx, index: number) => {
   setQueued(

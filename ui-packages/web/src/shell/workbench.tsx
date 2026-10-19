@@ -1,8 +1,11 @@
 import { BookOpen, PanelLeft, Plus } from 'lucide-react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { type ComponentProps, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import type { Project } from '../core/projects'
-import { ConversationProvider } from '../features/conversation/conversation-context'
+import {
+  ConversationProvider,
+  useConversationActions,
+} from '../features/conversation/conversation-context'
 import { ConversationPanel } from '../features/conversation/conversation-panel'
 import { useNoteIndex } from '../features/links/use-note-index'
 import { ProjectSwitcher } from '../features/projects/project-switcher'
@@ -33,6 +36,23 @@ const getMode = () =>
     : window.matchMedia(queries[1]).matches
       ? 'medium'
       : 'narrow'
+// Rendered inside the ConversationProvider, so a file row can put its file into the chat draft.
+const FilesPanel = ({
+  onReferenced,
+  ...props
+}: Omit<ComponentProps<typeof ResourcePanel>, 'onReference'> & { onReferenced: () => void }) => {
+  const { referenceFile } = useConversationActions()
+  return (
+    <ResourcePanel
+      {...props}
+      onReference={file => {
+        referenceFile(file, props.library.files)
+        onReferenced()
+      }}
+    />
+  )
+}
+
 const subscribeMode = (notify: () => void) => {
   const media = queries.map(query => window.matchMedia(query))
   media.forEach(query => {
@@ -143,8 +163,19 @@ export const Workbench = ({ project }: { project: Project }) => {
     workspace.openDocument(id)
     if (overlay === 'files') setOverlay(null)
   }
+  // The draft now ends with the reference, so the reader goes on typing after it.
+  const showReference = () => {
+    if (overlay === 'files') setOverlay(null)
+    openAssistant()
+    requestAnimationFrame(() => {
+      const input = inputRef.current
+      if (!input) return
+      input.focus()
+      input.setSelectionRange(input.value.length, input.value.length)
+    })
+  }
   const files = (
-    <ResourcePanel
+    <FilesPanel
       project={project}
       switcher={
         <ProjectSwitcher
@@ -162,6 +193,7 @@ export const Workbench = ({ project }: { project: Project }) => {
       noteIndex={noteIndex}
       onClose={closeFiles}
       onOpen={openFromFiles}
+      onReferenced={showReference}
       onRemoved={workspace.closeDocuments}
     />
   )
