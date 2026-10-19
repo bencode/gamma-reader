@@ -14,12 +14,14 @@ export const ConversationPanel = ({
   onOpenFile,
   availableFileIds,
   files,
+  recentFileIds,
 }: {
   inputRef: RefObject<HTMLTextAreaElement | null>
   onClose: () => void
   onOpenFile: (id: string) => void
   availableFileIds: ReadonlySet<string>
   files: readonly ConversationReference[]
+  recentFileIds: readonly string[]
 }) => {
   const conversation = useReaderConversation()
   const [configuringModels, setConfiguringModels] = useState(false)
@@ -168,6 +170,7 @@ export const ConversationPanel = ({
               onStop={stop}
               availableFileIds={availableFileIds}
               files={files}
+              recentFileIds={recentFileIds}
               commands={commands}
               webSearch={conversation.webSearch}
             />

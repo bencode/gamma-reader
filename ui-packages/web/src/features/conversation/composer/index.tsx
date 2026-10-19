@@ -10,14 +10,13 @@ import {
 } from 'react'
 import type { ConversationDraft } from '../../../core/conversations'
 import type { ConversationReference } from '../../../core/reader-message'
-import { matchesFilter } from '../../resources/file-tree'
 import { DraftAttachmentTray } from '../conversation-attachments'
 import { ConversationModelControl, type ModelControlProps } from '../model-control'
 import type { ConversationTokenUsage } from '../token-usage'
 import type { ConversationPhase } from '../use-conversation'
 import type { DraftAttachment } from '../use-draft-attachments'
 import { FileMentionMenu } from './file-mention-menu'
-import { insertMention, mentionAt, referencedFiles } from './file-mentions'
+import { insertMention, mentionAt, rankMentions, referencedFiles } from './file-mentions'
 import { QueuedMessages } from './queued-messages'
 import {
   commandOptionId,
@@ -53,6 +52,8 @@ type ComposerProps = {
   availableFileIds: ReadonlySet<string>
   // The project's files, offered after an @.
   files: readonly ConversationReference[]
+  // Newest first; recently opened files lead the @ list.
+  recentFileIds: readonly string[]
   commands: readonly SlashCommand[]
   // Absent where the server has no search service.
   webSearch: { enabled: boolean; set: (on: boolean) => void } | null
@@ -86,6 +87,7 @@ export const ConversationComposer = ({
   onStop,
   availableFileIds,
   files,
+  recentFileIds,
   commands,
   webSearch,
 }: ComposerProps) => {
@@ -106,9 +108,7 @@ export const ConversationComposer = ({
   const value = draft || command
   const matches = command ? matchCommands(command, commands) : []
   const mention = draft ? mentionAt(draft, caret) : null
-  const fileMatches = mention
-    ? files.filter(file => matchesFilter(file.path, mention.query)).slice(0, 8)
-    : []
+  const fileMatches = mention ? rankMentions(files, mention.query, recentFileIds) : []
   // A command is typed into an empty draft and a file into a written one, so one list at most.
   const options = matches.length || fileMatches.length
   const menuOpen = !dismissed && options > 0
