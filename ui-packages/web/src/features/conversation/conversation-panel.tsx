@@ -1,5 +1,5 @@
-import { History, MessageSquare, Plus, X } from 'lucide-react'
-import { Activity, type RefObject, useState } from 'react'
+import { ChevronDown, History, LoaderCircle, MessageSquare, Plus, X } from 'lucide-react'
+import { Activity, type RefObject, useId, useState } from 'react'
 import { conversationNumber } from '../../core/conversations'
 import type { FileReference } from '../../core/reader-message'
 import { listAllStoredConversations } from '../../data/conversation-store'
@@ -8,6 +8,9 @@ import { ConversationComposer } from './composer'
 import { useReaderConversation } from './conversation-context'
 import { ConversationHistory } from './conversation-history'
 import { ConversationMessages } from './conversation-messages'
+import { recentConversations } from './recent-conversations'
+import { SessionList } from './session-list'
+import { useSessionListOpen } from './session-list-preference'
 import { ShortcutsDialog } from './shortcuts-dialog'
 
 export const ConversationPanel = ({
@@ -29,6 +32,8 @@ export const ConversationPanel = ({
   const [configuringModels, setConfiguringModels] = useState(false)
   const [showingShortcuts, setShowingShortcuts] = useState(false)
   const [copiedNumber, setCopiedNumber] = useState(false)
+  const [listOpen, setListOpen] = useSessionListOpen()
+  const listId = useId()
   const {
     active,
     draft,
@@ -42,6 +47,7 @@ export const ConversationPanel = ({
     showChat,
     showHistory,
     historyItems,
+    activity,
     historyLoading,
     historyError,
     historyHasMore,
@@ -69,6 +75,8 @@ export const ConversationPanel = ({
     { name: 'shortcuts', description: 'Keyboard shortcuts', run: () => setShowingShortcuts(true) },
   ]
   const switching = phase === 'switching'
+  const title = active.title ?? 'New conversation'
+  const answering = Object.values(activity).filter(state => state === 'running').length
   const number = `#${conversationNumber(active.id)}`
   const copyNumber = () =>
     navigator.clipboard.writeText(number).then(
@@ -93,9 +101,30 @@ export const ConversationPanel = ({
       <Activity mode={view === 'chat' ? 'visible' : 'hidden'}>
         <div className="conversation-view">
           <header className="panel-header conversation-header">
-            <h2 title={active.title ?? 'New conversation'}>
-              <MessageSquare size={16} />
-              <span>{active.title ?? 'New conversation'}</span>
+            <h2>
+              <button
+                type="button"
+                className="conversation-switcher"
+                aria-label={answering ? `${title}, ${answering} answering` : title}
+                aria-expanded={listOpen}
+                aria-controls={listOpen ? listId : undefined}
+                title={listOpen ? 'Hide recent conversations' : 'Show recent conversations'}
+                onClick={() => setListOpen(!listOpen)}
+              >
+                <MessageSquare size={16} aria-hidden="true" />
+                <span className="conversation-switcher-title">{title}</span>
+                <ChevronDown
+                  className="conversation-switcher-chevron"
+                  size={14}
+                  aria-hidden="true"
+                />
+                {answering > 0 && (
+                  <span className="conversation-answering">
+                    <LoaderCircle className="session-spinner" size={11} aria-hidden="true" />
+                    {answering}
+                  </span>
+                )}
+              </button>
             </h2>
             {/* A title comes with the first saved message, so a conversation without one has no
                 record to read yet. */}
@@ -142,6 +171,16 @@ export const ConversationPanel = ({
               </button>
             </div>
           </header>
+          {listOpen && (
+            <SessionList
+              id={listId}
+              conversations={recentConversations(historyItems, active, activity)}
+              activeId={active.id}
+              activity={activity}
+              onSelect={id => void switchTo(id)}
+              onShowHistory={showHistory}
+            />
+          )}
           <ConversationMessages
             messages={messages}
             running={running}

@@ -703,6 +703,56 @@ describe('conversation', () => {
     expect(await screen.findByText('Second answer')).toBeVisible()
   })
 
+  it('keeps a reply going in the background and switches back to it from the recent list', async () => {
+    const user = userEvent.setup({ delay: null })
+    let release = () => {}
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json(config)
+      if (isTitleRequest(init)) return Response.json({}, { status: 503 })
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            release = () => {
+              controller.enqueue(
+                new TextEncoder().encode(
+                  `${event({ content: 'Background answer' }) + event({}, 'stop')}data: [DONE]\n\n`,
+                ),
+              )
+              controller.close()
+            }
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      )
+    })
+    open()
+    await waitFor(() => expect(question()).toBeEnabled())
+    await user.type(question(), 'Slow topic')
+    await user.click(send())
+    expect(await screen.findByRole('button', { name: 'Stop generation' })).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'New conversation' }))
+    // A new conversation has no number until its first message is saved.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Copy conversation number/ })).toBeNull(),
+    )
+    await user.type(question(), 'Draft for later')
+    await user.click(screen.getByRole('button', { name: 'New conversation, 1 answering' }))
+    const list = screen.getByRole('navigation', { name: 'Recent conversations' })
+    const slow = within(list).getByRole('button', { name: /Slow topic/ })
+    expect(within(slow).getByLabelText('Answering')).toBeInTheDocument()
+
+    act(() => release())
+    expect(await within(slow).findByRole('img', { name: 'New reply' })).toBeInTheDocument()
+    await user.click(slow)
+    expect(await screen.findByText('Background answer')).toBeVisible()
+    expect(within(list).queryByRole('img', { name: 'New reply' })).not.toBeInTheDocument()
+
+    await user.click(within(list).getByRole('button', { name: /^New conversation/ }))
+    await waitFor(() => expect(question()).toHaveValue('Draft for later'))
+    await user.click(screen.getByRole('button', { name: 'New conversation', expanded: true }))
+  })
+
   it('starts a new conversation from /clear without saving the command anywhere', async () => {
     const user = userEvent.setup({ delay: null })
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {

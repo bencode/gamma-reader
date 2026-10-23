@@ -13,6 +13,7 @@ import { webSearchAvailable } from './session'
 
 export type { ConversationMessage } from './messages'
 export type { ConversationPhase, ConversationView } from './session'
+export type { Activity } from './state'
 
 // Renders the conversation controller and feeds it what lives in React: the draft attachments and
 // the memory switch.
@@ -62,6 +63,8 @@ export const useConversation = (
     showChat: controller.showChat,
     showHistory: controller.showHistory,
     historyItems: history.items,
+    // Which conversations are answering, or finished in the background and are not yet seen.
+    activity: state.activity,
     historyLoading: history.loading,
     historyError: history.error,
     historyHasMore: history.cursor !== null,

@@ -4,6 +4,8 @@ New features appear here when they ship. Choose **Update** under **Files** when 
 
 ## October 2026
 
+- **Several conversations at once.** Switching conversations no longer stops an answer: the one you leave keeps answering. Choose the conversation's name at the top of the panel for a list of recent conversations, which marks those still answering and those with a reply you have not seen. See [[The reading assistant#Conversations]].
+
 - **Conversation numbers.** Each conversation shows a number beside its name, such as `#k3X9qA`; choose it to copy it. Type `#` in the message box to pick another conversation, or paste a number, and the assistant reads that conversation. See [[The reading assistant#Conversations]].
 
 - **Drag tabs into order.** Drag a tab along the tab bar to put it where you want it. The order is kept like the rest of your tabs. See [[Reading documents#Tabs]].
