@@ -24,6 +24,7 @@ Each conversation keeps its own history, model and reasoning effort. After the f
 
 - **New conversation** (**+**) starts afresh; so does typing `/clear`. Type `/` for the list of commands.
 - **Conversation history** lists earlier conversations. Each has **Rename** and **Delete** under its **…** button. A name you give is kept.
+- Each conversation has a number, shown beside its name and in **Conversation history**, such as `#k3X9qA`; choose it to copy it. Type `#` in the message box to pick another conversation of this project by name, or paste its number, and the assistant reads what was said there: your messages and its answers, not the documents it looked at. Use it to pick up a thread from one conversation in another.
 - Conversations belong to a project: the assistant in one project does not see another's files. What you ask it to remember is the exception; see [[The reading assistant#Memory]].
 
 ## While it answers
