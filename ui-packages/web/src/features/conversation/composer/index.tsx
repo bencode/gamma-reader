@@ -8,11 +8,10 @@ import {
   useRef,
   useState,
 } from 'react'
-import {
-  type ConversationDraft,
-  type ConversationId,
-  conversationNumber,
-  type StoredConversation,
+import type {
+  ConversationDraft,
+  ConversationId,
+  StoredConversation,
 } from '../../../core/conversations'
 import type { FileReference } from '../../../core/reader-message'
 import { DraftAttachmentTray } from '../conversation-attachments'
@@ -20,19 +19,14 @@ import { ConversationModelControl, type ModelControlProps } from '../model-contr
 import type { ConversationTokenUsage } from '../token-usage'
 import type { ConversationPhase } from '../use-conversation'
 import type { DraftAttachment } from '../use-draft-attachments'
-import {
-  conversationMentionAt,
-  conversationOption,
-  rankConversations,
-} from './conversation-mentions'
-import { fileOption, rankMentions, referencedFiles } from './file-mentions'
+import { composerMenu, menuQuery } from './draft-menu'
+import { referencedFiles } from './file-mentions'
 import { MentionMenu } from './mention-menu'
-import { insertMention, type Mention, mentionAt } from './mentions'
+import { insertMention } from './mentions'
 import { QueuedMessages } from './queued-messages'
 import {
   commandOptionId,
   isCommandInput,
-  matchCommands,
   type SlashCommand,
   SlashCommandMenu,
 } from './slash-command-menu'
@@ -125,18 +119,12 @@ export const ConversationComposer = ({
   const menuId = useId()
   const command = draft ? '' : typedCommand
   const value = draft || command
-  const matches = command ? matchCommands(command, commands) : []
-  const caretKnown = Boolean(draft) && caret.text === draft
-  const mention = caretKnown ? mentionAt('@', draft, caret.at) : null
-  const fileMatches = mention ? rankMentions(files, mention.query, recentFileIds) : []
-  const conversationMention = caretKnown ? conversationMentionAt(draft, caret.at) : null
-  const conversationMatches = conversationMention
-    ? rankConversations(conversations, conversationMention.query, activeConversationId)
-    : []
-  // A command is typed into an empty draft, and the caret ends an @ or a # but never both, so one
-  // list at most.
-  const options = matches.length || fileMatches.length || conversationMatches.length
-  const menuOpen = !dismissed && options > 0
+  const query = menuQuery(command, draft, draft && caret.text === draft ? caret.at : null)
+  const menu = dismissed
+    ? null
+    : composerMenu(query, { commands, files, recentFileIds, conversations, activeConversationId })
+  const options = menu?.kind === 'command' ? menu.commands.length : (menu?.options.length ?? 0)
+  const menuOpen = menu !== null
   // A summary can be stopped like a reply, but accepts no new messages.
   const running = phase === 'running' || phase === 'stopping' || phase === 'compacting'
   const readyAttachments = attachments.filter(item => item.status === 'ready')
@@ -153,7 +141,7 @@ export const ConversationComposer = ({
   }, [phase])
 
   // Read again at each #, so the list holds conversations begun since the last one.
-  const mentioningConversation = conversationMention !== null
+  const mentioningConversation = query?.kind === 'conversation'
   useEffect(() => {
     if (!mentioningConversation) return
     let current = true
@@ -209,21 +197,13 @@ export const ConversationComposer = ({
     picked.run()
   }
 
-  const insert = (at: Mention | null, token: string) => {
-    if (!at) return
-    const next = insertMention(draft, caret.at, at, token)
+  const pickMention = (index: number) => {
+    if (menu?.kind !== 'mention') return
+    const token = menu.tokens[index]
+    if (token === undefined) return
+    const next = insertMention(draft, caret.at, menu.mention, token)
     onDraftChange(next.text)
     setPendingCaret(next.caret)
-  }
-
-  const pickFile = (index: number) => {
-    const file = fileMatches[index]
-    if (file) insert(mention, `@${file.path}`)
-  }
-
-  const pickConversation = (index: number) => {
-    const conversation = conversationMatches[index]
-    if (conversation) insert(conversationMention, `#${conversationNumber(conversation.id)}`)
   }
 
   // A command nothing matches, or one whose menu was closed, is sent as an ordinary message.
@@ -237,10 +217,9 @@ export const ConversationComposer = ({
   }
 
   const choose = (key: string) => {
-    const picked = matches[selected]
-    if (fileMatches[selected]) pickFile(selected)
-    else if (conversationMatches[selected]) pickConversation(selected)
-    else if (picked && key === 'Enter') runCommand(picked)
+    if (menu?.kind === 'mention') return pickMention(selected)
+    const picked = menu?.commands[selected]
+    if (picked && key === 'Enter') runCommand(picked)
     else if (picked) setTypedCommand(`/${picked.name}`)
   }
 
@@ -289,25 +268,21 @@ export const ConversationComposer = ({
           onRemove={onRemove}
           availableFileIds={availableFileIds}
         />
-        {menuOpen && matches.length > 0 && (
-          <SlashCommandMenu id={menuId} commands={matches} selected={selected} onRun={runCommand} />
-        )}
-        {menuOpen && fileMatches.length > 0 && (
-          <MentionMenu
+        {menu?.kind === 'command' && (
+          <SlashCommandMenu
             id={menuId}
-            label="Files"
-            options={fileMatches.map(fileOption)}
+            commands={menu.commands}
             selected={selected}
-            onPick={pickFile}
+            onRun={runCommand}
           />
         )}
-        {menuOpen && conversationMatches.length > 0 && (
+        {menu?.kind === 'mention' && (
           <MentionMenu
             id={menuId}
-            label="Conversations"
-            options={conversationMatches.map(conversationOption)}
+            label={menu.label}
+            options={menu.options}
             selected={selected}
-            onPick={pickConversation}
+            onPick={pickMention}
           />
         )}
         <div className={styles.input}>
