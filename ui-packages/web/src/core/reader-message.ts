@@ -9,7 +9,7 @@ export type ConversationAttachment = Pick<
 > & { name: string }
 
 // A workspace file the reader named with @ in a message.
-export type ConversationReference = Pick<StoredFileMetadata, 'id' | 'path' | 'previewKind'>
+export type FileReference = Pick<StoredFileMetadata, 'id' | 'path' | 'previewKind'>
 
 export type ReaderUserMessage = UserMessage & {
   reader: {
@@ -41,7 +41,7 @@ const metadataPart = (label: string, metadata: readonly unknown[]) =>
 export const createReaderUserMessage = (
   text: string,
   attachments: readonly ConversationAttachment[],
-  references: readonly ConversationReference[] = [],
+  references: readonly FileReference[] = [],
 ): ReaderUserMessage => {
   const reader = { id: nanoid(), text, attachments: [...attachments] }
   const request = text || 'Review the attached workspace files.'

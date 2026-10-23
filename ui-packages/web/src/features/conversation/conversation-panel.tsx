@@ -1,6 +1,8 @@
 import { History, MessageSquare, Plus, X } from 'lucide-react'
 import { Activity, type RefObject, useState } from 'react'
-import type { ConversationReference } from '../../core/reader-message'
+import { conversationNumber } from '../../core/conversations'
+import type { FileReference } from '../../core/reader-message'
+import { listAllStoredConversations } from '../../data/conversation-store'
 import { ModelProviderDialog } from '../settings/model-providers'
 import { ConversationComposer } from './composer'
 import { useReaderConversation } from './conversation-context'
@@ -20,12 +22,13 @@ export const ConversationPanel = ({
   onClose: () => void
   onOpenFile: (id: string) => void
   availableFileIds: ReadonlySet<string>
-  files: readonly ConversationReference[]
+  files: readonly FileReference[]
   recentFileIds: readonly string[]
 }) => {
   const conversation = useReaderConversation()
   const [configuringModels, setConfiguringModels] = useState(false)
   const [showingShortcuts, setShowingShortcuts] = useState(false)
+  const [copiedNumber, setCopiedNumber] = useState(false)
   const {
     active,
     draft,
@@ -66,6 +69,15 @@ export const ConversationPanel = ({
     { name: 'shortcuts', description: 'Keyboard shortcuts', run: () => setShowingShortcuts(true) },
   ]
   const switching = phase === 'switching'
+  const number = `#${conversationNumber(active.id)}`
+  const copyNumber = () =>
+    navigator.clipboard.writeText(number).then(
+      () => {
+        setCopiedNumber(true)
+        setTimeout(() => setCopiedNumber(false), 1500)
+      },
+      cause => console.error('Unable to copy the conversation number', cause),
+    )
   const status =
     phase === 'loading'
       ? 'Opening conversation…'
@@ -85,6 +97,19 @@ export const ConversationPanel = ({
               <MessageSquare size={16} />
               <span>{active.title ?? 'New conversation'}</span>
             </h2>
+            {/* A title comes with the first saved message, so a conversation without one has no
+                record to read yet. */}
+            {active.title !== null && (
+              <button
+                type="button"
+                className="conversation-number"
+                aria-label={`Copy conversation number ${number}`}
+                title="Copy conversation number"
+                onClick={() => void copyNumber()}
+              >
+                {copiedNumber ? 'Copied' : number}
+              </button>
+            )}
             <div className="conversation-header-actions">
               <button
                 type="button"
@@ -171,6 +196,8 @@ export const ConversationPanel = ({
               availableFileIds={availableFileIds}
               files={files}
               recentFileIds={recentFileIds}
+              loadConversations={listAllStoredConversations}
+              activeConversationId={active.id}
               commands={commands}
               webSearch={conversation.webSearch}
             />

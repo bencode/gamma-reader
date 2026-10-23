@@ -46,6 +46,18 @@ export const countStoredConversations = async () => {
   return database.count('conversations')
 }
 
+// Every conversation of the project, the most recently active first.
+export const listAllStoredConversations = async () => {
+  const database = await openWorkspaceDatabase()
+  return (await database.getAllFromIndex('conversations', 'by-last-active')).reverse()
+}
+
+// The conversations whose id starts with prefix, which is a conversation number or a whole id.
+export const findStoredConversations = async (prefix: string) => {
+  const database = await openWorkspaceDatabase()
+  return database.getAll('conversations', IDBKeyRange.bound(prefix, `${prefix}￿`))
+}
+
 export const getStoredConversation = async (id: string) => {
   const database = await openWorkspaceDatabase()
   const transaction = database.transaction(['conversations', 'messages'])

@@ -6,8 +6,8 @@ import {
   foldQueued,
 } from '../../../core/conversations'
 import {
-  type ConversationReference,
   createReaderUserMessage,
+  type FileReference,
   isReaderUserMessage,
 } from '../../../core/reader-message'
 import { refresh } from './agent-session'
@@ -75,7 +75,7 @@ const run = async (ctx: Ctx, agent: Agent, batch: readonly ConversationDraft[]) 
 export type SendRequest = {
   unsettled: boolean
   hasAttachments: boolean
-  references?: readonly ConversationReference[]
+  references?: readonly FileReference[]
 }
 
 // While a reply runs, sending queues the message instead.
