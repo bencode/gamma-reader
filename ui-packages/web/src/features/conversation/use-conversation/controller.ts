@@ -1,34 +1,57 @@
+import { createStore } from 'zustand/vanilla'
 import type { ConversationId } from '../../../core/conversations'
 import type { ConversationAttachment } from '../../../core/reader-message'
 import type { LocalTools } from '../../assistant/local-tools'
 import type { NamedFile } from '../composer/file-mentions'
+import { addSession } from './agent-session'
 import { compact } from './compaction'
-import { createDraftQueue } from './draft-queue'
-import { attachmentsChanged, referenceFile, removeQueued, setDraft, writeDraft } from './drafts'
+import { attachmentsChanged, referenceFile, removeQueued, setDraft } from './drafts'
 import { loadMore, reload } from './history'
 import { deleteConversation, start, startNew, switchTo } from './navigation'
 import { type SendRequest, send, stop } from './run'
 import { createConversation } from './session'
 import { configureModel, memoryChanged, refreshProviders, setWebSearch } from './settings'
-import { type Ctx, createRuntime, createState, type DraftAttachmentsPort } from './state'
+import {
+  type Ctx,
+  createRuntime,
+  createSessionStore,
+  createState,
+  type DraftAttachmentsPort,
+  type PanelState,
+  panelState,
+} from './state'
 import { applyTitle } from './titles'
 
-// The reading assistant's conversation, outside React: which conversation is open, its agent, the
-// draft and the queue, and the list of past conversations. useConversation renders its store.
+// The reading assistant's conversations, outside React: the open one with its draft and queue,
+// any answering in the background, and the list of past conversations. useConversation renders
+// its store, which follows the open conversation.
 export const createConversationController = (
   tools: LocalTools,
   attachments: DraftAttachmentsPort,
   memoryOn: boolean,
 ) => {
+  const first = createSessionStore(createConversation(), 'loading')
   const ctx: Ctx = {
-    store: createState(createConversation()),
+    store: createState(first),
     runtime: createRuntime(memoryOn),
     tools,
     attachments,
-    drafts: createDraftQueue(conversation => writeDraft(ctx, conversation)),
   }
+  addSession(ctx, first)
+
+  const store = createStore<PanelState>(() => panelState(ctx.store.getState()))
+  const sync = () => store.setState(panelState(ctx.store.getState()), true)
+  let unsubscribeSession = first.subscribe(sync)
+  ctx.store.subscribe((state, previous) => {
+    if (state.session !== previous.session) {
+      unsubscribeSession()
+      unsubscribeSession = state.session.subscribe(sync)
+    }
+    sync()
+  })
+
   return {
-    store: ctx.store,
+    store,
     start: () => start(ctx),
     setDraft: (text: string) => setDraft(ctx, text),
     referenceFile: (file: NamedFile, files: readonly NamedFile[]) =>

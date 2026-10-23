@@ -555,6 +555,127 @@ svg {
   margin: 0;
   overflow: hidden;
 }
+.conversation-switcher {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 100%;
+  min-width: 0;
+  height: 30px;
+  margin-left: -6px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.conversation-switcher:hover {
+  background: oklch(0.945 0 0);
+}
+.conversation-switcher-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conversation-switcher-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 120ms ease;
+}
+.conversation-switcher[aria-expanded="true"] .conversation-switcher-chevron {
+  transform: rotate(180deg);
+}
+.conversation-answering {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  background: var(--selected);
+  color: var(--accent);
+  font-size: 11px;
+}
+.session-list {
+  flex-shrink: 0;
+  max-height: 50%;
+  font-size: 13px;
+  overflow-y: auto;
+  padding: 6px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.session-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.session-row:hover {
+  background: oklch(0.955 0 0);
+}
+.session-row.active {
+  background: var(--selected);
+  color: var(--accent);
+}
+.session-status {
+  display: flex;
+  flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
+  height: 14px;
+}
+.session-spinner {
+  flex-shrink: 0;
+  color: var(--accent);
+  animation: attachment-spin 1s linear infinite;
+}
+.session-unread {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.session-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-number,
+.session-row time {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.session-number {
+  font-family: ui-monospace, monospace;
+}
+.session-more {
+  justify-content: space-between;
+  margin-top: 2px;
+  padding-left: 30px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .conversation-number {
   flex-shrink: 0;
   margin-left: 6px;

@@ -71,7 +71,7 @@ const RenameField = ({
   )
 }
 
-const formatTime = (timestamp: number) =>
+export const formatTime = (timestamp: number) =>
   new Intl.DateTimeFormat(undefined, {
     month: 'short',
     day: 'numeric',
