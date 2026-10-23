@@ -1,8 +1,9 @@
 import { baseName } from '../../../utils/path'
+import type { MentionOption } from './mention-menu'
 
 export type NamedFile = { id: string; path: string }
 
-// `start` is the index of the '@'; `query` is what follows it up to the caret.
+// `start` is the index of the sign, '@' or '#'; `query` is what follows it up to the caret.
 export type Mention = { start: number; query: string }
 
 // An '@' right after what could be the start of an email address is no mention; after Chinese
@@ -50,8 +51,9 @@ export const rankMentions = <F extends NamedFile>(
     .map(entry => entry.file)
 }
 
-export const insertMention = (text: string, caret: number, mention: Mention, path: string) => {
-  const inserted = `@${path} `
+// The token replaces the mention, sign included: @notes.md or #k3X9qA.
+export const insertMention = (text: string, caret: number, mention: Mention, token: string) => {
+  const inserted = `${token} `
   return {
     text: `${text.slice(0, mention.start)}${inserted}${text.slice(caret)}`,
     caret: mention.start + inserted.length,
@@ -73,3 +75,12 @@ export const appendMention = (text: string, file: NamedFile, files: readonly Nam
   referencedFiles(text, files).some(named => named.id === file.id)
     ? text
     : `${text}${text && !/\s$/.test(text) ? ' ' : ''}@${file.path} `
+
+const folderOf = (path: string) => path.slice(0, Math.max(path.lastIndexOf('/'), 0))
+
+export const fileOption = (file: NamedFile): MentionOption => ({
+  id: file.id,
+  name: baseName(file.path),
+  detail: folderOf(file.path),
+  title: file.path,
+})

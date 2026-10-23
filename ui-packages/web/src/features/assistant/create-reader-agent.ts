@@ -12,6 +12,7 @@ import { getStoredFile, listStoredFiles } from '../../data/file-store'
 import { markdownText } from '../../formats/markdown-text'
 import { memoryAgentParts } from '../memory'
 import { compactConversation } from './compaction'
+import { createConversationTools } from './conversation-tools'
 import { createDocumentTools, type DocumentAccess } from './document-tools'
 import { createDocxRuntime, type DocxRuntime } from './docx/runtime'
 import { createImageTools } from './image-tools'
@@ -106,6 +107,7 @@ const readerAgent: AgentDefinition<ReaderContext> = {
   tools: ({ local, documents, web, analyze, memory }) => [
     ...createReaderTools(local, documents),
     ...createUrlTools(local.saveFile, web),
+    ...createConversationTools(),
     ...(analyze ? createImageTools(getStoredFile, analyze) : []),
     ...(memory?.tools ?? []),
   ],

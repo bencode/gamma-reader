@@ -8,15 +8,32 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { ConversationDraft } from '../../../core/conversations'
+import {
+  type ConversationDraft,
+  type ConversationId,
+  conversationNumber,
+  type StoredConversation,
+} from '../../../core/conversations'
 import type { ConversationReference } from '../../../core/reader-message'
 import { DraftAttachmentTray } from '../conversation-attachments'
 import { ConversationModelControl, type ModelControlProps } from '../model-control'
 import type { ConversationTokenUsage } from '../token-usage'
 import type { ConversationPhase } from '../use-conversation'
 import type { DraftAttachment } from '../use-draft-attachments'
-import { FileMentionMenu } from './file-mention-menu'
-import { insertMention, mentionAt, rankMentions, referencedFiles } from './file-mentions'
+import {
+  conversationMentionAt,
+  conversationOption,
+  rankConversations,
+} from './conversation-mentions'
+import {
+  fileOption,
+  insertMention,
+  type Mention,
+  mentionAt,
+  rankMentions,
+  referencedFiles,
+} from './file-mentions'
+import { MentionMenu } from './mention-menu'
 import { QueuedMessages } from './queued-messages'
 import {
   commandOptionId,
@@ -54,6 +71,9 @@ type ComposerProps = {
   files: readonly ConversationReference[]
   // Newest first; recently opened files lead the @ list.
   recentFileIds: readonly string[]
+  // The project's conversations, offered after a #; read each time a # starts.
+  loadConversations: () => Promise<StoredConversation[]>
+  activeConversationId: ConversationId
   commands: readonly SlashCommand[]
   // Absent where the server has no search service.
   webSearch: { enabled: boolean; set: (on: boolean) => void } | null
@@ -88,6 +108,8 @@ export const ConversationComposer = ({
   availableFileIds,
   files,
   recentFileIds,
+  loadConversations,
+  activeConversationId,
   commands,
   webSearch,
 }: ComposerProps) => {
@@ -103,16 +125,23 @@ export const ConversationComposer = ({
   // The caret belongs to the text it was read in. A draft replaced from outside has no caret here,
   // and so no mention, until the reader types or moves the caret.
   const [caret, setCaret] = useState({ text: '', at: 0 })
-  // Where the caret goes once a picked file is in the draft.
+  // Where the caret goes once a picked file or conversation is in the draft.
   const [pendingCaret, setPendingCaret] = useState<number | null>(null)
+  const [conversations, setConversations] = useState<readonly StoredConversation[]>([])
   const menuId = useId()
   const command = draft ? '' : typedCommand
   const value = draft || command
   const matches = command ? matchCommands(command, commands) : []
-  const mention = draft && caret.text === draft ? mentionAt(draft, caret.at) : null
+  const caretKnown = Boolean(draft) && caret.text === draft
+  const mention = caretKnown ? mentionAt(draft, caret.at) : null
   const fileMatches = mention ? rankMentions(files, mention.query, recentFileIds) : []
-  // A command is typed into an empty draft and a file into a written one, so one list at most.
-  const options = matches.length || fileMatches.length
+  const conversationMention = caretKnown ? conversationMentionAt(draft, caret.at) : null
+  const conversationMatches = conversationMention
+    ? rankConversations(conversations, conversationMention.query, activeConversationId)
+    : []
+  // A command is typed into an empty draft, and the caret ends an @ or a # but never both, so one
+  // list at most.
+  const options = matches.length || fileMatches.length || conversationMatches.length
   const menuOpen = !dismissed && options > 0
   // A summary can be stopped like a reply, but accepts no new messages.
   const running = phase === 'running' || phase === 'stopping' || phase === 'compacting'
@@ -128,6 +157,22 @@ export const ConversationComposer = ({
   useEffect(() => {
     if (phase === 'switching') setTypedCommand('')
   }, [phase])
+
+  // Read again at each #, so the list holds conversations begun since the last one.
+  const mentioningConversation = conversationMention !== null
+  useEffect(() => {
+    if (!mentioningConversation) return
+    let current = true
+    loadConversations().then(
+      list => {
+        if (current) setConversations(list)
+      },
+      cause => console.error('Unable to list conversations', cause),
+    )
+    return () => {
+      current = false
+    }
+  }, [mentioningConversation, loadConversations])
 
   useLayoutEffect(() => {
     const textarea = inputRef.current
@@ -170,11 +215,21 @@ export const ConversationComposer = ({
     picked.run()
   }
 
-  const pickFile = (file: ConversationReference) => {
-    if (!mention) return
-    const next = insertMention(draft, caret.at, mention, file.path)
+  const insert = (at: Mention | null, token: string) => {
+    if (!at) return
+    const next = insertMention(draft, caret.at, at, token)
     onDraftChange(next.text)
     setPendingCaret(next.caret)
+  }
+
+  const pickFile = (index: number) => {
+    const file = fileMatches[index]
+    if (file) insert(mention, `@${file.path}`)
+  }
+
+  const pickConversation = (index: number) => {
+    const conversation = conversationMatches[index]
+    if (conversation) insert(conversationMention, `#${conversationNumber(conversation.id)}`)
   }
 
   // A command nothing matches, or one whose menu was closed, is sent as an ordinary message.
@@ -188,9 +243,9 @@ export const ConversationComposer = ({
   }
 
   const choose = (key: string) => {
-    const file = fileMatches[selected]
     const picked = matches[selected]
-    if (file) pickFile(file)
+    if (fileMatches[selected]) pickFile(selected)
+    else if (conversationMatches[selected]) pickConversation(selected)
     else if (picked && key === 'Enter') runCommand(picked)
     else if (picked) setTypedCommand(`/${picked.name}`)
   }
@@ -244,14 +299,29 @@ export const ConversationComposer = ({
           <SlashCommandMenu id={menuId} commands={matches} selected={selected} onRun={runCommand} />
         )}
         {menuOpen && fileMatches.length > 0 && (
-          <FileMentionMenu id={menuId} files={fileMatches} selected={selected} onPick={pickFile} />
+          <MentionMenu
+            id={menuId}
+            label="Files"
+            options={fileMatches.map(fileOption)}
+            selected={selected}
+            onPick={pickFile}
+          />
+        )}
+        {menuOpen && conversationMatches.length > 0 && (
+          <MentionMenu
+            id={menuId}
+            label="Conversations"
+            options={conversationMatches.map(conversationOption)}
+            selected={selected}
+            onPick={pickConversation}
+          />
         )}
         <div className={styles.input}>
           <textarea
             ref={inputRef}
             disabled={phase === 'loading' || phase === 'switching'}
             aria-label="Your question"
-            placeholder="Ask about what you are reading, @ for files, / for commands"
+            placeholder="Ask about what you are reading, @ for files, # for conversations, / for commands"
             aria-controls={menuOpen ? menuId : undefined}
             aria-activedescendant={menuOpen ? commandOptionId(menuId, selected) : undefined}
             value={value}

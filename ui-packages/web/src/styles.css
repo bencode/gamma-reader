@@ -555,6 +555,21 @@ svg {
   margin: 0;
   overflow: hidden;
 }
+.conversation-number {
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding: 2px 5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.conversation-number:hover {
+  background: oklch(0.955 0 0);
+  color: var(--accent);
+}
 .conversation-header-actions {
   display: flex;
   align-items: center;
@@ -652,6 +667,9 @@ svg {
 }
 .conversation-history-times > span {
   white-space: nowrap;
+}
+.conversation-history-number {
+  font-family: ui-monospace, monospace;
 }
 .conversation-history-more {
   margin-right: 4px;

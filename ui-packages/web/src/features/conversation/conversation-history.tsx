@@ -1,6 +1,10 @@
 import { ArrowLeft, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import type { ConversationId, StoredConversation } from '../../core/conversations'
+import {
+  type ConversationId,
+  conversationNumber,
+  type StoredConversation,
+} from '../../core/conversations'
 
 type RowState =
   | { kind: 'none' }
@@ -170,6 +174,9 @@ export const ConversationHistory = ({
                     >
                       <strong>{title}</strong>
                       <span className="conversation-history-times">
+                        <span className="conversation-history-number">
+                          #{conversationNumber(conversation.id)}
+                        </span>
                         <span>
                           Created{' '}
                           <time dateTime={new Date(conversation.createdAt).toISOString()}>
