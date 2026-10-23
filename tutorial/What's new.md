@@ -4,6 +4,10 @@ New features appear here when they ship. Choose **Update** under **Files** when 
 
 ## October 2026
 
+- **Conversation numbers.** Each conversation shows a number beside its name, such as `#k3X9qA`; choose it to copy it. Type `#` in the message box to pick another conversation, or paste a number, and the assistant reads that conversation. See [[The reading assistant#Conversations]].
+
+- **Drag tabs into order.** Drag a tab along the tab bar to put it where you want it. The order is kept like the rest of your tabs. See [[Reading documents#Tabs]].
+
 - **Recent files and stars.** Use **Recent** beside **Files** to reopen your last 50 files, or star a file with the button beside its name and find it under **Starred**. Each list has a filter, and each project remembers its own history, stars and selected view in this browser.
 
 - **The assistant remembers.** Turn on memory under **Memory** in the project menu, and the assistant keeps what you ask it to remember, about you in every project and about a project in that project. The **Memory** tab lists, searches and corrects every note. See [[The reading assistant#Memory]].

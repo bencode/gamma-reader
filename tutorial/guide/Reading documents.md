@@ -37,6 +37,7 @@ Only `.docx` and `.xlsx` are read. The older `.doc` and `.xls` are stored but ca
 
 ## Tabs
 
+- Drag a tab along the tab bar to put it where you want it.
 - Right-click a tab, or press **Shift+F10**, for **Close**, **Close others**, **Close to the right** and **Close all**.
 - **Show open documents**, at the end of the tab bar, lists every tab with a search box.
 - When two open files share a name, their tabs add the folder: *Notes.md · drafts*.
