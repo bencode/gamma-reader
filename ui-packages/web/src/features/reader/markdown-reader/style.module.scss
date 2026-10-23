@@ -199,6 +199,10 @@
       grid-column: prose-start / wide-end;
     }
 
+    > .backlinks {
+      grid-column: prose;
+    }
+
     :global(.markdown-reader h1) {
       font-size: 36px;
       line-height: 1.2;
