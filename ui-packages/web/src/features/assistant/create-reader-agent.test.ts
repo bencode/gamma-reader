@@ -15,11 +15,8 @@ import {
 } from '../../data/file-store'
 import { modelConfig } from '../../test/model-config'
 import { setMemoryEnabled } from '../memory/settings'
-import {
-  conversationMessages,
-  createReaderAgent,
-  createReaderDocumentAccess,
-} from './create-reader-agent'
+import { conversationMessages, createReaderAgent } from './create-reader-agent'
+import { createReaderDocumentAccess } from './document-access'
 import { createLocalTools } from './local-tools'
 import { createPdfRuntime } from './pdf/runtime'
 
