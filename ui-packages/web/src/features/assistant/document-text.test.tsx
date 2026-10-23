@@ -12,7 +12,7 @@ import {
 import { markdownText } from '../../formats/markdown-text'
 import { findTextMatches, normalizeSearchText } from '../../utils/text'
 import { readViewport } from '../reader/reader-viewport'
-import { createReaderDocumentAccess } from './create-reader-agent'
+import { createReaderDocumentAccess } from './document-access'
 import { createDocumentTools } from './document-tools'
 import { createLocalTools } from './local-tools'
 import { createPdfRuntime } from './pdf/runtime'

@@ -8,7 +8,7 @@ import {
   removeStoredFiles,
   writeStoredTextFile,
 } from '../../data/file-store'
-import { createReaderDocumentAccess } from './create-reader-agent'
+import { createReaderDocumentAccess } from './document-access'
 import { createDocumentTools } from './document-tools'
 import { type ActiveSourceSnapshot, createLocalTools } from './local-tools'
 import { createPdfRuntime } from './pdf/runtime'
