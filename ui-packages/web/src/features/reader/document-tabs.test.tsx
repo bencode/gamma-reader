@@ -171,13 +171,17 @@ describe('document tab controls', () => {
     const imageTab = tabOf('Figure.png')
     const dataTransfer = { types: ['application/x-gamma-reader-tab'], setData: vi.fn() }
 
+    // jsdom has no DragEvent to carry a pointer position, so each event is given one.
+    const fireAt = (type: 'dragOver' | 'drop', element: HTMLElement, clientX: number) => {
+      const event = createEvent[type](element, { dataTransfer })
+      Object.defineProperty(event, 'clientX', { value: clientX })
+      fireEvent(element, event)
+    }
+
     fireEvent.dragStart(imageTab, { dataTransfer })
-    // jsdom has no DragEvent to carry a pointer position, so the event is given one.
-    const over = createEvent.dragOver(pdfTab, { dataTransfer })
-    Object.defineProperty(over, 'clientX', { value: 20 })
-    fireEvent(pdfTab, over)
+    fireAt('dragOver', pdfTab, 20)
     expect(pdfTab).toHaveAttribute('data-drop', 'before')
-    fireEvent.drop(pdfTab, { dataTransfer })
+    fireAt('drop', pdfTab, 20)
 
     expect(current.store.getState().tabs).toEqual(['image', 'pdf'])
     expect(pdfTab).not.toHaveAttribute('data-drop')

@@ -220,6 +220,7 @@ export const DocumentTabBar = ({
         onDrop={event => {
           if (!event.dataTransfer.types.includes(tabType)) return
           event.preventDefault()
+          const target = dropTargetAt(event)
           if (dragged && target) {
             const index =
               items.findIndex(item => item.id === target.id) + (target.side === 'after' ? 1 : 0)
