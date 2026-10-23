@@ -1,8 +1,6 @@
+import type { MentionOption } from './mentions'
 import { commandOptionId } from './slash-command-menu'
 import styles from './style.module.scss'
-
-// One entry of an @ or # list: what it is called, where it is, and its tooltip.
-export type MentionOption = { id: string; name: string; detail: string; title: string }
 
 export const MentionMenu = ({
   id,

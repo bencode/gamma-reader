@@ -25,15 +25,9 @@ import {
   conversationOption,
   rankConversations,
 } from './conversation-mentions'
-import {
-  fileOption,
-  insertMention,
-  type Mention,
-  mentionAt,
-  rankMentions,
-  referencedFiles,
-} from './file-mentions'
+import { fileOption, rankMentions, referencedFiles } from './file-mentions'
 import { MentionMenu } from './mention-menu'
+import { insertMention, type Mention, mentionAt } from './mentions'
 import { QueuedMessages } from './queued-messages'
 import {
   commandOptionId,
@@ -133,7 +127,7 @@ export const ConversationComposer = ({
   const value = draft || command
   const matches = command ? matchCommands(command, commands) : []
   const caretKnown = Boolean(draft) && caret.text === draft
-  const mention = caretKnown ? mentionAt(draft, caret.at) : null
+  const mention = caretKnown ? mentionAt('@', draft, caret.at) : null
   const fileMatches = mention ? rankMentions(files, mention.query, recentFileIds) : []
   const conversationMention = caretKnown ? conversationMentionAt(draft, caret.at) : null
   const conversationMatches = conversationMention

@@ -3,18 +3,12 @@ import {
   conversationNumber,
   type StoredConversation,
 } from '../../../core/conversations'
-import type { Mention } from './file-mentions'
-import type { MentionOption } from './mention-menu'
+import { type MentionOption, mentionAt } from './mentions'
 
-// A # names a conversation by its number, under the rule an @ follows: not after a letter or
-// digit, as in C# or Page#Heading. Digits alone are a Lab cell, as in #3, so they open no list.
-const mentionBeforeCaret = /(?<![A-Za-z0-9._%+-])#([^\s#]*)$/
-
-export const conversationMentionAt = (text: string, caret: number): Mention | null => {
-  const match = mentionBeforeCaret.exec(text.slice(0, caret))
-  const query = match?.[1]
-  if (query === undefined || /^\d+$/.test(query)) return null
-  return { start: caret - query.length - 1, query }
+// Digits alone are a Lab cell, as in #3, so they open no list.
+export const conversationMentionAt = (text: string, caret: number) => {
+  const mention = mentionAt('#', text, caret)
+  return mention && /^\d+$/.test(mention.query) ? null : mention
 }
 
 // A title that holds the query or a number that starts with it, most recently active first, as
