@@ -1,7 +1,7 @@
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import * as Tabs from '@radix-ui/react-tabs'
 import { X } from 'lucide-react'
-import { type RefObject, useLayoutEffect, useRef } from 'react'
+import { type DragEvent, type RefObject, useLayoutEffect, useRef, useState } from 'react'
 import { OpenDocuments } from './open-documents'
 import styles from './style.module.scss'
 import type { DocumentTabItem } from './types'
@@ -12,7 +12,17 @@ type DocumentTabBarProps = {
   activeTriggerRef: RefObject<HTMLButtonElement | null>
   onSelect: (id: string) => void
   onRequestClose: (ids: readonly string[]) => void
+  onMove: (id: string, before: string | null) => void
 }
+
+// A dragged tab carries a type of its own, so nothing else on the page takes it as a drop.
+const tabType = 'application/x-gamma-reader-tab'
+
+type DropSide = 'before' | 'after'
+type DropTarget = { id: string; side: DropSide }
+
+const tabAt = (target: EventTarget) =>
+  target instanceof Element ? target.closest<HTMLElement>('[data-tab-id]') : null
 
 type DocumentTabProps = {
   item: DocumentTabItem
@@ -21,6 +31,8 @@ type DocumentTabProps = {
   active: boolean
   stripRef: RefObject<HTMLDivElement | null>
   activeTriggerRef: RefObject<HTMLButtonElement | null>
+  dragged: boolean
+  dropSide: DropSide | undefined
   onRequestClose: (ids: readonly string[]) => void
 }
 
@@ -31,6 +43,8 @@ const DocumentTab = ({
   active,
   stripRef,
   activeTriggerRef,
+  dragged,
+  dropSide,
   onRequestClose,
 }: DocumentTabProps) => {
   const tabRef = useRef<HTMLDivElement>(null)
@@ -77,7 +91,15 @@ const DocumentTab = ({
           )
         }}
       >
-        <div ref={tabRef} className={styles.tab} data-active={active}>
+        <div
+          ref={tabRef}
+          className={styles.tab}
+          data-tab-id={item.id}
+          data-active={active}
+          data-dragged={dragged}
+          data-drop={dropSide}
+          draggable
+        >
           <Tabs.Trigger
             className={styles.trigger}
             value={item.id}
@@ -148,12 +170,66 @@ export const DocumentTabBar = ({
   activeTriggerRef,
   onSelect,
   onRequestClose,
+  onMove,
 }: DocumentTabBarProps) => {
   const stripRef = useRef<HTMLDivElement>(null)
+  const [dragged, setDragged] = useState<string | null>(null)
+  const [target, setTarget] = useState<DropTarget | null>(null)
+  const endDrag = () => {
+    setDragged(null)
+    setTarget(null)
+  }
+  // Over a tab, the drop lands on the nearer side of it; past the last tab, it lands last.
+  const dropTargetAt = (event: DragEvent<HTMLElement>): DropTarget | null => {
+    const tab = tabAt(event.target)
+    const id = tab?.dataset.tabId ?? items.at(-1)?.id
+    if (!id || id === dragged) return null
+    if (!tab) return { id, side: 'after' }
+    const { left, width } = tab.getBoundingClientRect()
+    return { id, side: event.clientX < left + width / 2 ? 'before' : 'after' }
+  }
 
   return (
     <div className={styles.bar}>
-      <Tabs.List ref={stripRef} className={styles.strip} aria-label="Open documents">
+      <Tabs.List
+        ref={stripRef}
+        className={styles.strip}
+        aria-label="Open documents"
+        onDragStart={event => {
+          const id = tabAt(event.target)?.dataset.tabId
+          if (!id) return
+          event.dataTransfer.setData(tabType, id)
+          event.dataTransfer.effectAllowed = 'move'
+          setDragged(id)
+        }}
+        onDragOver={event => {
+          if (!event.dataTransfer.types.includes(tabType)) return
+          event.preventDefault()
+          event.dataTransfer.dropEffect = 'move'
+          const next = dropTargetAt(event)
+          setTarget(current =>
+            current && next && current.id === next.id && current.side === next.side
+              ? current
+              : next,
+          )
+        }}
+        onDragLeave={event => {
+          const next = event.relatedTarget
+          if (!(next instanceof Node && event.currentTarget.contains(next))) setTarget(null)
+        }}
+        onDrop={event => {
+          if (!event.dataTransfer.types.includes(tabType)) return
+          event.preventDefault()
+          const target = dropTargetAt(event)
+          if (dragged && target) {
+            const index =
+              items.findIndex(item => item.id === target.id) + (target.side === 'after' ? 1 : 0)
+            onMove(dragged, items[index]?.id ?? null)
+          }
+          endDrag()
+        }}
+        onDragEnd={endDrag}
+      >
         {items.map((item, index) => (
           <DocumentTab
             key={item.id}
@@ -163,6 +239,8 @@ export const DocumentTabBar = ({
             active={activeId === item.id}
             stripRef={stripRef}
             activeTriggerRef={activeTriggerRef}
+            dragged={dragged === item.id}
+            dropSide={target?.id === item.id ? target.side : undefined}
             onRequestClose={onRequestClose}
           />
         ))}

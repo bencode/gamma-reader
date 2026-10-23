@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -158,6 +158,35 @@ describe('document tab lifecycles', () => {
 })
 
 describe('document tab controls', () => {
+  it('moves a dragged tab to the side of the tab it is dropped on', () => {
+    const current = workspace('pdf')
+    render(<TestTabs workspace={current} />)
+    const tabOf = (name: string) => {
+      const tab = screen.getByRole('tab', { name }).parentElement
+      if (!tab) throw new Error(`${name} tab container is missing`)
+      tab.getBoundingClientRect = () => new DOMRect(0, 0, 100, 40)
+      return tab
+    }
+    const pdfTab = tabOf('Guide.pdf')
+    const imageTab = tabOf('Figure.png')
+    const dataTransfer = { types: ['application/x-gamma-reader-tab'], setData: vi.fn() }
+
+    // jsdom has no DragEvent to carry a pointer position, so each event is given one.
+    const fireAt = (type: 'dragOver' | 'drop', element: HTMLElement, clientX: number) => {
+      const event = createEvent[type](element, { dataTransfer })
+      Object.defineProperty(event, 'clientX', { value: clientX })
+      fireEvent(element, event)
+    }
+
+    fireEvent.dragStart(imageTab, { dataTransfer })
+    fireAt('dragOver', pdfTab, 20)
+    expect(pdfTab).toHaveAttribute('data-drop', 'before')
+    fireAt('drop', pdfTab, 20)
+
+    expect(current.store.getState().tabs).toEqual(['image', 'pdf'])
+    expect(pdfTab).not.toHaveAttribute('data-drop')
+  })
+
   it('reveals a tab when it becomes active and leaves manual scrolling alone afterward', () => {
     const current = workspace('pdf')
     const view = render(<TestTabs workspace={current} />)

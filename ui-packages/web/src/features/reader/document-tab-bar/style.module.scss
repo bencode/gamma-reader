@@ -31,6 +31,23 @@
       background: var(--accent);
     }
   }
+  &[data-dragged='true'] {
+    opacity: 0.5;
+  }
+  &[data-drop]::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto;
+    z-index: 1;
+    width: 2px;
+    background: var(--accent);
+  }
+  &[data-drop='before']::after {
+    left: -1px;
+  }
+  &[data-drop='after']::after {
+    right: -1px;
+  }
 }
 .trigger {
   display: flex;

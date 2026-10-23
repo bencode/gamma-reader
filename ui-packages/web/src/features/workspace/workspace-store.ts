@@ -52,6 +52,13 @@ export type WorkspaceActions = {
 export const sourceDirty = (draft: SourceDraft | undefined) =>
   Boolean(draft && draft.content !== draft.base.content)
 
+// Moves a tab to stand just before another, or last when there is none to stand before.
+export const moveTab = (tabs: string[], id: string, before: string | null) => {
+  const rest = tabs.filter(tab => tab !== id)
+  const index = before === null ? rest.length : rest.indexOf(before)
+  return index < 0 || rest.length === tabs.length ? tabs : rest.toSpliced(index, 0, id)
+}
+
 const updateDraft = (
   drafts: Record<string, SourceDraft>,
   fileId: string,
