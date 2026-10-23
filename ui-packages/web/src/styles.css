@@ -379,8 +379,8 @@ svg {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.resource-item:hover {
-  background: oklch(0.945 0 0);
+:where(.resource-row:hover) > .resource-item {
+  background: var(--row-bg);
 }
 .resource-item.active {
   background: var(--selected);
@@ -939,10 +939,19 @@ svg {
   border: 0;
 }
 .resource-row {
+  --row-bg: var(--panel);
+  position: relative;
   display: flex;
   align-items: center;
   min-width: 0;
   border-radius: 5px;
+}
+/* The hover tint spans the whole row, so the actions laid over it share its colour. */
+.resource-row:hover {
+  --row-bg: oklch(0.945 0 0);
+}
+.resource-row:has(> .resource-item.active) {
+  --row-bg: var(--selected);
 }
 .resource-row .resource-item {
   flex: 1;
@@ -962,16 +971,42 @@ svg {
   margin-right: 3px;
 }
 .resource-actions :where(.icon-button) {
-  opacity: 0;
   width: 24px;
   height: 24px;
 }
-:where(.resource-row:hover, .resource-row:focus-within) .resource-actions :where(.icon-button),
-.resource-actions :where(.resource-star[aria-pressed="true"]) {
-  opacity: 1;
-}
 .resource-star[aria-pressed="true"] {
   color: var(--accent);
+}
+/* With a mouse the actions appear over the end of the row instead of keeping an empty column
+   beside every name; at rest only a starred file's star stays. */
+@media (hover: hover) {
+  .resource-actions {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    margin: 0;
+    padding: 0 3px 0 12px;
+    border-radius: 0 5px 5px 0;
+    /* A click on the faded edge still opens the row. */
+    pointer-events: none;
+  }
+  .resource-actions :where(.icon-button) {
+    pointer-events: auto;
+  }
+  :where(.resource-row:hover, .resource-row:has(:focus-visible)) .resource-actions,
+  .resource-actions:has([aria-pressed="true"]) {
+    background: linear-gradient(to right, transparent, var(--row-bg) 12px);
+  }
+  /* Hidden actions stay reachable by keyboard and screen readers; keyboard focus on the row reveals them. */
+  .resource-row:not(:hover, :has(:focus-visible))
+    .resource-actions
+    :where(.icon-button:not([aria-pressed="true"])) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
 }
 .resource-item .resource-file-label {
   display: flex;
@@ -1004,6 +1039,7 @@ svg {
   margin-top: 1px;
 }
 .resource-flat-list .resource-actions {
+  align-items: flex-start;
   padding-top: 3px;
 }
 @container (max-width: 200px) {
@@ -1353,12 +1389,6 @@ svg {
   border: 0;
   background: var(--surface);
 }
-@media (pointer: coarse) {
-  .resource-actions :where(.icon-button) {
-    opacity: 1;
-  }
-}
-
 .conversation-scroll {
   padding: 0 14px;
   overscroll-behavior: contain;
