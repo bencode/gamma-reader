@@ -11,7 +11,7 @@ import {
   useSourceDrafts,
   useWorkspaceSourceActions,
 } from '../workspace/workspace-context'
-import { sourceDirty } from '../workspace/workspace-store'
+import { moveTab, sourceDirty } from '../workspace/workspace-store'
 import { CsvReader } from './csv-reader'
 import { DocumentPane } from './document-pane'
 import { DocumentTabBar } from './document-tab-bar'
@@ -220,6 +220,7 @@ export const DocumentTabs = ({
             }
           }}
           onRequestClose={requestClose}
+          onMove={(id, before) => workspace.actions.setTabs(tabs => moveTab(tabs, id, before))}
         />
         {activeDraft && workspace.activeId && (
           <div className="source-controls">
