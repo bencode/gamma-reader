@@ -5,36 +5,46 @@ import { withWebSearch } from '../../assistant/web-tools'
 import { attachAgent } from './agent-session'
 import { queueDraft } from './drafts'
 import { nextActivityTime, selectionFromState } from './session'
-import { type Ctx, getActive, setActive } from './state'
+import { activeSession, type Ctx, getConversation, setConversation } from './state'
 
 export const configureModel = (ctx: Ctx, selection: ModelSelection) => {
-  const { runtime, store } = ctx
-  const { config, phase } = store.getState()
+  const { config, switching } = ctx.store.getState()
+  const s = activeSession(ctx)
+  const { runtime, store } = s.session
   const agent = runtime.agent
-  if (!agent || phase !== 'ready' || runtime.busy || runtime.switching || config.kind !== 'enabled')
+  if (
+    !agent ||
+    store.getState().phase !== 'ready' ||
+    runtime.busy ||
+    switching ||
+    config.kind !== 'enabled'
+  )
     return
   const state = resolveModelSelection(config.runtime, selection)
+  const current = getConversation(s)
   const next = {
-    ...getActive(ctx),
+    ...current,
     selection: selectionFromState(state),
-    lastActiveAt: nextActivityTime(getActive(ctx)),
+    lastActiveAt: nextActivityTime(current),
   }
   agent.state.model = state.model
   agent.state.thinkingLevel = state.thinkingLevel
-  setActive(ctx, next)
-  void queueDraft(ctx, next, true)
+  setConversation(s, next)
+  void queueDraft(s, next, true)
 }
 
 // Takes effect from the next message; a reply already running keeps the tools it started with.
 export const setWebSearch = (ctx: Ctx, on: boolean) => {
-  const next = { ...getActive(ctx), webSearch: on }
-  const agent = ctx.runtime.agent
+  const s = activeSession(ctx)
+  const next = { ...getConversation(s), webSearch: on }
+  const agent = s.session.runtime.agent
   if (agent) agent.state.tools = withWebSearch(agent.state.tools, on)
-  setActive(ctx, next)
-  void queueDraft(ctx, next, true)
+  setConversation(s, next)
+  void queueDraft(s, next, true)
 }
 
-// Models a reader configured only reach the list once the runtime is rebuilt.
+// Models a reader configured only reach the list once the runtime is rebuilt. A conversation
+// answering in the background keeps the models it started with.
 export const refreshProviders = async (ctx: Ctx) => {
   const current = ctx.store.getState().config
   if (current.kind !== 'enabled') return
@@ -45,7 +55,8 @@ export const refreshProviders = async (ctx: Ctx) => {
       config: current.config,
     },
   })
-  attachAgent(ctx, getActive(ctx), ctx.runtime.rawMessages)
+  const s = activeSession(ctx)
+  attachAgent(s, s.session.runtime.rawMessages)
 }
 
 // Turning memory on or off reaches the open conversation at once, unless a reply is running: that
@@ -54,6 +65,8 @@ export const memoryChanged = (ctx: Ctx, memoryOn: boolean) => {
   const { runtime } = ctx
   if (runtime.memoryAttached === memoryOn) return
   runtime.memoryAttached = memoryOn
-  if (!runtime.agent || runtime.busy || runtime.switching) return
-  attachAgent(ctx, getActive(ctx), runtime.rawMessages)
+  if (ctx.store.getState().switching) return
+  const s = activeSession(ctx)
+  if (!s.session.runtime.agent || s.session.runtime.busy) return
+  attachAgent(s, s.session.runtime.rawMessages)
 }

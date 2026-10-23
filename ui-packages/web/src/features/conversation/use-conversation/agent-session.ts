@@ -1,12 +1,14 @@
 import type { Agent, AgentMessage } from '@earendil-works/pi-agent-core'
-import { conversationTitle, foldQueued, type StoredConversation } from '../../../core/conversations'
+import type { StoreApi } from 'zustand/vanilla'
+import { conversationTitle, type StoredConversation } from '../../../core/conversations'
 import { resolveModelSelection } from '../../../core/models/model-selection'
 import { createReaderUserMessage, isReaderUserMessage } from '../../../core/reader-message'
 import { appendStoredConversationMessages } from '../../../data/conversation-store'
 import { conversationMessages, createReaderAgent } from '../../assistant/create-reader-agent'
 import { withWebSearch } from '../../assistant/web-tools'
 import { tokenUsage } from '../token-usage'
-import { currentDraft, queueDraft, takeQueued, updateActiveDraft } from './drafts'
+import { createDraftQueue } from './draft-queue'
+import { takeQueued, writeDraft } from './drafts'
 import { placeFirst } from './history'
 import { displayMessages, runContinues, statusMap } from './messages'
 import {
@@ -15,23 +17,35 @@ import {
   selectionFromState,
   webSearchAvailable,
 } from './session'
-import { type Ctx, getActive, reportStorageError, setActive } from './state'
+import {
+  type Ctx,
+  createSessionRuntime,
+  createSessionStore,
+  getConversation,
+  isActive,
+  reportStorageError,
+  type SessionCtx,
+  type SessionState,
+  setConversation,
+} from './state'
 
-export const refresh = (ctx: Ctx, agent: Agent) => {
-  ctx.runtime.rawMessages = conversationMessages(agent)
+export const refresh = (s: SessionCtx, agent: Agent) => {
+  const { runtime, store } = s.session
+  runtime.rawMessages = conversationMessages(agent)
   const all = agent.state.streamingMessage
-    ? [...ctx.runtime.rawMessages, agent.state.streamingMessage]
-    : ctx.runtime.rawMessages
-  ctx.store.setState({
-    messages: displayMessages(all, ctx.runtime.statuses),
-    usage: tokenUsage(ctx.runtime.rawMessages),
+    ? [...runtime.rawMessages, agent.state.streamingMessage]
+    : runtime.rawMessages
+  store.setState({
+    messages: displayMessages(all, runtime.statuses),
+    usage: tokenUsage(runtime.rawMessages),
   })
 }
 
-export const persistAgentMessages = async (ctx: Ctx, agent: Agent) => {
-  const pending = conversationMessages(agent).slice(ctx.runtime.persistedMessageCount)
+export const persistAgentMessages = async (s: SessionCtx, agent: Agent) => {
+  const { runtime } = s.session
+  const pending = conversationMessages(agent).slice(runtime.persistedMessageCount)
   if (!pending.length) return
-  const current = getActive(ctx)
+  const current = getConversation(s)
   const firstUser = pending.find(isReaderUserMessage)
   const next = {
     ...current,
@@ -45,36 +59,30 @@ export const persistAgentMessages = async (ctx: Ctx, agent: Agent) => {
         : null),
     lastActiveAt: nextActivityTime(current),
   }
-  setActive(ctx, next)
+  setConversation(s, next)
   try {
     await appendStoredConversationMessages({
       conversation: next,
-      startPosition: ctx.runtime.persistedMessageCount,
+      startPosition: runtime.persistedMessageCount,
       messages: pending,
     })
-    ctx.runtime.persistedMessageCount += pending.length
-    placeFirst(ctx, next)
-    localStorage.setItem(activeConversationKey(), next.id)
-    ctx.store.setState({ storageError: undefined })
+    runtime.persistedMessageCount += pending.length
+    placeFirst(s.app, next)
+    if (isActive(s)) localStorage.setItem(activeConversationKey(), next.id)
+    s.app.store.setState({ storageError: undefined })
   } catch (cause) {
-    reportStorageError(ctx, cause)
+    reportStorageError(s.app, cause)
   }
 }
 
-export const disposeAgent = async (ctx: Ctx, saveDraft: boolean) => {
-  const { runtime } = ctx
+// Stops the conversation's reply, if one is running, and lets go of its agent.
+export const disposeAgent = async (s: SessionCtx) => {
+  const { runtime } = s.session
   const agent = runtime.agent
-  // Taken before stopping, so the run does not send it to an agent about to be dropped.
-  const queued = takeQueued(ctx)
   runtime.compaction?.abort()
   if (agent?.state.isStreaming) agent.abort()
   if (agent) await agent.waitForIdle()
-  await ctx.attachments.settle()
-  if (saveDraft) {
-    updateActiveDraft(ctx, foldQueued(currentDraft(ctx), queued))
-    await queueDraft(ctx, getActive(ctx))
-  }
-  await ctx.drafts.idle()
+  await s.session.drafts.idle()
   runtime.unsubscribe?.()
   runtime.unsubscribe = null
   runtime.agent = null
@@ -82,13 +90,10 @@ export const disposeAgent = async (ctx: Ctx, saveDraft: boolean) => {
 }
 
 // Shows the stored messages at once; the agent follows when the model configuration is known.
-export const attachAgent = (
-  ctx: Ctx,
-  conversation: StoredConversation,
-  storedMessages: readonly AgentMessage[],
-) => {
-  const { runtime, store } = ctx
-  const configState = store.getState().config
+export const attachAgent = (s: SessionCtx, storedMessages: readonly AgentMessage[]) => {
+  const { runtime, store } = s.session
+  const conversation = getConversation(s)
+  const configState = s.app.store.getState().config
   runtime.rawMessages = [...storedMessages]
   runtime.persistedMessageCount = storedMessages.length
   runtime.statuses = statusMap(storedMessages)
@@ -103,18 +108,18 @@ export const attachAgent = (
   let agent: Agent
   try {
     const state = resolveModelSelection(configState.runtime, conversation.selection)
-    agent = createReaderAgent(configState.runtime, ctx.tools, {
+    agent = createReaderAgent(configState.runtime, s.app.tools, {
       id: conversation.id,
       messages: storedMessages,
       ...state,
       web: () =>
-        !webSearchAvailable(store.getState().config)
+        !webSearchAvailable(s.app.store.getState().config)
           ? 'unavailable'
-          : getActive(ctx).webSearch
+          : getConversation(s).webSearch
             ? 'on'
             : 'off',
       onCompactionChange: compacting => {
-        if (runtime.agent !== agent || runtime.switching) return
+        if (runtime.agent !== agent) return
         const { phase } = store.getState()
         if (compacting && phase === 'running') store.setState({ phase: 'compacting' })
         if (!compacting && phase === 'compacting') store.setState({ phase: 'running' })
@@ -124,7 +129,7 @@ export const attachAgent = (
       agent.state.tools,
       webSearchAvailable(configState) && Boolean(conversation.webSearch),
     )
-    setActive(ctx, { ...conversation, selection: selectionFromState(state) })
+    setConversation(s, { ...conversation, selection: selectionFromState(state) })
   } catch (cause) {
     console.error('Unable to initialize chat', cause)
     store.setState({
@@ -136,7 +141,7 @@ export const attachAgent = (
   runtime.agent = agent
   runtime.unsubscribe = agent.subscribe(async (event, signal) => {
     if (event.type === 'turn_end' && !signal.aborted && runContinues(event.message))
-      takeQueued(ctx).forEach(item => {
+      takeQueued(s).forEach(item => {
         agent.steer(createReaderUserMessage(item.text, item.attachments, item.references))
       })
     if (event.type === 'tool_execution_start') runtime.statuses.set(event.toolCallId, 'Running')
@@ -145,19 +150,42 @@ export const attachAgent = (
         event.toolCallId,
         signal.aborted ? 'Stopped' : event.isError ? 'Failed' : 'Completed',
       )
-    refresh(ctx, agent)
-    if (event.type === 'message_end') await persistAgentMessages(ctx, agent)
+    refresh(s, agent)
+    if (event.type === 'message_end') await persistAgentMessages(s, agent)
   })
   store.setState({ error: undefined, phase: 'ready' })
 }
 
-export const showSession = (
-  ctx: Ctx,
+// Holds a conversation in memory under the controller, with a draft queue of its own.
+export const addSession = (app: Ctx, store: StoreApi<SessionState>): SessionCtx => {
+  const s: SessionCtx = {
+    app,
+    session: {
+      store,
+      runtime: createSessionRuntime(),
+      drafts: createDraftQueue(conversation => writeDraft(s, conversation)),
+    },
+  }
+  app.runtime.sessions.set(store.getState().conversation.id, s.session)
+  return s
+}
+
+export const openSession = (
+  app: Ctx,
   conversation: StoredConversation,
   storedMessages: readonly AgentMessage[],
 ) => {
-  setActive(ctx, conversation)
-  ctx.store.setState({ draft: conversation.draft.text })
-  ctx.attachments.replaceReady(conversation.draft.attachments)
-  attachAgent(ctx, conversation, storedMessages)
+  const s = addSession(app, createSessionStore(conversation, 'connecting'))
+  attachAgent(s, storedMessages)
+  return s
+}
+
+// An idle conversation leaves memory; its saved state is what opens next time.
+export const releaseSession = (s: SessionCtx) => {
+  const { runtime } = s.session
+  runtime.unsubscribe?.()
+  runtime.unsubscribe = null
+  runtime.agent = null
+  const { id } = getConversation(s)
+  if (s.app.runtime.sessions.get(id) === s.session) s.app.runtime.sessions.delete(id)
 }

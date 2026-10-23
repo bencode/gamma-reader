@@ -4,12 +4,12 @@ import { autoCompactionEnabled, needsCompaction } from '../../../core/agent/comp
 import { compactConversation } from '../../assistant/compaction'
 import { conversationMessages } from '../../assistant/create-reader-agent'
 import { persistAgentMessages, refresh } from './agent-session'
-import type { Ctx } from './state'
+import { activeSession, type Ctx, type SessionCtx } from './state'
 
 // The summary is appended like any message, so the conversation is saved whole and the provider
 // is sent the summary and what it kept from the next request on. A failed call throws.
-const summarize = async (ctx: Ctx, agent: Agent) => {
-  const { runtime, store } = ctx
+const summarize = async (s: SessionCtx, agent: Agent) => {
+  const { runtime, store } = s.session
   const controller = new AbortController()
   runtime.compaction = controller
   store.setState({ phase: 'compacting' })
@@ -22,8 +22,8 @@ const summarize = async (ctx: Ctx, agent: Agent) => {
     if (runtime.agent !== agent || controller.signal.aborted) return 'aborted'
     if (!message) return 'nothing'
     agent.state.messages = [...agent.state.messages, message]
-    refresh(ctx, agent)
-    await persistAgentMessages(ctx, agent)
+    refresh(s, agent)
+    await persistAgentMessages(s, agent)
     if (runtime.agent !== agent || controller.signal.aborted) return 'aborted'
     return 'compacted'
   } catch (cause) {
@@ -34,15 +34,17 @@ const summarize = async (ctx: Ctx, agent: Agent) => {
   }
 }
 
-// The reader's /compact.
+// The reader's /compact, on the open conversation.
 export const compact = async (ctx: Ctx) => {
-  const { runtime, store } = ctx
+  if (ctx.store.getState().switching) return
+  const s = activeSession(ctx)
+  const { runtime, store } = s.session
   const agent = runtime.agent
-  if (!agent || runtime.busy || runtime.switching) return
+  if (!agent || runtime.busy) return
   runtime.busy = true
   store.setState({ error: undefined })
   try {
-    if ((await summarize(ctx, agent)) === 'nothing')
+    if ((await summarize(s, agent)) === 'nothing')
       store.setState({
         error: 'Nothing to compact yet: the conversation still fits in its recent context.',
       })
@@ -63,14 +65,14 @@ export const compact = async (ctx: Ctx) => {
 // Before a message is sent into a context past the threshold. False when the reader stopped it;
 // a failure sends the message anyway and leaves an overflow to recoverFromOverflow.
 export const compactBeforeSending = async (
-  ctx: Ctx,
+  s: SessionCtx,
   agent: Agent,
   sending: readonly AgentMessage[],
 ) => {
   const { model } = agent.state
   if (!needsCompaction([...agent.state.messages, ...sending], model.contextWindow)) return true
   try {
-    return (await summarize(ctx, agent)) !== 'aborted'
+    return (await summarize(s, agent)) !== 'aborted'
   } catch (cause) {
     console.error('Unable to compact the conversation before sending', cause)
     return true
@@ -79,7 +81,7 @@ export const compactBeforeSending = async (
 
 // A reply refused for its context length is answered again, once, after compacting what came
 // before it. The failed reply stays in the transcript; the provider is never sent it again.
-export const recoverFromOverflow = async (ctx: Ctx, agent: Agent) => {
+export const recoverFromOverflow = async (s: SessionCtx, agent: Agent) => {
   const last = agent.state.messages.at(-1)
   if (
     !autoCompactionEnabled(agent.state.model.contextWindow) ||
@@ -89,11 +91,11 @@ export const recoverFromOverflow = async (ctx: Ctx, agent: Agent) => {
   )
     return
   try {
-    if ((await summarize(ctx, agent)) !== 'compacted') return
+    if ((await summarize(s, agent)) !== 'compacted') return
   } catch (cause) {
     console.error('Unable to compact the conversation after it overflowed', cause)
     return
   }
-  ctx.store.setState({ phase: 'running' })
+  s.session.store.setState({ phase: 'running' })
   await agent.continue()
 }
