@@ -1,7 +1,7 @@
 import { History, MessageSquare, Plus, X } from 'lucide-react'
 import { Activity, type RefObject, useState } from 'react'
 import { conversationNumber } from '../../core/conversations'
-import type { ConversationReference } from '../../core/reader-message'
+import type { FileReference } from '../../core/reader-message'
 import { listAllStoredConversations } from '../../data/conversation-store'
 import { ModelProviderDialog } from '../settings/model-providers'
 import { ConversationComposer } from './composer'
@@ -22,7 +22,7 @@ export const ConversationPanel = ({
   onClose: () => void
   onOpenFile: (id: string) => void
   availableFileIds: ReadonlySet<string>
-  files: readonly ConversationReference[]
+  files: readonly FileReference[]
   recentFileIds: readonly string[]
 }) => {
   const conversation = useReaderConversation()

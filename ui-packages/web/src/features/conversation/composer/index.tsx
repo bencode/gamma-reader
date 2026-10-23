@@ -14,7 +14,7 @@ import {
   conversationNumber,
   type StoredConversation,
 } from '../../../core/conversations'
-import type { ConversationReference } from '../../../core/reader-message'
+import type { FileReference } from '../../../core/reader-message'
 import { DraftAttachmentTray } from '../conversation-attachments'
 import { ConversationModelControl, type ModelControlProps } from '../model-control'
 import type { ConversationTokenUsage } from '../token-usage'
@@ -64,11 +64,11 @@ type ComposerProps = {
   onRetry: (key: string) => void
   onRemove: (key: string) => void
   onOpenFile: (id: string) => void
-  onSend: (references: ConversationReference[]) => void
+  onSend: (references: FileReference[]) => void
   onStop: () => void
   availableFileIds: ReadonlySet<string>
   // The project's files, offered after an @.
-  files: readonly ConversationReference[]
+  files: readonly FileReference[]
   // Newest first; recently opened files lead the @ list.
   recentFileIds: readonly string[]
   // The project's conversations, offered after a #; read each time a # starts.

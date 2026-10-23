@@ -3,7 +3,7 @@ import type { ModelReference } from '@gamma-reader/shared/model-config'
 import { useEffect, useState } from 'react'
 import { useStore } from 'zustand'
 import type { ConversationId } from '../../../core/conversations'
-import type { ConversationReference } from '../../../core/reader-message'
+import type { FileReference } from '../../../core/reader-message'
 import type { LocalTools } from '../../assistant/local-tools'
 import { useMemoryEnabled } from '../../memory'
 import type { FileLibrary } from '../../resources/use-file-library'
@@ -71,7 +71,7 @@ export const useConversation = (
     startNew: controller.startNew,
     deleteConversation: controller.deleteConversation,
     renameConversation: (id: ConversationId, title: string) => controller.rename(id, title),
-    send: (references: readonly ConversationReference[]) =>
+    send: (references: readonly FileReference[]) =>
       controller.send({
         unsettled: draftAttachments.unsettled,
         hasAttachments: draftAttachments.attachments.length > 0,
