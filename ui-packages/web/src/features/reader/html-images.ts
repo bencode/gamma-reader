@@ -4,10 +4,24 @@ import { encodeBase64 } from '../../utils/base64'
 import { parseHtml, serializeHtml } from '../../utils/html'
 import { createMarkdownImageResolver } from './markdown-image-resolver'
 
+// The sandbox keeps the browser from following a link within the page, so a page that has one is
+// given this to scroll there instead, unless the page handled the click itself.
+const inPageLinks = `document.addEventListener('click', event => {
+  const link = event.target instanceof Element ? event.target.closest('a[href^="#"], area[href^="#"]') : null
+  if (!link || event.defaultPrevented) return
+  event.preventDefault()
+  const id = decodeURIComponent(link.getAttribute('href').slice(1))
+  const place = document.getElementById(id) ?? document.getElementsByName(id)[0]
+  if (place) place.scrollIntoView()
+  else if (id === '' || id.toLowerCase() === 'top') window.scrollTo(0, 0)
+})`
+
 // A page runs in a sandboxed frame that cannot reach the library, so each image it names from the
-// library is handed in as data, found as a Markdown image would be. A page naming none is
-// returned exactly as written.
-export const withLibraryImages = async (
+// library is handed in as data, found as a Markdown image would be. A link to the web opens in a
+// new tab, as one in a note does, instead of taking the frame away from the page, and a link
+// within the page scrolls to its place. A page needing none of this is returned exactly as
+// written.
+export const framePage = async (
   html: string,
   pagePath: string,
   files: readonly StoredFileMetadata[],
@@ -21,7 +35,20 @@ export const withLibraryImages = async (
     })),
   )
   const local = found.flatMap(({ image, blob }) => (blob ? [{ image, blob }] : []))
-  if (local.length === 0) return html
+  const links = [
+    ...page.querySelectorAll<HTMLAnchorElement | HTMLAreaElement>('a[href], area[href]'),
+  ].filter(link => /^https?:\/\//i.test(link.getAttribute('href') ?? ''))
+  const withinPage = page.querySelector('a[href^="#"], area[href^="#"]') !== null
+  if (local.length === 0 && links.length === 0 && !withinPage) return html
+  for (const link of links) {
+    link.setAttribute('target', '_blank')
+    link.setAttribute('rel', 'noopener noreferrer')
+  }
+  if (withinPage) {
+    const script = page.createElement('script')
+    script.textContent = inPageLinks
+    page.body.append(script)
+  }
   await Promise.all(
     local.map(async ({ image, blob }) =>
       image.setAttribute('src', `data:${blob.type};base64,${await encodeBase64(blob)}`),
@@ -51,8 +78,8 @@ export const useHtmlPageUrl = (
       next = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
       setUrl(next)
     }
-    withLibraryImages(content, pagePath, filesRef.current).then(show, (cause: unknown) => {
-      console.error('Unable to load the images of an HTML page', cause)
+    framePage(content, pagePath, filesRef.current).then(show, (cause: unknown) => {
+      console.error('Unable to prepare an HTML page for its frame', cause)
       show(content)
     })
     return () => {

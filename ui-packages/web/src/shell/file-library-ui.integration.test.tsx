@@ -86,7 +86,10 @@ describe('file library', () => {
 
     await user.click(filesList().getByRole('button', { name: 'Page.html' }))
     const preview = await within(screen.getByRole('tabpanel')).findByTitle('Page.html')
-    expect(preview).toHaveAttribute('sandbox', 'allow-scripts')
+    expect(preview).toHaveAttribute(
+      'sandbox',
+      'allow-scripts allow-popups allow-popups-to-escape-sandbox',
+    )
     expect(preview).toHaveAttribute('referrerpolicy', 'no-referrer')
   })
 

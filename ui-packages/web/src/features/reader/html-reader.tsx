@@ -26,7 +26,7 @@ export const HtmlReader = ({ document, content, files }: TextReaderProps) => {
           className="html-preview"
           src={url}
           title={document.path}
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
           referrerPolicy="no-referrer"
         />
       ) : (

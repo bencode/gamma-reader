@@ -116,6 +116,12 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
     setTextReadyPage(undefined)
     onPageChange(page)
   }
+  // Document keeps the first onItemClick it is given, so a link in the PDF turns the page through
+  // the navigate of the latest render.
+  const navigateRef = useRef(navigate)
+  useEffect(() => {
+    navigateRef.current = navigate
+  })
 
   const onReadingKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const scroll = event.currentTarget
@@ -207,6 +213,8 @@ export const PdfReader = forwardRef<PdfReaderHandle, PdfReaderProps>(function Pd
                 <Document
                   file={source}
                   options={pdfDocumentOptions}
+                  externalLinkTarget="_blank"
+                  onItemClick={({ pageNumber: target }) => navigateRef.current(target)}
                   onLoadSuccess={loadedPdf => {
                     setPdf(loadedPdf)
                     setPageCount(loadedPdf.numPages)

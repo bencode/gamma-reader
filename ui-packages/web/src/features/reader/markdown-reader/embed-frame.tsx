@@ -191,7 +191,7 @@ export const EmbeddedPage = ({
           className={styles.frameStage}
           src={url}
           title={file.path}
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
           referrerPolicy="no-referrer"
         />
       )}
