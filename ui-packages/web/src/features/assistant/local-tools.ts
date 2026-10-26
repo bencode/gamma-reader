@@ -83,8 +83,13 @@ export type WorkspaceFileMover = (
   signal?: AbortSignal,
 ) => Promise<{ from: string; metadata: StoredFileMetadata }>
 
-// Resolves once the file is the active tab, so the active-tab tools that follow act on it.
-export type WorkspaceFileOpener = (fileId: string, signal?: AbortSignal) => Promise<ReaderState>
+// Resolves once the file is the active tab, at the given PDF page if any, so the active-tab
+// tools that follow act on it.
+export type WorkspaceFileOpener = (
+  fileId: string,
+  page: number | undefined,
+  signal?: AbortSignal,
+) => Promise<ReaderState>
 
 export type ActiveSourceSnapshot = {
   fileId: string
@@ -231,7 +236,7 @@ export const createLocalTools = (
   },
   open: (input: OpenInput, signal?: AbortSignal) => {
     if (!openFile) throw new LocalToolError('Opening files is unavailable.')
-    return openFile(input.fileId, signal)
+    return openFile(input.fileId, input.page, signal)
   },
   move: async (input: MoveInput, signal?: AbortSignal): Promise<MoveResult> => {
     const { from, metadata } = await moveFile(input.fileId, agentWorkspacePath(input.path), signal)

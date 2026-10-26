@@ -103,8 +103,8 @@ export const createReaderTools = (
     ),
     bind(
       'open',
-      'Open a workspace file in a tab and make it the active tab, as the reader clicking it would. The reader sees the switch, so open a file only when the reader asks or a task needs it active, such as running a lab or editing its source. Returns the reader state after the switch.',
-      Type.Object({ fileId }),
+      'Open a workspace file in a tab and make it the active tab, as the reader clicking it would. The reader sees the switch, so open a file only when the reader asks or a task needs it active, such as running a lab or editing its source. Pass page to open a PDF at that page, such as a page an answer cites, when the reader asks to go there. Returns the reader state after the switch.',
+      Type.Object({ fileId, page: Type.Optional(Type.Integer({ minimum: 1 })) }),
       local.open,
     ),
     bind(

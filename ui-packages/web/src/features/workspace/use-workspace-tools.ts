@@ -152,12 +152,18 @@ export const useWorkspaceTools = (options: WorkspaceToolsOptions) => {
       }
     }
     // The address changes at once, but the active tab follows only once React renders it.
-    const openFile = async (fileId: string, signal?: AbortSignal) => {
-      if (!current.current.files.some(file => file.id === fileId))
-        throw new LocalToolError('File not found. Run list to choose a workspace file.')
+    const openFile = async (fileId: string, page: number | undefined, signal?: AbortSignal) => {
+      const file = current.current.files.find(file => file.id === fileId)
+      if (!file) throw new LocalToolError('File not found. Run list to choose a workspace file.')
+      if (page !== undefined && file.previewKind !== 'pdf')
+        throw new LocalToolError('A page can only be given for a PDF.')
+      const { store, actions } = current.current
+      if (page !== undefined) actions.reveal(fileId, { page })
       current.current.openDocument(fileId)
       const deadline = Date.now() + openTimeout
-      while (current.current.activeId !== fileId) {
+      // The reader clears its reveal once it has shown the page.
+      const revealing = () => page !== undefined && store.getState().reveal?.fileId === fileId
+      while (current.current.activeId !== fileId || revealing()) {
         signal?.throwIfAborted()
         if (Date.now() > deadline) throw new LocalToolError('The file did not open. Try again.')
         await new Promise(resolve => setTimeout(resolve, 50))
