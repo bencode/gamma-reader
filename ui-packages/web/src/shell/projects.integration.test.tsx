@@ -85,7 +85,19 @@ describe('projects', () => {
     await user.click(screen.getByRole('button', { name: 'Details' }))
     expect(await screen.findByText('journal/today.md')).toBeVisible()
     await user.keyboard('{Escape}')
+    // Updating asks first, naming the edits it would replace.
     await user.click(screen.getByRole('button', { name: 'Update' }))
+    const confirm = screen.getByRole('dialog', { name: 'Replace edits in brain2' })
+    expect(within(confirm).getByText('journal/today.md')).toBeVisible()
+    await user.click(within(confirm).getByRole('button', { name: 'Cancel' }))
+    expect(confirm).not.toBeInTheDocument()
+    expect(await text('journal/today.md')).toBe('# Today, edited here')
+    await user.click(screen.getByRole('button', { name: 'Update' }))
+    await user.click(
+      within(screen.getByRole('dialog', { name: 'Replace edits in brain2' })).getByRole('button', {
+        name: 'Update and replace',
+      }),
+    )
 
     expect(
       await screen.findByText('brain2 is up to date; replaced your edits to 1 file.'),

@@ -56,8 +56,19 @@ describe('conversation history', () => {
     await user.type(field, '  Birds at   dawn {Enter}')
     expect(onRename).toHaveBeenCalledWith('a', 'Birds at dawn')
 
+    // Deleting asks first, since nothing brings a conversation back.
     await user.click(more())
     await user.click(within(first).getByRole('button', { name: 'Delete' }))
+    const confirm = screen.getByRole('dialog', { name: 'Delete First question' })
+    await user.click(within(confirm).getByRole('button', { name: 'Cancel' }))
+    expect(confirm).not.toBeInTheDocument()
+    expect(onDelete).not.toHaveBeenCalled()
+    await user.click(within(first).getByRole('button', { name: 'Delete' }))
+    await user.click(
+      within(screen.getByRole('dialog', { name: 'Delete First question' })).getByRole('button', {
+        name: 'Delete',
+      }),
+    )
     expect(onDelete).toHaveBeenCalledWith('a')
   })
 })

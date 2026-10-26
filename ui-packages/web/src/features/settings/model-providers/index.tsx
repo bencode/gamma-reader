@@ -9,9 +9,11 @@ import {
 import {
   removeUserProvider,
   saveUserProvider,
+  type UserProvider,
   useUserProviders,
 } from '../../../core/models/byok/store'
 import { type DiscoveryFailure, listModels } from './discover'
+import { RemoveProviderDialog } from './remove-provider-dialog'
 import styles from './style.module.scss'
 
 const failureText: Record<DiscoveryFailure, string> = {
@@ -59,8 +61,11 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
   const [phase, setPhase] = useState<Phase>({ step: 'editing' })
   const [search, setSearch] = useState('')
   const [presets, setPresets] = useState<Map<string, { name: string; baseUrl: string }>>(new Map())
+  const [removing, setRemoving] = useState<UserProvider | null>(null)
   const fieldId = useId()
   const custom = draft.provider === customProviderId
+  const nameOf = (provider: UserProvider) =>
+    provider.label || presets.get(provider.id)?.name || provider.id
 
   // pi states each vendor's name and address, so neither is repeated here. They
   // arrive with the provider module, which is why this is a load rather than a
@@ -166,11 +171,9 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
           <ul className={styles.configured}>
             {configured.map(provider => (
               <li key={provider.id}>
-                <span className={styles.name}>
-                  {provider.label || presets.get(provider.id)?.name || provider.id}
-                </span>
+                <span className={styles.name}>{nameOf(provider)}</span>
                 <span className={styles.count}>{provider.models.length} models</span>
-                <button type="button" onClick={() => removeUserProvider(provider.id)}>
+                <button type="button" onClick={() => setRemoving(provider)}>
                   Remove
                 </button>
               </li>
@@ -313,6 +316,17 @@ export const ModelProviderDialog = ({ onClose }: { onClose: () => void }) => {
           </div>
         </fieldset>
       </div>
+      {removing && (
+        <RemoveProviderDialog
+          name={nameOf(removing)}
+          custom={removing.label !== undefined}
+          onCancel={() => setRemoving(null)}
+          onRemove={() => {
+            removeUserProvider(removing.id)
+            setRemoving(null)
+          }}
+        />
+      )}
     </ConfirmationDialog>
   )
 }

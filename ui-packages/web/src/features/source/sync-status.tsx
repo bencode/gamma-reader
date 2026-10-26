@@ -2,9 +2,10 @@ import type { SaveResult } from '@gamma-reader/shared/source-protocol'
 import * as Popover from '@radix-ui/react-popover'
 import { Check, Info, RefreshCw, X } from 'lucide-react'
 import { useState } from 'react'
+import { ConfirmationDialog } from '../../components/confirmation-dialog'
 import type { SourceScope } from '../../core/projects'
 import { changeCount, type FileNote, fileCount, savedText, statusText } from './sync-text'
-import type { SourceSync } from './use-source-sync'
+import type { SourceSync, SourceSyncState } from './use-source-sync'
 
 // Sync from a read-only source only brings it in. What is added or edited here stays here until
 // the source changes the same file, so the line says so whenever there is any.
@@ -55,6 +56,39 @@ const Details = ({ files }: { files: readonly FileNote[] }) => (
   </Popover.Root>
 )
 
+// Updating from a read-only source replaces what was edited here, which nothing brings back, so
+// the reader sees which files first.
+const ReplaceEditsDialog = ({
+  name,
+  paths,
+  onCancel,
+  onUpdate,
+}: {
+  name: string
+  paths: readonly string[]
+  onCancel: () => void
+  onUpdate: () => void
+}) => (
+  <ConfirmationDialog label={`Replace edits in ${name}`} onCancel={onCancel}>
+    <h2>Replace your edits?</h2>
+    <p>{name} changed these files, so updating replaces the edits made to them in this browser:</p>
+    <ul className="dialog-file-list">
+      {paths.map(path => (
+        <li key={path}>{path}</li>
+      ))}
+    </ul>
+    <p>Those edits cannot be recovered.</p>
+    <div className="dialog-actions">
+      <button type="button" className="text-button" onClick={onCancel}>
+        Cancel
+      </button>
+      <button type="button" className="danger-button" onClick={onUpdate}>
+        Update and replace
+      </button>
+    </div>
+  </ConfirmationDialog>
+)
+
 // What is waiting to be saved to a writable source, or why it cannot be.
 const unsaved = (name: string, sync: SourceSync) =>
   sync.saveBlocked
@@ -77,6 +111,9 @@ export const SourceSyncStatus = ({
 }) => {
   const { state, localChanges } = sync
   const [dismissed, setDismissed] = useState<readonly SaveResult[] | null>(null)
+  // The status the reader was asked about; any newer one, whatever it says, ends the question.
+  const [asked, setAsked] = useState<SourceSyncState | null>(null)
+  const replaces = state.kind === 'available' ? state.replaces : []
   const status = statusText(name, state)
   const saved = state.kind === 'saved' ? savedText(name, state.results, scope) : null
   const notice =
@@ -115,7 +152,7 @@ export const SourceSyncStatus = ({
             type="button"
             className="text-button"
             disabled={sync.busy}
-            onClick={() => void sync.sync()}
+            onClick={() => (replaces.length > 0 ? setAsked(state) : void sync.sync())}
           >
             <RefreshCw size={12} aria-hidden="true" />
             Update
@@ -135,6 +172,17 @@ export const SourceSyncStatus = ({
             <X size={13} />
           </button>
         </div>
+      )}
+      {asked === state && (
+        <ReplaceEditsDialog
+          name={name}
+          paths={replaces}
+          onCancel={() => setAsked(null)}
+          onUpdate={() => {
+            setAsked(null)
+            void sync.sync()
+          }}
+        />
       )}
     </>
   )

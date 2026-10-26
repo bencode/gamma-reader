@@ -5,11 +5,13 @@ import {
   conversationNumber,
   type StoredConversation,
 } from '../../core/conversations'
+import { DeleteConversationDialog } from './delete-conversation-dialog'
 
 type RowState =
   | { kind: 'none' }
   | { kind: 'actions'; id: ConversationId }
   | { kind: 'renaming'; id: ConversationId }
+  | { kind: 'confirming'; id: ConversationId }
   | { kind: 'deleting'; id: ConversationId }
   | { kind: 'failed'; id: ConversationId; message: string }
 
@@ -129,6 +131,8 @@ export const ConversationHistory = ({
     }
   }
 
+  const confirming = row.kind === 'confirming' ? items.find(item => item.id === row.id) : undefined
+
   return (
     <section className="conversation-history" aria-label="Conversation history">
       <header className="conversation-history-header">
@@ -226,7 +230,7 @@ export const ConversationHistory = ({
                       type="button"
                       className="danger"
                       disabled={deletePending}
-                      onClick={() => void remove(conversation.id)}
+                      onClick={() => setRow({ kind: 'confirming', id: conversation.id })}
                     >
                       <Trash2 size={13} />
                       {deletePending ? 'Deleting…' : 'Delete'}
@@ -261,6 +265,13 @@ export const ConversationHistory = ({
           </p>
         )}
       </div>
+      {confirming && (
+        <DeleteConversationDialog
+          title={confirming.title ?? 'New conversation'}
+          onCancel={() => setRow({ kind: 'actions', id: confirming.id })}
+          onDelete={() => void remove(confirming.id)}
+        />
+      )}
     </section>
   )
 }
