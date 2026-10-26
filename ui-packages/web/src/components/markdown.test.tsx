@@ -115,10 +115,9 @@ $$\int_0^1 x\,dx = \frac12$$
     expect(draw).not.toHaveBeenCalled()
     expect(view.container.querySelector('pre')).toHaveTextContent('A --> B')
     view.rerender(<Markdown variant="reader" text={'```mermaid\nflowchart LR\nA --> B\n```'} />)
-    expect(await screen.findByRole('img', { name: 'Mermaid diagram' })).toHaveAttribute(
-      'src',
-      expect.stringContaining('data:image/svg+xml'),
-    )
+    expect(
+      await screen.findByRole('img', { name: 'Mermaid diagram: flowchart LR\nA --> B' }),
+    ).toHaveAttribute('src', expect.stringContaining('data:image/svg+xml'))
     expect(draw).toHaveBeenCalledWith(
       expect.any(String),
       'flowchart LR\nA --> B',
@@ -140,9 +139,9 @@ $$\int_0^1 x\,dx = \frac12$$
   it('preserves a completed diagram while the surrounding message streams', async () => {
     const text = '```mermaid\nflowchart LR\nA --> B\n```'
     const view = render(<Markdown variant="chat" text={text} />)
-    const diagram = await screen.findByRole('img', { name: 'Mermaid diagram' })
+    const diagram = await screen.findByRole('img', { name: /^Mermaid diagram/ })
     view.rerender(<Markdown variant="chat" text={`${text}\n\nMore explanation`} />)
-    expect(screen.getByRole('img', { name: 'Mermaid diagram' })).toBe(diagram)
+    expect(screen.getByRole('img', { name: /^Mermaid diagram/ })).toBe(diagram)
     expect(draw).toHaveBeenCalledTimes(1)
   })
 
@@ -159,7 +158,7 @@ $$\int_0^1 x\,dx = \frac12$$
     const view = render(<Markdown variant="chat" text={'```mermaid\nflowchart LR\nA --> B\n```'} />)
     await waitFor(() => expect(draw).toHaveBeenCalledTimes(1))
     view.rerender(<Markdown variant="chat" text={'```mermaid\nflowchart LR\nC --> D\n```'} />)
-    const diagram = await screen.findByRole('img', { name: 'Mermaid diagram' })
+    const diagram = await screen.findByRole('img', { name: /^Mermaid diagram/ })
     const current = diagram.getAttribute('src')
     resolveOld({ svg: '<svg>Old</svg>' })
     await waitFor(() =>

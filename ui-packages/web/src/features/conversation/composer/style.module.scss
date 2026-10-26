@@ -178,9 +178,3 @@
   white-space: nowrap;
   color: var(--muted);
 }
-
-@media (max-width: 599px) {
-  .composer textarea {
-    font-size: 16px;
-  }
-}

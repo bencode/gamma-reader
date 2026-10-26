@@ -4,19 +4,39 @@ import { Markdown } from '../../components/markdown'
 import { MessageAttachments } from './conversation-attachments'
 import type { ConversationMessage } from './use-conversation'
 
-const toolLabel = (name: string) => {
-  if (name === 'get_reader_state') return 'Checking reading context'
-  if (name === 'list') return 'Looking through files'
-  if (name === 'search') return 'Searching files'
-  if (name === 'read') return 'Reading document'
-  if (name === 'analyze_image') return 'Analyzing image'
-  if (name === 'write') return 'Writing file'
-  if (name === 'web_search') return 'Searching the web'
-  if (name === 'save_from_url') return 'Saving from the web'
-  if (name === 'run_active_lab_cells') return 'Running lab cells'
-  if (name === 'read_active_lab_cells') return 'Reading lab results'
-  return name
-}
+const toolLabels = new Map([
+  ['get_reader_state', 'Checking reading context'],
+  ['list', 'Looking through files'],
+  ['search', 'Searching files'],
+  ['read', 'Reading document'],
+  ['analyze_image', 'Analyzing image'],
+  ['write', 'Writing file'],
+  ['web_search', 'Searching the web'],
+  ['save_from_url', 'Saving from the web'],
+  ['run_active_lab_cells', 'Running lab cells'],
+  ['read_active_lab_cells', 'Reading lab results'],
+  ['read_active_source', 'Reading the open draft'],
+  ['edit_active_source', 'Editing the open draft'],
+  ['open', 'Opening a file'],
+  ['move', 'Moving a file'],
+  ['find_nodes', 'Finding linked notes'],
+  ['get_node', 'Looking up a note'],
+  ['get_links', 'Following links'],
+  ['name_block', 'Naming a passage'],
+  ['read_conversation', 'Reading an earlier conversation'],
+  ['pdf_info', 'Checking the PDF'],
+  ['pdf_outline', 'Reading the PDF outline'],
+  ['analyze_pdf_page', 'Analyzing a PDF page'],
+  ['sheet_info', 'Checking the spreadsheet'],
+  ['sheet_read', 'Reading the spreadsheet'],
+  ['remember', 'Saving to memory'],
+  ['recall_memory', 'Recalling memory'],
+  ['forget', 'Removing from memory'],
+  ['read_memory_source', 'Reading where a memory came from'],
+  ['read_skill', 'Loading guidance'],
+])
+
+export const toolLabel = (name: string) => toolLabels.get(name) ?? name
 
 const CopyAnswer = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false)
