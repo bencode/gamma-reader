@@ -69,3 +69,31 @@ describe('the status of a writable source', () => {
     expect(sync.sync).toHaveBeenCalled()
   })
 })
+
+describe('the status of a read-only source', () => {
+  it('asks only about the update the reader chose, and never again on its own', async () => {
+    const sync = vi.fn(async () => undefined)
+    const at = (state: SourceSyncState) =>
+      ({
+        state,
+        localChanges: 1,
+        writable: false,
+        saveBlocked: false,
+        busy: false,
+        sync,
+      }) as unknown as SourceSync
+    const update: SourceSyncState = { kind: 'available', replaces: ['journal/today.md'] }
+    const { rerender } = render(<SourceSyncStatus name="brain2" sync={at(update)} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Update' }))
+    expect(screen.getByRole('dialog', { name: 'Replace edits in brain2' })).toBeInTheDocument()
+
+    // A check while the question is open, such as on returning to the tab, ends it; a later update
+    // waits for the reader to click again.
+    rerender(<SourceSyncStatus name="brain2" sync={at({ kind: 'current' })} />)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    rerender(<SourceSyncStatus name="brain2" sync={at({ ...update })} />)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(sync).not.toHaveBeenCalled()
+  })
+})
