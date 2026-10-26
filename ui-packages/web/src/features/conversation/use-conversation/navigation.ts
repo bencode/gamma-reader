@@ -8,7 +8,13 @@ import {
   removeStoredConversation,
   touchStoredConversation,
 } from '../../../data/conversation-store'
-import { attachAgent, disposeAgent, openSession, releaseSession } from './agent-session'
+import {
+  attachAgent,
+  disposeAgent,
+  flushInFlight,
+  openSession,
+  releaseSession,
+} from './agent-session'
 import { currentDraft, updateDraft } from './drafts'
 import { isPersisted, markPersisted, placeFirst, remove, replace, settle } from './history'
 import {
@@ -79,6 +85,17 @@ export const start = (ctx: Ctx) => {
   const { runtime, store } = ctx
   const controller = new AbortController()
   const configPromise = loadConfig(controller.signal)
+  // The conversation's guard against a dying tab, the class the workspace already has: every
+  // conversation mid-answer — the open one and any answering in the background — writes what
+  // streamed as the tab hides or goes away.
+  const flush = () => {
+    ctx.runtime.sessions.forEach(session => void flushInFlight({ app: ctx, session }))
+  }
+  const flushOnceHidden = () => {
+    if (document.hidden) flush()
+  }
+  window.addEventListener('pagehide', flush)
+  document.addEventListener('visibilitychange', flushOnceHidden)
   void (async () => {
     const placeholder = activeSession(ctx)
     let conversation = getConversation(placeholder)
@@ -116,6 +133,8 @@ export const start = (ctx: Ctx) => {
     attachAgent(s, s.session.runtime.rawMessages)
   })()
   return () => {
+    window.removeEventListener('pagehide', flush)
+    document.removeEventListener('visibilitychange', flushOnceHidden)
     controller.abort()
     runtime.sessions.forEach(session => {
       session.runtime.compaction?.abort()

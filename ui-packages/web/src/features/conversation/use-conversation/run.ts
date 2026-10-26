@@ -10,6 +10,7 @@ import {
   type FileReference,
   isReaderUserMessage,
 } from '../../../core/reader-message'
+import { appendStoredConversationMessages } from '../../../data/conversation-store'
 import { refresh, releaseSession } from './agent-session'
 import { compactBeforeSending, recoverFromOverflow } from './compaction'
 import { queueDraft, restoreToDraft, takeQueued } from './drafts'
@@ -20,6 +21,7 @@ import {
   type Ctx,
   getConversation,
   isActive,
+  reportStorageError,
   type SessionCtx,
   setActivity,
   setConversation,
@@ -56,6 +58,19 @@ const run = async (s: SessionCtx, agent: Agent, batch: readonly ConversationDraf
         return
       }
       store.setState({ phase: 'running' })
+      // The question is written the moment it is sent, so it never exists only in
+      // memory: a tab that dies mid-answer loses no word the reader typed. A failed
+      // write is reported; the run goes on, as the message_end persist retries it.
+      try {
+        await appendStoredConversationMessages({
+          conversation: getConversation(s),
+          startPosition: runtime.persistedMessageCount,
+          messages,
+        })
+        runtime.persistedMessageCount += messages.length
+      } catch (cause) {
+        reportStorageError(s.app, cause)
+      }
       try {
         await agent.prompt(messages)
         if (runtime.agent === agent) await recoverFromOverflow(s, agent)
