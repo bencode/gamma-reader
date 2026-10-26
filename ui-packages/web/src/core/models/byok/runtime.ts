@@ -52,7 +52,37 @@ const customModel = (id: string, provider: string, baseUrl: string): Model<Api> 
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   // Unknown. Pi reads 0 as no known window, rather than capping replies against a guessed one.
   contextWindow: 0,
-  maxTokens: 4_096,
+  // Unknown as well, so a request sets no ceiling of its own; see `uncapped`.
+  maxTokens: 0,
+})
+
+const ceilingFields = new Set(['max_tokens', 'max_completion_tokens'])
+
+/**
+ * Pi always sends an output ceiling, at least 1 token. An endpoint that names
+ * none applies the model's own, while one above that limit is often refused
+ * outright, so a request whose caller set no ceiling goes without.
+ */
+const uncapped = (provider: Provider): Provider => ({
+  ...provider,
+  streamSimple: (model, context, options) =>
+    provider.streamSimple(
+      model,
+      context,
+      options?.maxTokens
+        ? options
+        : {
+            ...options,
+            onPayload: async (payload, payloadModel) => {
+              const params = (await options?.onPayload?.(payload, payloadModel)) ?? payload
+              return Object.fromEntries(
+                Object.entries(params as Record<string, unknown>).filter(
+                  ([field]) => !ceilingFields.has(field),
+                ),
+              )
+            },
+          },
+    ),
 })
 
 /**
@@ -62,14 +92,16 @@ const customModel = (id: string, provider: string, baseUrl: string): Model<Api> 
  * through `apiKeyFor`, never from an environment.
  */
 const customProvider = (configured: UserProvider, id: string, baseUrl: string) =>
-  createProvider({
-    id,
-    name: configured.label?.trim() || baseUrl,
-    baseUrl,
-    auth: { apiKey: envApiKeyAuth(configured.label?.trim() || id, []) },
-    models: configured.models.map(model => customModel(model, id, baseUrl)),
-    api: openAICompletionsApi(),
-  })
+  uncapped(
+    createProvider({
+      id,
+      name: configured.label?.trim() || baseUrl,
+      baseUrl,
+      auth: { apiKey: envApiKeyAuth(configured.label?.trim() || id, []) },
+      models: configured.models.map(model => customModel(model, id, baseUrl)),
+      api: openAICompletionsApi(),
+    }),
+  )
 
 export type RegisteredProvider = {
   id: string

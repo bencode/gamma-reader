@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { saveUserProvider } from '../core/models/byok/store'
 import { modelConfig as config } from '../test/model-config'
 import { testProject } from '../test/project'
 import { Workbench } from './workbench'
@@ -72,5 +73,48 @@ describe('a reader who brought their own key', () => {
     expect(sent[0]?.authorization).toBe('Bearer sk-the-readers-own')
     // The promise this whole approach rests on.
     expect(sent.every(request => !request.url.includes('/api/agent/'))).toBe(true)
+  })
+
+  it('says when the model a conversation runs on with that key is gone', async () => {
+    const user = userEvent.setup({ delay: null })
+    saveUserProvider({ id: 'deepseek', apiKey: 'sk-the-readers-own', models: ['deepseek-v4-pro'] })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async url =>
+      String(url) === '/api/agent/config' ? Response.json(config) : reply('An answer'),
+    )
+
+    open()
+    const own = await screen.findByRole('group', { name: 'DeepSeek (your key)' })
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Chat model' }),
+      within(own).getByRole('option', { name: 'DeepSeek V4 Pro' }),
+    )
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Chat model' }),
+      'Add your own model…',
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'Model providers' })
+    await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
+    await user.click(
+      within(screen.getByRole('dialog', { name: 'Remove DeepSeek' })).getByRole('button', {
+        name: 'Remove',
+      }),
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+
+    // The next message would go through our server, so this is said before it is sent.
+    const notice = await screen.findByRole('alert')
+    expect(notice.textContent).toContain('deepseek-v4-pro (your key) is no longer set up')
+    expect(notice.textContent).toContain('(free)')
+
+    const models = screen.getByRole('combobox', { name: 'Chat model' })
+    const other = within(models)
+      .getAllByRole('option')
+      .find(
+        option =>
+          !(option as HTMLOptionElement).selected && option.textContent !== 'Add your own model…',
+      )
+    if (!other) throw new Error('no other model to choose')
+    await user.selectOptions(models, other)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

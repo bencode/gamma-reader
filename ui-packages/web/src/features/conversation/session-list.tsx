@@ -1,4 +1,4 @@
-import { ChevronRight, LoaderCircle } from 'lucide-react'
+import { ChevronRight, CircleAlert, LoaderCircle } from 'lucide-react'
 import { useState } from 'react'
 import {
   type ConversationId,
@@ -50,6 +50,14 @@ export const SessionList = ({
                   )}
                   {activity[conversation.id] === 'unread' && (
                     <span className="session-unread" role="img" aria-label="New reply" />
+                  )}
+                  {activity[conversation.id] === 'failed' && (
+                    <CircleAlert
+                      className="session-failed"
+                      size={13}
+                      role="img"
+                      aria-label="Reply failed"
+                    />
                   )}
                 </span>
                 <span className="session-title">{title}</span>

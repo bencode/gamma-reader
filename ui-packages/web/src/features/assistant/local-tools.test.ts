@@ -226,6 +226,16 @@ describe('local reader tools', () => {
     await expect(tools.read({ fileId: bad.addedIds[0] ?? '' })).rejects.toThrow('UTF-8')
   })
 
+  it('names the conversion an older Office file needs, rather than calling it text', async () => {
+    const id = await add('Report.doc', 'binary', 'application/msword')
+
+    const { files } = await tools.list({ path: 'Report' })
+    expect(files).toMatchObject([
+      { id, textReadable: false, reason: expect.stringContaining('.docx') },
+    ])
+    await expect(tools.read({ fileId: id })).rejects.toThrow('Save it as .docx')
+  })
+
   it('uses PDF page ranges and releases resources on success and failure', async () => {
     pdf.failPage = 0
     const id = await add('Pages.pdf', 'PDF fixture', 'application/pdf')

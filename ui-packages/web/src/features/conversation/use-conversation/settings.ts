@@ -33,6 +33,8 @@ export const configureModel = (ctx: Ctx, selection: ModelSelection) => {
   }
   agent.state.model = state.model
   agent.state.thinkingLevel = state.thinkingLevel
+  // Clears the notice that the conversation's own model was gone, now that the reader has chosen.
+  store.setState({ error: undefined })
   setConversation(s, next)
   void queueDraft(s, next, true)
 }
