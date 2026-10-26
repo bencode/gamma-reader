@@ -180,7 +180,7 @@ export const Workbench = ({ project }: { project: Project }) => {
       switcher={
         <ProjectSwitcher
           project={project}
-          fileCount={library.files.length}
+          files={library.files}
           exporter={exporter}
           onOpenMemory={() => openFromFiles(viewTabId('memory'))}
         />

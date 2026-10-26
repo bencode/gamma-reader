@@ -117,6 +117,14 @@ export const previewKindFor = (name: string, mediaType: string): PreviewKind => 
   return 'unsupported'
 }
 
+// Older Office formats are binary; only their successors, .docx and .xlsx, are read here.
+const legacyOffice = new Set(['doc', 'xls'])
+
+export const legacyOfficeFormat = (path: string) => {
+  const extension = extensionOf(path)
+  return legacyOffice.has(extension) ? extension : undefined
+}
+
 const maximumPathLength = 1024
 
 // A path is relative and every '/'-separated segment names something. Any character a file

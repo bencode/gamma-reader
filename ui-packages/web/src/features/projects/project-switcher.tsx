@@ -1,6 +1,7 @@
 import * as Popover from '@radix-ui/react-popover'
 import { BookOpen, Check, ChevronDown, ExternalLink } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import type { StoredFileMetadata } from '../../core/files'
 import { normalizeProjectName, type Project, projectTitle } from '../../core/projects'
 import { listProjects, renameProject } from '../../data/project-store'
 import type { FileExportController } from '../resources/use-file-export'
@@ -65,7 +66,7 @@ const RenameForm = ({
 type ProjectSwitcherProps =
   | {
       project: Project
-      fileCount: number
+      files: readonly StoredFileMetadata[]
       exporter: FileExportController
       onOpenMemory: () => void
     }
@@ -222,7 +223,7 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
       {deleting && props.project && current && (
         <DeleteProjectDialog
           project={current}
-          fileCount={props.fileCount}
+          files={props.files}
           exporter={props.exporter}
           onCancel={() => setDeleting(false)}
         />

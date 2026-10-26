@@ -43,8 +43,9 @@ export type Session = {
   drafts: ReturnType<typeof createDraftQueue>
 }
 
-// A conversation answering in the background, or one that finished there and is not yet seen.
-export type Activity = 'running' | 'unread'
+// A conversation answering in the background, or one whose reply ended there, delivered or
+// failed, and is not yet seen.
+export type Activity = 'running' | 'unread' | 'failed'
 
 // The controller's own state: which conversation is open, and what spans conversations.
 export type ConversationState = {

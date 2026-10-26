@@ -1,5 +1,6 @@
 import { LocalToolError } from '../../core/agent/tool'
 import {
+  legacyOfficeFormat,
   maximumTextPreviewBytes,
   type PreviewKind,
   type StoredFileMetadata,
@@ -16,10 +17,17 @@ import { createXlsxRuntime, type XlsxRuntime } from './xlsx/runtime'
 // decode as UTF-8, so only the size of the decoded text needs a bound up front.
 const convertedKinds = new Set<PreviewKind>(['pdf', 'docx', 'xlsx'])
 
-const getReadability = (file: StoredFileMetadata) =>
-  convertedKinds.has(file.previewKind) || file.size <= maximumTextPreviewBytes
+const getReadability = (file: StoredFileMetadata) => {
+  const legacy = legacyOfficeFormat(file.path)
+  if (legacy)
+    return {
+      textReadable: false,
+      reason: `This is an older .${legacy} file, which cannot be read here. Save it as .${legacy}x to read it.`,
+    }
+  return convertedKinds.has(file.previewKind) || file.size <= maximumTextPreviewBytes
     ? { textReadable: true }
     : { textReadable: false, reason: 'Text reading is limited to files of 5 MiB or less.' }
+}
 
 export const createReaderDocumentAccess = (
   pdf: PdfRuntime,

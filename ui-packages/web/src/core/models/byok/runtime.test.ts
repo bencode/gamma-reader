@@ -125,11 +125,12 @@ const sseReply = () => {
 }
 
 const requestFor = async (configured: Parameters<typeof registerUserProviders>[1]) => {
-  const sent: { url: string; authorization: string | null }[] = []
+  const sent: { url: string; authorization: string | null; body: Record<string, unknown> }[] = []
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
     sent.push({
       url: String(url),
       authorization: new Headers(init?.headers).get('authorization'),
+      body: JSON.parse(String(init?.body)),
     })
     return sseReply()
   })
@@ -179,5 +180,8 @@ describe('the request a registered provider sends', () => {
 
     expect(request?.url).toContain('https://llm.example.com/v1')
     expect(request?.authorization).toBe('Bearer sk-the-readers-own')
+    // Nothing states how long it may answer, so the endpoint's own limit applies.
+    expect(request?.body).not.toHaveProperty('max_tokens')
+    expect(request?.body).not.toHaveProperty('max_completion_tokens')
   })
 })

@@ -653,6 +653,9 @@ svg {
   border-radius: 50%;
   background: var(--accent);
 }
+.session-failed {
+  color: oklch(0.5 0.16 25);
+}
 .session-title {
   flex: 1;
   min-width: 0;

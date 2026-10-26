@@ -40,12 +40,12 @@ const loadConfig = (signal: AbortSignal) =>
     )
 
 // Makes a conversation in memory the open one: the tray takes its draft attachments and its
-// unread mark goes. It runs without awaiting, so a reply cannot finish and release it midway.
+// unread or failed mark goes. It runs without awaiting, so a reply cannot finish and release it midway.
 const activate = (ctx: Ctx, s: SessionCtx) => {
   const conversation = getConversation(s)
   ctx.store.setState({ activeId: conversation.id, session: s.session.store, view: 'chat' })
-  if (ctx.store.getState().activity[conversation.id] === 'unread')
-    setActivity(ctx, conversation.id, null)
+  const mark = ctx.store.getState().activity[conversation.id]
+  if (mark === 'unread' || mark === 'failed') setActivity(ctx, conversation.id, null)
   ctx.attachments.replaceReady(conversation.draft.attachments)
 }
 

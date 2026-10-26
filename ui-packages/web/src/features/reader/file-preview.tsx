@@ -1,5 +1,5 @@
 import { lazy, type RefObject, Suspense, useEffect, useState } from 'react'
-import type { StoredFileMetadata } from '../../core/files'
+import { legacyOfficeFormat, type StoredFileMetadata } from '../../core/files'
 import type { ReadingPositionProps } from '../../core/reading-position'
 import { getStoredFile } from '../../data/file-store'
 import { formatBytes } from '../../utils/bytes'
@@ -75,15 +75,21 @@ export const FilePreview = ({
     }
   }, [active, document.id, document.previewKind, document.revision, pdfSources, textReader])
 
-  if (document.previewKind === 'unsupported' && !textReader)
+  if (document.previewKind === 'unsupported' && !textReader) {
+    const legacy = legacyOfficeFormat(document.path)
     return (
       <div className="preview-state unavailable-preview">
         <h1>Preview unavailable</h1>
         <p>{document.path}</p>
         <span>{formatBytes(document.size)}</span>
-        <p>This file is stored locally and can be used as context in a later iteration.</p>
+        <p>
+          {legacy
+            ? `Save it as .${legacy}x to open it here.`
+            : 'There is no preview for this format.'}
+        </p>
       </div>
     )
+  }
 
   if (state.status === 'error' && state.id === document.id && state.revision === document.revision)
     return (

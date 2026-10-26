@@ -29,12 +29,13 @@ import {
 import { nameConversation } from './titles'
 
 // A reply that ends in the open conversation simply ends; one that ends in the background marks
-// its conversation unread and lets it leave memory.
-const settle = (s: SessionCtx) => {
+// its conversation unread and lets it leave memory. A failed one stays until it is seen, so its
+// reason and the draft it handed back are still there.
+const settle = (s: SessionCtx, failed: boolean) => {
   const { id } = getConversation(s)
   if (isActive(s)) return setActivity(s.app, id, null)
-  setActivity(s.app, id, 'unread')
-  releaseSession(s)
+  setActivity(s.app, id, failed ? 'failed' : 'unread')
+  if (!failed) releaseSession(s)
 }
 
 // Queued messages join the run at its next turn; whatever is left when it stops, including after
@@ -44,6 +45,7 @@ const run = async (s: SessionCtx, agent: Agent, batch: readonly ConversationDraf
   runtime.busy = true
   setActivity(s.app, getConversation(s).id, 'running')
   store.setState({ error: undefined })
+  let failed = false
   try {
     for (let items = batch; items.length; items = takeQueued(s)) {
       store.setState({ phase: 'running' })
@@ -76,6 +78,7 @@ const run = async (s: SessionCtx, agent: Agent, batch: readonly ConversationDraf
         if (runtime.agent === agent) await recoverFromOverflow(s, agent)
       } catch (cause) {
         if (runtime.agent !== agent) return
+        failed = true
         store.setState({
           error: cause instanceof Error ? cause.message : 'Could not send the message.',
         })
@@ -89,6 +92,7 @@ const run = async (s: SessionCtx, agent: Agent, batch: readonly ConversationDraf
       if (runtime.agent !== agent) return
       nameConversation(s, agent, foldQueued(emptyConversationDraft(), items))
       if (failedRun(agent)) {
+        failed = true
         restoreToDraft(s, takeQueued(s))
         return
       }
@@ -101,7 +105,7 @@ const run = async (s: SessionCtx, agent: Agent, batch: readonly ConversationDraf
       })
       refresh(s, agent)
       store.setState({ phase: 'ready' })
-      settle(s)
+      settle(s, failed)
     }
   }
 }

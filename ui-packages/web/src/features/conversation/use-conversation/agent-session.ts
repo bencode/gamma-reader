@@ -1,6 +1,12 @@
 import type { Agent, AgentMessage } from '@earendil-works/pi-agent-core'
+import type { Api, Model } from '@earendil-works/pi-ai'
 import type { StoreApi } from 'zustand/vanilla'
-import { conversationTitle, type StoredConversation } from '../../../core/conversations'
+import {
+  conversationTitle,
+  type ModelSelection,
+  type StoredConversation,
+} from '../../../core/conversations'
+import { isUserProvider } from '../../../core/models/byok/runtime'
 import { resolveModelSelection } from '../../../core/models/model-selection'
 import { createReaderUserMessage, isReaderUserMessage } from '../../../core/reader-message'
 import { appendStoredConversationMessages } from '../../../data/conversation-store'
@@ -106,8 +112,10 @@ export const attachAgent = (s: SessionCtx, storedMessages: readonly AgentMessage
   if (configState.kind === 'error')
     return store.setState({ error: configState.message, phase: 'error' })
   let agent: Agent
+  let notice: string | undefined
   try {
     const state = resolveModelSelection(configState.runtime, conversation.selection)
+    notice = lostOwnModel(conversation.selection, state.model)
     agent = createReaderAgent(configState.runtime, s.app.tools, {
       id: conversation.id,
       messages: storedMessages,
@@ -153,8 +161,17 @@ export const attachAgent = (s: SessionCtx, storedMessages: readonly AgentMessage
     refresh(s, agent)
     if (event.type === 'message_end') await persistAgentMessages(s, agent)
   })
-  store.setState({ error: undefined, phase: 'ready' })
+  store.setState({ error: notice, phase: 'ready' })
 }
+
+// A conversation on a key of the reader's own that falls back elsewhere, most often to the free
+// allowance through our server, says so before anything more is sent.
+const lostOwnModel = (requested: ModelSelection | undefined, model: Model<Api>) =>
+  requested &&
+  isUserProvider(requested.provider) &&
+  (requested.provider !== model.provider || requested.modelId !== model.id)
+    ? `${requested.modelId} (your key) is no longer set up, so this conversation now uses ${model.name} (${isUserProvider(model.provider) ? 'your key' : 'free'}).`
+    : undefined
 
 // A tab that hides or dies keeps what already streamed: the messages still pending and the
 // partial reply are written without advancing the count a surviving run re-persists from, so a
