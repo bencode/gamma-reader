@@ -1,7 +1,7 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { ConversationId } from '../../../core/conversations'
 import { loadModelConfig } from '../../../core/models/model-config'
-import { createModelRuntime } from '../../../core/models/model-runtime'
+import { createChatRuntime } from '../../../core/models/model-runtime'
 import {
   getStoredConversation,
   listStoredConversations,
@@ -21,11 +21,10 @@ import { activeSession, type Ctx, getConversation, type SessionCtx, setActivity 
 
 const loadConfig = (signal: AbortSignal) =>
   loadModelConfig(signal)
-    .then<ConfigState>(async config =>
-      config.enabled
-        ? { kind: 'enabled', runtime: await createModelRuntime(config), config }
-        : { kind: 'unavailable' },
-    )
+    .then<ConfigState>(async config => {
+      const chat = await createChatRuntime(config)
+      return chat ? { kind: 'enabled', ...chat } : { kind: 'unavailable' }
+    })
     .catch(
       (cause): ConfigState => ({
         kind: 'error',
