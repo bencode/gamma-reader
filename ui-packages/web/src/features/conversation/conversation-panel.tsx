@@ -92,7 +92,7 @@ export const ConversationPanel = ({
       : phase === 'connecting'
         ? 'Connecting…'
         : phase === 'unavailable'
-          ? 'Chat is currently unavailable.'
+          ? 'No chat model is configured. Add your own key to chat.'
           : phase === 'compacting'
             ? 'Summarizing earlier messages…'
             : undefined
@@ -210,6 +210,17 @@ export const ConversationPanel = ({
                   <X size={14} />
                 </button>
               </div>
+            )}
+            {/* The model select that normally carries this entry is absent exactly when no
+                model exists, so the composer area offers it itself. */}
+            {phase === 'unavailable' && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setConfiguringModels(true)}
+              >
+                Add a model to chat
+              </button>
             )}
             <ConversationComposer
               modelConfiguration={conversation.modelConfiguration}

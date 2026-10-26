@@ -2,7 +2,12 @@ import { type Api, createModels, type Model } from '@earendil-works/pi-ai'
 import { deepseekProvider } from '@earendil-works/pi-ai/providers/deepseek'
 import { zaiCodingCnProvider } from '@earendil-works/pi-ai/providers/zai-coding-cn'
 import type { ModelReference, PublicModelConfig } from '@gamma-reader/shared/model-config'
-import { isUserProvider, registerUserProviders, userProviderPrefix } from './byok/runtime'
+import {
+  isUserProvider,
+  registerUserProviders,
+  userProviderId,
+  userProviderPrefix,
+} from './byok/runtime'
 import { userProviders } from './byok/store'
 
 export const models = createModels()
@@ -72,4 +77,31 @@ export const createModelRuntime = async (
     defaultModel: config.defaultModel,
     visionModel: config.visionModel ? proxyModel(config.visionModel, true) : undefined,
   }
+}
+
+/**
+ * The models chat can run on: the server's where it holds keys, otherwise the
+ * reader's own. Null when no model is configured at all, which is the state a
+ * deployment without environment keys opens in.
+ */
+export const createChatRuntime = async (
+  config: PublicModelConfig,
+): Promise<{
+  runtime: ModelRuntime
+  config: Extract<PublicModelConfig, { enabled: true }>
+} | null> => {
+  if (config.enabled) return { runtime: await createModelRuntime(config), config }
+  // A server without keys names no default, so the reader's first chosen model
+  // stands in for it.
+  for (const provider of userProviders()) {
+    const model = provider.models[0]
+    if (!model) continue
+    const own = {
+      enabled: true as const,
+      providers: [],
+      defaultModel: { provider: userProviderId(provider.id), modelId: model },
+    }
+    return { runtime: await createModelRuntime(own), config: own }
+  }
+  return null
 }

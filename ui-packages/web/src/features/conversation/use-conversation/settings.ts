@@ -1,5 +1,5 @@
 import type { ModelSelection } from '../../../core/conversations'
-import { createModelRuntime } from '../../../core/models/model-runtime'
+import { createChatRuntime } from '../../../core/models/model-runtime'
 import { resolveModelSelection } from '../../../core/models/model-selection'
 import { withWebSearch } from '../../assistant/web-tools'
 import { attachAgent } from './agent-session'
@@ -43,18 +43,15 @@ export const setWebSearch = (ctx: Ctx, on: boolean) => {
   void queueDraft(s, next, true)
 }
 
-// Models a reader configured only reach the list once the runtime is rebuilt. A conversation
+// Models a reader configured only reach the list once the runtime is rebuilt — from the
+// server's configuration, or from their own where the server offered none. A conversation
 // answering in the background keeps the models it started with.
 export const refreshProviders = async (ctx: Ctx) => {
   const current = ctx.store.getState().config
-  if (current.kind !== 'enabled') return
-  ctx.store.setState({
-    config: {
-      kind: 'enabled',
-      runtime: await createModelRuntime(current.config),
-      config: current.config,
-    },
-  })
+  const chat = await createChatRuntime(
+    current.kind === 'enabled' ? current.config : { enabled: false },
+  )
+  ctx.store.setState({ config: chat ? { kind: 'enabled', ...chat } : { kind: 'unavailable' } })
   const s = activeSession(ctx)
   attachAgent(s, s.session.runtime.rawMessages)
 }
