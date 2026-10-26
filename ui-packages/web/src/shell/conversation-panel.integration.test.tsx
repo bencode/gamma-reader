@@ -701,6 +701,11 @@ describe('conversation', () => {
       within(activeRow).getByRole('button', { name: 'More actions for First topic' }),
     )
     await user.click(within(activeRow).getByRole('button', { name: 'Delete' }))
+    await user.click(
+      within(screen.getByRole('dialog', { name: 'Delete First topic' })).getByRole('button', {
+        name: 'Delete',
+      }),
+    )
     expect(await screen.findByText('Second answer')).toBeVisible()
   })
 

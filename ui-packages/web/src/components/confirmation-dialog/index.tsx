@@ -27,6 +27,9 @@ export const ConfirmationDialog = ({
       aria-label={label}
       onCancel={event => {
         event.preventDefault()
+        // React passes cancel up through the component tree, so Escape would also close any
+        // dialog or panel this one was opened from.
+        event.stopPropagation()
         onCancel()
       }}
     >
