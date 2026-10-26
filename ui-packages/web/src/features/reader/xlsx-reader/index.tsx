@@ -45,7 +45,7 @@ export const XlsxReader = ({
   )
   // The reader's own place, kept across a hidden tab, which loses its scroll offset.
   const place = useRef(defaultPosition?.kind === 'sheet' ? defaultPosition.scrollTop : 0)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLElement>(null)
   const tableRef = useRef<HTMLTableElement>(null)
 
   useEffect(() => {

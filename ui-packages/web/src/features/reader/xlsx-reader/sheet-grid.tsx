@@ -59,7 +59,7 @@ type SheetGridProps = {
   // Where the grid returns to when it is shown; a hidden tab loses its scroll offset.
   scrollTop: number
   onScrollTopChange: (scrollTop: number) => void
-  scrollRef: RefObject<HTMLDivElement | null>
+  scrollRef: RefObject<HTMLElement | null>
   tableRef: RefObject<HTMLTableElement | null>
 }
 
