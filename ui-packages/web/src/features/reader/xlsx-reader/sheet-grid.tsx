@@ -1,13 +1,51 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { type RefObject, useLayoutEffect, useMemo } from 'react'
-import { cellText, clampColumns, columnLabel, type SheetRow } from '../../../formats/xlsx'
+import { type CSSProperties, type RefObject, useLayoutEffect, useMemo } from 'react'
+import {
+  type CellRange,
+  cellText,
+  clampColumns,
+  columnLabel,
+  type SheetRow,
+} from '../../../formats/xlsx'
 import styles from './style.module.scss'
 
 // The virtualizer places rows by this height, so the stylesheet has to use the same number.
 const rowHeight = 30
 
+const between = (start: number, end: number) =>
+  Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index)
+
+// A merged block reads as one cell: each cell drops the borders it shares with the block, and
+// the value in the top-left cell runs across the block's shown columns. A block reaching past
+// the grid keeps the grid's own edge. Keyed by "row:column".
+const mergedCells = (merges: readonly CellRange[], rows: number, columns: number) =>
+  new Map(
+    merges.flatMap(merge => {
+      const lastRow = Math.min(merge.endRow, rows)
+      const lastColumn = Math.min(merge.endColumn, columns)
+      return between(merge.startRow, lastRow).flatMap(row =>
+        between(merge.startColumn, lastColumn).map(column => {
+          const anchor = row === merge.startRow && column === merge.startColumn
+          const className = [
+            anchor && styles.mergedAnchor,
+            column < lastColumn && styles.mergedRight,
+            row < lastRow && styles.mergedBottom,
+          ]
+          return [
+            `${row}:${column}`,
+            {
+              className: className.filter(Boolean).join(' '),
+              span: anchor ? lastColumn - column + 1 : undefined,
+            },
+          ] as const
+        }),
+      )
+    }),
+  )
+
 type SheetGridProps = {
   rows: readonly SheetRow[]
+  merges?: readonly CellRange[]
   active: boolean
   // Where the grid returns to when it is shown; a hidden tab loses its scroll offset.
   scrollTop: number
@@ -18,6 +56,7 @@ type SheetGridProps = {
 
 export const SheetGrid = ({
   rows,
+  merges,
   active,
   scrollTop,
   onScrollTopChange,
@@ -29,6 +68,10 @@ export const SheetGrid = ({
   const labels = useMemo(
     () => Array.from({ length: columns }, (_, column) => columnLabel(column)),
     [columns],
+  )
+  const merged = useMemo(
+    () => mergedCells(merges ?? [], rows.length, columns),
+    [merges, rows.length, columns],
   )
 
   const virtualizer = useVirtualizer({
@@ -85,9 +128,20 @@ export const SheetGrid = ({
                   <th scope="row" className={styles.rowNumber}>
                     {item.index + 1}
                   </th>
-                  {labels.map((label, column) => (
-                    <td key={label}>{cellText(rows[item.index]?.[column] ?? null)}</td>
-                  ))}
+                  {labels.map((label, column) => {
+                    const text = cellText(rows[item.index]?.[column] ?? null)
+                    const cell = merged.get(`${item.index + 1}:${column + 1}`)
+                    if (!cell) return <td key={label}>{text}</td>
+                    return (
+                      <td
+                        key={label}
+                        className={cell.className}
+                        style={cell.span ? ({ '--span': cell.span } as CSSProperties) : undefined}
+                      >
+                        {cell.span ? <span>{text}</span> : text}
+                      </td>
+                    )
+                  })}
                 </tr>
               ))}
               {after > 0 && <tr aria-hidden style={{ height: after }} />}

@@ -1,3 +1,6 @@
+// A merged block spans several cells, so its text is sized in this unit too.
+$cell-width: 160px;
+
 .reader {
   display: flex;
   flex-direction: column;
@@ -69,8 +72,8 @@
     height: var(--row-height);
     box-sizing: border-box;
     padding: 0 10px;
-    width: 160px;
-    max-width: 160px;
+    width: $cell-width;
+    max-width: $cell-width;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -106,6 +109,27 @@
 
   thead .rowNumber {
     z-index: 3;
+  }
+
+  .mergedRight {
+    border-right-color: transparent;
+  }
+
+  .mergedBottom {
+    border-bottom-color: transparent;
+  }
+
+  // The cell keeps the grid's width; its text takes the width of the whole block instead.
+  .mergedAnchor {
+    overflow: visible;
+    text-overflow: clip;
+
+    > span {
+      display: block;
+      width: calc(var(--span) * #{$cell-width} - 20px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 }
 

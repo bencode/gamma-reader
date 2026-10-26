@@ -4,6 +4,7 @@ import {
   type CellRange,
   columnCount,
   parseRange,
+  rangeLabel,
   selectCells,
   sheetExtent,
   type Worksheet,
@@ -35,6 +36,12 @@ const pickSheet = (sheets: readonly Worksheet[], wanted?: string) => {
   return { number, sheet }
 }
 
+const overlaps = (a: CellRange, b: CellRange) =>
+  a.startRow <= b.endRow &&
+  b.startRow <= a.endRow &&
+  a.startColumn <= b.endColumn &&
+  b.startColumn <= a.endColumn
+
 export const createXlsxTools = (xlsx: XlsxRuntime) => [
   bind(
     'sheet_info',
@@ -50,6 +57,7 @@ export const createXlsxTools = (xlsx: XlsxRuntime) => [
           rows: sheet.rows.length,
           columns: columnCount(sheet.rows),
           extent: sheetExtent(sheet),
+          ...(sheet.merges?.length ? { merged: sheet.merges.map(rangeLabel) } : {}),
         })),
       }
     },
@@ -77,6 +85,8 @@ export const createXlsxTools = (xlsx: XlsxRuntime) => [
       })
       const build = (count: number) => {
         const nextRow = selection.startRow + count
+        const block = { ...range, startRow: selection.startRow, endRow: nextRow - 1 }
+        const merged = sheet.merges?.filter(merge => overlaps(merge, block)).map(rangeLabel) ?? []
         return {
           fileId,
           sheet: sheet.name,
@@ -88,6 +98,7 @@ export const createXlsxTools = (xlsx: XlsxRuntime) => [
             row: selection.startRow + index,
             cells,
           })),
+          ...(merged.length ? { merged } : {}),
           ...(nextRow <= lastRow ? { nextRow } : {}),
         }
       }

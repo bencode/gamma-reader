@@ -1,6 +1,9 @@
+import type { SheetDetails } from './xlsx-package'
+
 export type SheetCell = string | number | boolean | Date | null
 export type SheetRow = readonly SheetCell[]
-export type Worksheet = { name: string; rows: readonly SheetRow[] }
+// A merged block's value sits in its top-left cell; the rest of the block is empty.
+export type Worksheet = { name: string; rows: readonly SheetRow[]; merges?: readonly CellRange[] }
 
 // A wide sheet is rare — nine in ten stay under 35 columns — and rendering hundreds of them
 // costs far more than it shows. The agent still reads every column.
@@ -50,6 +53,9 @@ export const parseRange = (text: string): CellRange | null => {
   }
 }
 
+export const rangeLabel = (range: CellRange) =>
+  `${columnLabel(range.startColumn - 1)}${range.startRow}:${columnLabel(range.endColumn - 1)}${range.endRow}`
+
 export const columnCount = (rows: readonly SheetRow[]) =>
   rows.reduce((widest, row) => Math.max(widest, row.length), 0)
 
@@ -91,7 +97,8 @@ export const sheetText = (sheet: Worksheet) => {
       ...Array.from({ length: columns }, (_, column) => cellText(row[column] ?? null)),
     ].join('\t'),
   )
-  return [heading, letters.join('\t'), ...body].join('\n')
+  const merged = sheet.merges?.length ? [`Merged: ${sheet.merges.map(rangeLabel).join(', ')}`] : []
+  return [heading, ...merged, letters.join('\t'), ...body].join('\n')
 }
 
 export const sheetExtent = (sheet: Worksheet) => {
@@ -124,8 +131,30 @@ export const selectCells = (sheet: Worksheet, range: CellRange): CellSelection =
 // The line-addressable view of the whole workbook, used by the generic read and search tools.
 export const workbookText = (sheets: readonly Worksheet[]) => sheets.map(sheetText).join('\n\n')
 
+// The parser drops empty rows and columns at the end of a sheet, so a recovered cell can lie
+// past the rows it returns.
+const withDetails = (name: string, rows: readonly SheetRow[], details?: SheetDetails) => {
+  if (!details) return { name, rows }
+  const filled = rows.map(row => [...row])
+  for (const { reference, text } of details.cells) {
+    const cell = parseRange(reference)
+    if (!cell) continue
+    while (filled.length < cell.startRow) filled.push([])
+    const row = filled[cell.startRow - 1] ?? []
+    while (row.length < cell.startColumn - 1) row.push(null)
+    row[cell.startColumn - 1] = text
+  }
+  const merges = details.merges.flatMap(merge => parseRange(merge) ?? [])
+  return { name, rows: filled, ...(merges.length ? { merges } : {}) }
+}
+
 export const readSpreadsheet = async (blob: Blob): Promise<Worksheet[]> => {
-  const { default: readXlsxFile } = await import('read-excel-file/browser')
-  const sheets = await readXlsxFile(blob)
-  return sheets.map(sheet => ({ name: sheet.sheet, rows: sheet.data as SheetRow[] }))
+  const [{ default: readXlsxFile }, { readSheetDetails }] = await Promise.all([
+    import('read-excel-file/browser'),
+    import('./xlsx-package'),
+  ])
+  const [sheets, details] = await Promise.all([readXlsxFile(blob), readSheetDetails(blob)])
+  return sheets.map(sheet =>
+    withDetails(sheet.sheet, sheet.data as SheetRow[], details.get(sheet.sheet)),
+  )
 }

@@ -54,6 +54,7 @@ vi.mock('mammoth', () => ({
 
 const xlsx = vi.hoisted(() => ({ read: vi.fn() }))
 vi.mock('read-excel-file/browser', () => ({ default: xlsx.read }))
+vi.mock('../../formats/xlsx-package', () => ({ readSheetDetails: async () => new Map() }))
 
 const config = await createModelRuntime(modelConfig)
 const event = (delta: unknown, finish: string | null = null, tokens = 0) =>

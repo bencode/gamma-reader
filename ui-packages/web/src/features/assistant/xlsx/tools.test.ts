@@ -22,7 +22,11 @@ const workbook: Worksheet[] = [
       ['询单', 3],
     ],
   },
-  { name: '汇总', rows: [['合计', 3]] },
+  {
+    name: '汇总',
+    rows: [['合计', 3]],
+    merges: [{ startRow: 1, endRow: 1, startColumn: 1, endColumn: 2 }],
+  },
 ]
 
 describe('sheet_info', () => {
@@ -31,7 +35,7 @@ describe('sheet_info', () => {
       fileId: 'f',
       sheets: [
         { number: 1, name: '数据', rows: 2, columns: 2, extent: 'A1:B2' },
-        { number: 2, name: '汇总', rows: 1, columns: 2, extent: 'A1:B1' },
+        { number: 2, name: '汇总', rows: 1, columns: 2, extent: 'A1:B1', merged: ['A1:B1'] },
       ],
     })
   })
@@ -53,6 +57,11 @@ describe('sheet_read', () => {
     const byNumber = await call(workbook, 'sheet_read', { fileId: 'f', sheet: '2' })
     expect(byName).toEqual(byNumber)
     expect(byName.sheet).toBe('汇总')
+    // A block the rows touch is named, so a value is read as covering all of it.
+    expect(byName.merged).toEqual(['A1:B1'])
+    expect(
+      await call(workbook, 'sheet_read', { fileId: 'f', sheet: '汇总', range: 'C1' }),
+    ).not.toHaveProperty('merged')
     expect((await call(workbook, 'sheet_read', { fileId: 'f' })).sheet).toBe('数据')
   })
 
