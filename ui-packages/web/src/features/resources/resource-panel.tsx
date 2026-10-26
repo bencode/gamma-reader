@@ -30,6 +30,7 @@ import { ResourceTree } from './resource-tree'
 import type { FileExportController } from './use-file-export'
 import type { FileLibrary } from './use-file-library'
 import type { FileNavigation } from './use-file-navigation'
+import type { FolderExpansion } from './use-folder-expansion'
 
 type ResourcePanelProps = {
   project: Project
@@ -37,6 +38,7 @@ type ResourcePanelProps = {
   switcher: ReactNode
   activeId: string | null
   navigation: FileNavigation
+  folders: FolderExpansion
   library: FileLibrary
   exporter: FileExportController
   sourceSync: SourceSync
@@ -63,6 +65,7 @@ export const ResourcePanel = ({
   switcher,
   activeId,
   navigation,
+  folders,
   library,
   exporter,
   sourceSync,
@@ -316,6 +319,8 @@ export const ResourcePanel = ({
                 files={shownFiles}
                 filter={filter}
                 label="Files"
+                expanded={folders.expanded.files}
+                onToggleExpanded={key => folders.toggle('files', key)}
                 {...rowContext}
                 onRemoveFolder={path => setRemoval({ kind: 'folder', path })}
               />
@@ -326,6 +331,8 @@ export const ResourcePanel = ({
                     files={shownAttachments}
                     filter={filter}
                     label="Attachments"
+                    expanded={folders.expanded.attachments}
+                    onToggleExpanded={key => folders.toggle('attachments', key)}
                     {...rowContext}
                     onRemoveFolder={path => setRemoval({ kind: 'folder', path })}
                   />

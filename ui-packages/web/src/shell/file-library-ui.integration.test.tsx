@@ -163,7 +163,7 @@ describe('file library', () => {
     expect(screen.queryByText('Browser copy removed.')).not.toBeInTheDocument()
   })
 
-  it('shows files on paths inside folded folders that open on request', async () => {
+  it('shows files on paths inside folded folders that open on request and stay open', async () => {
     const user = userEvent.setup({ delay: null })
     await writeStoredTextFile('src/core/files.ts', 'export const kind = "core"')
     await writeStoredTextFile('src/app.ts', 'export const kind = "app"')
@@ -174,11 +174,16 @@ describe('file library', () => {
     )
     await waitForFiles()
 
-    const folder = filesList().getByRole('button', { name: 'src' })
-    expect(folder).toHaveAttribute('aria-expanded', 'false')
+    const folder = () => filesList().getByRole('button', { name: 'src' })
+    expect(folder()).toHaveAttribute('aria-expanded', 'false')
     expect(filesList().queryByRole('button', { name: 'app.ts' })).toBeNull()
 
-    await user.click(folder)
+    await user.click(folder())
+    // Hiding Files unmounts the tree; the folders opened by hand are still open when it comes back.
+    await user.click(screen.getByRole('button', { name: 'Hide files' }))
+    await user.click(screen.getByRole('button', { name: 'Open files' }))
+    await waitForFiles()
+    expect(folder()).toHaveAttribute('aria-expanded', 'true')
     await user.click(filesList().getByRole('button', { name: 'core' }))
     const nested = filesList().getByRole('button', { name: 'files.ts' })
     expect(nested).toHaveAttribute('title', expect.stringContaining('src/core/files.ts'))
@@ -188,7 +193,7 @@ describe('file library', () => {
       'true',
     )
 
-    await user.click(folder)
+    await user.click(folder())
     expect(filesList().queryByRole('button', { name: 'files.ts' })).toBeNull()
   })
 

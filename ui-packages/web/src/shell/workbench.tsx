@@ -21,6 +21,7 @@ import { ResourcePanel } from '../features/resources/resource-panel'
 import { useFileExport } from '../features/resources/use-file-export'
 import { useFileLibrary } from '../features/resources/use-file-library'
 import { useFileNavigation } from '../features/resources/use-file-navigation'
+import { useFolderExpansion } from '../features/resources/use-folder-expansion'
 import { SaveDeletionsDialog, SourceSaveControl } from '../features/source/source-save-control'
 import { useSourceSync } from '../features/source/use-source-sync'
 import { useWorkspace } from '../features/workspace/use-workspace'
@@ -76,6 +77,7 @@ export const Workbench = ({ project }: { project: Project }) => {
     !library.loading && !library.error,
     workspace.activeId,
   )
+  const folders = useFolderExpansion(library.files, workspace.activeId)
   const { widths, saveWidths } = usePanelWidths()
   const groupElementRef = useRef<HTMLDivElement>(null)
   const mode = useSyncExternalStore(subscribeMode, getMode)
@@ -187,6 +189,7 @@ export const Workbench = ({ project }: { project: Project }) => {
       }
       activeId={workspace.activeId}
       navigation={navigation}
+      folders={folders}
       library={library}
       exporter={exporter}
       sourceSync={sourceSync}
