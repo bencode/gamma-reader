@@ -331,7 +331,10 @@ describe('embeds and backlinks in a Markdown note', () => {
     expect(sketch.closest('[style]')).toHaveStyle({ width: '640px' })
     const page = await waitFor(() => {
       const frame = window.document.querySelector('iframe[title="demo.html"]')
-      expect(frame).toHaveAttribute('sandbox', 'allow-scripts')
+      expect(frame).toHaveAttribute(
+        'sandbox',
+        'allow-scripts allow-popups allow-popups-to-escape-sandbox',
+      )
       return frame
     })
     expect(page?.closest('[style]')).toHaveStyle({ width: '800px', height: '500px' })

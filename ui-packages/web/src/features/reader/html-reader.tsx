@@ -1,6 +1,6 @@
 import { Play } from 'lucide-react'
 import { useState } from 'react'
-import { useHtmlPageUrl } from './html-images'
+import { useHtmlPageUrl } from './html-page'
 import type { TextReaderProps } from './text-reader'
 
 export const HtmlReader = ({ document, content, files }: TextReaderProps) => {
@@ -26,7 +26,7 @@ export const HtmlReader = ({ document, content, files }: TextReaderProps) => {
           className="html-preview"
           src={url}
           title={document.path}
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
           referrerPolicy="no-referrer"
         />
       ) : (

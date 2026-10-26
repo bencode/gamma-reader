@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { importStoredFiles, listStoredFiles } from '../../data/file-store'
-import { withLibraryImages } from './html-images'
+import { framePage } from './html-page'
 
-describe('withLibraryImages', () => {
+describe('framePage', () => {
   it('hands a page the library images it names, and leaves other pages as written', async () => {
     await importStoredFiles(
       [
@@ -15,7 +15,7 @@ describe('withLibraryImages', () => {
     )
     const files = await listStoredFiles()
 
-    const shown = await withLibraryImages(
+    const shown = await framePage(
       '<img src="images/fig.gif"><img src="https://cdn.example/logo.png">',
       'page/page.html',
       files,
@@ -27,6 +27,24 @@ describe('withLibraryImages', () => {
         image.getAttribute('src'),
       ),
     ).toEqual([`data:image/gif;base64,${btoa('GIF89a')}`, 'https://cdn.example/logo.png'])
-    expect(await withLibraryImages(untouched, 'page/page.html', files)).toBe(untouched)
+    expect(await framePage(untouched, 'page/page.html', files)).toBe(untouched)
+  })
+
+  it('opens a link to the web in a new tab, and leaves a link within the page in the frame', async () => {
+    const shown = await framePage(
+      '<a href="https://example.com/paper">Paper</a><a href="#method">Method</a>',
+      'page/page.html',
+      [],
+    )
+
+    expect(
+      [...new DOMParser().parseFromString(shown, 'text/html').links].map(link => [
+        link.getAttribute('href'),
+        link.getAttribute('target'),
+      ]),
+    ).toEqual([
+      ['https://example.com/paper', '_blank'],
+      ['#method', null],
+    ])
   })
 })
