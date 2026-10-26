@@ -106,4 +106,17 @@ describe('unconverted Word content', () => {
     )
     expect(markdown).toBe('Commented text(1)\n\nComment (1)\n\nCheck this figure')
   })
+
+  it('says a document still under review is shown with its tracked changes accepted', async () => {
+    const revision = (kind: 'ins' | 'del', text: string) =>
+      `<w:${kind} w:id="1" w:author="Alice" w:date="2026-10-01T00:00:00Z"><w:r><w:${kind === 'del' ? 'delText' : 't'} xml:space="preserve">${text}</w:${kind === 'del' ? 'delText' : 't'}></w:r></w:${kind}>`
+    const { markdown } = await convertDocxToMarkdown(
+      await docx(
+        `<w:p><w:r><w:t xml:space="preserve">Pay </w:t></w:r>${revision('del', 'one dollar')}${revision('ins', 'five hundred dollars')}</w:p>`,
+      ),
+    )
+    expect(markdown).toBe(
+      '*(2 tracked changes by Alice are not yet accepted or rejected; shown here as accepted, with the changed text unmarked)*\n\nPay five hundred dollars',
+    )
+  })
 })

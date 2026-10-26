@@ -25,12 +25,12 @@ const insideChoice = (element: Element) => {
 
 // Italic and in parentheses: square brackets would come out of Markdown escaping as \[…\],
 // which the reader renders as display math.
-const marker = (document: Document, label: string) => {
+const marker = (document: Document, note: string) => {
   const run = document.createElementNS(namespaces.w, 'w:r')
   const properties = document.createElementNS(namespaces.w, 'w:rPr')
   properties.append(document.createElementNS(namespaces.w, 'w:i'))
   const text = document.createElementNS(namespaces.w, 'w:t')
-  text.textContent = `(${label} not converted)`
+  text.textContent = `(${note})`
   run.append(properties, text)
   return run
 }
@@ -40,9 +40,9 @@ const markInPlace = (target: Element, label: string) => {
   const run = target.parentElement
   const document = target.ownerDocument
   if (run?.namespaceURI === namespaces.w && run.localName === 'r') {
-    run.after(marker(document, label))
+    run.after(marker(document, `${label} not converted`))
     target.remove()
-  } else target.replaceWith(marker(document, label))
+  } else target.replaceWith(marker(document, `${label} not converted`))
 }
 
 // Each rule names content Mammoth drops without trace; styles and anything it keeps stay out.
@@ -82,6 +82,35 @@ const markObjects = (document: Document) => {
   return bare.length
 }
 
+// Mammoth shows a document under review as if every tracked change were accepted, with the
+// deleted text gone. Only changes to text count; a change to a paragraph mark or format has none.
+const notePendingRevisions = (document: Document) => {
+  const revisions = [
+    ...elements(document, namespaces.w, 'ins'),
+    ...elements(document, namespaces.w, 'del'),
+  ].filter(revision => !insideChoice(revision) && contains(revision, namespaces.w, 'r'))
+  const body = elements(document, namespaces.w, 'body')[0]
+  if (!revisions.length || !body) return 0
+  const authors = [
+    ...new Set(
+      revisions.flatMap(revision => revision.getAttributeNS(namespaces.w, 'author') || []),
+    ),
+  ]
+  const changes =
+    revisions.length === 1 ? '1 tracked change' : `${revisions.length} tracked changes`
+  const by = authors.length ? ` by ${authors.join(', ')}` : ''
+  const verb = revisions.length === 1 ? 'is' : 'are'
+  const paragraph = document.createElementNS(namespaces.w, 'w:p')
+  paragraph.append(
+    marker(
+      document,
+      `${changes}${by} ${verb} not yet accepted or rejected; shown here as accepted, with the changed text unmarked`,
+    ),
+  )
+  body.prepend(paragraph)
+  return revisions.length
+}
+
 /** Puts a visible marker where Mammoth would silently drop content; other documents pass through untouched. */
 export const markUnconvertedContent = async (docx: ArrayBuffer): Promise<ArrayBuffer> => {
   // Anything that is not a zip package has nothing to mark; Mammoth reports it as it always has.
@@ -91,7 +120,11 @@ export const markUnconvertedContent = async (docx: ArrayBuffer): Promise<ArrayBu
   const entry = zip.file(documentPath)
   if (!entry) return docx
   const document = new DOMParser().parseFromString(await entry.async('string'), 'application/xml')
-  const marked = markEquations(document) + markDrawings(document) + markObjects(document)
+  const marked =
+    markEquations(document) +
+    markDrawings(document) +
+    markObjects(document) +
+    notePendingRevisions(document)
   if (marked === 0) return docx
   zip.file(documentPath, new XMLSerializer().serializeToString(document))
   return zip.generateAsync({ type: 'arraybuffer', compression: 'STORE' })
