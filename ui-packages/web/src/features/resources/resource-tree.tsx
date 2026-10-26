@@ -2,17 +2,21 @@ import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { StoredFileMetadata } from '../../core/files'
 import { FileRow, type FileRowContext } from './file-row'
-import { ancestorFolders, buildFileTree, type FileTreeNode } from './file-tree'
+import { buildFileTree, type FileTreeNode } from './file-tree'
+import { toggled } from './use-folder-expansion'
 
 type ResourceTreeProps = FileRowContext & {
   files: StoredFileMetadata[]
   // The normalized filter the files were chosen by; empty when nothing is filtered.
   filter: string
   label: 'Files' | 'Attachments'
+  // The folders opened by hand, which the workbench keeps while the panel is closed.
+  expanded: ReadonlySet<string>
+  onToggleExpanded: (key: string) => void
   onRemoveFolder: (path: string) => void
 }
 
-type RowContext = Omit<ResourceTreeProps, 'files' | 'filter'> & {
+type RowContext = Omit<ResourceTreeProps, 'files' | 'filter' | 'expanded' | 'onToggleExpanded'> & {
   isOpen: (key: string) => boolean
   onToggle: (key: string) => void
 }
@@ -66,14 +70,13 @@ const TreeRows = ({
     )
   })
 
-const toggled = (set: ReadonlySet<string>, key: string) => {
-  const next = new Set(set)
-  if (!next.delete(key)) next.add(key)
-  return next
-}
-
-export const ResourceTree = ({ files, filter, ...props }: ResourceTreeProps) => {
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
+export const ResourceTree = ({
+  files,
+  filter,
+  expanded,
+  onToggleExpanded,
+  ...props
+}: ResourceTreeProps) => {
   // A filtered tree shows every folder holding a match open. Folding one there is kept apart from
   // the folders opened by hand, and forgotten when the filter changes, so clearing the filter
   // leaves the tree as it was.
@@ -83,22 +86,9 @@ export const ResourceTree = ({ files, filter, ...props }: ResourceTreeProps) => 
     setCollapsedFor(filter)
     setCollapsed(new Set())
   }
-  const activePath = files.find(file => file.id === props.activeId)?.path ?? null
-  const [revealedPath, setRevealedPath] = useState<string | null>(null)
-
-  // Opening a file, or the open file moving, reveals its folders once; the reader may fold them
-  // again afterwards.
-  if (activePath !== revealedPath) {
-    setRevealedPath(activePath)
-    const ancestors = activePath ? ancestorFolders(activePath) : []
-    if (ancestors.some(key => !expanded.has(key))) setExpanded(new Set([...expanded, ...ancestors]))
-  }
-
   const isOpen = (key: string) => (filter ? !collapsed.has(key) : expanded.has(key))
   const onToggle = (key: string) =>
-    filter
-      ? setCollapsed(current => toggled(current, key))
-      : setExpanded(current => toggled(current, key))
+    filter ? setCollapsed(current => toggled(current, key)) : onToggleExpanded(key)
 
   return (
     <ul aria-label={props.label}>
