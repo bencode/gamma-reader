@@ -1,5 +1,7 @@
 // A merged block spans several cells, so its text is sized in this unit too.
 $cell-width: 160px;
+// The sticky row numbers, which a cell scrolled into view has to clear.
+$row-number-width: 56px;
 
 .reader {
   display: flex;
@@ -82,8 +84,7 @@ $cell-width: 160px;
   min-height: 0;
   overflow: auto;
   background: var(--surface);
-  // A cell brought into view by key stays clear of the sticky row numbers.
-  scroll-padding-left: 56px;
+  scroll-padding-left: $row-number-width;
 
   // Once a cell is selected, its own outline shows where the keys act.
   &:focus-visible:has(.selected) {
@@ -131,8 +132,8 @@ $cell-width: 160px;
     position: sticky;
     left: 0;
     z-index: 1;
-    width: 56px;
-    max-width: 56px;
+    width: $row-number-width;
+    max-width: $row-number-width;
     text-align: right;
     color: var(--muted);
     font-size: 11px;
