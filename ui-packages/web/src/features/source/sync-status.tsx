@@ -172,7 +172,8 @@ export const SourceSyncStatus = ({
           </button>
         </div>
       )}
-      {confirming && (
+      {/* Leaves with the update it asked about, should the source settle another way meanwhile. */}
+      {confirming && replaces.length > 0 && (
         <ReplaceEditsDialog
           name={name}
           paths={replaces}
