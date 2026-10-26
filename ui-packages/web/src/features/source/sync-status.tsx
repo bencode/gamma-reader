@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { ConfirmationDialog } from '../../components/confirmation-dialog'
 import type { SourceScope } from '../../core/projects'
 import { changeCount, type FileNote, fileCount, savedText, statusText } from './sync-text'
-import type { SourceSync } from './use-source-sync'
+import type { SourceSync, SourceSyncState } from './use-source-sync'
 
 // Sync from a read-only source only brings it in. What is added or edited here stays here until
 // the source changes the same file, so the line says so whenever there is any.
@@ -111,7 +111,8 @@ export const SourceSyncStatus = ({
 }) => {
   const { state, localChanges } = sync
   const [dismissed, setDismissed] = useState<readonly SaveResult[] | null>(null)
-  const [confirming, setConfirming] = useState(false)
+  // The status the reader was asked about; any newer one, whatever it says, ends the question.
+  const [asked, setAsked] = useState<SourceSyncState | null>(null)
   const replaces = state.kind === 'available' ? state.replaces : []
   const status = statusText(name, state)
   const saved = state.kind === 'saved' ? savedText(name, state.results, scope) : null
@@ -151,7 +152,7 @@ export const SourceSyncStatus = ({
             type="button"
             className="text-button"
             disabled={sync.busy}
-            onClick={() => (replaces.length > 0 ? setConfirming(true) : void sync.sync())}
+            onClick={() => (replaces.length > 0 ? setAsked(state) : void sync.sync())}
           >
             <RefreshCw size={12} aria-hidden="true" />
             Update
@@ -172,14 +173,13 @@ export const SourceSyncStatus = ({
           </button>
         </div>
       )}
-      {/* Leaves with the update it asked about, should the source settle another way meanwhile. */}
-      {confirming && replaces.length > 0 && (
+      {asked === state && (
         <ReplaceEditsDialog
           name={name}
           paths={replaces}
-          onCancel={() => setConfirming(false)}
+          onCancel={() => setAsked(null)}
           onUpdate={() => {
-            setConfirming(false)
+            setAsked(null)
             void sync.sync()
           }}
         />
