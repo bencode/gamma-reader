@@ -75,7 +75,9 @@ export const useHtmlPageUrl = (
     let next = ''
     const show = (html: string) => {
       if (!current) return
-      next = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+      // A Blob writes text as UTF-8; saying so keeps a page without its own charset from being
+      // read as Latin-1.
+      next = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }))
       setUrl(next)
     }
     framePage(content, pagePath, filesRef.current).then(show, (cause: unknown) => {
