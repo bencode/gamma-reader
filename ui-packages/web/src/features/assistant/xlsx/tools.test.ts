@@ -57,12 +57,14 @@ describe('sheet_read', () => {
     const byNumber = await call(workbook, 'sheet_read', { fileId: 'f', sheet: '2' })
     expect(byName).toEqual(byNumber)
     expect(byName.sheet).toBe('汇总')
-    // A block the rows touch is named, so a value is read as covering all of it.
-    expect(byName.merged).toEqual(['A1:B1'])
-    expect(
-      await call(workbook, 'sheet_read', { fileId: 'f', sheet: '汇总', range: 'C1' }),
-    ).not.toHaveProperty('merged')
     expect((await call(workbook, 'sheet_read', { fileId: 'f' })).sheet).toBe('数据')
+  })
+
+  it('names the merged blocks the rows touch, whose value covers all of them', async () => {
+    const touching = await call(workbook, 'sheet_read', { fileId: 'f', sheet: '汇总', range: 'B1' })
+    expect(touching.merged).toEqual(['A1:B1'])
+    const apart = await call(workbook, 'sheet_read', { fileId: 'f', sheet: '汇总', range: 'C1' })
+    expect(apart).not.toHaveProperty('merged')
   })
 
   it('refuses a range it cannot read rather than guessing one', async () => {

@@ -50,6 +50,7 @@ type MarkdownVariant = 'reader' | 'chat'
 export type MarkdownAnchorProps = {
   href?: string
   id?: string
+  'aria-label'?: string
   children?: ReactNode
   variant: MarkdownVariant
 }
@@ -57,6 +58,7 @@ export type MarkdownAnchorProps = {
 export const MarkdownAnchor = ({
   href,
   id,
+  'aria-label': label,
   children,
   variant,
 }: MarkdownAnchorProps): ReactElement => {
@@ -66,6 +68,8 @@ export const MarkdownAnchor = ({
       // A footnote links back to its reference by this id. Only the reader follows # links, and
       // chat messages would repeat the same footnote ids.
       id={variant === 'reader' ? id : undefined}
+      // A footnote's back link is a bare arrow; its label says where it goes.
+      aria-label={label}
       href={fragment || /^https?:\/\//.test(href ?? '') ? href : undefined}
       target={fragment ? undefined : '_blank'}
       rel="noopener noreferrer"
@@ -82,8 +86,8 @@ const createComponents = (variant: MarkdownVariant, images?: MarkdownImageContex
     if (!images || !src) return <span className="omitted-image">{fallback}</span>
     return <MarkdownImage alt={alt ?? undefined} context={images} fallback={fallback} src={src} />
   },
-  a: ({ href, id, children }) => (
-    <MarkdownAnchor href={href} id={id} variant={variant}>
+  a: ({ href, id, 'aria-label': label, children }) => (
+    <MarkdownAnchor href={href} id={id} aria-label={label} variant={variant}>
       {children}
     </MarkdownAnchor>
   ),
