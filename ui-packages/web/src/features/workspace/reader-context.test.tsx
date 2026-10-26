@@ -1,13 +1,13 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type { StoredFileMetadata } from '../../core/files'
 import { moveStoredFile, updateStoredTextFile, writeStoredTextFile } from '../../data/file-store'
 import type { LocalTools } from '../assistant/local-tools'
 import { useWorkspace } from './use-workspace'
-import { useLocalTools, useReaderBinding, WorkspaceProvider } from './workspace-context'
+import { useLocalTools, useReaderBinding, useReveal, WorkspaceProvider } from './workspace-context'
 
 const files: StoredFileMetadata[] = ['first', 'second'].map(id => ({
   id,
@@ -23,6 +23,13 @@ const viewport = { startText: 'Visible beginning', endText: 'Visible ending' }
 
 const Reader = ({ fileId, active }: { fileId: string; active: boolean }) => {
   const [page, setPage] = useState(1)
+  // Lands on a revealed page the way the PDF reader does.
+  const { reveal, shown } = useReveal(fileId)
+  useEffect(() => {
+    if (!reveal) return
+    if ('page' in reveal.target) setPage(reveal.target.page)
+    shown(reveal)
+  }, [reveal, shown])
   useReaderBinding({ fileId, getPageNumber: () => page, getViewport: () => viewport }, active)
   return (
     <button type="button" onClick={() => setPage(current => current + 1)}>
@@ -123,6 +130,36 @@ describe('reader state tools', () => {
     const state = await tools?.open({ fileId: 'second' })
     expect(state?.activeFile?.id).toBe('second')
     expect(state?.openFiles.map(file => file.id)).toEqual(['first', 'second'])
+  })
+
+  it('opens a PDF at the page an answer cites', async () => {
+    let tools: LocalTools | undefined
+    const note: StoredFileMetadata = {
+      id: 'note',
+      path: 'note.md',
+      mediaType: 'text/markdown',
+      previewKind: 'markdown',
+      size: 10,
+      lastModified: 0,
+      createdAt: 0,
+      revision: 1,
+    }
+    render(
+      <MemoryRouter initialEntries={['/files/first']}>
+        <Harness
+          available={[...files, note]}
+          onTools={value => {
+            tools = value
+          }}
+        />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(tools?.get_reader_state().activeFile?.id).toBe('first'))
+    const state = await tools?.open({ fileId: 'second', page: 12 })
+    expect(state?.activeFile).toMatchObject({ id: 'second', pageNumber: 12 })
+    await expect(tools?.open({ fileId: 'note', page: 3 })).rejects.toThrow(
+      'only be given for a PDF',
+    )
   })
 
   it('excludes hidden readers, suppresses covered viewports and drops removed files', async () => {
