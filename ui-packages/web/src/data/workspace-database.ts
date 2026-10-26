@@ -66,6 +66,7 @@ export const workspaceStorageBases = {
   activeConversation: 'gamma-reader.active-conversation',
   sourceSync: 'gamma-reader.source-sync',
   fileNavigation: 'gamma-reader.file-navigation',
+  modelChoice: 'gamma-reader.model-choice',
 } as const
 
 // Settings saved before projects existed belong to the legacy library and keep their keys.
