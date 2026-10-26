@@ -4,7 +4,7 @@ import { resolveModelSelection } from '../../../core/models/model-selection'
 import { withWebSearch } from '../../assistant/web-tools'
 import { attachAgent } from './agent-session'
 import { queueDraft } from './drafts'
-import { nextActivityTime, selectionFromState } from './session'
+import { nextActivityTime, rememberChosenModel, selectionFromState } from './session'
 import { activeSession, type Ctx, getConversation, setConversation } from './state'
 
 export const configureModel = (ctx: Ctx, selection: ModelSelection) => {
@@ -21,10 +21,14 @@ export const configureModel = (ctx: Ctx, selection: ModelSelection) => {
   )
     return
   const state = resolveModelSelection(config.runtime, selection)
+  const chosen = selectionFromState(state)
+  // The choice outlives this conversation: the next one starts on it, not on the
+  // deployment's default.
+  rememberChosenModel(chosen)
   const current = getConversation(s)
   const next = {
     ...current,
-    selection: selectionFromState(state),
+    selection: chosen,
     lastActiveAt: nextActivityTime(current),
   }
   agent.state.model = state.model

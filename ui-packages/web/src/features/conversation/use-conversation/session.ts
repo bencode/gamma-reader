@@ -37,12 +37,41 @@ export const webSearchAvailable = (state: ConfigState) =>
 export const activeConversationKey = () =>
   workspaceStorageKey(workspaceStorageBases.activeConversation)
 
-export const createConversation = (): StoredConversation => {
+const chosenModelKey = () => workspaceStorageKey(workspaceStorageBases.modelChoice)
+
+const isModelSelection = (value: unknown): value is ModelSelection =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as ModelSelection).provider === 'string' &&
+  typeof (value as ModelSelection).modelId === 'string' &&
+  typeof (value as ModelSelection).effort === 'string'
+
+/** The model a reader last picked for themselves; every new conversation starts on it. */
+export const lastChosenModel = (): ModelSelection | undefined => {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(chosenModelKey()) ?? 'null')
+    return isModelSelection(stored) ? stored : undefined
+  } catch (cause) {
+    console.error('Unable to read the chosen chat model', cause)
+    return undefined
+  }
+}
+
+export const rememberChosenModel = (selection: ModelSelection) => {
+  try {
+    localStorage.setItem(chosenModelKey(), JSON.stringify(selection))
+  } catch (cause) {
+    console.error('Unable to remember the chosen chat model', cause)
+  }
+}
+
+export const createConversation = (selection?: ModelSelection): StoredConversation => {
   const now = Date.now()
   return {
     id: nanoid(),
     title: null,
     draft: emptyConversationDraft(),
+    ...(selection ? { selection } : {}),
     createdAt: now,
     lastActiveAt: now,
   }

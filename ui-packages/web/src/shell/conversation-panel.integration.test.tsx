@@ -364,7 +364,8 @@ describe('conversation', () => {
     await user.selectOptions(restored, 'DeepSeek V4.1 Flash')
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('low')
     await user.click(screen.getByRole('button', { name: 'New conversation' }))
-    await waitFor(() => expect(restored).toHaveDisplayValue('GLM-5.3'))
+    // The last model the reader chose carries into the new conversation.
+    await waitFor(() => expect(restored).toHaveDisplayValue('DeepSeek V4.1 Flash'))
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('low')
   })
 

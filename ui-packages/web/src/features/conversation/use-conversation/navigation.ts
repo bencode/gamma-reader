@@ -15,6 +15,7 @@ import {
   activeConversationKey,
   type ConfigState,
   createConversation,
+  lastChosenModel,
   nextActivityTime,
 } from './session'
 import { activeSession, type Ctx, getConversation, type SessionCtx, setActivity } from './state'
@@ -173,7 +174,7 @@ export const startNew = async (ctx: Ctx) => {
   store.setState({ switching: true })
   try {
     await saveDraft(previous)
-    activate(ctx, openSession(ctx, createConversation(), []))
+    activate(ctx, openSession(ctx, createConversation(lastChosenModel()), []))
     letGo(previous)
     localStorage.removeItem(activeConversationKey())
   } finally {
@@ -207,7 +208,8 @@ export const deleteConversation = async (ctx: Ctx, id: ConversationId) => {
       ? { app: ctx, session: keptNext }
       : nextStored
         ? openSession(ctx, nextStored.conversation, nextStored.messages)
-        : openSession(ctx, createConversation(), [])
+        : // Starts on the model the reader last chose, not on the free allowance.
+          openSession(ctx, createConversation(lastChosenModel()), [])
     activate(ctx, next)
     if (deleted) releaseSession(deleted)
     if (nextId) localStorage.setItem(activeConversationKey(), nextId)
