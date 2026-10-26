@@ -1,5 +1,12 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { type CSSProperties, type RefObject, useLayoutEffect, useMemo } from 'react'
+import {
+  type CSSProperties,
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react'
 import {
   type CellRange,
   cellText,
@@ -7,6 +14,8 @@ import {
   columnLabel,
   type SheetRow,
 } from '../../../formats/xlsx'
+import { CellBar } from './cell-bar'
+import { type CellPosition, moveSelection } from './cell-selection'
 import styles from './style.module.scss'
 
 // The virtualizer places rows by this height, so the stylesheet has to use the same number.
@@ -73,11 +82,19 @@ export const SheetGrid = ({
     () => mergedCells(merges ?? [], rows.length, columns),
     [merges, rows.length, columns],
   )
+  const [selection, setSelection] = useState<{
+    rows: readonly SheetRow[]
+    position: CellPosition
+  } | null>(null)
+  // Another sheet, or an edit to a CSV draft, starts with nothing selected.
+  const position = selection?.rows === rows ? selection.position : null
 
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => rowHeight,
+    // Rows scrolled to by key stop below the sticky header.
+    scrollPaddingStart: rowHeight,
     overscan: 12,
   })
   const items = virtualizer.getVirtualItems()
@@ -89,6 +106,15 @@ export const SheetGrid = ({
     scrollRef.current.scrollTop = scrollTop
   }, [active, scrollRef, scrollTop])
 
+  // The row is scrolled to by key; this brings the column into view as well.
+  useEffect(() => {
+    if (!position) return
+    const { row, column } = position
+    scrollRef.current
+      ?.querySelector(`td[data-row="${row}"][data-column="${column}"]`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [position, scrollRef])
+
   return (
     <>
       {hidden > 0 && (
@@ -96,11 +122,29 @@ export const SheetGrid = ({
           Showing the first {columns} of {columns + hidden} columns. The assistant reads them all.
         </p>
       )}
-      <div
+      {position && (
+        <CellBar position={position} value={rows[position.row]?.[position.column] ?? null} />
+      )}
+      <section
         className={styles.scroll}
         ref={scrollRef}
+        aria-label="Sheet"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrolling region has to take focus for a keyboard to scroll it, and here the arrow keys also move the selected cell
+        tabIndex={0}
         onScroll={event => {
           if (active) onScrollTopChange(event.currentTarget.scrollTop)
+        }}
+        onClick={event => {
+          const cell = (event.target as Element).closest('td')?.dataset
+          if (cell?.row === undefined || cell.column === undefined) return
+          setSelection({ rows, position: { row: Number(cell.row), column: Number(cell.column) } })
+        }}
+        onKeyDown={event => {
+          const next = columns ? moveSelection(position, event.key, rows.length, columns) : null
+          if (!next) return
+          event.preventDefault()
+          setSelection({ rows, position: next })
+          virtualizer.scrollToIndex(next.row)
         }}
       >
         {columns === 0 ? (
@@ -130,15 +174,20 @@ export const SheetGrid = ({
                   </th>
                   {labels.map((label, column) => {
                     const text = cellText(rows[item.index]?.[column] ?? null)
-                    const cell = merged.get(`${item.index + 1}:${column + 1}`)
-                    if (!cell) return <td key={label}>{text}</td>
+                    const merge = merged.get(`${item.index + 1}:${column + 1}`)
+                    const selected = position?.row === item.index && position.column === column
+                    const className = [merge?.className, selected && styles.selected]
                     return (
                       <td
                         key={label}
-                        className={cell.className}
-                        style={cell.span ? ({ '--span': cell.span } as CSSProperties) : undefined}
+                        data-row={item.index}
+                        data-column={column}
+                        className={className.filter(Boolean).join(' ') || undefined}
+                        style={
+                          merge?.span ? ({ '--span': merge.span } as CSSProperties) : undefined
+                        }
                       >
-                        {cell.span ? <span>{text}</span> : text}
+                        {merge?.span ? <span>{text}</span> : text}
                       </td>
                     )
                   })}
@@ -148,7 +197,7 @@ export const SheetGrid = ({
             </tbody>
           </table>
         )}
-      </div>
+      </section>
     </>
   )
 }
