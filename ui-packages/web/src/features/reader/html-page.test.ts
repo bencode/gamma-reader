@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { importStoredFiles, listStoredFiles } from '../../data/file-store'
-import { framePage } from './html-images'
+import { framePage } from './html-page'
 
 describe('framePage', () => {
   it('hands a page the library images it names, and leaves other pages as written', async () => {

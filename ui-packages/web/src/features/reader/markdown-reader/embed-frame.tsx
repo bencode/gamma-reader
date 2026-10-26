@@ -11,7 +11,7 @@ import { P5Reader } from '../../../components/p5-reader'
 import type { StoredFileMetadata } from '../../../core/files'
 import { getStoredFileContent } from '../../../data/file-store'
 import { decodeUtf8 } from '../../../utils/text'
-import { useHtmlPageUrl } from '../html-images'
+import { useHtmlPageUrl } from '../html-page'
 import styles from './style.module.scss'
 
 const minimumSize = { width: 120, height: 80 }

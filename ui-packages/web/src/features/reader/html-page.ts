@@ -5,13 +5,24 @@ import { parseHtml, serializeHtml } from '../../utils/html'
 import { createMarkdownImageResolver } from './markdown-image-resolver'
 
 // The sandbox keeps the browser from following a link within the page, so a page that has one is
-// given this to scroll there instead, unless the page handled the click itself.
+// given this to scroll there instead, unless the page handled the click itself. As the browser
+// does, the id is looked for as written first, then decoded. Nothing is declared at the top level,
+// where it could clash with the page's own names.
 const inPageLinks = `document.addEventListener('click', event => {
   const link = event.target instanceof Element ? event.target.closest('a[href^="#"], area[href^="#"]') : null
   if (!link || event.defaultPrevented) return
   event.preventDefault()
-  const id = decodeURIComponent(link.getAttribute('href').slice(1))
-  const place = document.getElementById(id) ?? document.getElementsByName(id)[0]
+  const id = link.getAttribute('href').slice(1)
+  const find = name => document.getElementById(name) ?? document.getElementsByName(name)[0]
+  const decoded = () => {
+    try {
+      return decodeURIComponent(id)
+    } catch (error) {
+      if (error instanceof URIError) return id
+      throw error
+    }
+  }
+  const place = find(id) ?? find(decoded())
   if (place) place.scrollIntoView()
   else if (id === '' || id.toLowerCase() === 'top') window.scrollTo(0, 0)
 })`

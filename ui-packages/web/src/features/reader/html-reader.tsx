@@ -1,6 +1,6 @@
 import { Play } from 'lucide-react'
 import { useState } from 'react'
-import { useHtmlPageUrl } from './html-images'
+import { useHtmlPageUrl } from './html-page'
 import type { TextReaderProps } from './text-reader'
 
 export const HtmlReader = ({ document, content, files }: TextReaderProps) => {
