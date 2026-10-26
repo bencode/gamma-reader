@@ -47,7 +47,7 @@ export const MermaidDiagram = ({ source, complete }: { source: string; complete:
     <div className="mermaid-diagram" data-diagram-source={source}>
       {complete && rendered?.source === source ? (
         <img
-          alt="Mermaid diagram"
+          alt={`Mermaid diagram: ${source}`}
           width={width}
           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(rendered.svg)}`}
         />

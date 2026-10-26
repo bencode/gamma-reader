@@ -1706,9 +1706,11 @@ svg {
   .composer-area {
     padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
-  .preview-toolbar input[type="text"],
-  .dialog-input {
-    font-size: 16px;
+  input,
+  select,
+  textarea {
+    /* biome-ignore lint/complexity/noImportantStyles: iOS Safari zooms the page into any field under 16px as it gains focus, so this has to outrank each feature's own size */
+    font-size: 16px !important;
   }
   .image-lightbox-toolbar {
     grid-template-columns: minmax(0, 1fr) auto;

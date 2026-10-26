@@ -67,7 +67,11 @@ export const ComposerToolbar = ({
           className={`icon-button ${styles.attachmentPicker} ${styles.webSearch}`}
           aria-label="Search the web"
           aria-pressed={webSearch.enabled}
-          title={webSearch.enabled ? 'Web search is on' : 'Web search is off'}
+          title={
+            webSearch.enabled
+              ? "Web search is on: queries go through Gamma Reader's server to the search service"
+              : 'Web search is off'
+          }
           onClick={() => webSearch.set(!webSearch.enabled)}
         >
           <Globe size={16} />
