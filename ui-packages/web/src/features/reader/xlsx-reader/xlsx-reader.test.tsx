@@ -77,6 +77,28 @@ describe('spreadsheet reader', () => {
     expect(await screen.findByText(/first 100 of 140 columns/)).toBeVisible()
   })
 
+  it("shows a selected cell's whole text, by pointer and by arrow key", async () => {
+    HTMLElement.prototype.scrollIntoView = vi.fn()
+    const user = userEvent.setup({ delay: null })
+    const note = '询单的评估依据\n包括接口数量、页面数量和历史数据迁移的工作量'
+    show([
+      {
+        name: '数据',
+        rows: [
+          ['项目', '说明', '人日'],
+          ['询单', note, 3],
+        ],
+      },
+    ])
+    await user.click(await screen.findByText(note.replace('\n', ' ')))
+    const bar = screen.getByRole('region', { name: 'Selected cell' })
+    expect(within(bar).getByText('B2')).toBeVisible()
+    expect(within(bar).getByText(note, { normalizer: text => text })).toBeVisible()
+    await user.keyboard('{ArrowRight}')
+    expect(within(bar).getByText('C2')).toBeVisible()
+    expect(within(bar).getByText('3')).toBeVisible()
+  })
+
   it('shows an empty sheet as empty rather than failing', async () => {
     show([{ name: 'Sheet2', rows: [] }])
     expect(await screen.findByText('This sheet is empty.')).toBeVisible()
