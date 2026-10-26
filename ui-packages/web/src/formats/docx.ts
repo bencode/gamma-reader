@@ -43,6 +43,49 @@ const flattenTableCells = (root: Document) => {
   }
 }
 
+const takeSpan = (cell: Element, name: 'colspan' | 'rowspan') => {
+  const span = Number(cell.getAttribute(name))
+  cell.removeAttribute(name)
+  return Number.isInteger(span) && span > 1 ? span : 1
+}
+
+// GFM tables cannot merge cells, and the reader cuts every row to the width of its header, so a
+// merged cell would push the cells after it under the wrong heading. Each position a merged cell
+// covers gets an empty cell of its own, leaving the value once, where Word shows it.
+const expandMergedCells = (root: Document) => {
+  for (const table of root.querySelectorAll('table')) {
+    for (const cell of table.querySelectorAll('td[colspan], th[colspan]')) {
+      const columns = takeSpan(cell, 'colspan')
+      const rows = cell.getAttribute('rowspan')
+      const fillers = Array.from({ length: columns - 1 }, () => {
+        const filler = root.createElement(cell.tagName)
+        if (rows) filler.setAttribute('rowspan', rows)
+        return filler
+      })
+      cell.after(...fillers)
+    }
+    // How many more rows each column is still covered by a cell from a row above.
+    const covered = new Map<number, number>()
+    for (const row of table.rows) {
+      let column = 0
+      const fillCovered = (before: Element | null) => {
+        for (let left = covered.get(column) ?? 0; left > 0; left = covered.get(column) ?? 0) {
+          covered.set(column, left - 1)
+          row.insertBefore(root.createElement('td'), before)
+          column++
+        }
+      }
+      for (const cell of [...row.cells]) {
+        fillCovered(cell)
+        const rows = takeSpan(cell, 'rowspan')
+        if (rows > 1) covered.set(column, rows - 1)
+        column++
+      }
+      fillCovered(null)
+    }
+  }
+}
+
 // The GFM table rule only fires when the first row is all <th>, which Word rarely marks.
 // Without this the table survives as raw HTML, which the reader drops entirely.
 const promoteHeaderRow = (root: Document) => {
@@ -71,6 +114,15 @@ const unlinkComments = (root: Document) => {
     link.replaceWith(commentNumber(link.textContent ?? ''))
   for (const term of root.querySelectorAll('dt[id^="comment-"]'))
     term.textContent = commentNumber(term.textContent ?? '')
+}
+
+// Footnotes and endnotes lose their ids the same way, but GFM has footnotes of its own, which the
+// reader links both ways. The noteReference and note rules below write them; Mammoth's back links go.
+const noteId = /^(?:foot|end)note-\d+$/
+
+const unlinkNoteBackLinks = (root: Document) => {
+  for (const back of root.querySelectorAll('a[href^="#footnote-ref-"], a[href^="#endnote-ref-"]'))
+    back.remove()
 }
 
 export const convertDocxToMarkdown = async (
@@ -106,9 +158,11 @@ export const convertDocxToMarkdown = async (
   )
 
   const parsed = new DOMParser().parseFromString(value, 'text/html')
+  expandMergedCells(parsed)
   flattenTableCells(parsed)
   promoteHeaderRow(parsed)
   unlinkComments(parsed)
+  unlinkNoteBackLinks(parsed)
 
   const turndown = new TurndownService({
     headingStyle: 'atx',
@@ -120,6 +174,17 @@ export const convertDocxToMarkdown = async (
   turndown.addRule('tableCellLineBreak', {
     filter: node => node.nodeName === 'BR' && withinTableCell(node),
     replacement: () => ' ',
+  })
+  // Written as rules because turndown escapes square brackets in text.
+  turndown.addRule('noteReference', {
+    filter: node => node.nodeName === 'A' && noteId.test(node.getAttribute('href')?.slice(1) ?? ''),
+    replacement: (_content, node) => `[^${node.getAttribute('href')?.slice(1)}]`,
+  })
+  turndown.addRule('note', {
+    filter: node => node.nodeName === 'LI' && noteId.test(node.id),
+    // A note's later paragraphs stay in it by being indented.
+    replacement: (content, node) =>
+      `\n\n[^${node.id}]: ${content.trim().replace(/\n/g, '\n    ')}\n\n`,
   })
 
   return {

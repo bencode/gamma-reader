@@ -36,6 +36,29 @@ describe('docx conversion', () => {
     expect(markdown).not.toMatch(/<table|<td|<tr|<p>/)
   })
 
+  it('keeps every value of a table with merged cells under its own heading', async () => {
+    // GFM tables cannot merge, and the reader cuts every row to the width of its header.
+    respond(
+      '<table><tr><td colspan="2"><p>Figures</p></td><td><p>Note</p></td></tr>' +
+        '<tr><td rowspan="2"><p>Total</p></td><td><p>120</p></td><td><p>pending</p></td></tr>' +
+        '<tr><td><p>80</p></td><td><p>audited</p></td></tr></table>',
+    )
+    const { markdown } = await convert()
+    expect(markdown).toBe(
+      '| Figures |  | Note |\n| --- | --- | --- |\n| Total | 120 | pending |\n|  | 80 | audited |',
+    )
+  })
+
+  it('turns Word footnotes into footnotes the reader links both ways', async () => {
+    // Mammoth's own anchors lose their targets on the way to Markdown.
+    respond(
+      '<p>Claim<sup><a href="#footnote-1" id="footnote-ref-1">[1]</a></sup>.</p>' +
+        '<ol><li id="footnote-1"><p>Source text. <a href="#footnote-ref-1">↑</a></p></li></ol><dl></dl>',
+    )
+    const { markdown } = await convert()
+    expect(markdown).toBe('Claim[^footnote-1].\n\n[^footnote-1]: Source text.')
+  })
+
   it('marks emphasis so that it still renders inside CJK text', async () => {
     respond(`<p>包含<strong>粗体</strong>和<em>斜体</em>。</p>`)
     const { markdown } = await convert()

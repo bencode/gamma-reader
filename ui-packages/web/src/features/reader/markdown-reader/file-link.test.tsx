@@ -104,4 +104,11 @@ describe('Markdown file links', () => {
     expect(fireEvent.click(link)).toBe(false)
     expect(openFile).toHaveBeenCalledWith('series/rea/01-项目定位.md', null)
   })
+
+  it('links a footnote back to the reference that cites it', () => {
+    const { container } = show('Claim[^1].\n\n[^1]: Note.')
+    const back = screen.getByRole('link', { name: '↩' })
+    const target = container.querySelector(`[id="${back.getAttribute('href')?.slice(1)}"]`)
+    expect(target).toBe(screen.getByRole('link', { name: '1' }))
+  })
 })

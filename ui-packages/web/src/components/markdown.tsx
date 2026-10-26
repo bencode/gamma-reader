@@ -49,14 +49,23 @@ type MarkdownVariant = 'reader' | 'chat'
 
 export type MarkdownAnchorProps = {
   href?: string
+  id?: string
   children?: ReactNode
   variant: MarkdownVariant
 }
 
-export const MarkdownAnchor = ({ href, children, variant }: MarkdownAnchorProps): ReactElement => {
+export const MarkdownAnchor = ({
+  href,
+  id,
+  children,
+  variant,
+}: MarkdownAnchorProps): ReactElement => {
   const fragment = variant === 'reader' && href?.startsWith('#')
   return (
     <a
+      // A footnote links back to its reference by this id. Only the reader follows # links, and
+      // chat messages would repeat the same footnote ids.
+      id={variant === 'reader' ? id : undefined}
       href={fragment || /^https?:\/\//.test(href ?? '') ? href : undefined}
       target={fragment ? undefined : '_blank'}
       rel="noopener noreferrer"
@@ -73,8 +82,8 @@ const createComponents = (variant: MarkdownVariant, images?: MarkdownImageContex
     if (!images || !src) return <span className="omitted-image">{fallback}</span>
     return <MarkdownImage alt={alt ?? undefined} context={images} fallback={fallback} src={src} />
   },
-  a: ({ href, children }) => (
-    <MarkdownAnchor href={href} variant={variant}>
+  a: ({ href, id, children }) => (
+    <MarkdownAnchor href={href} id={id} variant={variant}>
       {children}
     </MarkdownAnchor>
   ),
