@@ -5,14 +5,19 @@ import { resolveFileReferencePath } from '../../../utils/file-reference'
 import { useOpenFile } from '../../workspace/workspace-context'
 import { useEmbedScope } from './embed-context'
 
-export type FileLinkProps = Pick<ComponentProps<'a'>, 'href' | 'id' | 'children'>
+export type FileLinkProps = Pick<ComponentProps<'a'>, 'href' | 'id' | 'aria-label' | 'children'>
 
-export const FileLink = ({ href, id, children }: FileLinkProps): ReactElement => {
+export const FileLink = ({
+  href,
+  id,
+  'aria-label': label,
+  children,
+}: FileLinkProps): ReactElement => {
   const scope = useEmbedScope()
   const openFile = useOpenFile()
   if (!scope || !href || /^(?:[a-z][a-z\d+.-]*:|#|\/\/)/i.test(href.trim()))
     return (
-      <MarkdownAnchor href={href} id={id} variant="reader">
+      <MarkdownAnchor href={href} id={id} aria-label={label} variant="reader">
         {children}
       </MarkdownAnchor>
     )
