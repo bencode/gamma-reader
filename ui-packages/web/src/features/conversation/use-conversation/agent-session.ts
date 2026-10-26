@@ -156,6 +156,27 @@ export const attachAgent = (s: SessionCtx, storedMessages: readonly AgentMessage
   store.setState({ error: undefined, phase: 'ready' })
 }
 
+// A tab that hides or dies keeps what already streamed: the messages still pending and the
+// partial reply are written without advancing the count a surviving run re-persists from, so a
+// run that goes on overwrites the partial with its finished message.
+export const flushInFlight = async (s: SessionCtx) => {
+  const { runtime } = s.session
+  const agent = runtime.agent
+  if (!agent) return
+  await persistAgentMessages(s, agent)
+  const partial = agent.state.isStreaming ? agent.state.streamingMessage : undefined
+  if (partial?.role !== 'assistant') return
+  await appendStoredConversationMessages({
+    conversation: getConversation(s),
+    startPosition: runtime.persistedMessageCount,
+    // Marked stopped rather than finished: the reply was cut off, and the transcript
+    // keeps only complete or ended messages.
+    messages: [{ ...partial, stopReason: 'aborted' }],
+  }).catch(cause => {
+    reportStorageError(s.app, cause)
+  })
+}
+
 // Holds a conversation in memory under the controller, with a draft queue of its own.
 export const addSession = (app: Ctx, store: StoreApi<SessionState>): SessionCtx => {
   const s: SessionCtx = {
