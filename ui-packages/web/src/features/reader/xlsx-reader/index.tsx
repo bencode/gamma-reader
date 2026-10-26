@@ -84,7 +84,7 @@ export const XlsxReader = ({
   const sheets = state.status === 'ready' ? state.sheets : []
   // A saved sheet the workbook no longer has falls back to the first.
   const sheetIndex = sheets[selected] ? selected : 0
-  const rows = sheets[sheetIndex]?.rows ?? []
+  const sheet = sheets[sheetIndex]
 
   if (state.status === 'loading')
     return <div className="preview-state">Opening {document.path}…</div>
@@ -120,7 +120,8 @@ export const XlsxReader = ({
         </div>
       )}
       <SheetGrid
-        rows={rows}
+        rows={sheet?.rows ?? []}
+        merges={sheet?.merges}
         active={active}
         scrollTop={place.current}
         onScrollTopChange={scrollTop => {

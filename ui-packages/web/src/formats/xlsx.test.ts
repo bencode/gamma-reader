@@ -14,6 +14,7 @@ import {
 
 const mocks = vi.hoisted(() => ({ read: vi.fn() }))
 vi.mock('read-excel-file/browser', () => ({ default: mocks.read }))
+vi.mock('./xlsx-package', () => ({ readSheetDetails: async () => new Map() }))
 
 describe('spreadsheet cells', () => {
   it('labels columns the way a spreadsheet does, past the first alphabet', () => {
@@ -50,6 +51,15 @@ describe('sheet text', () => {
   it('pads a ragged row so every line has the same columns', () => {
     const text = sheetText({ name: 'S', rows: [['a', 'b', 'c'], ['d']] })
     expect(text.split('\n').at(-1)).toBe('2\td\t\t')
+  })
+
+  it('names the merged blocks, whose value sits in their top-left cell', () => {
+    const text = sheetText({
+      name: 'S',
+      rows: [['Q1', null, 'Q2']],
+      merges: [{ startRow: 1, endRow: 1, startColumn: 1, endColumn: 2 }],
+    })
+    expect(text.split('\n').slice(0, 2)).toEqual(['# S (1 rows × 3 columns)', 'Merged: A1:B1'])
   })
 
   it('says a sheet is empty rather than emitting a bare heading', () => {
