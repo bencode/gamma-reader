@@ -36,7 +36,8 @@ export const DeleteProjectDialog = ({
       current = false
     }
   }, [])
-  // Save to folder first writes the Files tree; attachments leave only one by one, through Save as….
+  // Save to folder first writes the Files tree; attachments leave only one by one, through
+  // Save as….
   const attachmentCount = files.filter(file => file.collection === 'attachments').length
   const fileCount = files.length - attachmentCount
   const deleted = listed([
