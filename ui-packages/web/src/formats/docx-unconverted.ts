@@ -5,6 +5,7 @@ const namespaces = {
   m: 'http://schemas.openxmlformats.org/officeDocument/2006/math',
   c: 'http://schemas.openxmlformats.org/drawingml/2006/chart',
   dgm: 'http://schemas.openxmlformats.org/drawingml/2006/diagram',
+  wps: 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape',
   mc: 'http://schemas.openxmlformats.org/markup-compatibility/2006',
   v: 'urn:schemas-microsoft-com:vml',
 }
@@ -59,6 +60,9 @@ const markEquations = (document: Document) => {
 const drawingLabel = (drawing: Element) => {
   if (contains(drawing, namespaces.c, 'chart')) return 'Chart'
   if (contains(drawing, namespaces.dgm, 'relIds')) return 'Diagram'
+  // Word writes its text boxes twice and Mammoth reads the VML copy; a box written only this way,
+  // as Google Docs and generated reports do, would lose its text.
+  if (contains(drawing, namespaces.wps, 'txbx')) return 'Text box'
   return null
 }
 

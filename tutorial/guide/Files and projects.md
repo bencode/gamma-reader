@@ -7,10 +7,10 @@ Everything you read lives in **Files**, the panel on the left. A project is one 
 Choose **+** at the top of Files:
 
 - **Add files…** picks one or more files from your computer.
-- **Add folder…** brings in a whole folder and keeps its structure. Desktop Chrome and Edge read the folder directly; other browsers use their folder upload.
+- **Add folder…** brings in a whole folder and keeps its structure. Desktop Chrome and Edge read the folder directly; other browsers use their folder upload. iPhone and iPad cannot choose a folder, so there the entry is missing; add the files instead.
 - **Add from URL…** downloads a file or folder from an address and opens it.
 
-You can also drop files or folders onto Files.
+On a computer, you can also drop files or folders onto Files.
 
 **Add from URL…** understands a few kinds of address:
 
