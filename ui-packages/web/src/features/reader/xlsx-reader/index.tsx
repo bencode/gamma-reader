@@ -25,7 +25,7 @@ const openWorkbook = (blob: Blob): Promise<SheetState> =>
       console.error('Unable to read spreadsheet', error)
       return {
         status: 'error' as const,
-        message: 'This workbook could not be read. Only .xlsx files are supported.',
+        message: 'This workbook could not be read.',
       }
     },
   )
@@ -122,6 +122,7 @@ export const XlsxReader = ({
       <SheetGrid
         rows={sheet?.rows ?? []}
         merges={sheet?.merges}
+        chart={sheet?.chart}
         active={active}
         scrollTop={place.current}
         onScrollTopChange={scrollTop => {

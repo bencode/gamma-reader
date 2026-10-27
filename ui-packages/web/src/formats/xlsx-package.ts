@@ -5,6 +5,8 @@ export type SheetDetails = {
   // Cells the parser leaves blank or shows without their number format, by address.
   cells: readonly { reference: string; text: string }[]
   merges: readonly string[]
+  // A chart sheet, which Excel's Insert > Chart Sheet writes: one chart and no cells.
+  chart?: true
 }
 
 const relationshipsNamespace = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
@@ -36,7 +38,8 @@ const parse = async (zip: JSZip, path: string) => {
   return entry && new DOMParser().parseFromString(await entry.async('string'), 'application/xml')
 }
 
-// A relationship target is relative to xl/ unless it starts at the package root.
+// A relationship target is relative to xl/ unless it starts at the package root. Its type ends in
+// the kind of sheet: worksheet, chartsheet.
 const sheetPaths = async (zip: JSZip) => {
   const [workbook, relationships] = await Promise.all([
     parse(zip, 'xl/workbook.xml'),
@@ -48,13 +51,16 @@ const sheetPaths = async (zip: JSZip) => {
       const target = relationship.getAttribute('Target') ?? ''
       return [
         relationship.getAttribute('Id'),
-        target.startsWith('/') ? target.slice(1) : `xl/${target}`,
+        {
+          path: target.startsWith('/') ? target.slice(1) : `xl/${target}`,
+          kind: relationship.getAttribute('Type')?.split('/').at(-1),
+        },
       ]
     }),
   )
   return elements(workbook, 'sheet').flatMap(sheet => {
-    const path = targets.get(sheet.getAttributeNS(relationshipsNamespace, 'id'))
-    return path ? [{ name: sheet.getAttribute('name') ?? '', path }] : []
+    const target = targets.get(sheet.getAttributeNS(relationshipsNamespace, 'id'))
+    return target ? [{ name: sheet.getAttribute('name') ?? '', ...target }] : []
   })
 }
 
@@ -113,9 +119,10 @@ export const readSheetDetails = async (blob: Blob): Promise<Map<string, SheetDet
   const zip = await JSZip.loadAsync(await blob.arrayBuffer())
   const [sheets, formats] = await Promise.all([sheetPaths(zip), styleFormats(zip)])
   const details = await Promise.all(
-    sheets.map(async ({ name, path }) => {
+    sheets.map(async ({ name, path, kind }): Promise<[string, SheetDetails]> => {
+      if (kind === 'chartsheet') return [name, { cells: [], merges: [], chart: true }]
       const sheet = await parse(zip, path)
-      return [name, sheet ? readDetails(sheet, formats) : { cells: [], merges: [] }] as const
+      return [name, sheet ? readDetails(sheet, formats) : { cells: [], merges: [] }]
     }),
   )
   return new Map(details)

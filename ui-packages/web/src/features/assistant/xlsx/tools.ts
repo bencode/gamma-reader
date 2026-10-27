@@ -58,6 +58,7 @@ export const createXlsxTools = (xlsx: XlsxRuntime) => [
           columns: columnCount(sheet.rows),
           extent: sheetExtent(sheet),
           ...(sheet.merges?.length ? { merged: sheet.merges.map(rangeLabel) } : {}),
+          ...(sheet.chart ? { chart: true } : {}),
         })),
       }
     },
