@@ -15,9 +15,9 @@ A link can open a PDF at a page: [[The art of noticing.pdf#page=2]] goes to the 
 
 ## Word and Excel
 
-[[Field notes.docx]] is shown as text, with an outline and the same reading appearance as a Markdown note. Page layout, fonts, headers and tracked changes are left out. An equation or chart that cannot be converted is marked where it stood, such as *(Equation not converted)*, so nothing is skipped silently.
+[[Field notes.docx]] is shown as text, with an outline and the same reading appearance as a Markdown note. Page layout, fonts and headers are left out. Tracked changes are shown as accepted, and a note at the top says how many are pending. An equation, chart or text box that cannot be converted is marked where it stood, such as *(Equation not converted)*, so nothing is skipped silently.
 
-[[Observation log.xlsx]] opens as a grid with column letters, row numbers and a tab for each sheet. A formula shows the value it was saved with; colours, charts and images are not shown.
+[[Observation log.xlsx]] opens as a grid with column letters, row numbers and a tab for each sheet. A formula shows the value it was saved with; colours, charts and images are not shown, and a chart sheet keeps its tab with a note in place of the chart. Choose a cell to see its whole text in the bar above the grid; the arrow keys move from cell to cell.
 
 Only `.docx` and `.xlsx` are read. The older `.doc` and `.xls` are stored but cannot be opened.
 
