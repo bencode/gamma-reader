@@ -10,6 +10,7 @@ const namespaces = [
   'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"',
   'xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"',
   'xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram"',
+  'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"',
   'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"',
   'xmlns:v="urn:schemas-microsoft-com:vml"',
 ].join(' ')
@@ -55,6 +56,10 @@ const diagram = drawing(
   'http://schemas.openxmlformats.org/drawingml/2006/diagram',
   '<dgm:relIds r:dm="rIdX" r:lo="rIdX" r:qs="rIdX" r:cs="rIdX"/>',
 )
+const textBox = drawing(
+  'http://schemas.microsoft.com/office/word/2010/wordprocessingShape',
+  '<wps:wsp><wps:txbx><w:txbxContent><w:p><w:r><w:t>Amount due</w:t></w:r></w:p></w:txbxContent></wps:txbx></wps:wsp>',
+)
 
 describe('unconverted Word content', () => {
   it('leaves a document whose content all converts exactly as it was', async () => {
@@ -66,7 +71,7 @@ describe('unconverted Word content', () => {
     expect(markdown).toBe('**Styled body**')
   })
 
-  it('marks equations, charts and diagrams where they stood', async () => {
+  it('marks equations, charts, diagrams and text boxes where they stood', async () => {
     const { markdown } = await convertDocxToMarkdown(
       await docx(
         [
@@ -75,6 +80,7 @@ describe('unconverted Word content', () => {
           '<w:p><w:r><w:t xml:space="preserve">Inline </w:t></w:r><m:oMath><m:r><m:t>x</m:t></m:r></m:oMath></w:p>',
           `<w:p><w:r>${chart}</w:r></w:p>`,
           `<w:p><w:r>${diagram}</w:r></w:p>`,
+          `<w:p><w:r>${textBox}</w:r></w:p>`,
           paragraph('After'),
         ].join(''),
       ),
@@ -85,6 +91,7 @@ describe('unconverted Word content', () => {
       'Inline *(Equation not converted)*',
       '*(Chart not converted)*',
       '*(Diagram not converted)*',
+      '*(Text box not converted)*',
       'After',
     ])
   })
