@@ -139,7 +139,7 @@ export const selectCells = (sheet: Worksheet, range: CellRange): CellSelection =
 export const workbookText = (sheets: readonly Worksheet[]) => sheets.map(sheetText).join('\n\n')
 
 // The parser drops empty rows and columns at the end of a sheet, so a recovered cell can lie
-// past the rows it returns. It returns no rows at all for a sheet that is not a worksheet.
+// past the rows it returns.
 const withDetails = (name: string, rows: readonly SheetRow[], details?: SheetDetails) => {
   if (!details) return { name, rows }
   const filled = rows.map(row => [...row])
@@ -166,6 +166,7 @@ export const readSpreadsheet = async (blob: Blob): Promise<Worksheet[]> => {
     import('./xlsx-package'),
   ])
   const [sheets, details] = await Promise.all([readXlsxFile(blob), readSheetDetails(blob)])
+  // The parser returns no rows at all for a sheet that is not a worksheet, such as a chart sheet.
   return sheets.map(sheet =>
     withDetails(sheet.sheet, (sheet.data ?? []) as SheetRow[], details.get(sheet.sheet)),
   )
