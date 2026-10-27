@@ -469,10 +469,18 @@ describe('conversation', () => {
         (message: { role: string }) => message.role !== 'system',
       ),
     ).toEqual([{ role: 'user', content: [{ type: 'text', text: 'Explain this' }] }])
+    const status = within(screen.getByRole('region', { name: 'Conversation' })).getByRole('status')
+    expect(status).toHaveTextContent('Working…')
+    await act(async () =>
+      controller?.enqueue(new TextEncoder().encode(event({ reasoning_content: 'Weighing it' }))),
+    )
+    expect(status).toHaveTextContent(/^Thinking… \d+s$/)
+    expect(screen.queryByText('Weighing it')).not.toBeInTheDocument()
     await act(async () =>
       controller?.enqueue(new TextEncoder().encode(event({ content: '**First words**' }))),
     )
     expect(await screen.findByText('First words')).toBeVisible()
+    expect(status).toHaveTextContent('Working…')
     await user.type(question(), 'Next question')
     await user.keyboard('{Enter}')
     expect(requests).toHaveLength(1)
@@ -493,6 +501,7 @@ describe('conversation', () => {
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Chat model' })).toBeEnabled())
     expect(requests).toHaveLength(1)
     expect(screen.getByText('First words').tagName).toBe('STRONG')
+    expect(screen.getByText('Reply finished.')).toHaveAttribute('role', 'status')
   })
 
   it('shows tool activity without raw results and allows another question after stopping', async () => {
@@ -750,6 +759,7 @@ describe('conversation', () => {
 
     act(() => release())
     expect(await within(slow).findByRole('img', { name: 'New reply' })).toBeInTheDocument()
+    expect(screen.queryByText('Reply finished.')).not.toBeInTheDocument()
     await user.click(slow)
     expect(await screen.findByText('Background answer')).toBeVisible()
     expect(within(list).queryByRole('img', { name: 'New reply' })).not.toBeInTheDocument()

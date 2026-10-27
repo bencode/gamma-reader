@@ -139,6 +139,23 @@ const MessageItem = memo(
     sameMessage(prev.message, next.message),
 )
 
+// A model may reason for a minute before its first word. Counting the seconds tells that apart
+// from a request that died; the count is hidden from a screen reader, which would otherwise read
+// it out every second. Mounted as the thinking begins, so the count starts there.
+const Thinking = () => {
+  const [started] = useState(Date.now)
+  const [now, setNow] = useState(started)
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+  return (
+    <>
+      Thinking… <span aria-hidden="true">{Math.floor((now - started) / 1000)}s</span>
+    </>
+  )
+}
+
 // Where the conversation was compacted. The messages above stay for the reader; the model is sent
 // the summary in their place.
 const CompactionDivider = memo(({ summary }: { summary: string }) => (
@@ -209,7 +226,7 @@ export const ConversationMessages = memo(
         )}
         {running && (
           <p className="conversation-notice" role="status">
-            Working…
+            {messages.at(-1)?.thinking ? <Thinking /> : 'Working…'}
           </p>
         )}
       </section>

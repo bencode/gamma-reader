@@ -9,6 +9,7 @@ import { useReaderConversation } from './conversation-context'
 import { ConversationHistory } from './conversation-history'
 import { ConversationMessages } from './conversation-messages'
 import { recentConversations } from './recent-conversations'
+import { ReplyAnnouncement } from './reply-announcement'
 import { SessionList } from './session-list'
 import { useSessionListOpen } from './session-list-preference'
 import { ShortcutsDialog } from './shortcuts-dialog'
@@ -186,6 +187,11 @@ export const ConversationPanel = ({
             running={running}
             onOpenFile={onOpenFile}
             availableFileIds={availableFileIds}
+          />
+          <ReplyAnnouncement
+            conversationId={active.id}
+            phase={phase}
+            whole={messages.at(-1)?.copyable === true}
           />
           <div className="composer-area">
             {status && (
