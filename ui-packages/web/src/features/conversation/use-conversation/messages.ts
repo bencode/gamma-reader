@@ -12,6 +12,8 @@ export type ConversationMessage = {
   notice?: string
   failed?: boolean
   copyable?: boolean
+  // Reasoning is never shown; this says the message holds nothing else yet.
+  thinking?: boolean
 }
 
 export const statusMap = (messages: readonly AgentMessage[]) => {
@@ -84,6 +86,7 @@ const snapshot = (
       notice,
       failed: message.stopReason === 'error',
       copyable: message.stopReason === 'stop' || message.stopReason === 'length',
+      thinking: !text && !tools.length && blocks.some(block => block.type === 'thinking'),
     },
   ]
 }
