@@ -31,6 +31,8 @@ Each conversation keeps its own history, model and reasoning effort. After the f
 
 ## While it answers
 
+While the model reasons before it answers, the line under the conversation reads *Thinking…* with the seconds so far; otherwise it reads *Working…*.
+
 You can keep typing. A message sent during an answer waits in **Queued messages** and reaches the assistant at its next step; **×** removes it. **Escape** stops the answer and sends what is queued at once.
 
 The line under the message box shows how full the model's context is and how many tokens the conversation has used. Hover over it for the details.
@@ -90,7 +92,7 @@ The **Memory** tab lists every note under **About you** and under the project it
 
 ## Models
 
-**Chat model**, under the message box, chooses who answers. **Reasoning effort**, when the model offers it, trades speed for thought. Both are kept per conversation.
+**Chat model**, under the message box, chooses who answers. **Reasoning effort**, when the model offers it, trades speed for thought. Both are kept per conversation, and a new conversation starts with the ones you chose last.
 
 **Add your own model…**, at the end of **Chat model**, connects a provider with your own key. [[Your data and models#Your own model]] explains what changes when you do.
 

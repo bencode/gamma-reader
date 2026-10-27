@@ -4,6 +4,16 @@ New features appear here when they ship. Choose **Update** under **Files** when 
 
 ## October 2026
 
+- **Read a whole cell.** Choose a cell in a spreadsheet or CSV, and the bar above the grid shows its whole text, however narrow the column. The arrow keys move from cell to cell. See [[Reading documents#Word and Excel]].
+
+- **Sheets and Word documents as they were written.** Sheets show numbers in their own formats, error values and merged blocks, and a workbook with a chart sheet opens. Word tables keep merged cells, footnotes come through, and a document with tracked changes says so at the top. What cannot be converted, such as a text box, is marked where it stood. See [[Reading documents#Word and Excel]].
+
+- **New conversations keep your model.** The model and reasoning effort you last chose start every new conversation. See [[The reading assistant#Models]].
+
+- **Go to the cited page.** Ask the assistant to take you to a PDF page it cited, and the PDF opens at that page.
+
+- **Thinking, counted.** While a model reasons before it answers, the line under the conversation reads *Thinking…* with the seconds so far. See [[The reading assistant#While it answers]].
+
 - **Several conversations at once.** Switching conversations no longer stops an answer: the one you leave keeps answering. Choose the conversation's name at the top of the panel for a list of recent conversations, which marks those still answering and those with a reply you have not seen. See [[The reading assistant#Conversations]].
 
 - **Conversation numbers.** Each conversation shows a number beside its name, such as `#k3X9qA`; choose it to copy it. Type `#` in the message box to pick another conversation, or paste a number, and the assistant reads that conversation. See [[The reading assistant#Conversations]].
