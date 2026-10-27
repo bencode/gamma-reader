@@ -1,12 +1,13 @@
 import JSZip from 'jszip'
 import { expect, it } from 'vitest'
-import { readSpreadsheet } from './xlsx'
+import { readSpreadsheet, sheetText } from './xlsx'
 
 const relationship = (id: string, type: string, target: string) =>
   `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${type}" Target="${target}"/>`
 
-// A minimal workbook: one sheet, its styles, and inline strings for text.
-const workbook = async (sheetData: string, mergeCells: string) => {
+// A minimal workbook: one sheet, its styles, and inline strings for text, and when asked a chart
+// sheet after it, as Excel's Insert > Chart Sheet writes one.
+const workbook = async (sheetData: string, mergeCells: string, withChartSheet = false) => {
   const zip = new JSZip()
   zip.file(
     '[Content_Types].xml',
@@ -18,11 +19,11 @@ const workbook = async (sheetData: string, mergeCells: string) => {
   )
   zip.file(
     'xl/workbook.xml',
-    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Q3" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Q3" sheetId="1" r:id="rId1"/>${withChartSheet ? '<sheet name="Chart1" sheetId="2" r:id="rId3"/>' : ''}</sheets></workbook>`,
   )
   zip.file(
     'xl/_rels/workbook.xml.rels',
-    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationship('rId1', 'worksheet', 'worksheets/sheet1.xml')}${relationship('rId2', 'styles', 'styles.xml')}</Relationships>`,
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationship('rId1', 'worksheet', 'worksheets/sheet1.xml')}${relationship('rId2', 'styles', 'styles.xml')}${withChartSheet ? relationship('rId3', 'chartsheet', 'chartsheets/sheet1.xml') : ''}</Relationships>`,
   )
   zip.file(
     'xl/styles.xml',
@@ -32,6 +33,11 @@ const workbook = async (sheetData: string, mergeCells: string) => {
     'xl/worksheets/sheet1.xml',
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${sheetData}</sheetData>${mergeCells}</worksheet>`,
   )
+  if (withChartSheet)
+    zip.file(
+      'xl/chartsheets/sheet1.xml',
+      '<chartsheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><drawing r:id="rId1"/></chartsheet>',
+    )
   return new Blob([await zip.generateAsync({ type: 'arraybuffer' })])
 }
 
@@ -70,4 +76,17 @@ it('reads cells as the sheet shows them, with errors, unsolved formulas and merg
       ],
     },
   ])
+})
+
+it('opens a workbook holding a chart sheet, and names that sheet a chart', async () => {
+  const sheets = await readSpreadsheet(
+    await workbook(`<row r="1">${text('A1', 'Quarter')}</row>`, '', true),
+  )
+  expect(sheets).toEqual([
+    { name: 'Q3', rows: [['Quarter']] },
+    { name: 'Chart1', rows: [], chart: true },
+  ])
+  expect(sheetText({ name: 'Chart1', rows: [], chart: true })).toBe(
+    '# Chart1 (0 rows × 0 columns)\n\n(chart sheet; its chart is not read)',
+  )
 })

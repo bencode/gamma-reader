@@ -15,7 +15,7 @@ const CsvGrid = ({
   defaultPosition,
   onPositionChange,
 }: Omit<TextReaderProps, 'content' | 'files'> & { rows: readonly string[][] }) => {
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLElement>(null)
   const tableRef = useRef<HTMLTableElement>(null)
   // The reader's own place, kept across a hidden tab, which loses its scroll offset.
   const place = useRef(defaultPosition?.kind === 'sheet' ? defaultPosition.scrollTop : 0)

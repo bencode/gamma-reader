@@ -3,7 +3,13 @@ import type { SheetDetails } from './xlsx-package'
 export type SheetCell = string | number | boolean | Date | null
 export type SheetRow = readonly SheetCell[]
 // A merged block's value sits in its top-left cell; the rest of the block is empty.
-export type Worksheet = { name: string; rows: readonly SheetRow[]; merges?: readonly CellRange[] }
+export type Worksheet = {
+  name: string
+  rows: readonly SheetRow[]
+  merges?: readonly CellRange[]
+  // A chart sheet holds a chart and no cells; neither the reader nor the agent reads the chart.
+  chart?: true
+}
 
 // A wide sheet is rare — nine in ten stay under 35 columns — and rendering hundreds of them
 // costs far more than it shows. The agent still reads every column.
@@ -89,7 +95,8 @@ export const cellText = (value: SheetCell): string => {
 export const sheetText = (sheet: Worksheet) => {
   const columns = columnCount(sheet.rows)
   const heading = `# ${sheet.name} (${sheet.rows.length} rows × ${columns} columns)`
-  if (!columns) return `${heading}\n\n(empty sheet)`
+  if (!columns)
+    return `${heading}\n\n${sheet.chart ? '(chart sheet; its chart is not read)' : '(empty sheet)'}`
   const letters = ['', ...Array.from({ length: columns }, (_, index) => columnLabel(index))]
   const body = sheet.rows.map((row, index) =>
     [
@@ -132,7 +139,7 @@ export const selectCells = (sheet: Worksheet, range: CellRange): CellSelection =
 export const workbookText = (sheets: readonly Worksheet[]) => sheets.map(sheetText).join('\n\n')
 
 // The parser drops empty rows and columns at the end of a sheet, so a recovered cell can lie
-// past the rows it returns.
+// past the rows it returns. It returns no rows at all for a sheet that is not a worksheet.
 const withDetails = (name: string, rows: readonly SheetRow[], details?: SheetDetails) => {
   if (!details) return { name, rows }
   const filled = rows.map(row => [...row])
@@ -145,7 +152,12 @@ const withDetails = (name: string, rows: readonly SheetRow[], details?: SheetDet
     row[cell.startColumn - 1] = text
   }
   const merges = details.merges.flatMap(merge => parseRange(merge) ?? [])
-  return { name, rows: filled, ...(merges.length ? { merges } : {}) }
+  return {
+    name,
+    rows: filled,
+    ...(merges.length ? { merges } : {}),
+    ...(details.chart ? { chart: true as const } : {}),
+  }
 }
 
 export const readSpreadsheet = async (blob: Blob): Promise<Worksheet[]> => {
@@ -155,6 +167,6 @@ export const readSpreadsheet = async (blob: Blob): Promise<Worksheet[]> => {
   ])
   const [sheets, details] = await Promise.all([readXlsxFile(blob), readSheetDetails(blob)])
   return sheets.map(sheet =>
-    withDetails(sheet.sheet, sheet.data as SheetRow[], details.get(sheet.sheet)),
+    withDetails(sheet.sheet, (sheet.data ?? []) as SheetRow[], details.get(sheet.sheet)),
   )
 }

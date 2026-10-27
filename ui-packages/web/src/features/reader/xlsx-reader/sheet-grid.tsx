@@ -55,17 +55,19 @@ const mergedCells = (merges: readonly CellRange[], rows: number, columns: number
 type SheetGridProps = {
   rows: readonly SheetRow[]
   merges?: readonly CellRange[]
+  chart?: boolean
   active: boolean
   // Where the grid returns to when it is shown; a hidden tab loses its scroll offset.
   scrollTop: number
   onScrollTopChange: (scrollTop: number) => void
-  scrollRef: RefObject<HTMLDivElement | null>
+  scrollRef: RefObject<HTMLElement | null>
   tableRef: RefObject<HTMLTableElement | null>
 }
 
 export const SheetGrid = ({
   rows,
   merges,
+  chart,
   active,
   scrollTop,
   onScrollTopChange,
@@ -148,7 +150,11 @@ export const SheetGrid = ({
         }}
       >
         {columns === 0 ? (
-          <p className={styles.empty}>This sheet is empty.</p>
+          <p className={styles.empty}>
+            {chart
+              ? 'This sheet holds a chart, which the reader cannot show.'
+              : 'This sheet is empty.'}
+          </p>
         ) : (
           <table
             className={styles.sheet}

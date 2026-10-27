@@ -25,7 +25,7 @@ const openWorkbook = (blob: Blob): Promise<SheetState> =>
       console.error('Unable to read spreadsheet', error)
       return {
         status: 'error' as const,
-        message: 'This workbook could not be read. Only .xlsx files are supported.',
+        message: 'This workbook could not be read.',
       }
     },
   )
@@ -45,7 +45,7 @@ export const XlsxReader = ({
   )
   // The reader's own place, kept across a hidden tab, which loses its scroll offset.
   const place = useRef(defaultPosition?.kind === 'sheet' ? defaultPosition.scrollTop : 0)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLElement>(null)
   const tableRef = useRef<HTMLTableElement>(null)
 
   useEffect(() => {
@@ -122,6 +122,7 @@ export const XlsxReader = ({
       <SheetGrid
         rows={sheet?.rows ?? []}
         merges={sheet?.merges}
+        chart={sheet?.chart}
         active={active}
         scrollTop={place.current}
         onScrollTopChange={scrollTop => {
