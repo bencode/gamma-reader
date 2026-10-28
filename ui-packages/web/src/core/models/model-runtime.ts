@@ -1,5 +1,6 @@
 import { type Api, createModels, type Model } from '@earendil-works/pi-ai'
 import { deepseekProvider } from '@earendil-works/pi-ai/providers/deepseek'
+import { qwenTokenPlanCnProvider } from '@earendil-works/pi-ai/providers/qwen-token-plan-cn'
 import { zaiCodingCnProvider } from '@earendil-works/pi-ai/providers/zai-coding-cn'
 import type { ModelReference, PublicModelConfig } from '@gamma-reader/shared/model-config'
 import {
@@ -13,6 +14,7 @@ import { userProviders } from './byok/store'
 export const models = createModels()
 models.setProvider(zaiCodingCnProvider())
 models.setProvider(deepseekProvider())
+models.setProvider(qwenTokenPlanCnProvider())
 
 export const proxyRequestOptions = { maxRetries: 0, timeoutMs: 300_000 } as const
 

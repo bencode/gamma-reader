@@ -24,7 +24,29 @@ GAMMA_SOURCE_NAME=notes GAMMA_SOURCE_REPO=https://github.com/you/notes.git pnpm 
 
 The server clones the repository and pulls every 120 seconds by default. Set `GAMMA_SOURCE_PUSH=1` in the checkout's untracked `.env` to enable [commit and push on Save](#saving-back-to-a-repository). Private repositories need git credentials; SSH keys can be selected with `GIT_SSH_COMMAND`. Serve the source behind a sign-in: the server does not authenticate file requests itself.
 
-For Docker, build the `runtime-git` target and pass the source variables into the container. The shipped [Compose file](../compose.production.yml) uses the git-free target and does not forward `GAMMA_SOURCE_*`; see [Self-hosting](self-hosting.md#production) for the deployment workflow.
+### Docker
+
+The shipped [Compose file](../compose.production.yml) can host a public repository. Add these settings to an untracked `.env.library` in the Gamma Reader checkout:
+
+```dotenv
+GAMMA_RUNTIME_TARGET=runtime-git
+GAMMA_READER_TAG=library
+GAMMA_SOURCE_NAME=Brain
+GAMMA_SOURCE_REPO=https://github.com/bencode/brain.git
+GAMMA_PORT=3305
+```
+
+Start a separate instance, with its own source clone and usage database:
+
+```sh
+docker compose --env-file .env.library -p brain -f compose.production.yml up -d --build --wait --wait-timeout 180
+```
+
+Point your reverse proxy at `http://172.17.0.1:3305`. A first visit opens the configured source project. The server pulls every 120 seconds; readers choose **Update** when a newer version is available. Repository hosting is read-only in this Compose setup. Model credentials are optional; without them readers can use their own model.
+
+`GAMMA_RUNTIME_TARGET=runtime-git` includes git and HTTPS certificates. Give this build its own `GAMMA_READER_TAG` so it does not replace an image used by a git-free deployment. `-p brain` separates the container and volume from another instance. The first clone may need longer than the usual health-check startup period.
+
+Private repositories and push-enabled hosting require credentials and an authenticated reverse proxy; configure those explicitly in your deployment. The shipped Compose file does not mount SSH credentials or enable push.
 
 ## Source configuration
 

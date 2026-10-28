@@ -5,7 +5,7 @@ services:
     image: gamma-reader:${GAMMA_READER_TAG:-latest}
     build:
       context: .
-      target: runtime
+      target: ${GAMMA_RUNTIME_TARGET:-runtime}
       args:
         GAMMA_READER_VERSION: ${GAMMA_READER_VERSION:-}
     environment:
@@ -14,17 +14,24 @@ services:
       PORT: 3302
       GLM_API_KEY: ${GLM_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      QWEN_TOKEN_PLAN_CN_API_KEY: ${QWEN_TOKEN_PLAN_CN_API_KEY:-}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       GAMMA_SEARCH_PROXY: ${GAMMA_SEARCH_PROXY:-}
       GAMMA_PLUGINS_URL: ${GAMMA_PLUGINS_URL:-}
       GAMMA_DATA_DIR: /data
+      GAMMA_SOURCE_NAME: ${GAMMA_SOURCE_NAME:-}
+      GAMMA_SOURCE_REPO: ${GAMMA_SOURCE_REPO:-}
+      GAMMA_SOURCE_URL: ${GAMMA_SOURCE_URL:-}
+      GAMMA_SOURCE_INCLUDE: ${GAMMA_SOURCE_INCLUDE:-}
+      GAMMA_SOURCE_EXCLUDE: ${GAMMA_SOURCE_EXCLUDE:-}
+      GAMMA_SOURCE_PULL_SECONDS: ${GAMMA_SOURCE_PULL_SECONDS:-120}
       GAMMA_DAILY_TOKENS: ${GAMMA_DAILY_TOKENS:-2000000}
       GAMMA_TOTAL_DAILY_TOKENS: ${GAMMA_TOTAL_DAILY_TOKENS:-200000000}
       GAMMA_TRUST_PROXY: "1"
     volumes:
       - quota:/data
     ports:
-      - "172.17.0.1:3302:3302"
+      - "172.17.0.1:${GAMMA_PORT:-3302}:3302"
     healthcheck:
       test:
         - CMD
@@ -35,7 +42,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 120s
     restart: unless-stopped
 
 volumes:

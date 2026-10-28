@@ -7,6 +7,10 @@
     "deepseek": {
       "apiKeyEnv": "DEEPSEEK_API_KEY",
       "chatModels": ["deepseek-flash", "deepseek-v4-pro"]
+    },
+    "qwen-token-plan-cn": {
+      "apiKeyEnv": "QWEN_TOKEN_PLAN_CN_API_KEY",
+      "chatModels": ["deepseek-v4.1-flash", "qwen3.8-flash", "deepseek-v4-pro", "qwen3.8-max"]
     }
   },
   "defaultModel": { "provider": "zai-coding-cn", "modelId": "glm-5.3" },
