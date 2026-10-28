@@ -32,6 +32,8 @@ The following are server defaults. npx uses them too, except that `GAMMA_DATA_DI
 | `GAMMA_TRUST_PROXY` | Unset | Set to `1` when a reverse proxy sets `X-Forwarded-For` |
 | `GAMMA_TUTORIAL_DIR` | `tutorial/` at the repository root | The folder served as the Tutorial |
 | `GAMMA_SOURCE_*` | Unset | A repository the library syncs from; see [Sync from a repository](sync-from-repository.md) |
+| `GAMMA_RUNTIME_TARGET` | `runtime` | Compose image target; use `runtime-git` to host a git repository |
+| `GAMMA_PORT` | `3302` | Compose host port on `172.17.0.1`; the container still listens on `3302` |
 
 ## Chat models
 
