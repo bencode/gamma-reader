@@ -40,6 +40,48 @@ const complete = (text: string) =>
 beforeEach(seedSampleFiles)
 
 describe('conversation', () => {
+  it('offers Token Plan models and sends the selected model through its server proxy', async () => {
+    const user = userEvent.setup({ delay: null })
+    const requests: { url: string; body: Record<string, unknown> }[] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config')
+        return Response.json({
+          ...config,
+          providers: [
+            ...config.providers,
+            {
+              id: 'qwen-token-plan-cn',
+              chatModels: [
+                'deepseek-v4-flash-0731',
+                'qwen3.8-flash',
+                'deepseek-v4-pro-0813',
+                'qwen3.8-max',
+              ],
+            },
+          ],
+        })
+      if (isTitleRequest(init)) return complete('Title')
+      requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+      return complete('Token Plan reply')
+    })
+    open()
+    const model = await screen.findByRole('combobox', { name: 'Chat model' })
+    expect(model).toHaveDisplayValue('GLM-5.3')
+    const group = within(model).getByRole('group', { name: 'Qwen Token Plan CN' })
+    expect(
+      within(group)
+        .getAllByRole('option')
+        .map(option => option.textContent),
+    ).toEqual(['DeepSeek V4 Flash 0731', 'Qwen3.8 Flash', 'DeepSeek V4 Pro 0813', 'Qwen3.8 Max'])
+    await user.selectOptions(model, 'Qwen3.8 Max')
+    await user.type(question(), 'Read this document')
+    await user.click(send())
+    expect(await screen.findByText('Token Plan reply')).toBeVisible()
+    await waitFor(() => expect(model).toBeEnabled())
+    expect(requests[0]?.url).toContain('/api/agent/providers/qwen-token-plan-cn/chat/completions')
+    expect(requests[0]?.body).toMatchObject({ model: 'qwen3.8-max' })
+  })
+
   it('shows the sentence a refused request carries instead of its status body', async () => {
     const user = userEvent.setup({ delay: null })
     const limit = 'The daily chat limit for this network is used up. It resets at 00:00 UTC.'

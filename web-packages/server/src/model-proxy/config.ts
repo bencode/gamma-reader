@@ -1,10 +1,14 @@
 import { deepseekProvider } from '@earendil-works/pi-ai/providers/deepseek'
+import { qwenTokenPlanCnProvider } from '@earendil-works/pi-ai/providers/qwen-token-plan-cn'
 import { zaiCodingCnProvider } from '@earendil-works/pi-ai/providers/zai-coding-cn'
 import type { PublicModelConfig } from '@gamma-reader/shared/model-config'
 import { z } from 'zod'
 
 const nativeProviders = new Map(
-  [zaiCodingCnProvider(), deepseekProvider()].map(provider => [provider.id, provider]),
+  [zaiCodingCnProvider(), deepseekProvider(), qwenTokenPlanCnProvider()].map(provider => [
+    provider.id,
+    provider,
+  ]),
 )
 const modelReference = z.strictObject({
   provider: z.string().min(1),

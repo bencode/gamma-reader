@@ -20,6 +20,7 @@ The following are server defaults. npx uses them too, except that `GAMMA_DATA_DI
 | --- | --- | --- |
 | `GLM_API_KEY` | Unset | Server-side credential for Z.AI Coding CN |
 | `DEEPSEEK_API_KEY` | Unset | Server-side credential for DeepSeek |
+| `QWEN_TOKEN_PLAN_CN_API_KEY` | Unset | Server-side credential for Alibaba Cloud Token Plan in China (Beijing) |
 | `TAVILY_API_KEY` | Unset | Server-side credential for Tavily; when set, the chat offers a web search switch |
 | `GAMMA_SEARCH_PROXY` | Unset | HTTP proxy for web search requests only, such as `http://172.17.0.1:1080` |
 | `GAMMA_PLUGINS_URL` | Unset | A plugin app the reader offers, such as `https://plugins.example.com`; see [Plugins](plugins.md) |
@@ -39,7 +40,7 @@ The following are server defaults. npx uses them too, except that `GAMMA_DATA_DI
 
 Configure enabled providers, chat models, the default chat model, and the independent vision model in [`providers.json`](../web-packages/server/src/model-proxy/providers.json). Credentials stay in the environment; the JSON references their variable names. Model names, supported thinking levels, upstream API addresses, and request mappings come from pi's native provider definitions. There are no model environment overrides or application-defined effort lists.
 
-The initial configuration enables GLM-5.3 / GLM-5.2 and DeepSeek V4 Flash / V4 Pro, with GLM-5.3 as the default and GLM-5.3-Flash for vision. Providers without a key are omitted from the selector. If the default provider is unavailable, the first available model in configuration order is used. If the vision provider is unavailable, text chat remains usable without vision tools.
+The initial configuration enables GLM-5.3 and the native DeepSeek Flash / V4 Pro models, with GLM-5.3 as the default and GLM-5.3-Flash for vision. Alibaba Cloud Token Plan adds DeepSeek V4 Flash 0731, Qwen3.8 Flash, DeepSeek V4 Pro 0813, and Qwen3.8 Max through pi's `qwen-token-plan-cn` provider. Providers without a key are omitted from the selector. If the default provider is unavailable, the first available model in configuration order is used. If the vision provider is unavailable, text chat remains usable without vision tools.
 
 Thinking levels are normalized with pi's `clampThinkingLevel`; new conversations start from pi Agent's `off` level, normalized for the selected model. For example, GLM-5.3 starts at `low`, while DeepSeek starts at `off`.
 

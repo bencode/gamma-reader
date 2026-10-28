@@ -3,6 +3,36 @@ import { resolveModelProxyConfig } from './config.js'
 import settings from './providers.json' with { type: 'json' }
 
 describe('model configuration', () => {
+  it('offers Token Plan models only with its credential and keeps GLM as the default', () => {
+    const tokenPlan = {
+      id: 'qwen-token-plan-cn',
+      chatModels: [
+        'deepseek-v4-flash-0731',
+        'qwen3.8-flash',
+        'deepseek-v4-pro-0813',
+        'qwen3.8-max',
+      ],
+    }
+    const env = { QWEN_TOKEN_PLAN_CN_API_KEY: 'token-plan-secret' }
+    const only = resolveModelProxyConfig(settings, env)
+    expect(only.publicConfig).toEqual({
+      enabled: true,
+      providers: [tokenPlan],
+      defaultModel: { provider: tokenPlan.id, modelId: 'deepseek-v4-flash-0731' },
+    })
+    expect(only.providers[tokenPlan.id]?.baseUrl).toBe(
+      'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
+    )
+    expect(
+      resolveModelProxyConfig(settings, { ...env, GLM_API_KEY: 'glm-secret' }).publicConfig,
+    ).toEqual({
+      enabled: true,
+      providers: [{ id: 'zai-coding-cn', chatModels: ['glm-5.3'] }, tokenPlan],
+      defaultModel: { provider: 'zai-coding-cn', modelId: 'glm-5.3' },
+      visionModel: { provider: 'zai-coding-cn', modelId: 'glm-5.3-flash' },
+    })
+  })
+
   it('keeps the available provider usable without the default provider key', () => {
     const { publicConfig } = resolveModelProxyConfig(settings, {
       DEEPSEEK_API_KEY: 'deepseek-secret',
