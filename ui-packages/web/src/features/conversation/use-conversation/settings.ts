@@ -49,6 +49,16 @@ export const setWebSearch = (ctx: Ctx, on: boolean) => {
   void queueDraft(s, next, true)
 }
 
+// Takes effect from the next message: each message is sent with the plugins in reach then.
+export const setPlugin = (ctx: Ctx, name: string, on: boolean) => {
+  const s = activeSession(ctx)
+  const current = getConversation(s)
+  const others = (current.plugins ?? []).filter(plugin => plugin !== name)
+  const next = { ...current, plugins: on ? [...others, name] : others }
+  setConversation(s, next)
+  void queueDraft(s, next, true)
+}
+
 // Models a reader configured only reach the list once the runtime is rebuilt — from the
 // server's configuration, or from their own where the server offered none. A conversation
 // answering in the background keeps the models it started with.

@@ -5,12 +5,17 @@ import type { ConversationTokenUsage } from '../token-usage'
 import styles from './style.module.scss'
 import { TokenUsageStatus } from './token-usage-status'
 
+// A plugin connected in the plugin app, turned on or off for this conversation.
+export type PluginSwitch = { name: string; title: string; icon: string; enabled: boolean }
+
 type ComposerToolbarProps = {
   onAdd: (files: readonly File[]) => void
   limitReached: boolean
   adding: boolean
   // Absent where the server has no search service.
   webSearch: { enabled: boolean; set: (on: boolean) => void } | null
+  plugins: readonly PluginSwitch[]
+  onPluginChange: (name: string, on: boolean) => void
   modelConfiguration: Pick<ModelControlProps, 'providers' | 'selection'> | null
   // Models change only between replies.
   modelDisabled: boolean
@@ -20,12 +25,15 @@ type ComposerToolbarProps = {
   tokenUsage: ConversationTokenUsage | null
 }
 
-// The row under the draft: attaching files, web search, the model, and how much context is used.
+// The row under the draft: attaching files, web search and plugins, the model, and how much
+// context is used.
 export const ComposerToolbar = ({
   onAdd,
   limitReached,
   adding,
   webSearch,
+  plugins,
+  onPluginChange,
   modelConfiguration,
   modelDisabled,
   onModelChange,
@@ -77,6 +85,23 @@ export const ComposerToolbar = ({
           <Globe size={16} />
         </button>
       )}
+      {plugins.map(plugin => (
+        <button
+          key={plugin.name}
+          type="button"
+          className={`icon-button ${styles.attachmentPicker} ${styles.webSearch} ${styles.plugin}`}
+          aria-label={plugin.title}
+          aria-pressed={plugin.enabled}
+          title={
+            plugin.enabled
+              ? `${plugin.title} is on: its requests go through the plugin app`
+              : `${plugin.title} is off`
+          }
+          onClick={() => onPluginChange(plugin.name, !plugin.enabled)}
+        >
+          <img src={plugin.icon} alt="" />
+        </button>
+      ))}
       {modelConfiguration && (
         <ConversationModelControl
           {...modelConfiguration}

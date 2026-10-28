@@ -10,7 +10,7 @@ import type { ModelControlProps } from '../model-control'
 import type { ConversationTokenUsage } from '../token-usage'
 import type { ConversationPhase } from '../use-conversation'
 import type { DraftAttachment } from '../use-draft-attachments'
-import { ComposerToolbar } from './composer-toolbar'
+import { ComposerToolbar, type PluginSwitch } from './composer-toolbar'
 import { DraftInput } from './draft-input'
 import { QueuedMessages } from './queued-messages'
 import type { SlashCommand } from './slash-command-menu'
@@ -48,6 +48,8 @@ type ComposerProps = {
   commands: readonly SlashCommand[]
   // Absent where the server has no search service.
   webSearch: { enabled: boolean; set: (on: boolean) => void } | null
+  plugins: readonly PluginSwitch[]
+  onPluginChange: (name: string, on: boolean) => void
 }
 
 export const ConversationComposer = ({
@@ -78,6 +80,8 @@ export const ConversationComposer = ({
   activeConversationId,
   commands,
   webSearch,
+  plugins,
+  onPluginChange,
 }: ComposerProps) => {
   const [dragging, setDragging] = useState(false)
   const readyAttachments = attachments.filter(item => item.status === 'ready')
@@ -142,6 +146,8 @@ export const ConversationComposer = ({
         limitReached={limitReached}
         adding={attachments.some(item => item.status === 'adding')}
         webSearch={webSearch}
+        plugins={plugins}
+        onPluginChange={onPluginChange}
         modelConfiguration={modelConfiguration}
         modelDisabled={phase !== 'ready'}
         onModelChange={onModelChange}

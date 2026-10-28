@@ -8,6 +8,7 @@ import {
   removeStoredConversation,
   touchStoredConversation,
 } from '../../../data/conversation-store'
+import { loadPlugins } from '../../plugins/load-plugins'
 import {
   attachAgent,
   disposeAgent,
@@ -92,11 +93,26 @@ export const start = (ctx: Ctx) => {
   const flush = () => {
     ctx.runtime.sessions.forEach(session => void flushInFlight({ app: ctx, session }))
   }
-  const flushOnceHidden = () => {
+  // The reader connects and disconnects plugins in the plugin app's own tab, so they are asked for
+  // again whenever this tab comes back.
+  const refreshPlugins = () => {
+    const { config } = store.getState()
+    const base = config.kind === 'enabled' ? config.config.plugins : undefined
+    if (!base) return
+    loadPlugins(base, controller.signal)
+      .then(plugins => store.setState({ plugins }))
+      .catch(cause => {
+        if (controller.signal.aborted) return
+        console.error('Unable to load plugins', cause)
+        store.setState({ plugins: [] })
+      })
+  }
+  const onVisibilityChange = () => {
     if (document.hidden) flush()
+    else refreshPlugins()
   }
   window.addEventListener('pagehide', flush)
-  document.addEventListener('visibilitychange', flushOnceHidden)
+  document.addEventListener('visibilitychange', onVisibilityChange)
   void (async () => {
     const placeholder = activeSession(ctx)
     let conversation = getConversation(placeholder)
@@ -132,10 +148,11 @@ export const start = (ctx: Ctx) => {
     if (controller.signal.aborted) return
     const s = activeSession(ctx)
     attachAgent(s, s.session.runtime.rawMessages)
+    refreshPlugins()
   })()
   return () => {
     window.removeEventListener('pagehide', flush)
-    document.removeEventListener('visibilitychange', flushOnceHidden)
+    document.removeEventListener('visibilitychange', onVisibilityChange)
     controller.abort()
     runtime.sessions.forEach(session => {
       session.runtime.compaction?.abort()

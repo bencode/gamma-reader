@@ -27,6 +27,8 @@ export type StoredConversation = {
   selection?: ModelSelection
   // Whether the reader turned web search on for this conversation; off when absent.
   webSearch?: boolean
+  // The plugins the reader turned on for this conversation, by name; none when absent.
+  plugins?: string[]
   draft: ConversationDraft
   // Sent while a reply was running and not yet given to the model.
   queued?: ConversationDraft[]

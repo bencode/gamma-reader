@@ -11,6 +11,7 @@ import {
   isReaderUserMessage,
 } from '../../../core/reader-message'
 import { appendStoredConversationMessages } from '../../../data/conversation-store'
+import { withPlugins } from '../../plugins/load-plugins'
 import { refresh, releaseSession } from './agent-session'
 import { compactBeforeSending, recoverFromOverflow } from './compaction'
 import { queueDraft, restoreToDraft, takeQueued } from './drafts'
@@ -73,6 +74,12 @@ const run = async (s: SessionCtx, agent: Agent, batch: readonly ConversationDraf
       } catch (cause) {
         reportStorageError(s.app, cause)
       }
+      // The plugins connected now and turned on here; the reply keeps them until it ends.
+      agent.state.tools = withPlugins(
+        agent.state.tools,
+        s.app.store.getState().plugins,
+        getConversation(s).plugins ?? [],
+      )
       try {
         await agent.prompt(messages)
         if (runtime.agent === agent) await recoverFromOverflow(s, agent)

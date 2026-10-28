@@ -49,6 +49,8 @@ const conversation = vi.hoisted(() => ({
   selectEffort: vi.fn(),
   refreshProviders: vi.fn().mockResolvedValue(undefined),
   webSearch: null,
+  plugins: [],
+  setPlugin: vi.fn(),
 }))
 
 vi.mock('./conversation-context', () => ({ useReaderConversation: () => conversation }))

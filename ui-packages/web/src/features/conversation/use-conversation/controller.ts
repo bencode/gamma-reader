@@ -10,7 +10,13 @@ import { loadMore, reload } from './history'
 import { deleteConversation, start, startNew, switchTo } from './navigation'
 import { type SendRequest, send, stop } from './run'
 import { createConversation } from './session'
-import { configureModel, memoryChanged, refreshProviders, setWebSearch } from './settings'
+import {
+  configureModel,
+  memoryChanged,
+  refreshProviders,
+  setPlugin,
+  setWebSearch,
+} from './settings'
 import {
   type Ctx,
   createRuntime,
@@ -70,6 +76,7 @@ export const createConversationController = (
     configureModel: (selection: Parameters<typeof configureModel>[1]) =>
       configureModel(ctx, selection),
     setWebSearch: (on: boolean) => setWebSearch(ctx, on),
+    setPlugin: (name: string, on: boolean) => setPlugin(ctx, name, on),
     refreshProviders: () => refreshProviders(ctx),
     memoryChanged: (on: boolean) => memoryChanged(ctx, on),
     showChat: () => ctx.store.setState({ view: 'chat' }),

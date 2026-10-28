@@ -6,6 +6,7 @@ import type {
   StoredConversation,
 } from '../../../core/conversations'
 import type { LocalTools } from '../../assistant/local-tools'
+import type { ReaderPlugin } from '../../plugins/load-plugins'
 import type { TokenUsage } from '../token-usage'
 import type { useDraftAttachments } from '../use-draft-attachments'
 import type { createDraftQueue } from './draft-queue'
@@ -56,6 +57,8 @@ export type ConversationState = {
   storageError?: string
   view: ConversationView
   config: ConfigState
+  // The plugins this browser has connected, where the deployment names a plugin app.
+  plugins: readonly ReaderPlugin[]
   history: {
     items: StoredConversation[]
     cursor: ConversationCursor | null
@@ -124,6 +127,7 @@ export const createState = (session: StoreApi<SessionState>) =>
     activity: {},
     view: 'chat',
     config: { kind: 'loading' },
+    plugins: [],
     history: { items: [], cursor: null, loading: true, error: null },
   }))
 

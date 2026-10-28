@@ -43,12 +43,25 @@ const web = tavilyKey
       extract: tavilyExtract(tavilyKey, searchProxy),
     }
   : undefined
+// A plugin app this deployment trusts: its tool descriptions reach the model as they are.
+const pluginsUrl = process.env.GAMMA_PLUGINS_URL?.trim()
+if (pluginsUrl && !/^https?:$/.test(URL.parse(pluginsUrl)?.protocol ?? '')) {
+  throw new Error('GAMMA_PLUGINS_URL must be an http or https URL')
+}
+const plugins = pluginsUrl?.replace(/\/+$/, '')
 const models = resolveModelProxyConfig(providers, process.env)
-// The reader sees the web search switch only where a search service is configured.
-const config =
-  web && models.publicConfig.enabled
-    ? { ...models, publicConfig: { ...models.publicConfig, webSearch: true as const } }
-    : models
+// The reader sees the web search switch only where a search service is configured, and plugins
+// only where a plugin app is named.
+const config = models.publicConfig.enabled
+  ? {
+      ...models,
+      publicConfig: {
+        ...models.publicConfig,
+        ...(web && { webSearch: true as const }),
+        ...(plugins && { plugins }),
+      },
+    }
+  : models
 const quota = readQuotaConfig(process.env)
 const store = openQuotaStore(quota.databaseFile)
 const guard = createQuotaGuard(store, quota)

@@ -69,6 +69,8 @@ type ProjectSwitcherProps =
       files: readonly StoredFileMetadata[]
       exporter: FileExportController
       onOpenMemory: () => void
+      // The plugin app's address, where the deployment names one.
+      pluginsHome?: string
     }
   | { project: null }
 
@@ -209,6 +211,12 @@ export const ProjectSwitcher = (props: ProjectSwitcherProps) => {
                   >
                     Memory
                   </button>
+                  {props.pluginsHome && (
+                    <a href={props.pluginsHome} target="_blank" rel="noopener">
+                      Plugins
+                      <ExternalLink size={13} aria-hidden="true" />
+                    </a>
+                  )}
                 </>
               )}
             </div>
