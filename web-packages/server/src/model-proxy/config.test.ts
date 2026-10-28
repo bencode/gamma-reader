@@ -6,19 +6,14 @@ describe('model configuration', () => {
   it('offers Token Plan models only with its credential and keeps GLM as the default', () => {
     const tokenPlan = {
       id: 'qwen-token-plan-cn',
-      chatModels: [
-        'deepseek-v4-flash-0731',
-        'qwen3.8-flash',
-        'deepseek-v4-pro-0813',
-        'qwen3.8-max',
-      ],
+      chatModels: ['deepseek-v4.1-flash', 'qwen3.8-flash', 'deepseek-v4-pro', 'qwen3.8-max'],
     }
     const env = { QWEN_TOKEN_PLAN_CN_API_KEY: 'token-plan-secret' }
     const only = resolveModelProxyConfig(settings, env)
     expect(only.publicConfig).toEqual({
       enabled: true,
       providers: [tokenPlan],
-      defaultModel: { provider: tokenPlan.id, modelId: 'deepseek-v4-flash-0731' },
+      defaultModel: { provider: tokenPlan.id, modelId: 'deepseek-v4.1-flash' },
     })
     expect(only.providers[tokenPlan.id]?.baseUrl).toBe(
       'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',

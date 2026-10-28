@@ -52,9 +52,9 @@ describe('conversation', () => {
             {
               id: 'qwen-token-plan-cn',
               chatModels: [
-                'deepseek-v4-flash-0731',
+                'deepseek-v4.1-flash',
                 'qwen3.8-flash',
-                'deepseek-v4-pro-0813',
+                'deepseek-v4-pro',
                 'qwen3.8-max',
               ],
             },
@@ -72,7 +72,7 @@ describe('conversation', () => {
       within(group)
         .getAllByRole('option')
         .map(option => option.textContent),
-    ).toEqual(['DeepSeek V4 Flash 0731', 'Qwen3.8 Flash', 'DeepSeek V4 Pro 0813', 'Qwen3.8 Max'])
+    ).toEqual(['DeepSeek V4.1 Flash', 'Qwen3.8 Flash', 'DeepSeek V4 Pro', 'Qwen3.8 Max'])
     await user.selectOptions(model, 'Qwen3.8 Max')
     await user.type(question(), 'Read this document')
     await user.click(send())
