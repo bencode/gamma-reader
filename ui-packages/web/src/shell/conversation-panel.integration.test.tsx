@@ -154,6 +154,68 @@ describe('conversation', () => {
     )
   })
 
+  it('offers a connected plugin per conversation, off until turned on, and drops it once disconnected', async () => {
+    const user = userEvent.setup({ delay: null })
+    const base = 'https://plugins.example.com'
+    const notes = {
+      name: 'notes',
+      title: 'Notes',
+      icon: `${base}/notes.svg`,
+      tools: [
+        {
+          name: 'notes_search',
+          description: 'Search notes',
+          parameters: { type: 'object', properties: { query: { type: 'string' } } },
+        },
+      ],
+    }
+    let connected = [notes]
+    const tools: string[][] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/agent/config') return Response.json({ ...config, plugins: base })
+      if (url === `${base}/manifest`) return Response.json({ plugins: connected })
+      if (isTitleRequest(init)) return complete('Title')
+      const body: { tools?: { function: { name: string } }[] } = JSON.parse(String(init?.body))
+      tools.push((body.tools ?? []).map(tool => tool.function.name))
+      return complete('A reply')
+    })
+    const ask = async (text: string) => {
+      await waitFor(() =>
+        expect(screen.getByRole('combobox', { name: 'Chat model' })).toBeEnabled(),
+      )
+      const before = tools.length
+      await user.type(question(), text)
+      await user.click(send())
+      await waitFor(() => expect(tools).toHaveLength(before + 1))
+    }
+    const toggle = () => screen.getByRole('button', { name: 'Notes' })
+
+    open()
+    expect(await screen.findByRole('button', { name: 'Notes' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    await user.click(screen.getByRole('button', { name: 'My reading' }))
+    expect(screen.getByRole('link', { name: 'Plugins' })).toHaveAttribute('href', base)
+    await user.keyboard('{Escape}')
+    await ask('Without notes')
+    await user.click(toggle())
+    expect(toggle()).toHaveAttribute('aria-pressed', 'true')
+    await ask('With notes')
+    connected = []
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Notes' })).not.toBeInTheDocument(),
+    )
+    await ask('After disconnecting')
+
+    expect(tools[0]).not.toContain('notes_search')
+    expect(tools[1]).toContain('notes_search')
+    expect(tools[2]).not.toContain('notes_search')
+  })
+
   it('persists the initial model so changing deployment defaults does not change an existing chat', async () => {
     const user = userEvent.setup({ delay: null })
     const network = vi

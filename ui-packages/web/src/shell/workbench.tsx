@@ -8,6 +8,7 @@ import {
 } from '../features/conversation/conversation-context'
 import { ConversationPanel } from '../features/conversation/conversation-panel'
 import { useNoteIndex } from '../features/links/use-note-index'
+import { usePluginsHome } from '../features/plugins/use-plugins-home'
 import { ProjectSwitcher } from '../features/projects/project-switcher'
 import { DocumentTabs } from '../features/reader/document-tabs'
 import { prepareP5SourceFile } from '../features/reader/p5-file'
@@ -69,6 +70,7 @@ export const Workbench = ({ project }: { project: Project }) => {
   const rootRef = useRef<HTMLDivElement>(null)
   const library = useFileLibrary(prepareP5SourceFile)
   const exporter = useFileExport(library.files)
+  const pluginsHome = usePluginsHome()
   const sourceSync = useSourceSync(project.source ?? null, library.reload, library.files)
   const noteIndex = useNoteIndex(library.files)
   const workspace = useWorkspace(library.files, library.loading)
@@ -185,6 +187,7 @@ export const Workbench = ({ project }: { project: Project }) => {
           files={library.files}
           exporter={exporter}
           onOpenMemory={() => openFromFiles(viewTabId('memory'))}
+          pluginsHome={pluginsHome}
         />
       }
       activeId={workspace.activeId}

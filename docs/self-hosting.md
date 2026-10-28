@@ -22,6 +22,7 @@ The following are server defaults. npx uses them too, except that `GAMMA_DATA_DI
 | `DEEPSEEK_API_KEY` | Unset | Server-side credential for DeepSeek |
 | `TAVILY_API_KEY` | Unset | Server-side credential for Tavily; when set, the chat offers a web search switch |
 | `GAMMA_SEARCH_PROXY` | Unset | HTTP proxy for web search requests only, such as `http://172.17.0.1:1080` |
+| `GAMMA_PLUGINS_URL` | Unset | A plugin app the reader offers, such as `https://plugins.example.com`; see [Plugins](plugins.md) |
 | `PORT` | `3302` | Node service port |
 | `HOST` | `127.0.0.1` | Node service host |
 | `GAMMA_BACKEND` | `http://127.0.0.1:3302` | Vite proxy target |

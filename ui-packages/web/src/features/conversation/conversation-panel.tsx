@@ -256,6 +256,8 @@ export const ConversationPanel = ({
               activeConversationId={active.id}
               commands={commands}
               webSearch={conversation.webSearch}
+              plugins={conversation.plugins}
+              onPluginChange={conversation.setPlugin}
             />
           </div>
         </div>

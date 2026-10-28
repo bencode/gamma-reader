@@ -15,4 +15,6 @@ export type PublicModelConfig =
       visionModel?: ModelReference
       // Present only where the server is configured to search the web.
       webSearch?: true
+      // The plugin app's address, present only where the deployment names one.
+      plugins?: string
     }

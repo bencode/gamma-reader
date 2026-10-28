@@ -91,6 +91,13 @@ export const useConversation = (
     webSearch: webSearchAvailable(config)
       ? { enabled: Boolean(active.webSearch), set: controller.setWebSearch }
       : null,
+    plugins: state.plugins.map(({ name, title, icon }) => ({
+      name,
+      title,
+      icon,
+      enabled: active.plugins?.includes(name) ?? false,
+    })),
+    setPlugin: controller.setPlugin,
     selectModel: (model: ModelReference) => {
       if (selection) controller.configureModel({ ...model, effort: selection.effort })
     },
