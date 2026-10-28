@@ -92,11 +92,7 @@ export const ComposerToolbar = ({
           className={`icon-button ${styles.attachmentPicker} ${styles.webSearch} ${styles.plugin}`}
           aria-label={plugin.title}
           aria-pressed={plugin.enabled}
-          title={
-            plugin.enabled
-              ? `${plugin.title} is on: its requests go through the plugin app`
-              : `${plugin.title} is off`
-          }
+          title={plugin.title}
           onClick={() => onPluginChange(plugin.name, !plugin.enabled)}
         >
           <img src={plugin.icon} alt="" />
