@@ -20,8 +20,9 @@ The following are server defaults. npx uses them too, except that `GAMMA_DATA_DI
 | --- | --- | --- |
 | `GLM_API_KEY` | Unset | Server-side credential for Z.AI Coding CN |
 | `DEEPSEEK_API_KEY` | Unset | Server-side credential for DeepSeek |
+| `GAMMA_SEARCH_PROVIDER` | `tavily` | The web search service: `tavily`, or `deepseek` to search and read pages with `DEEPSEEK_API_KEY` |
 | `TAVILY_API_KEY` | Unset | Server-side credential for Tavily; when set, the chat offers a web search switch |
-| `GAMMA_SEARCH_PROXY` | Unset | HTTP proxy for web search requests only, such as `http://172.17.0.1:1080` |
+| `GAMMA_SEARCH_PROXY` | Unset | HTTP proxy for Tavily requests only, such as `http://172.17.0.1:1080` |
 | `GAMMA_PLUGINS_URL` | Unset | A plugin app the reader offers, such as `https://plugins.example.com`; see [Plugins](plugins.md) |
 | `PORT` | `3302` | Node service port |
 | `HOST` | `127.0.0.1` | Node service host |

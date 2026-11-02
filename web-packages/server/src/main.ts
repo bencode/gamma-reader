@@ -12,7 +12,13 @@ import { publishing } from './source/publish.js'
 import { openRepository, type Source } from './source/repository.js'
 import { openWorkingTree } from './source/working-tree.js'
 import { readSourceConfig, type SourceConfig } from './source-config.js'
-import { tavilyExtract, tavilySearch } from './web-search/provider.js'
+import {
+  deepseekExtract,
+  deepseekSearch,
+  tavilyExtract,
+  tavilySearch,
+} from './web-search/provider.js'
+import type { WebServices } from './web-search/routes.js'
 
 const port = Number(process.env.PORT ?? 3302)
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -35,14 +41,20 @@ if (webRoot) {
 }
 
 const hostname = process.env.HOST ?? '127.0.0.1'
-const tavilyKey = process.env.TAVILY_API_KEY?.trim()
-const searchProxy = process.env.GAMMA_SEARCH_PROXY?.trim() || undefined
-const web = tavilyKey
-  ? {
-      search: tavilySearch(tavilyKey, searchProxy),
-      extract: tavilyExtract(tavilyKey, searchProxy),
-    }
-  : undefined
+// Tavily unless the deployment names DeepSeek, which then searches with the chat's own key.
+const webServices = (): WebServices | undefined => {
+  const provider = process.env.GAMMA_SEARCH_PROVIDER?.trim() || 'tavily'
+  if (provider === 'deepseek') {
+    const key = process.env.DEEPSEEK_API_KEY?.trim()
+    if (!key) throw new Error('GAMMA_SEARCH_PROVIDER=deepseek needs DEEPSEEK_API_KEY')
+    return { search: deepseekSearch(key), extract: deepseekExtract(key) }
+  }
+  if (provider !== 'tavily') throw new Error('GAMMA_SEARCH_PROVIDER must be tavily or deepseek')
+  const key = process.env.TAVILY_API_KEY?.trim()
+  const proxy = process.env.GAMMA_SEARCH_PROXY?.trim() || undefined
+  return key ? { search: tavilySearch(key, proxy), extract: tavilyExtract(key, proxy) } : undefined
+}
+const web = webServices()
 // A plugin app this deployment trusts: its tool descriptions reach the model as they are.
 const pluginsUrl = process.env.GAMMA_PLUGINS_URL?.trim()
 if (pluginsUrl && !/^https?:$/.test(URL.parse(pluginsUrl)?.protocol ?? '')) {
