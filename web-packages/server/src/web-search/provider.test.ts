@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { tavilyExtract, tavilySearch } from './provider.js'
+import { deepseekExtract, deepseekSearch, tavilyExtract, tavilySearch } from './provider.js'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -74,5 +74,61 @@ describe('Tavily search', () => {
       extract_depth: 'basic',
     })
     await expect(extract('https://example.org/b', signal)).rejects.toThrow('could not extract')
+  })
+})
+
+describe('DeepSeek search', () => {
+  it('asks with a query cut to its limit, and keeps the summary meant for a model', async () => {
+    const fetchSearch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        results: [
+          {
+            url: 'https://example.org/news',
+            title: 'News',
+            snippet: 'Short',
+            summary: 'Longer summary',
+            date: '2026-10-17T00:00:00Z',
+            rerank_score: 2,
+          },
+          { url: 'https://example.org/short', title: 'Short only', snippet: 'Short', summary: '' },
+          { title: 'No link', summary: 'Dropped' },
+        ],
+      }),
+    )
+
+    const hits = await deepseekSearch('sk-key')('读'.repeat(200), 3, new AbortController().signal)
+
+    const [url, init] = fetchSearch.mock.calls[0] ?? []
+    expect(url).toBe('https://api.deepseek.com/v1/tools/search')
+    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer sk-key')
+    expect(JSON.parse(String(init?.body))).toEqual({ query: '读'.repeat(128), count: 3 })
+    expect(hits).toEqual([
+      {
+        title: 'News',
+        url: 'https://example.org/news',
+        published: '2026-10-17T00:00:00Z',
+        snippet: 'Longer summary',
+      },
+      { title: 'Short only', url: 'https://example.org/short', snippet: 'Short' },
+    ])
+  })
+
+  it('reads a page as Markdown and fails when DeepSeek could not', async () => {
+    const fetchPage = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ title: 'A', content: '# A\n\nText' }))
+      .mockResolvedValueOnce(new Response('{}', { status: 404 }))
+    const extract = deepseekExtract('sk-key')
+    const signal = new AbortController().signal
+
+    expect(await extract('https://example.org/a', signal)).toEqual({
+      url: 'https://example.org/a',
+      title: 'A',
+      content: '# A\n\nText',
+    })
+    const [url, init] = fetchPage.mock.calls[0] ?? []
+    expect(url).toBe('https://api.deepseek.com/v1/tools/fetch')
+    expect(JSON.parse(String(init?.body))).toEqual({ url: 'https://example.org/a' })
+    await expect(extract('https://example.org/b', signal)).rejects.toThrow('DeepSeek answered 404')
   })
 })

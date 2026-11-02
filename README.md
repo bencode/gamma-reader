@@ -38,7 +38,7 @@ The project is named after the folder, which must belong to a git working tree. 
 
 ## Local-first by design
 
-Previewing, parsing, searching and the pi agent loop run in the browser. A connected source can also hold your documents on disk or in a repository. AI inference runs at the model provider: on the shared allowance through a Node proxy that holds the credentials but stores no conversation content, and with a reader's own key straight from the browser. Web search queries go through the server to Tavily. See [Your data and models](tutorial/guide/Your%20data%20and%20models.md) for what leaves the browser.
+Previewing, parsing, searching and the pi agent loop run in the browser. A connected source can also hold your documents on disk or in a repository. AI inference runs at the model provider: on the shared allowance through a Node proxy that holds the credentials but stores no conversation content, and with a reader's own key straight from the browser. Web search queries go through the server to Tavily, or to DeepSeek where the deployment names it. See [Your data and models](tutorial/guide/Your%20data%20and%20models.md) for what leaves the browser.
 
 ![Browser storage, local tools, and the two routes to a model provider](tutorial/examples/How%20Gamma%20Reader%20works.svg)
 

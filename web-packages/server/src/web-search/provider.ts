@@ -29,24 +29,28 @@ const tavilyHit = (result: TavilyResult): SearchHit[] =>
       ]
     : []
 
-// Calls Tavily, through an HTTP proxy when one is given; only Tavily traffic takes it.
-const tavilyClient = (apiKey: string, proxy?: string) => {
+// Posts to a search service, through an HTTP proxy when one is given; only that service's
+// traffic takes it.
+const serviceClient = (service: string, base: string, apiKey: string, proxy?: string) => {
   const dispatcher = proxy ? new ProxyAgent(proxy) : undefined
-  return async (endpoint: 'search' | 'extract', body: object, signal: AbortSignal) => {
+  return async (endpoint: string, body: object, signal: AbortSignal) => {
     const init = {
       method: 'POST',
       signal,
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }
-    const url = `https://api.tavily.com/${endpoint}`
+    const url = `${base}/${endpoint}`
     const response = dispatcher
       ? await proxiedFetch(url, { ...init, dispatcher })
       : await fetch(url, init)
-    if (!response.ok) throw new Error(`Tavily answered ${response.status}`)
+    if (!response.ok) throw new Error(`${service} answered ${response.status}`)
     return (await response.json()) as Record<string, unknown>
   }
 }
+
+const tavilyClient = (apiKey: string, proxy?: string) =>
+  serviceClient('Tavily', 'https://api.tavily.com', apiKey, proxy)
 
 export const tavilySearch = (apiKey: string, proxy?: string): SearchProvider => {
   const call = tavilyClient(apiKey, proxy)
@@ -75,6 +79,25 @@ const fromTitle = (content: string) => {
   return title > 0 && title < lines.length * 0.3 ? lines.slice(title).join('\n') : content
 }
 
+const extractedPage = (
+  service: string,
+  url: string,
+  title: unknown,
+  raw: unknown,
+): ExtractedPage => {
+  if (typeof raw !== 'string' || !raw.trim())
+    throw new Error(`${service} could not extract the page.`)
+  const content = fromTitle(raw)
+  return {
+    url,
+    ...(typeof title === 'string' && title.trim() && { title: title.trim() }),
+    content:
+      content.length > maximumPageCharacters
+        ? `${content.slice(0, maximumPageCharacters)}\n\n… The rest of the page was left out.`
+        : content,
+  }
+}
+
 export const tavilyExtract = (apiKey: string, proxy?: string): PageExtractor => {
   const call = tavilyClient(apiKey, proxy)
   return async (url, signal) => {
@@ -86,18 +109,55 @@ export const tavilyExtract = (apiKey: string, proxy?: string): PageExtractor => 
     const page = Array.isArray(body.results) ? body.results[0] : undefined
     const fields =
       typeof page === 'object' && page !== null ? (page as Record<string, unknown>) : {}
-    const raw = fields.raw_content
-    if (typeof raw !== 'string' || !raw.trim())
-      throw new Error('Tavily could not extract the page.')
-    const content = fromTitle(raw)
-    return {
-      url,
-      ...(typeof fields.title === 'string' &&
-        fields.title.trim() && { title: fields.title.trim() }),
-      content:
-        content.length > maximumPageCharacters
-          ? `${content.slice(0, maximumPageCharacters)}\n\n… The rest of the page was left out.`
-          : content,
-    }
+    return extractedPage('Tavily', url, fields.title, fields.raw_content)
+  }
+}
+
+const deepseekClient = (apiKey: string) =>
+  serviceClient('DeepSeek', 'https://api.deepseek.com/v1/tools', apiKey)
+
+type DeepseekResult = {
+  url?: unknown
+  title?: unknown
+  summary?: unknown
+  snippet?: unknown
+  date?: unknown
+}
+
+const text = (value: unknown) => (typeof value === 'string' ? value : '')
+
+// The summary is written for a model; the snippet, a line for a results page, stands in for it.
+const deepseekHit = (result: DeepseekResult): SearchHit[] =>
+  typeof result.url === 'string' && typeof result.title === 'string'
+    ? [
+        {
+          title: result.title,
+          url: result.url,
+          ...(typeof result.date === 'string' && { published: result.date }),
+          snippet: snippet(text(result.summary) || text(result.snippet)),
+        },
+      ]
+    : []
+
+// DeepSeek refuses a query longer than this, so a longer one is cut instead.
+const maximumDeepseekQuery = 128
+
+export const deepseekSearch = (apiKey: string): SearchProvider => {
+  const call = deepseekClient(apiKey)
+  return async (query, count, signal) => {
+    const shortened = Array.from(query).slice(0, maximumDeepseekQuery).join('').trim()
+    const body = await call('search', { query: shortened, count }, signal)
+    if (!Array.isArray(body.results)) return []
+    return body.results.flatMap((result: unknown) =>
+      typeof result === 'object' && result !== null ? deepseekHit(result as DeepseekResult) : [],
+    )
+  }
+}
+
+export const deepseekExtract = (apiKey: string): PageExtractor => {
+  const call = deepseekClient(apiKey)
+  return async (url, signal) => {
+    const body = await call('fetch', { url }, signal)
+    return extractedPage('DeepSeek', url, body.title, body.content)
   }
 }
