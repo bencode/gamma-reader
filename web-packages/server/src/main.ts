@@ -1,4 +1,5 @@
 import { access } from 'node:fs/promises'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
@@ -9,9 +10,9 @@ import { createQuotaGuard } from './quota/guard.js'
 import { openQuotaStore } from './quota/store.js'
 import { openDirectory } from './source/directory.js'
 import { publishing } from './source/publish.js'
-import { openRepository, type Source } from './source/repository.js'
+import { openClone, openCommitted, type Source } from './source/repository.js'
 import { openWorkingTree } from './source/working-tree.js'
-import { readSourceConfig, type SourceConfig } from './source-config.js'
+import { readSourceConfig, type SourceConfig, type SourceProject } from './source-config.js'
 import { tavilyExtract, tavilySearch } from './web-search/provider.js'
 
 const port = Number(process.env.PORT ?? 3302)
@@ -65,23 +66,51 @@ const config = models.publicConfig.enabled
 const quota = readQuotaConfig(process.env)
 const store = openQuotaStore(quota.databaseFile)
 const guard = createQuotaGuard(store, quota)
-// A remote source is only named; a repository is served from here.
-const openSource = async (config: SourceConfig): Promise<Source | null> => {
-  if (config.kind === 'remote') return null
-  if (config.kind === 'worktree') return openWorkingTree(config)
-  const clone = openRepository(config)
-  const repository = config.push
-    ? publishing(clone, {
-        dir: config.dir,
-        scope: { include: config.include, exclude: config.exclude },
-      })
-    : clone
+// Each folder named as a project must be in the repository, in a clone once it is pulled.
+const requireFolders = (dir: string, repository: string, projects: readonly SourceProject[]) =>
+  Promise.all(
+    projects
+      .filter(({ folder }) => folder)
+      .map(({ folder }) =>
+        access(join(dir, folder)).catch((cause: unknown) => {
+          throw new Error(`${repository} has no folder ${folder}`, { cause })
+        }),
+      ),
+  )
+
+// A remote source is only named; a repository is served from here, each project from its folder.
+// A clone is pulled once for all of them.
+const openSources = async (
+  config: SourceConfig,
+): Promise<{ project: SourceProject; files: Source }[]> => {
+  if (config.kind === 'remote') return []
+  const { include, exclude } = config
+  const scope = { include, exclude }
+  if (config.kind === 'worktree') {
+    await requireFolders(config.dir, config.dir, config.projects)
+    return Promise.all(
+      config.projects.map(async project => ({
+        project,
+        files: await openWorkingTree({ dir: join(config.dir, project.folder), ...scope }),
+      })),
+    )
+  }
+  const clone = openClone(config)
+  const published = config.push ? publishing(clone, config.dir) : null
+  const repository = published ?? clone
   await repository.update()
+  await requireFolders(config.dir, config.repo, config.projects)
   // A failed pull keeps serving the last commit; the next one tries again.
   setInterval(() => {
     repository.update().catch(cause => console.error('Unable to update the source', cause))
   }, config.pullSeconds * 1000)
-  return repository
+  return config.projects.map(project => {
+    const files = openCommitted({ dir: join(config.dir, project.folder), ...scope })
+    return {
+      project,
+      files: published ? { ...files, save: published.saveIn(project.folder, scope) } : files,
+    }
+  })
 }
 
 // The tutorial sits at the repository root, beside the packages, in a checkout and in the image.
@@ -94,7 +123,9 @@ await access(tutorialDir).catch((cause: unknown) => {
 const tutorial = openDirectory(tutorialDir)
 
 const sourceConfig = readSourceConfig(process.env)
-const source = sourceConfig ? { config: sourceConfig, files: await openSource(sourceConfig) } : null
+const source = sourceConfig
+  ? { config: sourceConfig, served: await openSources(sourceConfig) }
+  : null
 
 serve(
   { fetch: createApp(guard, webRoot, config, source, web, tutorial).fetch, port, hostname },

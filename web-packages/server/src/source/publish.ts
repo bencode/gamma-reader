@@ -1,11 +1,9 @@
 import { access } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { SaveResult } from '@gamma-reader/shared/source-protocol'
 import { type Author, git, type Source } from './repository.js'
 import { applySave } from './save.js'
 import type { SourceScope } from './scope.js'
-
-type Repository = Source & { update: () => Promise<void> }
 
 // The committer of every save, and its author when the sign-in names nobody.
 const reader: Author = { name: 'Gamma Reader', email: 'reader@gamma-reader.invalid' }
@@ -98,13 +96,13 @@ const undo = async (dir: string, results: readonly SaveResult[]) => {
   )
 }
 
+type Save = NonNullable<Source['save']>
+
 // A clone the server also pushes to. Each save starts from the repository's latest commit, is
-// committed as the reader who made it, and is pushed at once. Saves and pulls take turns, since
-// both move the clone.
-export const publishing = (
-  repository: Repository,
-  { dir, scope }: { dir: string; scope: SourceScope },
-): Repository => {
+// committed as the reader who made it, and is pushed at once. A save is written into the folder of
+// the project it came from, and committed from the clone's root. Saves and pulls take turns, those
+// of every project read from the clone alike, since all of them move the clone.
+export const publishing = (clone: { update: () => Promise<void> }, dir: string) => {
   let queue: Promise<unknown> = Promise.resolve()
   const inTurn = <T>(task: () => Promise<T>) => {
     const turn = queue.then(task)
@@ -112,22 +110,32 @@ export const publishing = (
     return turn
   }
 
-  const save: NonNullable<Source['save']> = async (changes, content, author) => {
-    await repository.update()
-    const results = await applySave(dir, scope, changes, content, 'return-to-reader')
-    if (!changedClone(results)) return results
-    try {
-      if (!(await commit(dir, author ?? reader))) return results
-    } catch (cause) {
-      console.error('Unable to commit the saved changes', cause)
-      return undo(dir, results)
+  const save =
+    (folder: string, scope: SourceScope): Save =>
+    async (changes, content, author) => {
+      await clone.update()
+      const results = await applySave(
+        join(dir, folder),
+        scope,
+        changes,
+        content,
+        'return-to-reader',
+      )
+      if (!changedClone(results)) return results
+      try {
+        if (!(await commit(dir, author ?? reader))) return results
+      } catch (cause) {
+        console.error('Unable to commit the saved changes', cause)
+        return undo(dir, results)
+      }
+      return (await pushed(dir)) ? results : undo(dir, results)
     }
-    return (await pushed(dir)) ? results : undo(dir, results)
-  }
 
   return {
-    ...repository,
-    update: () => inTurn(repository.update),
-    save: (changes, content, author) => inTurn(() => save(changes, content, author)),
+    update: () => inTurn(clone.update),
+    saveIn:
+      (folder: string, scope: SourceScope): Save =>
+      (changes, content, author) =>
+        inTurn(() => save(folder, scope)(changes, content, author)),
   }
 }

@@ -28,7 +28,7 @@ For Docker, build the `runtime-git` target and pass the source variables into th
 
 ## Source configuration
 
-When starting the server directly, set `GAMMA_SOURCE_NAME` and exactly one source variable. npx sets the name and working tree for you.
+When starting the server directly, set `GAMMA_SOURCE_NAME`, or [`GAMMA_SOURCE_PROJECTS`](#several-projects-from-one-repository), and exactly one source variable. npx sets the name and working tree for you.
 
 | Variable | Serves |
 | --- | --- |
@@ -38,6 +38,7 @@ When starting the server directly, set `GAMMA_SOURCE_NAME` and exactly one sourc
 
 | Optional variable | Default | Purpose |
 | --- | --- | --- |
+| `GAMMA_SOURCE_PROJECTS` | Unset | Folders to serve as projects of their own, comma separated; see [below](#several-projects-from-one-repository) |
 | `GAMMA_SOURCE_EXCLUDE` | Unset | Folders to leave out, comma separated; also available as npx `--exclude` |
 | `GAMMA_SOURCE_INCLUDE` | Unset (all) | Only these folders, comma separated; also available as npx `--include` |
 | `GAMMA_SOURCE_DIR` | `$GAMMA_DATA_DIR/source` | Where a cloned repository lives |
@@ -50,10 +51,26 @@ Use absolute paths in `.env`: it does not expand `~` or `$HOME`.
 
 - **Local working tree:** tracked files and untracked files allowed by git's ignore rules. Already tracked files remain eligible even if they match `.gitignore`.
 - **Remote clone:** committed files only; `.gitignore` does not remove files already committed.
-- **Path filters:** hidden files and folders stay out. Include/exclude folders are relative to the selected local folder or the remote repository root; exclude wins. Explicitly including a hidden folder such as `.github` allows its non-hidden contents.
+- **Path filters:** hidden files and folders stay out. Include/exclude folders are relative to the selected local folder or the remote repository root, or to each project's folder; exclude wins. Explicitly including a hidden folder such as `.github` allows its non-hidden contents.
 - **Repository boundaries:** symlinks and submodules stay out. Nested independent git repositories are not recursively synced as part of a local working tree.
 
 A file outside the include/exclude or hidden-path rules is neither listed nor saved. These source rules differ from the browser's [one-time folder import filters](../tutorial/guide/Files%20and%20projects.md#what-a-folder-leaves-out).
+
+### Several projects from one repository
+
+A repository can hold several topics, one folder each, and the reader can keep each as a project of its own. Name the folders instead of `GAMMA_SOURCE_NAME`:
+
+```sh
+GAMMA_SOURCE_REPO=https://github.com/you/library.git
+GAMMA_SOURCE_PROJECTS=security,software,math
+```
+
+- **Names:** each project is named after the last segment of its folder, so `topics/math` is `math`. Two folders may not end in the same name, ignoring case, and no folder on the way may be named `files`.
+- **Sources:** works with `GAMMA_SOURCE_WORKTREE` and `GAMMA_SOURCE_REPO`, not with `GAMMA_SOURCE_URL`. Every folder must exist when the server starts.
+- **Paths:** a project holds the files under its folder, named from there: `security/xss.md` is `xss.md` in the `security` project. Include/exclude folders apply within each project's folder.
+- **One clone:** a remote repository is cloned and pulled once for all its projects. With `GAMMA_SOURCE_PUSH=1`, each project's Save commits into its own folder.
+- **Opening:** the reader lists every project the deployment names, and opens the first unless the address names another. Each project syncs while it is open.
+- **Links between projects:** a wiki link finds notes only in its own project. A `[[link]]` to a note in another folder opens as a page not written yet, and a relative link out of the folder is not found. Link to another project's file by its full address, such as `https://reader.example/p/source-security/files/xss.md`.
 
 ### When updates arrive
 
@@ -75,7 +92,7 @@ Save compares each file with the version last synced:
 - **Concurrent edits:** different lines merge automatically. Conflicting lines are written with markers; resolve them in your editor and the next sync brings the result in.
 - **Deletion conflicts:** a file deleted on disk stays deleted, with your edit kept in the browser to save again. A file you deleted here is kept on disk if someone changed it meanwhile.
 
-A project saves only to the folder it was synced from. Give another folder a different source name.
+A project saves only to the folder it was synced from. Give another folder a different source name, or serve both as [projects of one repository](#several-projects-from-one-repository).
 
 ## Saving back to a repository
 

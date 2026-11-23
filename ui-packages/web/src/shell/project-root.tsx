@@ -14,12 +14,12 @@ import {
   getProject,
   isPendingDeletion,
   listProjects,
-  openSourceProject,
+  saveSourceProjects,
   touchProject,
 } from '../data/project-store'
 import { openWorkspaceDatabase, setWorkspaceDatabaseName } from '../data/workspace-database'
 import { removeProjectMemories } from '../features/memory'
-import { loadProjectSource } from '../features/source/load-source'
+import { loadProjectSources } from '../features/source/load-source'
 import { EmptyWorkbench } from './empty-workbench'
 import { Workbench } from './workbench'
 
@@ -42,20 +42,19 @@ const isLegacyPath = (pathname: string) => pathname === '/files' || pathname.sta
 const resolveProject = async (): Promise<Project | null> => {
   const { pathname, search, hash } = window.location
   const requested = pathname.match(projectSegment)?.[1]
-  // A visit that names no project will ask for the source; asking alongside the tutorial's
-  // setup keeps the wait no longer than the network itself.
-  const sourceLoad = requested ? null : loadProjectSource()
-  await ensureTutorialProject()
+  // The deployment's sources are asked for on every visit, alongside the tutorial's setup, so a
+  // project it adds is listed and each one's source is current, whichever project is opened.
+  const [sources] = await Promise.all([loadProjectSources(), ensureTutorialProject()])
+  const sourceProjects = await saveSourceProjects(sources)
   if (requested) {
     const project = await touchProject(decodeURIComponent(requested))
     if (project) return project
   }
-  // A deployment bound to a source opens its project unless another one was asked for.
-  const source = await (sourceLoad ?? loadProjectSource())
-  if (source) {
-    const project = await openSourceProject(source)
-    window.history.replaceState(null, '', `${projectPath(project.id)}${search}${hash}`)
-    return project
+  // A deployment bound to a source opens its first project unless another one was asked for.
+  const first = sourceProjects[0]
+  if (first) {
+    window.history.replaceState(null, '', `${projectPath(first.id)}${search}${hash}`)
+    return (await touchProject(first.id)) ?? first
   }
   const projects = await listProjects()
   // Links from before projects existed all point into the library that became the first one.

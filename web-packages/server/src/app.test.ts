@@ -99,16 +99,16 @@ describe('application HTTP boundaries', () => {
   )
 
   it('names the source a deployment syncs from, and has none by default', async () => {
-    expect((await build().request('/api/source')).status).toBe(404)
+    expect(await (await build().request('/api/sources')).json()).toEqual([])
     const config = readSourceConfig({
       GAMMA_SOURCE_NAME: 'brain2',
       GAMMA_SOURCE_URL: '/source/brain2',
     })
     if (!config) throw new Error('A source was configured')
-    const response = await createApp(guard, undefined, undefined, { config, files: null }).request(
-      '/api/source',
+    const response = await createApp(guard, undefined, undefined, { config, served: [] }).request(
+      '/api/sources',
     )
-    expect(await response.json()).toEqual({ name: 'brain2', url: '/source/brain2' })
+    expect(await response.json()).toEqual([{ name: 'brain2', url: '/source/brain2' }])
     expect((await build().request('/api/library')).status).toBe(404)
     expect(() => readSourceConfig({ GAMMA_SOURCE_NAME: 'brain2' })).toThrow()
     expect(() =>
@@ -132,19 +132,66 @@ describe('application HTTP boundaries', () => {
       listing: async () => ({ version: '1', files: [{ path: 'a.md', version: '1', size: 3 }] }),
       blob: async () => null,
     }
-    const app = createApp(guard, undefined, undefined, { config, files })
+    if (config.kind !== 'worktree') throw new Error('A working tree was configured')
+    const served = config.projects.map(project => ({ project, files }))
+    const app = createApp(guard, undefined, undefined, { config, served })
 
-    expect(await (await app.request('/api/source')).json()).toEqual({
-      name: 'notes',
-      url: '/api/library',
-      writable: true,
-      id: expect.stringMatching(/^[0-9a-f]{40}$/),
-      scope: { include: [], exclude: ['meta', 'tmp'] },
-    })
+    expect(await (await app.request('/api/sources')).json()).toEqual([
+      {
+        name: 'notes',
+        url: '/api/library',
+        writable: true,
+        id: expect.stringMatching(/^[0-9a-f]{40}$/),
+        scope: { include: [], exclude: ['meta', 'tmp'] },
+      },
+    ])
     expect(() => readSourceConfig({ ...env, GAMMA_SOURCE_EXCLUDE: '../elsewhere' })).toThrow(
       'GAMMA_SOURCE_EXCLUDE folders must be named from the repository root',
     )
     expect(await (await app.request('/api/library')).json()).toEqual(await files.listing())
+  })
+
+  it('serves each folder named as a project of its own', async () => {
+    const env = {
+      GAMMA_SOURCE_WORKTREE: '/florence',
+      GAMMA_SOURCE_PROJECTS: 'security, topics/学习',
+    }
+    const config = readSourceConfig({ ...env, GAMMA_SOURCE_NAME: 'florence' })
+    if (config?.kind !== 'worktree') throw new Error('A working tree was configured')
+    const listingOf = (path: string) => async () => ({
+      version: path,
+      files: [{ path, version: path, size: 1 }],
+    })
+    const served = config.projects.map(project => ({
+      project,
+      files: { listing: listingOf(`${project.name}.md`), blob: async () => null },
+    }))
+    const app = createApp(guard, undefined, undefined, { config, served })
+
+    const sources = (await (await app.request('/api/sources')).json()) as {
+      name: string
+      url: string
+      id: string
+    }[]
+    expect(sources.map(({ name, url }) => ({ name, url }))).toEqual([
+      { name: 'security', url: '/api/library/security' },
+      { name: '学习', url: '/api/library/topics/%E5%AD%A6%E4%B9%A0' },
+    ])
+    expect(new Set(sources.map(source => source.id)).size).toBe(2)
+    expect(await (await app.request(sources[1]?.url ?? '')).json()).toEqual(
+      await listingOf('学习.md')(),
+    )
+    expect((await app.request('/api/library')).status).toBe(404)
+
+    expect(() =>
+      readSourceConfig({ GAMMA_SOURCE_URL: '/source', GAMMA_SOURCE_PROJECTS: 'a' }),
+    ).toThrow('GAMMA_SOURCE_PROJECTS needs GAMMA_SOURCE_WORKTREE or GAMMA_SOURCE_REPO')
+    expect(() => readSourceConfig({ ...env, GAMMA_SOURCE_PROJECTS: 'a/math,b/Math' })).toThrow(
+      'GAMMA_SOURCE_PROJECTS folders must end in different names',
+    )
+    expect(() => readSourceConfig({ ...env, GAMMA_SOURCE_PROJECTS: 'files/math' })).toThrow(
+      'GAMMA_SOURCE_PROJECTS folders may not hold a folder named files',
+    )
   })
 
   it('serves the tutorial it ships with, beside any source', async () => {

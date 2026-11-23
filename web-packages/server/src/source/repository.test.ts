@@ -6,7 +6,7 @@ import type { SaveResult, SourceListing } from '@gamma-reader/shared/source-prot
 import { Hono } from 'hono'
 import { afterAll, describe, expect, it } from 'vitest'
 import { publishing } from './publish.js'
-import { openRepository, type Source } from './repository.js'
+import { openClone, openCommitted, type Source } from './repository.js'
 import { createRoutes } from './routes.js'
 
 const root = mkdtempSync(join(tmpdir(), 'gamma-reader-clone-'))
@@ -39,11 +39,8 @@ const first = commit({
   '.github/ci.yml': 'on: push',
 })
 
-const repository = openRepository({
-  repo: upstream,
-  dir: join(root, 'clone'),
-  include: ['knowledge', 'assets'],
-})
+const clone = openClone({ repo: upstream, dir: join(root, 'clone') })
+const repository = openCommitted({ dir: join(root, 'clone'), include: ['knowledge', 'assets'] })
 const app = new Hono().route('/api/library', createRoutes(repository))
 const listing = async () => (await (await app.request('/api/library')).json()) as SourceListing
 const fileUrl = (path: string) =>
@@ -51,7 +48,7 @@ const fileUrl = (path: string) =>
 
 describe('cloned source', () => {
   it('lists the included folders at the current commit', async () => {
-    await repository.update()
+    await clone.update()
 
     const { version, files } = await listing()
 
@@ -83,7 +80,7 @@ describe('cloned source', () => {
     const second = commit({ 'knowledge/agents.md': '# Agents, revised' })
 
     expect((await listing()).version).toBe(first)
-    await repository.update()
+    await clone.update()
 
     expect((await listing()).version).toBe(second)
     expect(await (await app.request(fileUrl('knowledge/agents.md'))).text()).toBe(
@@ -93,19 +90,14 @@ describe('cloned source', () => {
 
   it('refuses a clone of another repository', async () => {
     const other = join(root, 'other')
-    const elsewhere = openRepository({ repo: other, dir: join(root, 'clone'), include: [] })
+    const elsewhere = openClone({ repo: other, dir: join(root, 'clone') })
 
     await expect(elsewhere.update()).rejects.toThrow(`holds a clone of ${upstream}, not ${other}`)
   })
 
   it('holds the whole repository but its excluded folders and hidden files', async () => {
-    const whole = openRepository({
-      repo: upstream,
-      dir: join(root, 'whole'),
-      include: [],
-      exclude: ['meta'],
-    })
-    await whole.update()
+    await openClone({ repo: upstream, dir: join(root, 'whole') }).update()
+    const whole = openCommitted({ dir: join(root, 'whole'), include: [], exclude: ['meta'] })
 
     const paths = (await whole.listing()).files.map(file => file.path).sort()
     expect(paths).toEqual(['assets/paper.pdf', 'knowledge/agents.md', 'knowledge/学习 笔记.md'])
@@ -130,8 +122,14 @@ describe('cloned source pushed to', () => {
   share('notes/other.md', 'other\n')
 
   const dir = join(root, 'pushed')
-  const clone = openRepository({ repo: remote, dir, include: ['notes'] })
+  const clone = openClone({ repo: remote, dir })
   const scope = { include: ['notes'], exclude: [] }
+  // The whole clone as one project, as a deployment that names no folders serves it.
+  const publish = (from = clone) => {
+    const published = publishing(from, dir)
+    const committed = openCommitted({ dir, include: scope.include })
+    return { ...committed, update: published.update, save: published.saveIn('', scope) }
+  }
   const signedIn = { 'x-forwarded-user': 'ada', 'x-forwarded-email': 'ada@example.com' }
 
   const save = async (source: Source, path: string, base: string, content: string) => {
@@ -151,7 +149,7 @@ describe('cloned source pushed to', () => {
   const upstreamLog = () => git(remote, 'log', '-1', '--format=%an <%ae>|%s')
 
   it('commits a save as the reader who signed in and pushes it', async () => {
-    const source = publishing(clone, { dir, scope })
+    const source = publish()
     await source.update()
     const base = await versionOf(source, 'notes/plan.md')
 
@@ -164,7 +162,7 @@ describe('cloned source pushed to', () => {
   })
 
   it('hands a clash back to the reader and commits no markers', async () => {
-    const source = publishing(clone, { dir, scope })
+    const source = publish()
     const base = await versionOf(source, 'notes/plan.md')
     share('notes/plan.md', 'one, from a colleague\ntwo\nthree\nfour\n')
     const pushedByColleague = git(remote, 'rev-parse', 'main')
@@ -187,7 +185,7 @@ describe('cloned source pushed to', () => {
   })
 
   it('commits the rest of a save whose deletion someone else made first', async () => {
-    const source = publishing(clone, { dir, scope })
+    const source = publish()
     share('notes/stale.md', 'stale\n')
     await source.update()
     const stale = await versionOf(source, 'notes/stale.md')
@@ -217,7 +215,7 @@ describe('cloned source pushed to', () => {
 
   it('replays a save on a commit pushed while it was being made', async () => {
     // A clone that missed the colleague's push, as one does when the push lands mid-save.
-    const stale = publishing({ ...clone, update: async () => undefined }, { dir, scope })
+    const stale = publish({ update: async () => undefined })
     const base = await versionOf(stale, 'notes/other.md')
     share('notes/plan.md', 'pushed meanwhile\n')
 
@@ -226,5 +224,30 @@ describe('cloned source pushed to', () => {
     expect(result).toMatchObject({ kind: 'written', path: 'notes/other.md' })
     expect(git(remote, 'show', 'main:notes/other.md')).toBe('other, from ada')
     expect(git(remote, 'show', 'main:notes/plan.md')).toBe('pushed meanwhile')
+  })
+
+  it('saves each project read from the clone into its own folder', async () => {
+    share('security/xss.md', 'xss\n')
+    share('software/build.md', 'build\n')
+    const published = publishing(clone, dir)
+    await published.update()
+    const project = (folder: string) => ({
+      ...openCommitted({ dir: join(dir, folder), include: [] }),
+      save: published.saveIn(folder, { include: [], exclude: [] }),
+    })
+    const software = project('software')
+    expect((await software.listing()).files.map(file => file.path)).toEqual(['build.md'])
+
+    const base = await versionOf(software, 'build.md')
+    const [result] = await save(software, 'build.md', base, 'build, from ada\n')
+
+    expect(result).toMatchObject({ kind: 'written', path: 'build.md' })
+    expect(upstreamLog()).toBe('ada <ada@example.com>|Edit software/build.md in Gamma Reader')
+    expect(git(remote, 'show', 'main:software/build.md')).toBe('build, from ada')
+    const xss = await versionOf(project('security'), 'xss.md')
+    expect(await save(software, '../security/xss.md', xss, 'overwritten\n')).toMatchObject([
+      { kind: 'skipped', path: '../security/xss.md' },
+    ])
+    expect(git(remote, 'show', 'main:security/xss.md')).toBe('xss')
   })
 })
