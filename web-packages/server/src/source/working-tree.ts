@@ -27,11 +27,17 @@ const hashable = (path: string) => !path.includes('\n') && !path.startsWith('"')
 
 // Each file is hashed into the object store as it is on disk, without git's filters, so what is
 // served is exactly the file and every version listed can later be read back as a merge base.
+// git reads --stdin-paths from the repository's root, not from a folder within it, so each path
+// is given whole.
 const hashFiles = async (dir: string, paths: readonly string[]) => {
   if (paths.length === 0) return []
   const lines = (list: readonly string[]) => list.map(line => `${line}\n`).join('')
   const objects = (
-    await gitWithInput(dir, ['hash-object', '-w', '--no-filters', '--stdin-paths'], lines(paths))
+    await gitWithInput(
+      dir,
+      ['hash-object', '-w', '--no-filters', '--stdin-paths'],
+      lines(paths.map(path => join(dir, path))),
+    )
   )
     .trim()
     .split('\n')

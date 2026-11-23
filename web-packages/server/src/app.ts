@@ -5,15 +5,24 @@ import { createModelProxyRoutes } from './model-proxy/routes.js'
 import type { QuotaGuard } from './quota/guard.js'
 import type { Source } from './source/repository.js'
 import { createRoutes as createSourceRoutes } from './source/routes.js'
-import { libraryPath, type SourceConfig, sourceLocation, tutorialPath } from './source-config.js'
+import {
+  projectRoute,
+  type SourceConfig,
+  type SourceProject,
+  sourceLocations,
+  tutorialPath,
+} from './source-config.js'
 import { createWebRoutes, type WebServices } from './web-search/routes.js'
 
 export const createApp = (
   guard: QuotaGuard,
   webRoot?: string,
   modelConfig: ModelProxyConfig = { providers: {}, publicConfig: { enabled: false } },
-  // The source the library syncs from, and its files when this server serves them itself.
-  source: { config: SourceConfig; files: Source | null } | null = null,
+  // The source the library syncs from, and the files of each of its projects this server serves.
+  source: {
+    config: SourceConfig
+    served: readonly { project: SourceProject; files: Source }[]
+  } | null = null,
   web?: WebServices,
   // The tutorial shipped with this deployment, which every reader's Tutorial project syncs from.
   tutorial?: Source,
@@ -23,12 +32,9 @@ export const createApp = (
   app.get('/api/health', c => c.json({ status: 'ok', service: 'gamma-reader' }))
   app.route('/api/agent', createModelProxyRoutes(modelConfig, guard))
   app.route('/api/agent', createWebRoutes(web, guard))
-  app.get('/api/source', c =>
-    source
-      ? c.json(sourceLocation(source.config))
-      : c.json({ error: 'No source is configured' }, 404),
-  )
-  if (source?.files) app.route(libraryPath, createSourceRoutes(source.files))
+  app.get('/api/sources', c => c.json(source ? sourceLocations(source.config) : []))
+  for (const { project, files } of source?.served ?? [])
+    app.route(projectRoute(project), createSourceRoutes(files))
   if (tutorial) app.route(tutorialPath, createSourceRoutes(tutorial))
   app.all('/api', c => c.json({ error: 'Not found' }, 404))
   app.all('/api/*', c => c.json({ error: 'Not found' }, 404))

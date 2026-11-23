@@ -71,6 +71,16 @@ describe('working tree source', () => {
     ])
   })
 
+  it('serves a folder within the working tree, its files named from there', async () => {
+    const folder = await openWorkingTree({ dir: join(dir, 'knowledge'), include: [] })
+
+    const { files } = await folder.listing()
+
+    expect(files.map(file => file.path).sort()).toEqual(['agents.md', '新 笔记.md'])
+    const blob = await folder.blob('新 笔记.md')
+    expect(blob && (await new Response(blob.stream).text())).toBe('# 笔记')
+  })
+
   it('refuses a folder that is not a git working tree', async () => {
     await expect(openWorkingTree({ dir: join(dir, 'missing'), include: [] })).rejects.toThrow(
       `${join(dir, 'missing')} is not a git working tree`,

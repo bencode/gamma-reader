@@ -73,19 +73,27 @@ export const createProject = async (name: string) => {
   return project
 }
 
-// The deployment's source decides the project, so a visit always lands in the same library, and
-// the address it records follows the deployment if that changes.
-export const openSourceProject = async (source: ProjectSource) => {
+// Each source the deployment names keeps a project, found again by its name on every visit, and
+// what the source says of itself is recorded anew. A project first seen here sorts after those
+// the reader has used; the one opened is touched by whoever opens it.
+export const saveSourceProjects = async (sources: readonly ProjectSource[]) => {
+  if (sources.length === 0) return []
   const database = await openRegistry()
-  const id = sourceProjectId(source)
-  const existing = await database.get('projects', id)
-  const project = {
-    ...(existing ?? newProject(source.name, undefined, id)),
-    source,
-    lastActiveAt: Date.now(),
-  }
-  await database.put('projects', project)
-  return project
+  const transaction = database.transaction('projects', 'readwrite')
+  const projects = await Promise.all(
+    sources.map(async source => {
+      const id = sourceProjectId(source)
+      const existing = await transaction.store.get(id)
+      const project = {
+        ...(existing ?? { ...newProject(source.name, undefined, id), lastActiveAt: 0 }),
+        source,
+      }
+      await transaction.store.put(project)
+      return project
+    }),
+  )
+  await transaction.done
+  return projects
 }
 
 // Every reader has the tutorial. One who had projects before it, or deleted it, finds it again

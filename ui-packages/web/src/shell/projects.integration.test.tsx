@@ -42,7 +42,7 @@ describe('projects', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
       const url = String(input)
       if (url === '/api/agent/config') return Response.json({ enabled: false })
-      if (url === '/api/source') return Response.json({ name: 'brain2', url: '/source/brain2' })
+      if (url === '/api/sources') return Response.json([{ name: 'brain2', url: '/source/brain2' }])
       if (url === '/source/brain2')
         return Response.json({
           version,
@@ -109,6 +109,34 @@ describe('projects', () => {
     expect(await text('journal/today.md')).toBe('# Today, from the source')
     expect(await text('journal/mine.md')).toBe('# Mine')
     expect(await fileNames()).not.toContain('knowledge/old.md')
+  })
+
+  it('keeps a project for each source and opens the one the address names', async () => {
+    const listings: Record<string, string> = {
+      '/api/library/security': 'xss.md',
+      '/api/library/software': 'build.md',
+    }
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+      const url = String(input)
+      if (url === '/api/agent/config') return Response.json({ enabled: false })
+      if (url === '/api/sources')
+        return Response.json(Object.keys(listings).map(url => ({ name: url.slice(13), url })))
+      const path = listings[url]
+      if (path) return Response.json({ version: 'v1', files: [{ path, version: 'v1', size: 1 }] })
+      return new Response('#', { headers: { 'Content-Type': 'text/markdown' } })
+    })
+
+    // A link to the second project opens it, though this browser has never seen either.
+    visit('/p/source-software')
+
+    expect(await screen.findByText('software is up to date.')).toBeVisible()
+    expect(window.location.pathname).toMatch(/^\/p\/source-software(\/|$)/)
+    expect(await fileNames()).toEqual(['build.md'])
+    expect((await listProjects()).map(project => project.name).sort()).toEqual([
+      'Tutorial',
+      'security',
+      'software',
+    ])
   })
 
   it('opens the tutorial on a first visit, kept in step with the deployment', async () => {
