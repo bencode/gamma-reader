@@ -265,10 +265,10 @@ describe('model proxy', () => {
     expect(await publicConfig.json()).toEqual({
       enabled: true,
       providers: [
-        { id: 'zai-coding-cn', chatModels: ['glm-5.3'] },
+        { id: 'zai-coding-cn', chatModels: ['glm-5.4'] },
         { id: 'deepseek', chatModels: ['deepseek-flash', 'deepseek-v4-pro'] },
       ],
-      defaultModel: { provider: 'zai-coding-cn', modelId: 'glm-5.3' },
+      defaultModel: { provider: 'zai-coding-cn', modelId: 'glm-5.4' },
       visionModel: { provider: 'zai-coding-cn', modelId: 'glm-5.3-flash' },
     })
     expect(publicConfig.headers.get('cache-control')).toBe('no-store')
@@ -300,7 +300,7 @@ describe('model proxy', () => {
       )
     const selected = {
       ...body,
-      model: 'glm-5.3',
+      model: 'glm-5.4',
       thinking: { type: 'enabled' },
       reasoning_effort: 'max',
     }
@@ -309,7 +309,7 @@ describe('model proxy', () => {
       ...selected,
       stream_options: { include_usage: true },
     })
-    expect((await post({ ...selected, model: 'unconfigured-model' })).status).toBe(400)
+    expect((await post({ ...selected, model: 'glm-5.3' })).status).toBe(400)
     expect(fetchModel).toHaveBeenCalledTimes(1)
   })
 
