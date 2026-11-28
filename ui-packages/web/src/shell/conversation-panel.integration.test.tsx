@@ -237,7 +237,7 @@ describe('conversation', () => {
     )
     open()
     expect(await screen.findByRole('combobox', { name: 'Chat model' })).toHaveDisplayValue(
-      'GLM-5.4',
+      'GLM-5.3',
     )
     await user.click(screen.getByRole('button', { name: 'New conversation' }))
     await waitFor(() =>
@@ -299,14 +299,14 @@ describe('conversation', () => {
 
   it.each([
     {
-      selection: { provider: 'zai-coding-cn', modelId: 'glm-5.4', effort: 'max' as const },
-      model: 'GLM-5.4',
+      selection: { provider: 'zai-coding-cn', modelId: 'glm-5.3', effort: 'max' as const },
+      model: 'GLM-5.3',
       effort: 'max',
     },
     {
-      selection: { provider: 'zai-coding-cn', modelId: 'glm-5.3', effort: 'high' as const },
-      model: 'GLM-5.4',
-      effort: 'high',
+      selection: { provider: 'removed', modelId: 'missing', effort: 'off' as const },
+      model: 'GLM-5.3',
+      effort: 'low',
     },
   ])(
     'restores saved or unavailable model selections: $model',
@@ -327,7 +327,7 @@ describe('conversation', () => {
       await waitFor(async () => {
         expect(
           (await getStoredConversation('saved-selection'))?.conversation.selection,
-        ).toMatchObject({ provider: 'zai-coding-cn', modelId: 'glm-5.4', effort })
+        ).toMatchObject({ provider: 'zai-coding-cn', effort })
       })
     },
   )
@@ -399,7 +399,7 @@ describe('conversation', () => {
     await user.click(send())
     await waitFor(() => expect(model).toBeEnabled())
     expect(requests[0]).toMatchObject({
-      model: 'glm-5.4',
+      model: 'glm-5.3',
       reasoning_effort: 'max',
       thinking: { type: 'enabled' },
     })
@@ -421,7 +421,7 @@ describe('conversation', () => {
     const restored = await screen.findByRole('combobox', { name: 'Chat model' })
     expect(restored).toHaveDisplayValue('DeepSeek V4.1 Flash')
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('off')
-    await user.selectOptions(restored, 'GLM-5.4')
+    await user.selectOptions(restored, 'GLM-5.3')
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('low')
     await user.selectOptions(restored, 'DeepSeek V4.1 Flash')
     expect(screen.getByRole('combobox', { name: 'Reasoning effort' })).toHaveValue('low')

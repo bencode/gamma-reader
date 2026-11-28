@@ -39,10 +39,7 @@ export const resolveModelProxyConfig = (
       const provider = nativeProviders.get(id)
       if (!provider?.baseUrl) throw new Error(`providers.${id}: unsupported pi provider`)
       const unknown = settings.chatModels.find(
-        modelId =>
-          !provider.getModels().some(model => model.id === modelId) &&
-          // Coding Plan offers GLM-5.4 before it appears in pi's catalog.
-          !(id === 'zai-coding-cn' && modelId === 'glm-5.4'),
+        modelId => !provider.getModels().some(model => model.id === modelId),
       )
       if (unknown) throw new Error(`providers.${id}.chatModels: unknown pi model ${unknown}`)
       if (new Set(settings.chatModels).size !== settings.chatModels.length)
