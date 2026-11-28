@@ -1,5 +1,4 @@
 import type { AgentTool } from '@earendil-works/pi-agent-core'
-import type { TSchema } from '@earendil-works/pi-ai'
 import { bind, LocalToolError } from '../../core/agent/tool'
 import { refusal } from '../assistant/web-tools'
 import type { ManifestPlugin, ManifestTool } from './protocol'
@@ -84,9 +83,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const pluginTool = (base: string, plugin: string, tool: ManifestTool) => {
-  // pi-ai validates arguments against a plain JSON Schema as well as a TypeBox one.
-  const parameters = tool.parameters as TSchema
-  const call = bind(tool.name, tool.description, parameters, async (input, signal) => {
+  const call = bind(tool.name, tool.description, tool.parameters, async (input, signal) => {
     const response = await fetch(`${base}/${plugin}/tools/${tool.name}`, {
       method: 'POST',
       credentials: 'include',

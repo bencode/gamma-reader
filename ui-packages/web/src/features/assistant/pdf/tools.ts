@@ -1,4 +1,4 @@
-import { Type } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
 import { bind, LocalToolError, Metered } from '../../../core/agent/tool'
 import { documentPagePixels, prepareImage } from '../image-input'
 import type { VisionAnalyzer } from '../vision'

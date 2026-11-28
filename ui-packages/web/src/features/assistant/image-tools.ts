@@ -1,4 +1,4 @@
-import { Type } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
 import { bind, LocalToolError, Metered } from '../../core/agent/tool'
 import type { getStoredFile } from '../../data/file-store'
 import { prepareImage, readerImagePixels } from './image-input'

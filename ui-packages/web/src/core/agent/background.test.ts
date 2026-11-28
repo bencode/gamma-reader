@@ -1,4 +1,4 @@
-import { Type } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { modelConfig } from '../../test/model-config'
 import { type BackgroundAgent, runBackgroundAgent } from './background'

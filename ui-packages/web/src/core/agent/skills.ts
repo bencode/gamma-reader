@@ -1,4 +1,4 @@
-import { Type } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
 import { bind, LocalToolError } from './tool'
 
 export type SkillDefinition = { name: string; description: string; load: () => Promise<string> }

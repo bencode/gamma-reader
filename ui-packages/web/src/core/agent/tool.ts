@@ -1,5 +1,5 @@
-import type { AgentTool } from '@earendil-works/pi-agent-core'
-import type { Static, TSchema, Usage } from '@earendil-works/pi-ai'
+import type { AgentTool, AgentToolParams } from '@earendil-works/pi-agent-core'
+import type { Usage } from '@earendil-works/pi-ai'
 
 export class LocalToolError extends Error {}
 
@@ -12,11 +12,11 @@ export class Metered {
   ) {}
 }
 
-export const bind = <P extends TSchema>(
+export const bind = <P extends object>(
   name: string,
   description: string,
   parameters: P,
-  execute: (input: Static<P>, signal?: AbortSignal) => unknown | Promise<unknown>,
+  execute: (input: AgentToolParams<P>, signal?: AbortSignal) => unknown | Promise<unknown>,
 ): AgentTool<P, undefined> => ({
   name,
   label: name,
