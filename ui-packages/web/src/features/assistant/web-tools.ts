@@ -1,5 +1,5 @@
 import type { AgentTool } from '@earendil-works/pi-agent-core'
-import { Type } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
 import { bind, LocalToolError } from '../../core/agent/tool'
 import { fitsResult } from './pagination'
 

@@ -1,4 +1,4 @@
-import { Type } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
 import { bind, LocalToolError } from '../../../core/agent/tool'
 import {
   type CellRange,

@@ -37,9 +37,9 @@ The following are server defaults. npx uses them too, except that `GAMMA_DATA_DI
 
 Configure enabled providers, chat models, the default chat model, and the independent vision model in [`providers.json`](../web-packages/server/src/model-proxy/providers.json). Credentials stay in the environment; the JSON references their variable names. Model names, supported thinking levels, upstream API addresses, and request mappings come from pi's native provider definitions. There are no model environment overrides or application-defined effort lists.
 
-The initial configuration enables GLM-5.3 / GLM-5.2 and DeepSeek V4 Flash / V4 Pro, with GLM-5.3 as the default and GLM-5.3-Flash for vision. Providers without a key are omitted from the selector. If the default provider is unavailable, the first available model in configuration order is used. If the vision provider is unavailable, text chat remains usable without vision tools.
+The initial configuration defaults to GLM-5.4 on Z.AI Coding CN and uses GLM-5.3-Flash for vision. DeepSeek V4 Flash and V4 Pro are also configured. Providers without a key are omitted from the selector. If the default provider is unavailable, the first available model in configuration order is used. If the vision provider is unavailable, text chat remains usable without vision tools.
 
-Thinking levels are normalized with pi's `clampThinkingLevel`; new conversations start from pi Agent's `off` level, normalized for the selected model. For example, GLM-5.3 starts at `low`, while DeepSeek starts at `off`.
+Thinking levels are normalized with pi's `clampThinkingLevel`. New conversations start from pi Agent's `off` level, normalized for the selected model. GLM-5.4 starts at `low`, while DeepSeek starts at `off`.
 
 The browser requests `/api/agent/config` and sends pi-generated requests through `/api/agent/providers/:provider/chat/completions` (or the provider's `/vision/chat/completions` route). The server injects the corresponding credential.
 

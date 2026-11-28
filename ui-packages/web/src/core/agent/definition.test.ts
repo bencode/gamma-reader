@@ -1,4 +1,4 @@
-import { Type } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
 import { describe, expect, it } from 'vitest'
 import { type AgentDefinition, assemble } from './definition'
 import { bind } from './tool'

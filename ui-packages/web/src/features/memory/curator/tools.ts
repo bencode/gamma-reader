@@ -1,5 +1,5 @@
-import { Type } from '@earendil-works/pi-ai'
 import { nanoid } from 'nanoid'
+import { Type } from 'typebox'
 import { bind, LocalToolError } from '../../../core/agent/tool'
 import type { MemoryEntry, MemoSource } from '../entry'
 import { createMemoTools, filedUnder, visibleNote } from '../memo-tools'

@@ -1,4 +1,4 @@
-import { Type } from '@earendil-works/pi-ai'
+import { Type } from 'typebox'
 import { bind } from '../../core/agent/tool'
 import type { createDocumentTools } from './document-tools'
 import type { LocalTools } from './local-tools'
