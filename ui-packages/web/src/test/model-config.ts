@@ -4,10 +4,10 @@ import { titlePrompt } from '../features/assistant/conversation-title'
 export const modelConfig = {
   enabled: true,
   providers: [
-    { id: 'zai-coding-cn', chatModels: ['glm-5.3'] },
+    { id: 'zai-coding-cn', chatModels: ['glm-5.4'] },
     { id: 'deepseek', chatModels: ['deepseek-flash', 'deepseek-v4-pro'] },
   ],
-  defaultModel: { provider: 'zai-coding-cn', modelId: 'glm-5.3' },
+  defaultModel: { provider: 'zai-coding-cn', modelId: 'glm-5.4' },
   visionModel: { provider: 'zai-coding-cn', modelId: 'glm-5.3-flash' },
 } as const satisfies PublicModelConfig
 

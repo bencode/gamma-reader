@@ -46,7 +46,12 @@ export const visionModelFor = (runtime: ModelRuntime, chat: Model<Api>) =>
     : runtime.visionModel
 
 const proxyModel = ({ provider, modelId }: ModelReference, vision = false): Model<Api> => {
-  const model = models.getModel(provider, modelId)
+  let model = models.getModel(provider, modelId)
+  if (!model && !vision && provider === 'zai-coding-cn' && modelId === 'glm-5.4') {
+    // GLM-5.4 chat uses the same token limits, effort levels and wire format as GLM-5.3.
+    const previous = models.getModel(provider, 'glm-5.3')
+    if (previous) model = { ...previous, id: modelId, name: 'GLM-5.4' }
+  }
   if (!model) throw new Error(`Unsupported pi model: ${provider}/${modelId}`)
   if (vision && !model.input.includes('image'))
     throw new Error(`The configured vision model cannot read images: ${provider}/${modelId}`)
